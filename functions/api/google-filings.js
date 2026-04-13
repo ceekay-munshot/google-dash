@@ -289,7 +289,13 @@ async function fetchCompanyCapEx(company) {
   const math = [];
   const tag = company.tag || CX_DEFAULT_TAG;
   try {
-    const resp = await fetch(url, { headers: { 'User-Agent': CX_UA, 'Accept': 'application/json' } });
+    const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    const timer = ctrl ? setTimeout(() => ctrl.abort(), 15000) : null;
+    const resp = await fetch(url, {
+      headers: { 'User-Agent': CX_UA, 'Accept': 'application/json' },
+      signal: ctrl?.signal,
+    });
+    if (timer) clearTimeout(timer);
     if (!resp.ok) return { ticker: company.ticker, tag, quarters: {}, math, factCount: 0, error: 'HTTP ' + resp.status };
     const data = await resp.json();
 
@@ -382,10 +388,12 @@ async function fetchCompanyCapEx(company) {
 
 async function handleCapEx() {
   try {
-    /* Fetch all 5 companies in parallel */
+    /* Fetch all 5 companies in parallel.
+       SEC EDGAR allows ~10 req/s with proper User-Agent — 5 concurrent is safe.
+       Add AbortController timeout per fetch to avoid CF Pages 30s wall clock. */
     const results = await Promise.allSettled(CX_COMPANIES.map(c => fetchCompanyCapEx(c)));
     const cr = results.map((r, i) =>
-      r.status === 'fulfilled' ? r.value : { ticker: CX_COMPANIES[i].ticker, quarters: {}, math: [], factCount: 0, error: 'rejected' }
+      r.status === 'fulfilled' ? r.value : { ticker: CX_COMPANIES[i].ticker, tag: CX_COMPANIES[i].tag || CX_DEFAULT_TAG, quarters: {}, math: [], factCount: 0, error: 'rejected' }
     );
 
     /* Merge all quarter labels, sort chronologically */
