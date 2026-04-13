@@ -273,90 +273,107 @@ function sortQLabels(labels) {
 
 /*
  * Fetch companyfacts for one CIK, decompose YTD → single-quarter CapEx.
- * Returns { ticker, quarters: { "Q1 2025": $B }, math: [...], factCount, error }
+ *
+ * Critical subtlety: SEC filings often contain BOTH cumulative YTD entries
+ * AND standalone quarterly / trailing-12-month entries for the same (fy, fp).
+ * Example — Amazon FY2025 Q1 has two entries:
+ *   • start=2024-04-01 end=2025-03-31 val=$93.1B  (trailing 12-month)
+ *   • start=2025-01-01 end=2025-03-31 val=$25.0B  (true Q1 YTD)
+ * Only the one whose `start` matches the fiscal-year start is the YTD
+ * that chains correctly with Q2/Q3/FY for subtraction.
+ *
+ * Returns { ticker, tag, quarters: { "Q1 2025": $B }, math, factCount, error }
  */
 async function fetchCompanyCapEx(company) {
   const url = 'https://data.sec.gov/api/xbrl/companyfacts/CIK' + padCik(company.cik) + '.json';
   const math = [];
+  const tag = company.tag || CX_DEFAULT_TAG;
   try {
     const resp = await fetch(url, { headers: { 'User-Agent': CX_UA, 'Accept': 'application/json' } });
-    if (!resp.ok) return { ticker: company.ticker, quarters: {}, math, factCount: 0, error: 'HTTP ' + resp.status };
+    if (!resp.ok) return { ticker: company.ticker, tag, quarters: {}, math, factCount: 0, error: 'HTTP ' + resp.status };
     const data = await resp.json();
 
-    const tag = company.tag || CX_DEFAULT_TAG;
     const factObj = data?.facts?.['us-gaap']?.[tag];
-    if (!factObj) return { ticker: company.ticker, quarters: {}, math, factCount: 0, error: 'tag "' + tag + '" not found' };
+    if (!factObj) return { ticker: company.ticker, tag, quarters: {}, math, factCount: 0, error: 'tag "' + tag + '" not found' };
     const entries = factObj?.units?.['USD'];
-    if (!entries || !entries.length) return { ticker: company.ticker, quarters: {}, math, factCount: 0, error: 'no USD entries' };
+    if (!entries || !entries.length) return { ticker: company.ticker, tag, quarters: {}, math, factCount: 0, error: 'no USD entries' };
 
-    /* ── Step 1: Group entries by fiscal year + fiscal period ───────
-       Accept 10-Q (fp Q1/Q2/Q3) and 10-K (fp FY).
-       Deduplicate by keeping the latest filed date per (fy, fp). */
-    const byFY = {};
+    /* ── Step 1: Collect all valid entries grouped by fiscal year ── */
+    const rawByFY = {};
     entries.forEach(e => {
-      if (!e.fy || !e.fp || !e.end) return;
-      const form = (e.form || '').replace(/\/A$/i, '');  // treat amendments same
+      if (!e.fy || !e.fp || !e.end || !e.start) return;
+      const form = (e.form || '').replace(/\/A$/i, '');
       if (form !== '10-Q' && form !== '10-K') return;
       const validFps = form === '10-Q' ? ['Q1','Q2','Q3'] : ['FY'];
       if (!validFps.includes(e.fp)) return;
-      if (e.fy < 2019) return;  // only need ~Q3 2020 onward
-      if (!byFY[e.fy]) byFY[e.fy] = {};
-      const prev = byFY[e.fy][e.fp];
-      if (!prev || (e.filed && (!prev.filed || e.filed > prev.filed))) {
-        byFY[e.fy][e.fp] = e;
-      }
+      if (e.fy < 2019) return;
+      if (!rawByFY[e.fy]) rawByFY[e.fy] = [];
+      rawByFY[e.fy].push(e);
     });
 
-    /* ── Step 2: YTD decomposition per fiscal year ─────────────────
-       Q1 = Q1_YTD
-       Q2 = Q2_YTD − Q1_YTD
-       Q3 = Q3_YTD − Q2_YTD
-       Q4 = FY      − Q3_YTD
-       Calendar quarter assigned by the period end date. */
+    /* ── Step 2: For each FY, identify fiscal-year start date, then
+       pick only the cumulative YTD entries (start == fyStart).
+       This filters out trailing-12-month and standalone-quarter
+       entries that would corrupt the subtraction math. ──────────── */
     const quarters = {};
-    Object.keys(byFY).sort().forEach(fy => {
-      const p = byFY[fy];
-      const ytdQ1 = p.Q1?.val, ytdQ2 = p.Q2?.val, ytdQ3 = p.Q3?.val, ytdFY = p.FY?.val;
-      const m = { fy: +fy, ytdQ1, ytdQ2, ytdQ3, ytdFY, singles: {} };
+    Object.keys(rawByFY).sort().forEach(fy => {
+      const group = rawByFY[fy];
 
-      // Fiscal Q1 → single quarter = Q1 YTD
-      if (ytdQ1 != null && p.Q1.end) {
-        const lbl = endToCalQ(p.Q1.end);
+      // Determine fiscal year start: prefer FY entry's start, else most common start
+      let fyStart = null;
+      const fyEntry = group.find(e => e.fp === 'FY');
+      if (fyEntry) { fyStart = fyEntry.start; }
+      if (!fyStart) {
+        const startCounts = {};
+        group.forEach(e => { startCounts[e.start] = (startCounts[e.start] || 0) + 1; });
+        fyStart = Object.entries(startCounts).sort((a, b) => b[1] - a[1])[0]?.[0];
+      }
+      if (!fyStart) return;
+
+      // Filter to YTD entries only (start matches fiscal year start)
+      // Then deduplicate per fp by latest filed date
+      const best = {};
+      group.forEach(e => {
+        if (e.start !== fyStart) return;
+        const prev = best[e.fp];
+        if (!prev || (e.filed && (!prev.filed || e.filed > prev.filed))) {
+          best[e.fp] = e;
+        }
+      });
+
+      /* ── Step 3: YTD decomposition ────────────────────────────────
+         Q1 = Q1_YTD            Q2 = Q2_YTD − Q1_YTD
+         Q3 = Q3_YTD − Q2_YTD   Q4 = FY     − Q3_YTD */
+      const ytdQ1 = best.Q1?.val, ytdQ2 = best.Q2?.val, ytdQ3 = best.Q3?.val, ytdFY = best.FY?.val;
+      const m = { fy: +fy, fyStart, ytdQ1, ytdQ2, ytdQ3, ytdFY, singles: {} };
+
+      if (ytdQ1 != null && best.Q1.end) {
+        const lbl = endToCalQ(best.Q1.end);
         const v = Math.round(ytdQ1 / 1e9);
         if (v > 0) { quarters[lbl] = v; m.singles[lbl] = v + 'B=Q1ytd'; }
       }
-
-      // Fiscal Q2 → single quarter = Q2 YTD − Q1 YTD
-      if (ytdQ2 != null && ytdQ1 != null && p.Q2.end) {
-        const lbl = endToCalQ(p.Q2.end);
+      if (ytdQ2 != null && ytdQ1 != null && best.Q2.end) {
+        const lbl = endToCalQ(best.Q2.end);
         const v = Math.round((ytdQ2 - ytdQ1) / 1e9);
         if (v > 0) { quarters[lbl] = v; m.singles[lbl] = v + 'B=Q2ytd-Q1ytd'; }
       }
-
-      // Fiscal Q3 → single quarter = Q3 YTD − Q2 YTD
-      if (ytdQ3 != null && ytdQ2 != null && p.Q3.end) {
-        const lbl = endToCalQ(p.Q3.end);
+      if (ytdQ3 != null && ytdQ2 != null && best.Q3.end) {
+        const lbl = endToCalQ(best.Q3.end);
         const v = Math.round((ytdQ3 - ytdQ2) / 1e9);
         if (v > 0) { quarters[lbl] = v; m.singles[lbl] = v + 'B=Q3ytd-Q2ytd'; }
       }
-
-      // Fiscal Q4 → single quarter = FY − Q3 YTD
-      if (ytdFY != null && ytdQ3 != null && p.FY.end) {
-        const lbl = endToCalQ(p.FY.end);
+      if (ytdFY != null && ytdQ3 != null && best.FY.end) {
+        const lbl = endToCalQ(best.FY.end);
         const v = Math.round((ytdFY - ytdQ3) / 1e9);
         if (v > 0) { quarters[lbl] = v; m.singles[lbl] = v + 'B=FY-Q3ytd'; }
       }
-
-      // Edge: have FY + Q1 + Q2 but no Q3 → can't isolate Q3 or Q4
-      // Edge: have only FY → can't decompose any single quarter
-      // Both produce gaps; we never fabricate.
 
       if (Object.keys(m.singles).length) math.push(m);
     });
 
     return { ticker: company.ticker, tag, quarters, math, factCount: entries.length, error: null };
   } catch (e) {
-    return { ticker: company.ticker, tag: company.tag || CX_DEFAULT_TAG, quarters: {}, math, factCount: 0, error: 'fetch: ' + (e.message || String(e)) };
+    return { ticker: company.ticker, tag, quarters: {}, math, factCount: 0, error: 'fetch: ' + (e.message || String(e)) };
   }
 }
 
