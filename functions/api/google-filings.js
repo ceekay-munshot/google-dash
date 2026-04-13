@@ -224,9 +224,14 @@ function jsonOk(obj) {
 
 
 /* ═══════════════════════════════════════════════════════════════
-   CapEx handler — per-company SEC EDGAR companyfacts endpoint
+   CapEx handler — SEC EDGAR companyconcept (per tag, per company)
    YTD-to-single-quarter decomposition for true quarterly CapEx
    Route: GET /api/google-filings?view=capex
+
+   KEY: uses /api/xbrl/companyconcept/ instead of /companyfacts/.
+   companyfacts returns ALL XBRL facts (10-50 MB per company) —
+   too large for CF Pages' wall-clock limit. companyconcept returns
+   only the specific tag (a few KB), so all 5 fetches finish fast.
 
    SEC cash-flow items (like CapEx) are cumulative YTD in 10-Q:
      Q1 10-Q  →  3-month value  (= single Q1)
@@ -238,7 +243,7 @@ function jsonOk(obj) {
 const CX_UA = 'Tybourne-Capital-Dashboard/1.0 (research@tybourne.com)';
 const CX_DEFAULT_TAG = 'PaymentsToAcquirePropertyPlantAndEquipment';
 const CX_COMPANIES = [
-  // Amazon switched from PaymentsToAcquire… to PaymentsToAcquireProductiveAssets after 2017
+  // Amazon switched to PaymentsToAcquireProductiveAssets after 2017
   { cik: '1018724',  ticker: 'AMZN', name: 'Amazon',    color: '#fb923c', tag: 'PaymentsToAcquireProductiveAssets' },
   { cik: '789019',   ticker: 'MSFT', name: 'Microsoft', color: '#60a5fa' },
   { cik: '1652044',  ticker: 'GOOG', name: 'Alphabet',  color: '#34d399' },
@@ -257,13 +262,11 @@ const CX_BENCHMARK = {
 
 function padCik(cik) { return String(cik).padStart(10, '0'); }
 
-/* Map a period-end date (YYYY-MM-DD) to a calendar quarter label */
 function endToCalQ(end) {
   const [y, m] = end.split('-').map(Number);
   return 'Q' + Math.ceil(m / 3) + ' ' + y;
 }
 
-/* Sort quarter labels chronologically */
 function sortQLabels(labels) {
   return [...labels].sort((a, b) => {
     const ya = parseInt(a.split(' ')[1]), yb = parseInt(b.split(' ')[1]);
@@ -272,40 +275,27 @@ function sortQLabels(labels) {
 }
 
 /*
- * Fetch companyfacts for one CIK, decompose YTD → single-quarter CapEx.
+ * Fetch one company's CapEx via companyconcept (tag-specific, ~KB not MB).
+ * URL: /api/xbrl/companyconcept/CIK{padded}/us-gaap/{tag}.json
+ * Response: { units: { USD: [ {fy,fp,form,start,end,val,filed,...}, ... ] } }
  *
- * Critical subtlety: SEC filings often contain BOTH cumulative YTD entries
- * AND standalone quarterly / trailing-12-month entries for the same (fy, fp).
- * Example — Amazon FY2025 Q1 has two entries:
- *   • start=2024-04-01 end=2025-03-31 val=$93.1B  (trailing 12-month)
- *   • start=2025-01-01 end=2025-03-31 val=$25.0B  (true Q1 YTD)
- * Only the one whose `start` matches the fiscal-year start is the YTD
- * that chains correctly with Q2/Q3/FY for subtraction.
- *
- * Returns { ticker, tag, quarters: { "Q1 2025": $B }, math, factCount, error }
+ * Decompose YTD → single-quarter, filtering out trailing/standalone entries
+ * when multiple entries exist for the same (fy, fp) with different start dates.
  */
 async function fetchCompanyCapEx(company) {
-  const url = 'https://data.sec.gov/api/xbrl/companyfacts/CIK' + padCik(company.cik) + '.json';
-  const math = [];
   const tag = company.tag || CX_DEFAULT_TAG;
+  const url = 'https://data.sec.gov/api/xbrl/companyconcept/CIK' + padCik(company.cik) + '/us-gaap/' + tag + '.json';
+  const math = [];
   try {
-    const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
-    const timer = ctrl ? setTimeout(() => ctrl.abort(), 15000) : null;
-    const resp = await fetch(url, {
-      headers: { 'User-Agent': CX_UA, 'Accept': 'application/json' },
-      signal: ctrl?.signal,
-    });
-    if (timer) clearTimeout(timer);
+    const resp = await fetch(url, { headers: { 'User-Agent': CX_UA, 'Accept': 'application/json' } });
     if (!resp.ok) return { ticker: company.ticker, tag, quarters: {}, math, factCount: 0, error: 'HTTP ' + resp.status };
     const data = await resp.json();
 
-    const factObj = data?.facts?.['us-gaap']?.[tag];
-    if (!factObj) return { ticker: company.ticker, tag, quarters: {}, math, factCount: 0, error: 'tag "' + tag + '" not found' };
-    const entries = factObj?.units?.['USD'];
+    // companyconcept puts entries directly under units (not facts.us-gaap.tag.units)
+    const entries = data?.units?.['USD'];
     if (!entries || !entries.length) return { ticker: company.ticker, tag, quarters: {}, math, factCount: 0, error: 'no USD entries' };
 
-    /* ── Step 1: Collect all valid entries grouped by fiscal year ──
-       Note: `start` may be absent on older filings — don't require it. */
+    /* ── Step 1: Group valid entries by fiscal year ──────────────── */
     const rawByFY = {};
     entries.forEach(e => {
       if (!e.fy || !e.fp || !e.end) return;
@@ -318,17 +308,12 @@ async function fetchCompanyCapEx(company) {
       rawByFY[e.fy].push(e);
     });
 
-    /* ── Step 2: For each FY, identify fiscal-year start date, then
-       pick only the cumulative YTD entries (start == fyStart).
-       This filters out trailing-12-month and standalone-quarter
-       entries that would corrupt the subtraction math.
-       Older entries lacking `start` are included (no ambiguity risk
-       — duplicate start dates only appear in newer filings). ───── */
+    /* ── Step 2: Per FY, find fyStart and keep only YTD entries ─── */
     const quarters = {};
     Object.keys(rawByFY).sort().forEach(fy => {
       const group = rawByFY[fy];
 
-      // Determine fiscal year start from entries that HAVE a start field
+      // Detect fiscal-year start from entries that have a `start` field
       let fyStart = null;
       const fyEntry = group.find(e => e.fp === 'FY' && e.start);
       if (fyEntry) { fyStart = fyEntry.start; }
@@ -339,8 +324,8 @@ async function fetchCompanyCapEx(company) {
         if (sorted.length) fyStart = sorted[0][0];
       }
 
-      // Filter: if entry has `start`, it must match fyStart (skip trailing/standalone).
-      // If entry lacks `start` (older filing), include it — no ambiguity in old data.
+      // Keep only YTD entries: if entry has `start`, it must match fyStart.
+      // Entries without `start` (older filings) pass through — no ambiguity.
       const best = {};
       group.forEach(e => {
         if (fyStart && e.start && e.start !== fyStart) return;
@@ -350,9 +335,7 @@ async function fetchCompanyCapEx(company) {
         }
       });
 
-      /* ── Step 3: YTD decomposition ────────────────────────────────
-         Q1 = Q1_YTD            Q2 = Q2_YTD − Q1_YTD
-         Q3 = Q3_YTD − Q2_YTD   Q4 = FY     − Q3_YTD */
+      /* ── Step 3: YTD decomposition ──────────────────────────────── */
       const ytdQ1 = best.Q1?.val, ytdQ2 = best.Q2?.val, ytdQ3 = best.Q3?.val, ytdFY = best.FY?.val;
       const m = { fy: +fy, fyStart, ytdQ1, ytdQ2, ytdQ3, ytdFY, singles: {} };
 
@@ -388,27 +371,25 @@ async function fetchCompanyCapEx(company) {
 
 async function handleCapEx() {
   try {
-    /* Fetch all 5 companies in parallel.
-       SEC EDGAR allows ~10 req/s with proper User-Agent — 5 concurrent is safe.
-       Add AbortController timeout per fetch to avoid CF Pages 30s wall clock. */
+    // Fetch all 5 companies in parallel — companyconcept responses are small (~KB)
     const results = await Promise.allSettled(CX_COMPANIES.map(c => fetchCompanyCapEx(c)));
     const cr = results.map((r, i) =>
       r.status === 'fulfilled' ? r.value : { ticker: CX_COMPANIES[i].ticker, tag: CX_COMPANIES[i].tag || CX_DEFAULT_TAG, quarters: {}, math: [], factCount: 0, error: 'rejected' }
     );
 
-    /* Merge all quarter labels, sort chronologically */
+    // Merge all quarter labels, sort chronologically
     const allLabels = new Set();
     cr.forEach(c => Object.keys(c.quarters).forEach(l => allLabels.add(l)));
     const sorted = sortQLabels(allLabels);
 
-    /* Build chartData: one object per quarter with each company value */
+    // Build chartData
     const chartData = sorted.map(label => {
       const row = { quarter: label };
       cr.forEach(c => { if (c.quarters[label] != null) row[c.ticker] = c.quarters[label]; });
       return row;
     });
 
-    /* Compute generated totals and benchmark deviation */
+    // Generated totals vs benchmark
     const generatedTotalsByQuarter = {};
     const deviationByQuarter = {};
     chartData.forEach(row => {
@@ -419,7 +400,7 @@ async function handleCapEx() {
       }
     });
 
-    /* Debug fields */
+    // Debug
     const perCompanyQuarterMath = {};
     const perCompanySelectedQuarters = {};
     const perCompanyTag = {};
@@ -432,7 +413,7 @@ async function handleCapEx() {
     });
 
     const debug = {
-      debugVersion: 'trace-5',
+      debugVersion: 'trace-6',
       perCompanyTag,
       perCompanyQuarterMath,
       perCompanySelectedQuarters,
@@ -456,7 +437,7 @@ async function handleCapEx() {
     );
   } catch (err) {
     return new Response(
-      JSON.stringify({ success: false, error: 'CapEx: ' + (err.message || String(err)), debugVersion: 'trace-5' }),
+      JSON.stringify({ success: false, error: 'CapEx: ' + (err.message || String(err)), debugVersion: 'trace-6' }),
       { status: 200, headers: Object.assign({ 'Content-Type': 'application/json' }, CORS) }
     );
   }
