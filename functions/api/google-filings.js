@@ -239,13 +239,12 @@ const CX_CIKS = {
 };
 const CX_TAG = 'PaymentsToAcquirePropertyPlantAndEquipment';
 
-function getCapExQuarters() {
+function getCapExQuarters(count) {
   const now = new Date();
   let year = now.getFullYear();
-  let q = Math.ceil((now.getMonth() + 1) / 3) - 1; // 1 quarter lag for filing availability
-  if (q < 1) { q = 4; year--; }
+  let q = Math.ceil((now.getMonth() + 1) / 3); // start from current quarter
   const quarters = [];
-  for (let i = 0; i < 10; i++) {
+  for (let i = 0; i < count; i++) {
     quarters.push({ key: 'CY' + year + 'Q' + q, label: 'Q' + q + ' ' + year });
     q--;
     if (q < 1) { q = 4; year--; }
@@ -275,27 +274,48 @@ async function fetchQuarterData(qKey) {
 
 async function handleCapEx() {
   try {
-    const quarters = getCapExQuarters();
-    const results  = await Promise.allSettled(quarters.map(q => fetchQuarterData(q.key)));
+    // Try up to 20 quarters (current + 19 prior) to find usable data
+    const candidates = getCapExQuarters(20);
+    const results = await Promise.allSettled(candidates.map(q => fetchQuarterData(q.key)));
 
-    const chartData = quarters
-      .map((q, i) => {
-        const rows = results[i].status === 'fulfilled' ? results[i].value : null;
-        if (!rows || Object.keys(rows).length === 0) return null;
-        return Object.assign({ quarter: q.label }, rows);
-      })
-      .filter(Boolean);
+    const attemptedQuarters = [];
+    const returnedQuarters  = [];
+    const chartData = [];
 
-    if (chartData.length === 0) {
+    for (let i = 0; i < candidates.length; i++) {
+      const q    = candidates[i];
+      const rows = results[i].status === 'fulfilled' ? results[i].value : null;
+      attemptedQuarters.push(q.key);
+      if (!rows || Object.keys(rows).length === 0) continue; // skip empty quarter
+      returnedQuarters.push(q.key);
+      chartData.push(Object.assign({ quarter: q.label }, rows));
+    }
+
+    // Keep only the most recent 10 quarters that had data
+    const trimmed = chartData.slice(-10);
+
+    if (trimmed.length === 0) {
       return new Response(
-        JSON.stringify({ success: false, error: 'SEC EDGAR frames returned no data' }),
+        JSON.stringify({
+          success: false,
+          error: 'SEC EDGAR frames returned no data after trying ' + attemptedQuarters.length + ' quarters',
+          attemptedQuarters,
+          returnedQuarters,
+        }),
         { status: 200, headers: Object.assign({ 'Content-Type': 'application/json' }, CORS) }
       );
     }
 
     const companies = Object.values(CX_CIKS);
     return new Response(
-      JSON.stringify({ success: true, chartData, companies, fetchedAt: new Date().toISOString() }),
+      JSON.stringify({
+        success: true,
+        chartData: trimmed,
+        companies,
+        fetchedAt: new Date().toISOString(),
+        attemptedQuarters,
+        returnedQuarters,
+      }),
       { status: 200, headers: Object.assign({ 'Content-Type': 'application/json' }, CORS) }
     );
   } catch (err) {
