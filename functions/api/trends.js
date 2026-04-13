@@ -128,6 +128,9 @@ export async function onRequestGet({ request }) {
   }
 
   return jsonOk(payload);
+  } catch (err) {
+    return jsonOk({ success: false, error: err.message });
+  }
 }
 
 /* ─── Scrape one term via Firecrawl ─────────────────────────── */
@@ -444,7 +447,4 @@ function jsonOk(obj) {
     status:  200,
     headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', ...CORS }
   });
-  } catch (err) {
-    return jsonOk({ success: false, error: err.message });
-  }
 }
