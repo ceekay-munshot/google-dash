@@ -224,8 +224,8 @@ function jsonOk(obj) {
 
 
 /* ═══════════════════════════════════════════════════════════════
-   CapEx handler — SEC EDGAR xbrl/frames endpoint
-   One request per quarter → all companies at once
+   CapEx handler — per-company SEC EDGAR companyfacts endpoint
+   One request per company → extract quarterly CapEx from facts
    Route: GET /api/google-filings?view=capex
 ═══════════════════════════════════════════════════════════════ */
 
@@ -237,128 +237,143 @@ const CX_COMPANIES = [
   { cik: '1326801',  ticker: 'META', name: 'Meta',       color: '#818cf8' },
   { cik: '1341439',  ticker: 'ORCL', name: 'Oracle',    color: '#f87171' },
 ];
-// Build a normalized lookup: strip leading zeros → company info
-const CX_CIK_MAP = {};
-CX_COMPANIES.forEach(c => { CX_CIK_MAP[String(c.cik).replace(/^0+/, '')] = c; });
 const CX_TAG = 'PaymentsToAcquirePropertyPlantAndEquipment';
 
-function normCik(raw) { return String(raw).trim().replace(/^0+/, ''); }
+/* Zero-pad CIK to 10 digits for the companyfacts URL */
+function padCik(cik) { return String(cik).padStart(10, '0'); }
 
-function getCapExQuarters(count) {
-  const now = new Date();
-  let year = now.getFullYear();
-  let q = Math.ceil((now.getMonth() + 1) / 3); // start from current quarter
-  const quarters = [];
-  for (let i = 0; i < count; i++) {
-    quarters.push({ key: 'CY' + year + 'Q' + q, label: 'Q' + q + ' ' + year });
-    q--;
-    if (q < 1) { q = 4; year--; }
-  }
-  return quarters.reverse();
+/* Convert an SEC `end` date (YYYY-MM-DD) to a quarter label like "Q1 2025".
+   Q1 = ends Jan-Mar, Q2 = Apr-Jun, Q3 = Jul-Sep, Q4 = Oct-Dec */
+function endDateToQuarterLabel(end) {
+  const [y, m] = end.split('-').map(Number);
+  const q = Math.ceil(m / 3);
+  return 'Q' + q + ' ' + y;
 }
 
-async function fetchQuarterData(qKey) {
-  const url = 'https://data.sec.gov/api/xbrl/frames/us-gaap/' + CX_TAG + '/USD/' + qKey + '.json';
+/* Fetch companyfacts for one CIK, return quarterly CapEx map { "Q1 2025": valueInBillions } */
+async function fetchCompanyCapEx(company) {
+  const url = 'https://data.sec.gov/api/xbrl/companyfacts/CIK' + padCik(company.cik) + '.json';
   try {
     const resp = await fetch(url, { headers: { 'User-Agent': CX_UA, 'Accept': 'application/json' } });
-    const text = await resp.text();
-    if (!text || text.trimStart().startsWith('<')) return { rows: null, sample: null, reason: 'empty or HTML response (status ' + resp.status + ')' };
-    let data; try { data = JSON.parse(text); } catch { return { rows: null, sample: null, reason: 'JSON parse failed' }; }
-    const frameRows = data.data || [];
-    const totalRows = frameRows.length;
-    // Build a sample of the first 5 rows for debugging
-    const sample = frameRows.slice(0, 5).map(row => {
-      if (Array.isArray(row)) return { _format: 'array', cik: row[1], entityName: row[2], val: row[5], len: row.length };
-      return { _format: 'object', cik: row.cik, entityName: row.entityName, val: row.val, keys: Object.keys(row).slice(0, 8) };
+    if (!resp.ok) return { ticker: company.ticker, quarters: {}, factCount: 0, error: 'HTTP ' + resp.status };
+    const data = await resp.json();
+
+    // Navigate to the CapEx fact series
+    const factObj = data?.facts?.['us-gaap']?.[CX_TAG];
+    if (!factObj) return { ticker: company.ticker, quarters: {}, factCount: 0, error: 'tag not found in companyfacts' };
+
+    // Prefer USD units
+    const entries = factObj?.units?.['USD'];
+    if (!entries || entries.length === 0) return { ticker: company.ticker, quarters: {}, factCount: 0, error: 'no USD entries for tag' };
+
+    // Filter for quarterly entries only (10-Q or 10-K with fp like Q1-Q4, not FY)
+    // Also accept entries that have a `frame` matching CYxxxxQx pattern
+    const quarterlyEntries = entries.filter(e => {
+      // Skip annual / full-year entries
+      if (e.fp === 'FY') return false;
+      // Must have a quarterly frame like CY2024Q1 (not CY2024 which is annual)
+      if (e.frame && /^CY\d{4}Q[1-4](I)?$/.test(e.frame)) return true;
+      // Or filed on 10-Q with a quarterly fp
+      if (e.form === '10-Q' && /^Q[1-4]$/.test(e.fp)) return true;
+      // 10-K filings can contain Q4 data with fp=Q4 (some companies report this way)
+      if (e.form === '10-K' && e.fp === 'Q4') return true;
+      return false;
     });
-    const rows = {};
-    frameRows.forEach(row => {
-      // Handle both array format [accn, cik, name, loc, end, val] and object format {cik, val, ...}
-      const rawCik = Array.isArray(row) ? row[1] : row.cik;
-      const rawVal = Array.isArray(row) ? row[5] : row.val;
-      if (rawCik == null || rawVal == null) return;
-      const nCik = normCik(rawCik);
-      const company = CX_CIK_MAP[nCik];
-      if (company && typeof rawVal === 'number') {
-        rows[company.ticker] = Math.round(rawVal / 1e9);
+
+    // Deduplicate: for each quarter label, keep the entry with the latest filed date
+    const bestByQuarter = {};
+    quarterlyEntries.forEach(e => {
+      const label = endDateToQuarterLabel(e.end);
+      const existing = bestByQuarter[label];
+      if (!existing || (e.filed && (!existing.filed || e.filed > existing.filed))) {
+        bestByQuarter[label] = e;
       }
     });
-    const matched = Object.keys(rows).length;
-    if (matched === 0) return { rows: null, sample, reason: 'frame had ' + totalRows + ' rows but 0 matched target CIKs' };
-    return { rows, sample, reason: null };
-  } catch (e) { return { rows: null, sample: null, reason: 'fetch error: ' + (e.message || String(e)) }; }
+
+    // Convert to { "Q1 2025": rounded billions }
+    const quarters = {};
+    Object.keys(bestByQuarter).forEach(label => {
+      const val = bestByQuarter[label].val;
+      if (typeof val === 'number' && val > 0) {
+        quarters[label] = Math.round(val / 1e9);
+      }
+    });
+
+    return { ticker: company.ticker, quarters, factCount: entries.length, selectedCount: Object.keys(quarters).length, error: null };
+  } catch (e) {
+    return { ticker: company.ticker, quarters: {}, factCount: 0, error: 'fetch error: ' + (e.message || String(e)) };
+  }
 }
 
 async function handleCapEx() {
   try {
-    // Try up to 20 quarters (current + 19 prior) to find usable data
-    const candidates = getCapExQuarters(20);
+    // Fetch companyfacts for all target companies in parallel
+    const results = await Promise.allSettled(CX_COMPANIES.map(c => fetchCompanyCapEx(c)));
+    const companyResults = results.map((r, i) =>
+      r.status === 'fulfilled' ? r.value : { ticker: CX_COMPANIES[i].ticker, quarters: {}, factCount: 0, error: 'promise rejected' }
+    );
 
-    // ── Debug: capture raw generated quarters before any fetches ──
-    const rawGeneratedQuarters = candidates.slice(0, 8);
-    const rawGeneratedKeys = candidates.slice(0, 8).map(q => q.key);
-    const firstFrameUrl = 'https://data.sec.gov/api/xbrl/frames/us-gaap/' + CX_TAG + '/USD/' + candidates[candidates.length - 1].key + '.json';
+    // Collect all quarter labels across all companies
+    const allQuarterLabels = new Set();
+    companyResults.forEach(cr => {
+      Object.keys(cr.quarters).forEach(label => allQuarterLabels.add(label));
+    });
 
-    const results = await Promise.allSettled(candidates.map(q => fetchQuarterData(q.key)));
+    // Sort quarter labels chronologically
+    const sorted = [...allQuarterLabels].sort((a, b) => {
+      const [qa, ya] = [parseInt(a[1]), parseInt(a.split(' ')[1])];
+      const [qb, yb] = [parseInt(b[1]), parseInt(b.split(' ')[1])];
+      return ya !== yb ? ya - yb : qa - qb;
+    });
 
-    const attemptedQuarters = [];
-    const returnedQuarters  = [];
-    const matchedCompaniesByQuarter = {};
-    const chartData = [];
-    let firstNonMatchingReason = null;
-    let firstFrameSample = null;
+    // Keep only the most recent 10 quarters
+    const recentQuarters = sorted.slice(-10);
 
-    for (let i = 0; i < candidates.length; i++) {
-      const q      = candidates[i];
-      const result = results[i].status === 'fulfilled' ? results[i].value : { rows: null, sample: null, reason: 'promise rejected' };
-      const rows   = result.rows;
-      attemptedQuarters.push(q.key);
-      if (!firstFrameSample && result.sample) firstFrameSample = result.sample;
-      if (!rows || Object.keys(rows).length === 0) {
-        if (!firstNonMatchingReason && result.reason) firstNonMatchingReason = q.key + ': ' + result.reason;
-        continue;
+    // Build chartData: one object per quarter with each company's value
+    const chartData = recentQuarters.map(label => {
+      const row = { quarter: label };
+      companyResults.forEach(cr => {
+        if (cr.quarters[label] != null) {
+          row[cr.ticker] = cr.quarters[label];
+        }
+      });
+      return row;
+    });
+
+    // Debug fields
+    const perCompanyFactCount = {};
+    const perCompanySelectedQuarters = {};
+    const missingCompanies = [];
+    companyResults.forEach(cr => {
+      perCompanyFactCount[cr.ticker] = cr.factCount;
+      perCompanySelectedQuarters[cr.ticker] = Object.keys(cr.quarters).sort();
+      if (Object.keys(cr.quarters).length === 0) {
+        missingCompanies.push(cr.ticker + ': ' + (cr.error || 'no quarterly data'));
       }
-      returnedQuarters.push(q.key);
-      matchedCompaniesByQuarter[q.key] = Object.keys(rows);
-      chartData.push(Object.assign({ quarter: q.label }, rows));
-    }
+    });
 
-    // Keep only the most recent 10 quarters that had data
-    const trimmed = chartData.slice(-10);
-
-    // ── Debug fields included in every response ──
-    const targetCiksRaw = CX_COMPANIES.map(c => c.cik);
-    const targetCiksNormalized = CX_COMPANIES.map(c => normCik(c.cik));
     const debug = {
-      debugVersion: 'trace-2',
-      targetCompanies: CX_COMPANIES.map(c => c.ticker + '=' + c.cik),
-      targetCiksRaw,
-      targetCiksNormalized,
-      rawGeneratedQuarters,
-      rawGeneratedKeys,
-      firstFrameUrl,
-      firstFrameSample,
-      firstNonMatchingReason,
-      matchedCompaniesByQuarter,
-      attemptedQuarters,
-      returnedQuarters,
+      debugVersion: 'trace-3',
+      perCompanyFactCount,
+      perCompanySelectedQuarters,
+      missingCompanies,
     };
 
-    if (trimmed.length === 0) {
+    if (chartData.length === 0) {
       return new Response(
-        JSON.stringify(Object.assign({ success: false, error: 'SEC EDGAR frames returned no data after trying ' + attemptedQuarters.length + ' quarters' }, debug)),
+        JSON.stringify(Object.assign({ success: false, error: 'No quarterly CapEx data found for any company' }, debug)),
         { status: 200, headers: Object.assign({ 'Content-Type': 'application/json' }, CORS) }
       );
     }
 
     const companies = CX_COMPANIES.map(c => ({ ticker: c.ticker, name: c.name, color: c.color }));
     return new Response(
-      JSON.stringify(Object.assign({ success: true, chartData: trimmed, companies, fetchedAt: new Date().toISOString() }, debug)),
+      JSON.stringify(Object.assign({ success: true, chartData, companies, fetchedAt: new Date().toISOString() }, debug)),
       { status: 200, headers: Object.assign({ 'Content-Type': 'application/json' }, CORS) }
     );
   } catch (err) {
     return new Response(
-      JSON.stringify({ success: false, error: 'CapEx handler: ' + (err.message || String(err)), debugVersion: 'trace-1' }),
+      JSON.stringify({ success: false, error: 'CapEx handler: ' + (err.message || String(err)), debugVersion: 'trace-3' }),
       { status: 200, headers: Object.assign({ 'Content-Type': 'application/json' }, CORS) }
     );
   }
