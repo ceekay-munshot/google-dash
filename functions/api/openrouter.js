@@ -264,6 +264,52 @@ function parseMarkdown(md) {
   }
   if (models.length >= 5) return models;
 
+  /* ── Format D: OpenRouter card layout (current 2026 format) ──
+     Each entry spans multiple lines:
+       1.
+       [Model Name](url)
+       by [provider](url)
+       1.66T tokens
+       64%
+     We scan for "[Model Name](url)" followed within ~200 chars by
+     "X.XXT tokens" and optionally a wow%. ─────────────────────── */
+  models.length = 0;
+  {
+    // Find all numbered items: "1." or "2." at start of line
+    const cardRe = /^(\d+)\.\s*$/gm;
+    let cm;
+    while ((cm = cardRe.exec(md)) !== null) {
+      const rank = parseInt(cm[1], 10);
+      // Look ahead up to 400 chars for model link, provider, tokens, wow
+      const ahead = md.slice(cm.index, cm.index + 400);
+
+      // Model name: [Model Name](url) — skip image links ![...](...)
+      const modelMatch = ahead.match(/(?<!!)\[([^\]]{2,60})\]\(https:\/\/openrouter\.ai\/[^)]+\)/);
+      if (!modelMatch) continue;
+      const modelName = modelMatch[1].replace(/\(free\)/gi, '').trim();
+
+      // Provider: by [provider](url)
+      const provMatch = ahead.match(/by\s+\[([^\]]+)\]\(/);
+      const provider = provMatch ? provMatch[1].trim().toLowerCase() : inferProvider(modelName);
+
+      // Token count: 1.66T tokens or 289B tokens
+      const tokMatch = ahead.match(/([\d.]+[BT])\s*tokens/i);
+      if (!tokMatch) continue;
+      const tokLbl = tokMatch[1];
+
+      // WoW%: number followed by % (after tokens line)
+      const afterTok = ahead.slice(ahead.indexOf(tokMatch[0]) + tokMatch[0].length);
+      const wowMatch = afterTok.match(/^\s*\n\s*(-?\d+)%/);
+      const wowLabel = wowMatch ? (parseInt(wowMatch[1]) >= 0 ? '+' + wowMatch[1] : wowMatch[1]) + '%' : '';
+
+      models.push(normaliseRow({
+        rank, model: modelName, provider,
+        tokensLabel: tokLbl, wowLabel
+      }));
+    }
+  }
+  if (models.length >= 5) return models;
+
   /* ── Format C: looser scan — rank + model + token label ────── */
   models.length = 0;
   const looseRe = /(\d+)[.)\s]+([A-Z][^\n\t]+?)\s+([\d.]+[BT])\s*tokens/gi;
