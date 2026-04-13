@@ -257,9 +257,9 @@ async function fetchQuarterData(qKey) {
   try {
     const resp = await fetch(url, { headers: { 'User-Agent': CX_UA, 'Accept': 'application/json' } });
     const text = await resp.text();
-    if (!text || text.trimStart().startsWith('<')) return null;
-    let data; try { data = JSON.parse(text); } catch { return null; }
-    // frames data rows: [accn, cik, entityName, loc, end, val]
+    if (!text || text.trimStart().startsWith('<')) return { rows: null, reason: 'empty or HTML response (status ' + resp.status + ')' };
+    let data; try { data = JSON.parse(text); } catch { return { rows: null, reason: 'JSON parse failed' }; }
+    const totalRows = (data.data || []).length;
     const rows = {};
     (data.data || []).forEach(row => {
       const cik = row[1];
@@ -268,25 +268,38 @@ async function fetchQuarterData(qKey) {
         rows[CX_CIKS[cik].ticker] = Math.round(val / 1e9);
       }
     });
-    return rows;
-  } catch { return null; }
+    const matched = Object.keys(rows).length;
+    if (matched === 0) return { rows: null, reason: 'frame had ' + totalRows + ' rows but 0 matched target CIKs' };
+    return { rows, reason: null };
+  } catch (e) { return { rows: null, reason: 'fetch error: ' + (e.message || String(e)) }; }
 }
 
 async function handleCapEx() {
   try {
     // Try up to 20 quarters (current + 19 prior) to find usable data
     const candidates = getCapExQuarters(20);
+
+    // ── Debug: capture raw generated quarters before any fetches ──
+    const rawGeneratedQuarters = candidates.slice(0, 8);
+    const rawGeneratedKeys = candidates.slice(0, 8).map(q => q.key);
+    const firstFrameUrl = 'https://data.sec.gov/api/xbrl/frames/us-gaap/' + CX_TAG + '/USD/' + candidates[candidates.length - 1].key + '.json';
+
     const results = await Promise.allSettled(candidates.map(q => fetchQuarterData(q.key)));
 
     const attemptedQuarters = [];
     const returnedQuarters  = [];
     const chartData = [];
+    let firstNonMatchingReason = null;
 
     for (let i = 0; i < candidates.length; i++) {
-      const q    = candidates[i];
-      const rows = results[i].status === 'fulfilled' ? results[i].value : null;
+      const q      = candidates[i];
+      const result = results[i].status === 'fulfilled' ? results[i].value : { rows: null, reason: 'promise rejected' };
+      const rows   = result.rows;
       attemptedQuarters.push(q.key);
-      if (!rows || Object.keys(rows).length === 0) continue; // skip empty quarter
+      if (!rows || Object.keys(rows).length === 0) {
+        if (!firstNonMatchingReason && result.reason) firstNonMatchingReason = q.key + ': ' + result.reason;
+        continue;
+      }
       returnedQuarters.push(q.key);
       chartData.push(Object.assign({ quarter: q.label }, rows));
     }
@@ -294,33 +307,32 @@ async function handleCapEx() {
     // Keep only the most recent 10 quarters that had data
     const trimmed = chartData.slice(-10);
 
+    // ── Debug fields included in every response ──
+    const debug = {
+      debugVersion: 'trace-1',
+      rawGeneratedQuarters,
+      rawGeneratedKeys,
+      firstFrameUrl,
+      firstNonMatchingReason,
+      attemptedQuarters,
+      returnedQuarters,
+    };
+
     if (trimmed.length === 0) {
       return new Response(
-        JSON.stringify({
-          success: false,
-          error: 'SEC EDGAR frames returned no data after trying ' + attemptedQuarters.length + ' quarters',
-          attemptedQuarters,
-          returnedQuarters,
-        }),
+        JSON.stringify(Object.assign({ success: false, error: 'SEC EDGAR frames returned no data after trying ' + attemptedQuarters.length + ' quarters' }, debug)),
         { status: 200, headers: Object.assign({ 'Content-Type': 'application/json' }, CORS) }
       );
     }
 
     const companies = Object.values(CX_CIKS);
     return new Response(
-      JSON.stringify({
-        success: true,
-        chartData: trimmed,
-        companies,
-        fetchedAt: new Date().toISOString(),
-        attemptedQuarters,
-        returnedQuarters,
-      }),
+      JSON.stringify(Object.assign({ success: true, chartData: trimmed, companies, fetchedAt: new Date().toISOString() }, debug)),
       { status: 200, headers: Object.assign({ 'Content-Type': 'application/json' }, CORS) }
     );
   } catch (err) {
     return new Response(
-      JSON.stringify({ success: false, error: 'CapEx handler: ' + (err.message || String(err)) }),
+      JSON.stringify({ success: false, error: 'CapEx handler: ' + (err.message || String(err)), debugVersion: 'trace-1' }),
       { status: 200, headers: Object.assign({ 'Content-Type': 'application/json' }, CORS) }
     );
   }
