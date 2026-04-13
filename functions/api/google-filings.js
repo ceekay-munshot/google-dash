@@ -39,11 +39,14 @@ export async function onRequestGet(ctx) {
     const kpis = extractKPIs(md);
     if (!kpis.period) throw new Error('Could not parse filing period from document');
 
+    // Include a snippet of the raw markdown for debugging parsing issues
+    const mdSnippet = md ? md.slice(0, 600) : '';
     return jsonOk({
       success:   true,
       ...kpis,
       source:    exhibitUrl,
       fetchedAt: new Date().toISOString(),
+      _debug: { mdLength: md ? md.length : 0, mdSnippet },
     });
 
   } catch (err) {
@@ -52,41 +55,85 @@ export async function onRequestGet(ctx) {
 }
 
 /* ── Step 1: Find latest exhibit 99.1 URL ─────────────────────────────
-   Firecrawl scrapes the EDGAR 8-K list for Alphabet (CIK 1652044).
-   Much more reliable than direct SEC JSON API from CF Workers.
+   Uses SEC EDGAR EFTS JSON search API directly (no Firecrawl needed).
+   This auto-discovers new filings as Alphabet publishes them.
 ──────────────────────────────────────────────────────────────────── */
 async function findLatestExhibit() {
-  // Try multiple EDGAR entry points for resilience
-  const sources = [
-    // EDGAR full-text search for Alphabet 8-K filings
-    'https://efts.sec.gov/LATEST/search-index?q=%22exhibit+99.1%22&forms=8-K&dateRange=custom&startdt=2025-01-01&entity=Alphabet',
-    // EDGAR company 8-K listing
-    'https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0001652044&type=8-K&dateb=&owner=include&count=5',
-  ];
+  // Strategy 1: SEC EFTS full-text search — returns JSON with filing URLs
+  // Dynamically compute startdt: 18 months ago, so it always finds the latest filing
+  const startDate = new Date();
+  startDate.setMonth(startDate.getMonth() - 18);
+  const startdt = startDate.toISOString().slice(0, 10);
+  const eftsUrl = 'https://efts.sec.gov/LATEST/search-index?q=%22exhibit+99.1%22+%22Google+Search%22&forms=8-K&dateRange=custom&startdt=' + startdt + '&entity=Alphabet+Inc';
 
-  for (const src of sources) {
-    try {
-      const md = await firecrawlScrape(src);
-      if (!md) continue;
-
-      // Look for Alphabet exhibit 99.1 links
-      const patterns = [
-        /https?:\/\/www\.sec\.gov\/Archives\/edgar\/data\/1652044\/[^\s)"'\n]+(?:exhibit991|exhibit99_1|ex99)[^\s)"'\n]*\.htm[^\s)"'\n]*/gi,
-        /https?:\/\/www\.sec\.gov\/Archives\/edgar\/data\/1652044\/[^\s)"'\n]+goog[^\s)"'\n]*\.htm[^\s)"'\n]*/gi,
-      ];
-
-      for (const pat of patterns) {
-        const matches = [...md.matchAll(pat)];
-        if (matches.length) {
-          // Return the first (most recent) match
-          return matches[0][0].split(')')[0].split('"')[0].split("'")[0].trim();
+  try {
+    const eftsResp = await fetch(eftsUrl, {
+      headers: { 'User-Agent': 'Tybourne-Capital-Dashboard/1.0 (research@tybourne.com)', 'Accept': 'application/json' }
+    });
+    if (eftsResp.ok) {
+      const eftsData = await eftsResp.json();
+      // EFTS returns hits[] with file_url or _source.file_url
+      const hits = eftsData?.hits?.hits || [];
+      for (const hit of hits) {
+        const fileUrl = hit?._source?.file_url || hit?.file_url || '';
+        if (fileUrl && /exhibit99/i.test(fileUrl)) {
+          return fileUrl.startsWith('http') ? fileUrl : 'https://www.sec.gov' + fileUrl;
         }
       }
-    } catch (_) {}
-  }
+    }
+  } catch (_) {}
 
-  // Final fallback: use the known Q4 2025 URL directly
-  // This is the actual live SEC document, not hardcoded data
+  // Strategy 2: SEC EDGAR company filings JSON API — no scraping needed
+  try {
+    const filingsUrl = 'https://data.sec.gov/submissions/CIK0001652044.json';
+    const filingsResp = await fetch(filingsUrl, {
+      headers: { 'User-Agent': 'Tybourne-Capital-Dashboard/1.0 (research@tybourne.com)', 'Accept': 'application/json' }
+    });
+    if (filingsResp.ok) {
+      const filingsData = await filingsResp.json();
+      const recent = filingsData?.filings?.recent;
+      if (recent && recent.form && recent.accessionNumber && recent.primaryDocument) {
+        // Find most recent 8-K filing
+        for (let i = 0; i < recent.form.length && i < 50; i++) {
+          if (recent.form[i] === '8-K') {
+            const accn = recent.accessionNumber[i].replace(/-/g, '');
+            const doc = recent.primaryDocument[i];
+            // Check if the primary doc is an exhibit99
+            if (/exhibit99|ex99/i.test(doc)) {
+              return 'https://www.sec.gov/Archives/edgar/data/1652044/' + accn + '/' + doc;
+            }
+            // Otherwise try to find exhibit99 in the filing index
+            const indexUrl = 'https://www.sec.gov/Archives/edgar/data/1652044/' + accn + '/';
+            try {
+              const idxMd = await firecrawlScrape(indexUrl);
+              if (idxMd) {
+                const exMatch = idxMd.match(/(?:exhibit991|exhibit99_1|ex99|exhibit99)[^\s)"']*\.htm[^\s)"']*/i);
+                if (exMatch) {
+                  return indexUrl + exMatch[0];
+                }
+              }
+            } catch (_) {}
+            // Even if we can't find the exhibit, try primary doc — it might be the press release
+            return 'https://www.sec.gov/Archives/edgar/data/1652044/' + accn + '/' + doc;
+          }
+        }
+      }
+    }
+  } catch (_) {}
+
+  // Strategy 3: Firecrawl scrape of EDGAR search page as last resort
+  try {
+    const md = await firecrawlScrape('https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0001652044&type=8-K&dateb=&owner=include&count=5');
+    if (md) {
+      const pat = /https?:\/\/www\.sec\.gov\/Archives\/edgar\/data\/1652044\/[^\s)"'\n]+(?:exhibit991|exhibit99_1|ex99|goog)[^\s)"'\n]*\.htm[^\s)"'\n]*/gi;
+      const matches = [...md.matchAll(pat)];
+      if (matches.length) {
+        return matches[0][0].split(')')[0].split('"')[0].split("'")[0].trim();
+      }
+    }
+  } catch (_) {}
+
+  // Final fallback: known Q4 2025 URL (will be stale for future quarters)
   return 'https://www.sec.gov/Archives/edgar/data/1652044/000165204426000012/googexhibit991q42025.htm';
 }
 
@@ -137,21 +184,43 @@ function extractKPIs(text) {
   }
 
   // ── Search & Other Revenue ─────────────────────────────────────
-  // "Google Search & other ... $54,034 ... $63,073"
-  // We want the LATEST (right) column
+  // Alphabet tables use: "Google Search & other | $54,034 | $63,073"
+  // We want the LATEST (rightmost) 5-6 digit number in that row.
+  // Also handles "$XX.X billion" prose format.
   const searchMatch = text.match(
-    /Google Search[^|]*?\|\s*[\d,]+\s*\|\s*([\d,]+)/i
+    /Google Search[^\n|]*?\|\s*\$?[\d,]+\s*\|\s*\$?([\d,]{5,7})/i
   ) || text.match(
-    /Search[^|]*?(?:revenues?)[^|]*?\|\s*[\d,]+\s*\|\s*([\d,]+)/i
+    /Google Search[^\n]*?([\d]{2},[\d]{3})/ig
   ) || text.match(
-    /Search[^$]*?\$([\d,.]+)\s*billion/i
+    /Search & other[^\n]*?\|\s*\$?[\d,]+\s*\|\s*\$?([\d,]{5,7})/i
   ) || text.match(
-    /Search & other[^\n]*?([\d]{2},[\d]{3})/i
+    /Search[^$\n]{0,40}\$([\d,.]+)\s*billion/i
   );
   if (searchMatch) {
-    const raw = searchMatch[1].replace(/,/g, '');
-    const num = parseInt(raw);
-    kpis.searchRevenue = num > 1000 ? '$' + (num/1000).toFixed(1) + 'B' : '$' + raw + 'M';
+    // For the global regex fallback, take the last match
+    let rawStr;
+    if (searchMatch.length > 1 && searchMatch[1]) {
+      rawStr = searchMatch[1];
+    } else {
+      // Global regex: extract number from last match
+      const allMatches = text.match(/Google Search[^\n]*?([\d]{2},[\d]{3})/ig);
+      if (allMatches) {
+        const lastRow = allMatches[allMatches.length - 1];
+        const nums = [...lastRow.matchAll(/([\d]{2},[\d]{3})/g)];
+        rawStr = nums.length ? nums[nums.length - 1][1] : null;
+      }
+    }
+    if (rawStr) {
+      // Check if it's in "billion" format
+      if (/billion/i.test(searchMatch[0])) {
+        const bn = parseFloat(rawStr);
+        kpis.searchRevenue = '$' + bn.toFixed(1) + 'B';
+      } else {
+        const raw = rawStr.replace(/,/g, '');
+        const num = parseInt(raw);
+        kpis.searchRevenue = num > 1000 ? '$' + (num / 1000).toFixed(1) + 'B' : '$' + raw + 'M';
+      }
+    }
   }
 
   // ── Search revenue YoY growth ──────────────────────────────────
