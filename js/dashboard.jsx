@@ -480,6 +480,51 @@ function TrendsTab({data,busy,ts,live,refresh}){
 }
 
 /* ═══════════════════════════════════════════════════════
+   TAB: Insights  (Artificial Analysis Trends — live cleaned proxy)
+═══════════════════════════════════════════════════════ */
+const INSIGHTS_CONFIG = {
+  TARGET_URL: "https://artificialanalysis.ai/trends",
+  TAB_LABEL: "Insights",
+  TAB_ROUTE: "/insights",
+  PROXY_URL: "/api/insights-proxy",
+  ALLOWED_SECTION_IDS: [
+    "progress",
+    "efficiency",
+    "countries",
+    "open-source",
+    "model-architecture",
+    "training-analysis",
+  ],
+};
+
+function InsightsTab(){
+  return(
+    <>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+        <div style={{display:"flex",alignItems:"center",gap:8}}>
+          <Pill text="Artificial Analysis · AI Trends" bg="#ede9fe" color="#5b21b6"/>
+        </div>
+        <a href={INSIGHTS_CONFIG.TARGET_URL} target="_blank" rel="noopener noreferrer"
+          style={{fontSize:11,color:"#6b7280",textDecoration:"none"}}>
+          Open full site ↗
+        </a>
+      </div>
+      <div style={{borderRadius:8,overflow:"hidden",border:"0.5px solid #e5e7eb",background:"#fff"}}>
+        <iframe
+          src={INSIGHTS_CONFIG.PROXY_URL}
+          title="Artificial Analysis — AI Trends"
+          loading="lazy"
+          style={{border:0,display:"block",width:"100%",height:"calc(100vh - 280px)",minHeight:600}}
+        />
+      </div>
+      <div style={{fontSize:10,color:"#9ca3af",marginTop:5}}>
+        Source: artificialanalysis.ai/trends · live data · AI Progress, Efficiency, Country Analysis, Open Source, Architecture, Training
+      </div>
+    </>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════
    ROOT
 ═══════════════════════════════════════════════════════ */
 export default function App(){
@@ -495,9 +540,10 @@ export default function App(){
   const gBot =LIVE.bots[0];
 
   const TABS=[
-    {id:"or",    label:"OpenRouter", panel:or},
-    {id:"radar", label:"Bot traffic",panel:radar},
-    {id:"trends",label:"Trends",     panel:trends},
+    {id:"or",      label:"OpenRouter", panel:or},
+    {id:"radar",   label:"Bot traffic",panel:radar},
+    {id:"trends",  label:"Trends",     panel:trends},
+    {id:"insights",label:"Insights"},
   ];
 
   return(
@@ -540,9 +586,10 @@ export default function App(){
 
       {/* Active tab */}
       <div style={S.card}>
-        {tab==="or"    &&<ORTab     {...or}/>}
-        {tab==="radar" &&<RadarTab  {...radar}/>}
-        {tab==="trends"&&<TrendsTab {...trends}/>}
+        {tab==="or"      &&<ORTab       {...or}/>}
+        {tab==="radar"   &&<RadarTab    {...radar}/>}
+        {tab==="trends"  &&<TrendsTab   {...trends}/>}
+        {tab==="insights"&&<InsightsTab/>}
       </div>
 
       {/* Footer */}
