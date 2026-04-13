@@ -1,0 +1,55 @@
+/**
+ * Cloudflare Radar API - Traffic Anomalies
+ * 
+ * Get recent traffic anomalies detected by Cloudflare Radar
+ * 
+ * Usage: /api/radar/traffic-anomalies?dateRange=7d&limit=10
+ */
+
+export async function onRequestGet({ request, env }) {
+  const token = env.CLOUDFLARE_RADAR_API_TOKEN;
+  
+  if (!token) {
+    return new Response(JSON.stringify({
+      success: false,
+      error: 'API token not configured'
+    }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+    });
+  }
+
+  const url = new URL(request.url);
+  const dateRange = url.searchParams.get('dateRange') || '7d';
+  const limit = url.searchParams.get('limit') || '20';
+
+  try {
+    const radarUrl = `https://api.cloudflare.com/client/v4/radar/traffic_anomalies?dateRange=${dateRange}&limit=${limit}`;
+    
+    const response = await fetch(radarUrl, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    const data = await response.json();
+
+    return new Response(JSON.stringify(data), {
+      status: response.status,
+      headers: {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*',
+        'Cache-Control': 'public, max-age=300'
+      }
+    });
+  } catch (error) {
+    return new Response(JSON.stringify({
+      success: false,
+      error: error.message
+    }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+    });
+  }
+}

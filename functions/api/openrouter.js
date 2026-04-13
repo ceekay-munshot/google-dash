@@ -1,0 +1,404 @@
+/**
+ * Cloudflare Pages Function — OpenRouter Rankings Scraper
+ * Route:  /api/openrouter
+ * Method: GET | OPTIONS
+ *
+ * Query params:
+ *   view   (optional)  'week' | 'month' | 'all'  — default: 'week'
+ *   top    (optional)  number of top models to return — default: 30
+ *
+ * Returns:
+ * {
+ *   success:     bool,
+ *   scrapedAt:   ISO string,
+ *   view:        'week',
+ *   url:         string,
+ *   models:      ModelRow[],
+ *   geminiRows:  ModelRow[],   // only Google/Gemini models
+ *   summary: {
+ *     totalModels:    number,
+ *     topModel:       ModelRow,
+ *     geminiHighest:  ModelRow | null,
+ *     geminiVsPeers:  PeerRow[],  // Gemini + top OpenAI + Anthropic + Mistral rows
+ *   },
+ *   fromCache:   bool,
+ *   stale:       bool
+ * }
+ *
+ * ModelRow shape:
+ * {
+ *   rank:        number,
+ *   model:       string,       // full model name
+ *   provider:    string,       // e.g. "google", "openai", "anthropic"
+ *   tokens:      number,       // raw token count (normalised to single number)
+ *   tokensLabel: string,       // display string e.g. "289B" or "1.2T"
+ *   wowPct:      number|null,  // week-over-week % change (positive = up)
+ *   wowLabel:    string,       // e.g. "+12%" | "new" | "—"
+ *   isNew:       bool,
+ *   isGoogle:    bool,
+ *   isGemini:    bool
+ * }
+ *
+ * Data policy:
+ * • Token counts = relative usage proxy on OpenRouter's API network
+ * • NOT Google total queries, NOT MAU, NOT revenue
+ * • Source is labelled on every UI surface
+ * • WoW% is week-over-week change as displayed on openrouter.ai/rankings
+ */
+
+const FIRECRAWL_API_KEY = 'fc-203d41c5b1984cdabee2a7564572efea';
+const FIRECRAWL_BASE    = 'https://api.firecrawl.dev/v1';
+
+const OR_URLS = {
+  week:  'https://openrouter.ai/rankings?view=week',
+  month: 'https://openrouter.ai/rankings?view=month',
+  all:   'https://openrouter.ai/rankings'
+};
+
+/* In-process cache — lives for the lifetime of the worker instance */
+const _cache    = {};
+const CACHE_TTL = 4 * 60 * 60 * 1000;   // 4 hours (rankings change daily)
+const STALE_TTL = 24 * 60 * 60 * 1000;  // 24 hours before we refuse to serve stale
+
+const CORS = {
+  'Access-Control-Allow-Origin':  '*',
+  'Access-Control-Allow-Methods': 'GET, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type'
+};
+
+/* ─── OPTIONS ──────────────────────────────────────────────── */
+
+export async function onRequestOptions() {
+  return new Response(null, { status: 204, headers: CORS });
+}
+
+/* ─── GET ──────────────────────────────────────────────────── */
+export async function onRequestGet({ request }) {
+  const url    = new URL(request.url);
+
+  const view   = url.searchParams.get('view') || 'week';
+
+  const top    = Math.min(parseInt(url.searchParams.get('top') || '30', 10), 100);
+  const orUrl  = OR_URLS[view] || OR_URLS.week;
+  const key    = view;
+  const cached = _cache[key];
+  const now    = Date.now();
+
+  /* Serve fresh cache */
+  if (cached && (now - cached.ts) < CACHE_TTL) {
+    return ok({ ...cached.payload, fromCache: true,
+                cacheAge: Math.round((now - cached.ts) / 60000) + 'm' });
+  }
+
+  /* Scrape */
+  const result = await scrapeRankings(orUrl);
+
+  if (!result.ok) {
+    /* Return stale on error if available */
+    if (cached && (now - cached.ts) < STALE_TTL) {
+      return ok({ ...cached.payload, stale: true, staleReason: result.error });
+    }
+    return err(result.error);
+  }
+
+  const allModels    = result.models.slice(0, top);
+  const geminiRows   = allModels.filter(m => m.isGoogle);
+  const summary      = buildSummary(allModels);
+
+  const payload = {
+    success:    true,
+    scrapedAt:  new Date().toISOString(),
+    view,
+    url:        orUrl,
+    models:     allModels,
+    geminiRows,
+    summary,
+    fromCache:  false,
+    stale:      false,
+    sourceNote: 'OpenRouter token usage rankings — relative API usage proxy on OpenRouter network. ' +
+                'NOT Google total queries, search volume, MAU, or revenue.'
+  };
+
+  _cache[key] = { payload, ts: now };
+  return ok(payload);
+}
+
+/* ─── Scrape openrouter.ai/rankings ─────────────────────────── */
+async function scrapeRankings(targetUrl) {
+  /* Strategy:
+   * 1. Firecrawl /extract with structured schema — best result
+   * 2. Firecrawl /scrape markdown + parser — fallback
+   */
+
+  /* ── Attempt 1: structured extract ─────────────────────────── */
+  try {
+    const extRes = await fetch(FIRECRAWL_BASE + '/extract', {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer ' + FIRECRAWL_API_KEY,
+        'Content-Type':  'application/json'
+      },
+      body: JSON.stringify({
+        urls: [targetUrl],
+        prompt:
+          'Extract the full LLM leaderboard rankings table from this OpenRouter page. ' +
+          'For each row return: rank (number), model (full model name string), ' +
+          'provider (provider/company name lowercase), tokens (token count as a number in raw tokens, ' +
+          'e.g. "4.6T" = 4600000000000, "289B" = 289000000000), ' +
+          'tokensLabel (original display string like "4.6T" or "289B"), ' +
+          'wowPct (week-over-week percentage change as a number, e.g. +12 or -5, null if not shown), ' +
+          'wowLabel (original string like "+12%", "-5%", "new", or empty). ' +
+          'Include ALL visible rows. Output only a JSON array of these objects.',
+        schema: {
+          type: 'object',
+          properties: {
+            rows: {
+              type:  'array',
+              items: {
+                type: 'object',
+                properties: {
+                  rank:        { type: 'number' },
+                  model:       { type: 'string' },
+                  provider:    { type: 'string' },
+                  tokens:      { type: 'number' },
+                  tokensLabel: { type: 'string' },
+                  wowPct:      { type: ['number', 'null'] },
+                  wowLabel:    { type: 'string' }
+                },
+                required: ['rank', 'model', 'tokensLabel']
+              }
+            }
+          },
+          required: ['rows']
+        }
+      })
+    });
+
+    if (extRes.status === 429) return { ok: false, error: 'Rate-limited (429)' };
+
+    if (extRes.ok) {
+      const extBody = await extRes.json();
+      const rows    = extBody?.data?.rows || extBody?.rows;
+      if (Array.isArray(rows) && rows.length >= 5) {
+        return { ok: true, models: rows.map(normaliseRow) };
+      }
+    }
+  } catch (_) { /* fall through */ }
+
+  /* ── Attempt 2: /scrape markdown ───────────────────────────── */
+  try {
+    const scrRes = await fetch(FIRECRAWL_BASE + '/scrape', {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer ' + FIRECRAWL_API_KEY,
+        'Content-Type':  'application/json'
+      },
+      body: JSON.stringify({
+        url:             targetUrl,
+        formats:         ['markdown'],
+        onlyMainContent: true,
+        waitFor:         7000   // rankings table is JS-rendered
+      })
+    });
+
+    if (scrRes.status === 429) return { ok: false, error: 'Rate-limited (429)' };
+    if (!scrRes.ok) return { ok: false, error: 'HTTP ' + scrRes.status };
+
+    const scrBody = await scrRes.json();
+    if (!scrBody.success) return { ok: false, error: scrBody.error || 'scrape failed' };
+
+    const md     = scrBody?.data?.markdown || scrBody?.markdown || '';
+    const models = parseMarkdown(md);
+
+    if (models.length < 5) return { ok: false, error: 'Could not parse rankings from markdown (got ' + models.length + ' rows)' };
+
+    return { ok: true, models };
+  } catch (err) {
+    return { ok: false, error: err.message };
+  }
+}
+
+/* ─── Parse markdown rankings table ─────────────────────────── */
+/*
+ * The OpenRouter rankings page markdown typically contains a table like:
+ *
+ *  | 1  | Claude Sonnet 4    | anthropic | 540B tokens | -15% |
+ *  | 2  | Gemini 2.5 Flash   | google    | 289B tokens | +1%  |
+ *
+ * Or as a numbered list:
+ *  1. Claude Sonnet 4 (anthropic) — 540B tokens — -15%
+ *  2. Gemini 2.5 Flash (google) — 289B tokens — +1%
+ */
+function parseMarkdown(md) {
+  if (!md) return [];
+  const models = [];
+
+  /* ── Format A: markdown table rows ─────────────────────────── */
+  // | rank | model | provider | tokens | wow |
+  const tableRowRe = /\|\s*(\d+)\s*\|\s*([^|]+?)\s*\|\s*([^|]+?)\s*\|\s*([\d.]+[BT])\s*tokens\s*\|\s*([^|]*?)\s*\|/gi;
+  let m;
+  while ((m = tableRowRe.exec(md)) !== null) {
+    const rank    = parseInt(m[1], 10);
+    const model   = m[2].trim();
+    const prov    = m[3].trim().toLowerCase();
+    const tokLbl  = m[4].trim();
+    const wowRaw  = m[5].trim();
+    if (!isNaN(rank) && model) {
+      models.push(normaliseRow({ rank, model, provider: prov, tokensLabel: tokLbl, wowLabel: wowRaw }));
+    }
+  }
+  if (models.length >= 5) return models;
+
+  /* ── Format B: numbered list with dashes ───────────────────── */
+  models.length = 0;
+  const listRe = /^(\d+)[.)]\s+(.+?)(?:\s+\(([^)]+)\))?\s*[—\-–]\s*([\d.]+[BT])\s*tokens(?:\s*[—\-–]\s*([^\n]+))?/gim;
+  while ((m = listRe.exec(md)) !== null) {
+    const rank    = parseInt(m[1], 10);
+    const model   = m[2].trim();
+    const prov    = (m[3] || '').trim().toLowerCase();
+    const tokLbl  = m[4].trim();
+    const wowRaw  = (m[5] || '').trim();
+    if (!isNaN(rank) && model) {
+      models.push(normaliseRow({ rank, model, provider: prov, tokensLabel: tokLbl, wowLabel: wowRaw }));
+    }
+  }
+  if (models.length >= 5) return models;
+
+  /* ── Format C: looser scan — rank + model + token label ────── */
+  models.length = 0;
+  const looseRe = /(\d+)[.)\s]+([A-Z][^\n\t]+?)\s+([\d.]+[BT])\s*tokens/gi;
+  let rank = 0;
+  while ((m = looseRe.exec(md)) !== null) {
+    rank = parseInt(m[1], 10) || ++rank;
+    const model  = m[2].trim().replace(/\s{2,}/g, ' ');
+    const tokLbl = m[3].trim();
+    /* Try to extract wow% that immediately follows */
+    const after  = md.slice(m.index + m[0].length, m.index + m[0].length + 20);
+    const wowM   = after.match(/([+\-]\d+)%|new/i);
+    models.push(normaliseRow({
+      rank, model, provider: inferProvider(model),
+      tokensLabel: tokLbl, wowLabel: wowM ? wowM[0] : ''
+    }));
+  }
+  return models;
+}
+
+/* ─── Normalise a raw row into a clean ModelRow ─────────────── */
+function normaliseRow(raw) {
+  const model     = (raw.model     || '').trim();
+  const provider  = (raw.provider  || inferProvider(model)).toLowerCase().trim();
+  const tokLbl    = (raw.tokensLabel || '').trim();
+  const wowRaw    = (raw.wowLabel  || '').trim();
+  const isGoogle  = provider === 'google' || /gemini|google/i.test(model);
+  const isGemini  = /gemini/i.test(model);
+  const isNew     = /new/i.test(wowRaw);
+
+  /* Parse wow% */
+  let wowPct = raw.wowPct !== undefined ? raw.wowPct : null;
+  if (wowPct === null && !isNew) {
+    const wm = wowRaw.match(/([+\-]?\d+(?:\.\d+)?)\s*%/);
+    if (wm) wowPct = parseFloat(wm[1]);
+  }
+
+  /* Parse token count → number */
+  let tokens = raw.tokens || 0;
+  if (!tokens) {
+    const tm = tokLbl.match(/([\d.]+)\s*([BT])/i);
+    if (tm) {
+      const val  = parseFloat(tm[1]);
+      const unit = tm[2].toUpperCase();
+      tokens = unit === 'T' ? val * 1e12 : val * 1e9;
+    }
+  }
+
+  return {
+    rank:        raw.rank || 0,
+    model,
+    provider,
+    tokens,
+    tokensLabel: tokLbl || formatTokens(tokens),
+    wowPct,
+    wowLabel:    isNew ? 'new' : (wowPct !== null ? (wowPct >= 0 ? '+' + wowPct : '' + wowPct) + '%' : '—'),
+    isNew,
+    isGoogle,
+    isGemini
+  };
+}
+
+/* ─── Build summary statistics ───────────────────────────────── */
+function buildSummary(models) {
+  const top    = models[0] || null;
+  const geminis = models.filter(m => m.isGemini);
+  const geminiHighest = geminis.length > 0 ? geminis[0] : null;
+
+  /* Gemini vs top peers comparison set */
+  const peers = ['openai', 'anthropic', 'mistralai', 'meta-llama', 'deepseek'];
+  const peerRows = [];
+
+  /* Add all Gemini rows first */
+  geminis.slice(0, 3).forEach(r => peerRows.push(r));
+
+  /* Add top 1 row per major competitor */
+  peers.forEach(p => {
+    const found = models.find(m => m.provider === p || m.provider.includes(p.split('-')[0]));
+    if (found && !peerRows.find(r => r.model === found.model)) peerRows.push(found);
+  });
+
+  /* Sort by rank */
+  peerRows.sort((a, b) => a.rank - b.rank);
+
+  /* Compute Gemini token share within the visible top-N */
+  const totalTokens  = models.reduce((s, m) => s + (m.tokens || 0), 0);
+  const geminiTokens = geminis.reduce((s, m) => s + (m.tokens || 0), 0);
+  const geminiShare  = totalTokens > 0 ? Math.round((geminiTokens / totalTokens) * 1000) / 10 : null;
+
+  return {
+    totalModels:   models.length,
+    topModel:      top,
+    geminiHighest,
+    geminiShare,
+    geminiVsPeers: peerRows
+  };
+}
+
+/* ─── Helpers ────────────────────────────────────────────────── */
+function inferProvider(model) {
+  const m = model.toLowerCase();
+  if (/gemini|google/.test(m))       return 'google';
+  if (/gpt|o1|o3|o4|openai/.test(m)) return 'openai';
+  if (/claude|anthropic/.test(m))    return 'anthropic';
+  if (/llama|meta/.test(m))          return 'meta-llama';
+  if (/mistral|mixtral/.test(m))     return 'mistralai';
+  if (/deepseek/.test(m))            return 'deepseek';
+  if (/qwen/.test(m))                return 'qwen';
+  if (/gemma/.test(m))               return 'google';
+  return 'other';
+}
+
+function formatTokens(n) {
+  if (!n) return '—';
+  if (n >= 1e12) return (n / 1e12).toFixed(1).replace(/\.0$/, '') + 'T';
+  if (n >= 1e9)  return Math.round(n / 1e9) + 'B';
+  if (n >= 1e6)  return Math.round(n / 1e6) + 'M';
+  return n.toString();
+}
+
+/* ─── Response helpers ───────────────────────────────────────── */
+function ok(obj) {
+  return new Response(JSON.stringify(obj), {
+    status:  200,
+    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', ...CORS }
+  });
+}
+function err(msg) {
+  return new Response(JSON.stringify({ success: false, error: msg }), {
+    status:  502,
+    headers: { 'Content-Type': 'application/json', ...CORS }
+  });
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════
+   CapEx handler — appended after all helpers so ok() is defined.
+   Triggered by: GET /api/openrouter?view=capex
+═══════════════════════════════════════════════════════════════════ */
