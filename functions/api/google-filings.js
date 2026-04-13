@@ -236,14 +236,15 @@ function jsonOk(obj) {
 ═══════════════════════════════════════════════════════════════ */
 
 const CX_UA = 'Tybourne-Capital-Dashboard/1.0 (research@tybourne.com)';
+const CX_DEFAULT_TAG = 'PaymentsToAcquirePropertyPlantAndEquipment';
 const CX_COMPANIES = [
-  { cik: '1018724',  ticker: 'AMZN', name: 'Amazon',    color: '#fb923c' },
+  // Amazon switched from PaymentsToAcquire… to PaymentsToAcquireProductiveAssets after 2017
+  { cik: '1018724',  ticker: 'AMZN', name: 'Amazon',    color: '#fb923c', tag: 'PaymentsToAcquireProductiveAssets' },
   { cik: '789019',   ticker: 'MSFT', name: 'Microsoft', color: '#60a5fa' },
   { cik: '1652044',  ticker: 'GOOG', name: 'Alphabet',  color: '#34d399' },
   { cik: '1326801',  ticker: 'META', name: 'Meta',       color: '#818cf8' },
   { cik: '1341439',  ticker: 'ORCL', name: 'Oracle',    color: '#f87171' },
 ];
-const CX_TAG = 'PaymentsToAcquirePropertyPlantAndEquipment';
 
 /* Benchmark totals (all 5 companies stacked, $B) for deviation tracking */
 const CX_BENCHMARK = {
@@ -282,8 +283,9 @@ async function fetchCompanyCapEx(company) {
     if (!resp.ok) return { ticker: company.ticker, quarters: {}, math, factCount: 0, error: 'HTTP ' + resp.status };
     const data = await resp.json();
 
-    const factObj = data?.facts?.['us-gaap']?.[CX_TAG];
-    if (!factObj) return { ticker: company.ticker, quarters: {}, math, factCount: 0, error: 'tag not found' };
+    const tag = company.tag || CX_DEFAULT_TAG;
+    const factObj = data?.facts?.['us-gaap']?.[tag];
+    if (!factObj) return { ticker: company.ticker, quarters: {}, math, factCount: 0, error: 'tag "' + tag + '" not found' };
     const entries = factObj?.units?.['USD'];
     if (!entries || !entries.length) return { ticker: company.ticker, quarters: {}, math, factCount: 0, error: 'no USD entries' };
 
@@ -352,9 +354,9 @@ async function fetchCompanyCapEx(company) {
       if (Object.keys(m.singles).length) math.push(m);
     });
 
-    return { ticker: company.ticker, quarters, math, factCount: entries.length, error: null };
+    return { ticker: company.ticker, tag, quarters, math, factCount: entries.length, error: null };
   } catch (e) {
-    return { ticker: company.ticker, quarters: {}, math, factCount: 0, error: 'fetch: ' + (e.message || String(e)) };
+    return { ticker: company.ticker, tag: company.tag || CX_DEFAULT_TAG, quarters: {}, math, factCount: 0, error: 'fetch: ' + (e.message || String(e)) };
   }
 }
 
@@ -392,15 +394,18 @@ async function handleCapEx() {
     /* Debug fields */
     const perCompanyQuarterMath = {};
     const perCompanySelectedQuarters = {};
+    const perCompanyTag = {};
     const missingCompanies = [];
     cr.forEach(c => {
       perCompanyQuarterMath[c.ticker] = c.math;
       perCompanySelectedQuarters[c.ticker] = sortQLabels(Object.keys(c.quarters));
-      if (!Object.keys(c.quarters).length) missingCompanies.push(c.ticker + ': ' + (c.error || 'no data'));
+      perCompanyTag[c.ticker] = c.tag;
+      if (!Object.keys(c.quarters).length) missingCompanies.push(c.ticker + ' (' + c.tag + '): ' + (c.error || 'no data'));
     });
 
     const debug = {
-      debugVersion: 'trace-4',
+      debugVersion: 'trace-5',
+      perCompanyTag,
       perCompanyQuarterMath,
       perCompanySelectedQuarters,
       missingCompanies,
@@ -423,7 +428,7 @@ async function handleCapEx() {
     );
   } catch (err) {
     return new Response(
-      JSON.stringify({ success: false, error: 'CapEx: ' + (err.message || String(err)), debugVersion: 'trace-4' }),
+      JSON.stringify({ success: false, error: 'CapEx: ' + (err.message || String(err)), debugVersion: 'trace-5' }),
       { status: 200, headers: Object.assign({ 'Content-Type': 'application/json' }, CORS) }
     );
   }
