@@ -225,8 +225,14 @@ function jsonOk(obj) {
 
 /* ═══════════════════════════════════════════════════════════════
    CapEx handler — per-company SEC EDGAR companyfacts endpoint
-   One request per company → extract quarterly CapEx from facts
+   YTD-to-single-quarter decomposition for true quarterly CapEx
    Route: GET /api/google-filings?view=capex
+
+   SEC cash-flow items (like CapEx) are cumulative YTD in 10-Q:
+     Q1 10-Q  →  3-month value  (= single Q1)
+     Q2 10-Q  →  6-month YTD    (Q2 alone = Q2_YTD − Q1_YTD)
+     Q3 10-Q  →  9-month YTD    (Q3 alone = Q3_YTD − Q2_YTD)
+     10-K     → 12-month FY     (Q4 alone = FY     − Q3_YTD)
 ═══════════════════════════════════════════════════════════════ */
 
 const CX_UA = 'Tybourne-Capital-Dashboard/1.0 (research@tybourne.com)';
@@ -239,129 +245,173 @@ const CX_COMPANIES = [
 ];
 const CX_TAG = 'PaymentsToAcquirePropertyPlantAndEquipment';
 
-/* Zero-pad CIK to 10 digits for the companyfacts URL */
+/* Benchmark totals (all 5 companies stacked, $B) for deviation tracking */
+const CX_BENCHMARK = {
+  'Q3 2020':24,'Q4 2020':28,'Q1 2021':37,'Q2 2021':30,'Q3 2021':33,
+  'Q4 2021':35,'Q1 2022':35,'Q2 2022':37,'Q3 2022':40,'Q4 2022':41,
+  'Q1 2023':35,'Q2 2023':34,'Q3 2023':37,'Q4 2023':43,'Q1 2024':45,
+  'Q2 2024':54,'Q3 2024':60,'Q4 2024':75,'Q1 2025':77,'Q2 2025':97,
+  'Q3 2025':105,
+};
+
 function padCik(cik) { return String(cik).padStart(10, '0'); }
 
-/* Convert an SEC `end` date (YYYY-MM-DD) to a quarter label like "Q1 2025".
-   Q1 = ends Jan-Mar, Q2 = Apr-Jun, Q3 = Jul-Sep, Q4 = Oct-Dec */
-function endDateToQuarterLabel(end) {
+/* Map a period-end date (YYYY-MM-DD) to a calendar quarter label */
+function endToCalQ(end) {
   const [y, m] = end.split('-').map(Number);
-  const q = Math.ceil(m / 3);
-  return 'Q' + q + ' ' + y;
+  return 'Q' + Math.ceil(m / 3) + ' ' + y;
 }
 
-/* Fetch companyfacts for one CIK, return quarterly CapEx map { "Q1 2025": valueInBillions } */
+/* Sort quarter labels chronologically */
+function sortQLabels(labels) {
+  return [...labels].sort((a, b) => {
+    const ya = parseInt(a.split(' ')[1]), yb = parseInt(b.split(' ')[1]);
+    return ya !== yb ? ya - yb : parseInt(a[1]) - parseInt(b[1]);
+  });
+}
+
+/*
+ * Fetch companyfacts for one CIK, decompose YTD → single-quarter CapEx.
+ * Returns { ticker, quarters: { "Q1 2025": $B }, math: [...], factCount, error }
+ */
 async function fetchCompanyCapEx(company) {
   const url = 'https://data.sec.gov/api/xbrl/companyfacts/CIK' + padCik(company.cik) + '.json';
+  const math = [];
   try {
     const resp = await fetch(url, { headers: { 'User-Agent': CX_UA, 'Accept': 'application/json' } });
-    if (!resp.ok) return { ticker: company.ticker, quarters: {}, factCount: 0, error: 'HTTP ' + resp.status };
+    if (!resp.ok) return { ticker: company.ticker, quarters: {}, math, factCount: 0, error: 'HTTP ' + resp.status };
     const data = await resp.json();
 
-    // Navigate to the CapEx fact series
     const factObj = data?.facts?.['us-gaap']?.[CX_TAG];
-    if (!factObj) return { ticker: company.ticker, quarters: {}, factCount: 0, error: 'tag not found in companyfacts' };
-
-    // Prefer USD units
+    if (!factObj) return { ticker: company.ticker, quarters: {}, math, factCount: 0, error: 'tag not found' };
     const entries = factObj?.units?.['USD'];
-    if (!entries || entries.length === 0) return { ticker: company.ticker, quarters: {}, factCount: 0, error: 'no USD entries for tag' };
+    if (!entries || !entries.length) return { ticker: company.ticker, quarters: {}, math, factCount: 0, error: 'no USD entries' };
 
-    // Filter for quarterly entries only (10-Q or 10-K with fp like Q1-Q4, not FY)
-    // Also accept entries that have a `frame` matching CYxxxxQx pattern
-    const quarterlyEntries = entries.filter(e => {
-      // Skip annual / full-year entries
-      if (e.fp === 'FY') return false;
-      // Must have a quarterly frame like CY2024Q1 (not CY2024 which is annual)
-      if (e.frame && /^CY\d{4}Q[1-4](I)?$/.test(e.frame)) return true;
-      // Or filed on 10-Q with a quarterly fp
-      if (e.form === '10-Q' && /^Q[1-4]$/.test(e.fp)) return true;
-      // 10-K filings can contain Q4 data with fp=Q4 (some companies report this way)
-      if (e.form === '10-K' && e.fp === 'Q4') return true;
-      return false;
-    });
-
-    // Deduplicate: for each quarter label, keep the entry with the latest filed date
-    const bestByQuarter = {};
-    quarterlyEntries.forEach(e => {
-      const label = endDateToQuarterLabel(e.end);
-      const existing = bestByQuarter[label];
-      if (!existing || (e.filed && (!existing.filed || e.filed > existing.filed))) {
-        bestByQuarter[label] = e;
+    /* ── Step 1: Group entries by fiscal year + fiscal period ───────
+       Accept 10-Q (fp Q1/Q2/Q3) and 10-K (fp FY).
+       Deduplicate by keeping the latest filed date per (fy, fp). */
+    const byFY = {};
+    entries.forEach(e => {
+      if (!e.fy || !e.fp || !e.end) return;
+      const form = (e.form || '').replace(/\/A$/i, '');  // treat amendments same
+      if (form !== '10-Q' && form !== '10-K') return;
+      const validFps = form === '10-Q' ? ['Q1','Q2','Q3'] : ['FY'];
+      if (!validFps.includes(e.fp)) return;
+      if (e.fy < 2019) return;  // only need ~Q3 2020 onward
+      if (!byFY[e.fy]) byFY[e.fy] = {};
+      const prev = byFY[e.fy][e.fp];
+      if (!prev || (e.filed && (!prev.filed || e.filed > prev.filed))) {
+        byFY[e.fy][e.fp] = e;
       }
     });
 
-    // Convert to { "Q1 2025": rounded billions }
+    /* ── Step 2: YTD decomposition per fiscal year ─────────────────
+       Q1 = Q1_YTD
+       Q2 = Q2_YTD − Q1_YTD
+       Q3 = Q3_YTD − Q2_YTD
+       Q4 = FY      − Q3_YTD
+       Calendar quarter assigned by the period end date. */
     const quarters = {};
-    Object.keys(bestByQuarter).forEach(label => {
-      const val = bestByQuarter[label].val;
-      if (typeof val === 'number' && val > 0) {
-        quarters[label] = Math.round(val / 1e9);
+    Object.keys(byFY).sort().forEach(fy => {
+      const p = byFY[fy];
+      const ytdQ1 = p.Q1?.val, ytdQ2 = p.Q2?.val, ytdQ3 = p.Q3?.val, ytdFY = p.FY?.val;
+      const m = { fy: +fy, ytdQ1, ytdQ2, ytdQ3, ytdFY, singles: {} };
+
+      // Fiscal Q1 → single quarter = Q1 YTD
+      if (ytdQ1 != null && p.Q1.end) {
+        const lbl = endToCalQ(p.Q1.end);
+        const v = Math.round(ytdQ1 / 1e9);
+        if (v > 0) { quarters[lbl] = v; m.singles[lbl] = v + 'B=Q1ytd'; }
       }
+
+      // Fiscal Q2 → single quarter = Q2 YTD − Q1 YTD
+      if (ytdQ2 != null && ytdQ1 != null && p.Q2.end) {
+        const lbl = endToCalQ(p.Q2.end);
+        const v = Math.round((ytdQ2 - ytdQ1) / 1e9);
+        if (v > 0) { quarters[lbl] = v; m.singles[lbl] = v + 'B=Q2ytd-Q1ytd'; }
+      }
+
+      // Fiscal Q3 → single quarter = Q3 YTD − Q2 YTD
+      if (ytdQ3 != null && ytdQ2 != null && p.Q3.end) {
+        const lbl = endToCalQ(p.Q3.end);
+        const v = Math.round((ytdQ3 - ytdQ2) / 1e9);
+        if (v > 0) { quarters[lbl] = v; m.singles[lbl] = v + 'B=Q3ytd-Q2ytd'; }
+      }
+
+      // Fiscal Q4 → single quarter = FY − Q3 YTD
+      if (ytdFY != null && ytdQ3 != null && p.FY.end) {
+        const lbl = endToCalQ(p.FY.end);
+        const v = Math.round((ytdFY - ytdQ3) / 1e9);
+        if (v > 0) { quarters[lbl] = v; m.singles[lbl] = v + 'B=FY-Q3ytd'; }
+      }
+
+      // Edge: have FY + Q1 + Q2 but no Q3 → can't isolate Q3 or Q4
+      // Edge: have only FY → can't decompose any single quarter
+      // Both produce gaps; we never fabricate.
+
+      if (Object.keys(m.singles).length) math.push(m);
     });
 
-    return { ticker: company.ticker, quarters, factCount: entries.length, selectedCount: Object.keys(quarters).length, error: null };
+    return { ticker: company.ticker, quarters, math, factCount: entries.length, error: null };
   } catch (e) {
-    return { ticker: company.ticker, quarters: {}, factCount: 0, error: 'fetch error: ' + (e.message || String(e)) };
+    return { ticker: company.ticker, quarters: {}, math, factCount: 0, error: 'fetch: ' + (e.message || String(e)) };
   }
 }
 
 async function handleCapEx() {
   try {
-    // Fetch companyfacts for all target companies in parallel
+    /* Fetch all 5 companies in parallel */
     const results = await Promise.allSettled(CX_COMPANIES.map(c => fetchCompanyCapEx(c)));
-    const companyResults = results.map((r, i) =>
-      r.status === 'fulfilled' ? r.value : { ticker: CX_COMPANIES[i].ticker, quarters: {}, factCount: 0, error: 'promise rejected' }
+    const cr = results.map((r, i) =>
+      r.status === 'fulfilled' ? r.value : { ticker: CX_COMPANIES[i].ticker, quarters: {}, math: [], factCount: 0, error: 'rejected' }
     );
 
-    // Collect all quarter labels across all companies
-    const allQuarterLabels = new Set();
-    companyResults.forEach(cr => {
-      Object.keys(cr.quarters).forEach(label => allQuarterLabels.add(label));
-    });
+    /* Merge all quarter labels, sort chronologically */
+    const allLabels = new Set();
+    cr.forEach(c => Object.keys(c.quarters).forEach(l => allLabels.add(l)));
+    const sorted = sortQLabels(allLabels);
 
-    // Sort quarter labels chronologically
-    const sorted = [...allQuarterLabels].sort((a, b) => {
-      const [qa, ya] = [parseInt(a[1]), parseInt(a.split(' ')[1])];
-      const [qb, yb] = [parseInt(b[1]), parseInt(b.split(' ')[1])];
-      return ya !== yb ? ya - yb : qa - qb;
-    });
-
-    // Keep only the most recent 10 quarters
-    const recentQuarters = sorted.slice(-10);
-
-    // Build chartData: one object per quarter with each company's value
-    const chartData = recentQuarters.map(label => {
+    /* Build chartData: one object per quarter with each company value */
+    const chartData = sorted.map(label => {
       const row = { quarter: label };
-      companyResults.forEach(cr => {
-        if (cr.quarters[label] != null) {
-          row[cr.ticker] = cr.quarters[label];
-        }
-      });
+      cr.forEach(c => { if (c.quarters[label] != null) row[c.ticker] = c.quarters[label]; });
       return row;
     });
 
-    // Debug fields
-    const perCompanyFactCount = {};
-    const perCompanySelectedQuarters = {};
-    const missingCompanies = [];
-    companyResults.forEach(cr => {
-      perCompanyFactCount[cr.ticker] = cr.factCount;
-      perCompanySelectedQuarters[cr.ticker] = Object.keys(cr.quarters).sort();
-      if (Object.keys(cr.quarters).length === 0) {
-        missingCompanies.push(cr.ticker + ': ' + (cr.error || 'no quarterly data'));
+    /* Compute generated totals and benchmark deviation */
+    const generatedTotalsByQuarter = {};
+    const deviationByQuarter = {};
+    chartData.forEach(row => {
+      const total = CX_COMPANIES.reduce((s, c) => s + (row[c.ticker] || 0), 0);
+      generatedTotalsByQuarter[row.quarter] = total;
+      if (CX_BENCHMARK[row.quarter] != null) {
+        deviationByQuarter[row.quarter] = total - CX_BENCHMARK[row.quarter];
       }
     });
 
+    /* Debug fields */
+    const perCompanyQuarterMath = {};
+    const perCompanySelectedQuarters = {};
+    const missingCompanies = [];
+    cr.forEach(c => {
+      perCompanyQuarterMath[c.ticker] = c.math;
+      perCompanySelectedQuarters[c.ticker] = sortQLabels(Object.keys(c.quarters));
+      if (!Object.keys(c.quarters).length) missingCompanies.push(c.ticker + ': ' + (c.error || 'no data'));
+    });
+
     const debug = {
-      debugVersion: 'trace-3',
-      perCompanyFactCount,
+      debugVersion: 'trace-4',
+      perCompanyQuarterMath,
       perCompanySelectedQuarters,
       missingCompanies,
+      generatedTotalsByQuarter,
+      benchmarkTotalsByQuarter: CX_BENCHMARK,
+      deviationByQuarter,
     };
 
-    if (chartData.length === 0) {
+    if (!chartData.length) {
       return new Response(
-        JSON.stringify(Object.assign({ success: false, error: 'No quarterly CapEx data found for any company' }, debug)),
+        JSON.stringify(Object.assign({ success: false, error: 'No quarterly CapEx data found' }, debug)),
         { status: 200, headers: Object.assign({ 'Content-Type': 'application/json' }, CORS) }
       );
     }
@@ -373,7 +423,7 @@ async function handleCapEx() {
     );
   } catch (err) {
     return new Response(
-      JSON.stringify({ success: false, error: 'CapEx handler: ' + (err.message || String(err)), debugVersion: 'trace-3' }),
+      JSON.stringify({ success: false, error: 'CapEx: ' + (err.message || String(err)), debugVersion: 'trace-4' }),
       { status: 200, headers: Object.assign({ 'Content-Type': 'application/json' }, CORS) }
     );
   }
