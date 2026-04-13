@@ -285,7 +285,10 @@ function parseMarkdown(md) {
 
 /* ─── Normalise a raw row into a clean ModelRow ─────────────── */
 function normaliseRow(raw) {
-  const model     = (raw.model     || '').trim();
+  // Strip markdown link syntax: "[model name](https://...)" → "model name"
+  let model = (raw.model || '').trim().replace(/\[([^\]]+)\]\([^)]*\)/g, '$1').trim();
+  // Also strip "by " prefix that Firecrawl sometimes adds
+  model = model.replace(/^by\s+/i, '');
   const provider  = (raw.provider  || inferProvider(model)).toLowerCase().trim();
   const tokLbl    = (raw.tokensLabel || '').trim();
   const wowRaw    = (raw.wowLabel  || '').trim();
