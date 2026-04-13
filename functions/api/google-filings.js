@@ -230,14 +230,19 @@ function jsonOk(obj) {
 ═══════════════════════════════════════════════════════════════ */
 
 const CX_UA = 'Tybourne-Capital-Dashboard/1.0 (research@tybourne.com)';
-const CX_CIKS = {
-  1018724:  { ticker: 'AMZN', name: 'Amazon',    color: '#fb923c' },
-   789019:  { ticker: 'MSFT', name: 'Microsoft', color: '#60a5fa' },
-  1652044:  { ticker: 'GOOG', name: 'Alphabet',  color: '#34d399' },
-  1326801:  { ticker: 'META', name: 'Meta',       color: '#818cf8' },
-  1341439:  { ticker: 'ORCL', name: 'Oracle',    color: '#f87171' },
-};
+const CX_COMPANIES = [
+  { cik: '1018724',  ticker: 'AMZN', name: 'Amazon',    color: '#fb923c' },
+  { cik: '789019',   ticker: 'MSFT', name: 'Microsoft', color: '#60a5fa' },
+  { cik: '1652044',  ticker: 'GOOG', name: 'Alphabet',  color: '#34d399' },
+  { cik: '1326801',  ticker: 'META', name: 'Meta',       color: '#818cf8' },
+  { cik: '1341439',  ticker: 'ORCL', name: 'Oracle',    color: '#f87171' },
+];
+// Build a normalized lookup: strip leading zeros → company info
+const CX_CIK_MAP = {};
+CX_COMPANIES.forEach(c => { CX_CIK_MAP[String(c.cik).replace(/^0+/, '')] = c; });
 const CX_TAG = 'PaymentsToAcquirePropertyPlantAndEquipment';
+
+function normCik(raw) { return String(raw).trim().replace(/^0+/, ''); }
 
 function getCapExQuarters(count) {
   const now = new Date();
@@ -257,21 +262,31 @@ async function fetchQuarterData(qKey) {
   try {
     const resp = await fetch(url, { headers: { 'User-Agent': CX_UA, 'Accept': 'application/json' } });
     const text = await resp.text();
-    if (!text || text.trimStart().startsWith('<')) return { rows: null, reason: 'empty or HTML response (status ' + resp.status + ')' };
-    let data; try { data = JSON.parse(text); } catch { return { rows: null, reason: 'JSON parse failed' }; }
-    const totalRows = (data.data || []).length;
+    if (!text || text.trimStart().startsWith('<')) return { rows: null, sample: null, reason: 'empty or HTML response (status ' + resp.status + ')' };
+    let data; try { data = JSON.parse(text); } catch { return { rows: null, sample: null, reason: 'JSON parse failed' }; }
+    const frameRows = data.data || [];
+    const totalRows = frameRows.length;
+    // Build a sample of the first 5 rows for debugging
+    const sample = frameRows.slice(0, 5).map(row => {
+      if (Array.isArray(row)) return { _format: 'array', cik: row[1], entityName: row[2], val: row[5], len: row.length };
+      return { _format: 'object', cik: row.cik, entityName: row.entityName, val: row.val, keys: Object.keys(row).slice(0, 8) };
+    });
     const rows = {};
-    (data.data || []).forEach(row => {
-      const cik = row[1];
-      const val  = row[5];
-      if (CX_CIKS[cik] && typeof val === 'number') {
-        rows[CX_CIKS[cik].ticker] = Math.round(val / 1e9);
+    frameRows.forEach(row => {
+      // Handle both array format [accn, cik, name, loc, end, val] and object format {cik, val, ...}
+      const rawCik = Array.isArray(row) ? row[1] : row.cik;
+      const rawVal = Array.isArray(row) ? row[5] : row.val;
+      if (rawCik == null || rawVal == null) return;
+      const nCik = normCik(rawCik);
+      const company = CX_CIK_MAP[nCik];
+      if (company && typeof rawVal === 'number') {
+        rows[company.ticker] = Math.round(rawVal / 1e9);
       }
     });
     const matched = Object.keys(rows).length;
-    if (matched === 0) return { rows: null, reason: 'frame had ' + totalRows + ' rows but 0 matched target CIKs' };
-    return { rows, reason: null };
-  } catch (e) { return { rows: null, reason: 'fetch error: ' + (e.message || String(e)) }; }
+    if (matched === 0) return { rows: null, sample, reason: 'frame had ' + totalRows + ' rows but 0 matched target CIKs' };
+    return { rows, sample, reason: null };
+  } catch (e) { return { rows: null, sample: null, reason: 'fetch error: ' + (e.message || String(e)) }; }
 }
 
 async function handleCapEx() {
@@ -288,19 +303,23 @@ async function handleCapEx() {
 
     const attemptedQuarters = [];
     const returnedQuarters  = [];
+    const matchedCompaniesByQuarter = {};
     const chartData = [];
     let firstNonMatchingReason = null;
+    let firstFrameSample = null;
 
     for (let i = 0; i < candidates.length; i++) {
       const q      = candidates[i];
-      const result = results[i].status === 'fulfilled' ? results[i].value : { rows: null, reason: 'promise rejected' };
+      const result = results[i].status === 'fulfilled' ? results[i].value : { rows: null, sample: null, reason: 'promise rejected' };
       const rows   = result.rows;
       attemptedQuarters.push(q.key);
+      if (!firstFrameSample && result.sample) firstFrameSample = result.sample;
       if (!rows || Object.keys(rows).length === 0) {
         if (!firstNonMatchingReason && result.reason) firstNonMatchingReason = q.key + ': ' + result.reason;
         continue;
       }
       returnedQuarters.push(q.key);
+      matchedCompaniesByQuarter[q.key] = Object.keys(rows);
       chartData.push(Object.assign({ quarter: q.label }, rows));
     }
 
@@ -308,12 +327,19 @@ async function handleCapEx() {
     const trimmed = chartData.slice(-10);
 
     // ── Debug fields included in every response ──
+    const targetCiksRaw = CX_COMPANIES.map(c => c.cik);
+    const targetCiksNormalized = CX_COMPANIES.map(c => normCik(c.cik));
     const debug = {
-      debugVersion: 'trace-1',
+      debugVersion: 'trace-2',
+      targetCompanies: CX_COMPANIES.map(c => c.ticker + '=' + c.cik),
+      targetCiksRaw,
+      targetCiksNormalized,
       rawGeneratedQuarters,
       rawGeneratedKeys,
       firstFrameUrl,
+      firstFrameSample,
       firstNonMatchingReason,
+      matchedCompaniesByQuarter,
       attemptedQuarters,
       returnedQuarters,
     };
@@ -325,7 +351,7 @@ async function handleCapEx() {
       );
     }
 
-    const companies = Object.values(CX_CIKS);
+    const companies = CX_COMPANIES.map(c => ({ ticker: c.ticker, name: c.name, color: c.color }));
     return new Response(
       JSON.stringify(Object.assign({ success: true, chartData: trimmed, companies, fetchedAt: new Date().toISOString() }, debug)),
       { status: 200, headers: Object.assign({ 'Content-Type': 'application/json' }, CORS) }
