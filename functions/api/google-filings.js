@@ -298,10 +298,11 @@ async function fetchCompanyCapEx(company) {
     const entries = factObj?.units?.['USD'];
     if (!entries || !entries.length) return { ticker: company.ticker, tag, quarters: {}, math, factCount: 0, error: 'no USD entries' };
 
-    /* ── Step 1: Collect all valid entries grouped by fiscal year ── */
+    /* ── Step 1: Collect all valid entries grouped by fiscal year ──
+       Note: `start` may be absent on older filings — don't require it. */
     const rawByFY = {};
     entries.forEach(e => {
-      if (!e.fy || !e.fp || !e.end || !e.start) return;
+      if (!e.fy || !e.fp || !e.end) return;
       const form = (e.form || '').replace(/\/A$/i, '');
       if (form !== '10-Q' && form !== '10-K') return;
       const validFps = form === '10-Q' ? ['Q1','Q2','Q3'] : ['FY'];
@@ -314,27 +315,29 @@ async function fetchCompanyCapEx(company) {
     /* ── Step 2: For each FY, identify fiscal-year start date, then
        pick only the cumulative YTD entries (start == fyStart).
        This filters out trailing-12-month and standalone-quarter
-       entries that would corrupt the subtraction math. ──────────── */
+       entries that would corrupt the subtraction math.
+       Older entries lacking `start` are included (no ambiguity risk
+       — duplicate start dates only appear in newer filings). ───── */
     const quarters = {};
     Object.keys(rawByFY).sort().forEach(fy => {
       const group = rawByFY[fy];
 
-      // Determine fiscal year start: prefer FY entry's start, else most common start
+      // Determine fiscal year start from entries that HAVE a start field
       let fyStart = null;
-      const fyEntry = group.find(e => e.fp === 'FY');
+      const fyEntry = group.find(e => e.fp === 'FY' && e.start);
       if (fyEntry) { fyStart = fyEntry.start; }
       if (!fyStart) {
         const startCounts = {};
-        group.forEach(e => { startCounts[e.start] = (startCounts[e.start] || 0) + 1; });
-        fyStart = Object.entries(startCounts).sort((a, b) => b[1] - a[1])[0]?.[0];
+        group.forEach(e => { if (e.start) startCounts[e.start] = (startCounts[e.start] || 0) + 1; });
+        const sorted = Object.entries(startCounts).sort((a, b) => b[1] - a[1]);
+        if (sorted.length) fyStart = sorted[0][0];
       }
-      if (!fyStart) return;
 
-      // Filter to YTD entries only (start matches fiscal year start)
-      // Then deduplicate per fp by latest filed date
+      // Filter: if entry has `start`, it must match fyStart (skip trailing/standalone).
+      // If entry lacks `start` (older filing), include it — no ambiguity in old data.
       const best = {};
       group.forEach(e => {
-        if (e.start !== fyStart) return;
+        if (fyStart && e.start && e.start !== fyStart) return;
         const prev = best[e.fp];
         if (!prev || (e.filed && (!prev.filed || e.filed > prev.filed))) {
           best[e.fp] = e;
