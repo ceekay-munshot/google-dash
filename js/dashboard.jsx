@@ -145,11 +145,15 @@ async function fetchOR(){
   const r=await timedFetch("/api/openrouter?view=week&top=30");
   const d=await r.json();
   if(!d.success||!d.models?.length)throw new Error(d.error||"empty");
-  return d.models.map(m=>({
-    rank:m.rank,model:(m.model||"").slice(0,24),provider:m.provider,
-    tokens:m.tokensLabel,tokRaw:m.tokens||0,
-    wow:m.wowLabel,wowN:m.wowPct,isGemini:m.isGemini,
-  }));
+  const seen={};
+  return d.models.map(m=>{
+    const name=(m.model||"").replace(/\[([^\]]+)\]\([^)]*\)/g,"$1").replace(/^by\s+/i,"").trim();
+    return {
+      rank:m.rank,model:name,provider:m.provider,
+      tokens:m.tokensLabel,tokRaw:m.tokens||0,
+      wow:m.wowLabel||"—",wowN:m.wowPct,isGemini:m.isGemini||/gemini/i.test(name),
+    };
+  }).filter(m=>{const k=m.rank+"-"+m.model;if(seen[k])return false;seen[k]=true;return true});
 }
 
 async function fetchRadar(){
@@ -246,8 +250,15 @@ function FilingAnchorRow(){
    TAB: OpenRouter
 ═══════════════════════════════════════════════════════ */
 function ORTab({data,busy,ts,live,refresh}){
+  const trunc=(s,n)=>s&&s.length>n?s.slice(0,n-1)+"…":(s||"");
   const best=data.find(m=>m.isGemini),top=data[0];
-  const chartData=data.slice(0,6).map(m=>({name:m.model.slice(0,17),tokens:m.tokRaw,fill:pc(m.provider)}));
+  const _seen={};
+  const chartData=data.slice(0,10).map(m=>{
+    let short=trunc(m.model,20);
+    if(_seen[short])short=trunc(m.model,14)+" (#"+m.rank+")";
+    _seen[short]=true;
+    return{name:short,fullName:m.model,tokens:m.tokRaw,fill:pc(m.provider)};
+  });
   return(
     <>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
@@ -259,8 +270,8 @@ function ORTab({data,busy,ts,live,refresh}){
       </div>
       {busy?<Shimmer rows={7}/>:(<>
         <div style={{display:"flex",gap:10,marginBottom:14}}>
-          {best&&<KBox label="Best Gemini" value={"#"+best.rank} sub={best.model.slice(0,22)} bg="#f0fdf4" fg="#059669"/>}
-          {top &&<KBox label="#1 this week" value={top.tokens}   sub={top.model.slice(0,22)}  bg="#eff6ff" fg="#1d4ed8"/>}
+          {best&&<KBox label="Best Gemini" value={"#"+best.rank} sub={trunc(best.model,22)} bg="#f0fdf4" fg="#059669"/>}
+          {top &&<KBox label="#1 this week" value={top.tokens}   sub={trunc(top.model,22)}  bg="#eff6ff" fg="#1d4ed8"/>}
         </div>
         <table style={{width:"100%",borderCollapse:"collapse",fontSize:12,marginBottom:14}}>
           <thead><tr>
@@ -269,11 +280,11 @@ function ORTab({data,busy,ts,live,refresh}){
             ))}
           </tr></thead>
           <tbody>{data.map(m=>(
-            <tr key={m.rank} style={{background:m.isGemini?"rgba(16,185,129,.07)":"transparent"}}>
+            <tr key={m.rank+"-"+m.model} style={{background:m.isGemini?"rgba(16,185,129,.07)":"transparent"}}>
               <td style={{padding:"6px",borderBottom:"1px solid #f9fafb",color:"#9ca3af",fontFamily:"monospace"}}>{m.rank}</td>
-              <td style={{padding:"6px",borderBottom:"1px solid #f9fafb"}}>
+              <td style={{padding:"6px",borderBottom:"1px solid #f9fafb"}} title={m.model}>
                 <span style={{display:"inline-block",width:7,height:7,borderRadius:"50%",background:pc(m.provider),marginRight:5}}/>
-                {m.model.slice(0,24)}
+                {trunc(m.model,28)}
                 {m.isGemini&&<span style={{fontSize:9,background:"#d1fae5",color:"#065f46",padding:"1px 5px",borderRadius:3,marginLeft:5,fontWeight:600}}>Gemini</span>}
               </td>
               <td style={{padding:"6px",borderBottom:"1px solid #f9fafb",color:"#6b7280",fontSize:11}}>{m.provider}</td>
@@ -282,11 +293,11 @@ function ORTab({data,busy,ts,live,refresh}){
             </tr>
           ))}</tbody>
         </table>
-        <ResponsiveContainer width="100%" height={170}>
+        <ResponsiveContainer width="100%" height={280}>
           <BarChart data={chartData} layout="vertical" margin={{left:5,right:24,top:0,bottom:0}}>
             <XAxis type="number" tickFormatter={fmt} tick={{fontSize:9}} tickLine={false} axisLine={false}/>
-            <YAxis type="category" dataKey="name" width={115} tick={{fontSize:9}} tickLine={false} axisLine={false}/>
-            <Tooltip formatter={fmt}/>
+            <YAxis type="category" dataKey="name" width={140} tick={{fontSize:9}} tickLine={false} axisLine={false}/>
+            <Tooltip formatter={(v,n,p)=>[fmt(v),p?.payload?.fullName||n]}/>
             <Bar dataKey="tokens" radius={[0,4,4,0]} barSize={13}>{chartData.map((d,i)=><Cell key={i} fill={d.fill}/>)}</Bar>
           </BarChart>
         </ResponsiveContainer>
