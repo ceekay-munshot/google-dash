@@ -146,11 +146,18 @@ async function fetchOR(){
   const d=await r.json();
   if(!d.success||!d.models?.length)throw new Error(d.error||"empty");
   const seen={};
+  const parseTok=(lbl,raw)=>{
+    if(raw&&raw>0)return raw;
+    const m=(lbl||"").match(/([\d.]+)\s*([BT])/i);
+    if(!m)return 0;
+    const v=parseFloat(m[1]),u=m[2].toUpperCase();
+    return u==="T"?v*1e12:v*1e9;
+  };
   return d.models.map(m=>{
     const name=(m.model||"").replace(/\[([^\]]+)\]\([^)]*\)/g,"$1").replace(/^by\s+/i,"").trim();
     return {
       rank:m.rank,model:name,provider:m.provider,
-      tokens:m.tokensLabel,tokRaw:m.tokens||0,
+      tokens:m.tokensLabel,tokRaw:parseTok(m.tokensLabel,m.tokens),
       wow:m.wowLabel||"—",wowN:m.wowPct,isGemini:m.isGemini||/gemini/i.test(name),
     };
   }).filter(m=>{const k=m.rank+"-"+m.model;if(seen[k])return false;seen[k]=true;return true});
