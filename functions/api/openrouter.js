@@ -278,8 +278,12 @@ function parseMarkdown(md) {
     // Find all numbered items: "1." or "2." at start of line
     const cardRe = /^(\d+)\.\s*$/gm;
     let cm;
+    let prevRank = 0;
     while ((cm = cardRe.exec(md)) !== null) {
       const rank = parseInt(cm[1], 10);
+      // Stop if ranks restart — means we hit a different section (e.g. "Top Apps")
+      if (models.length >= 5 && rank <= prevRank) break;
+      prevRank = rank;
       // Look ahead up to 400 chars for model link, provider, tokens, wow
       const ahead = md.slice(cm.index, cm.index + 400);
 
