@@ -663,8 +663,7 @@ export default function App(){
         <KBox label="Top AI crawler"    value={gBot?.pct+"%"}           sub={gBot?.name+" · Apr 2026"}        bg="#fef3c7" fg="#a16207"/>
       </div>
 
-      {/* ── FILING ANCHOR ROW ── */}
-      <FilingAnchorRow/>
+      {/* FilingAnchorRow removed */}
 
       {/* ── OPENROUTER LIVE RANKINGS EMBED ── */}
       <OpenRouterLiveEmbed/>
