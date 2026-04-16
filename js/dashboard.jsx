@@ -376,7 +376,7 @@ function ORTab({data,busy,ts,live,refresh}){
               src={"/api/openrouter-rankings-proxy?section=market-share&v="+Math.floor(Date.now()/3e5)}
               title="OpenRouter — Provider Market Share"
               loading="lazy"
-              style={{border:0,display:"block",width:"100%",height:700,minHeight:550}}
+              style={{border:0,display:"block",width:"100%",height:820,minHeight:700}}
             />
           </div>
           <div style={{fontSize:10,color:"#9ca3af",marginTop:5}}>
@@ -390,10 +390,10 @@ function ORTab({data,busy,ts,live,refresh}){
           <div style={{borderRadius:8,overflow:"hidden",border:"0.5px solid #e5e7eb"}}>
             <iframe
               width="100%" height="500"
-              src="https://radar.cloudflare.com/embed/AiServicesRankingXY?ref=%2Fai-insights"
+              src="https://radar.cloudflare.com/embed/AiServicesRankingXY?dateRange=14d&ref=%2Fai-insights"
               title="Cloudflare Radar - Generative AI services popularity"
               loading="lazy"
-              style={{border:0,display:"block",width:"100%"}}
+              style={{border:0,display:"block",width:"100%",maxWidth:"100%"}}
             />
           </div>
           <div style={{fontSize:10,color:"#9ca3af",marginTop:5}}>

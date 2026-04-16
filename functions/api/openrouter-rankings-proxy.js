@@ -114,11 +114,12 @@ noscript { display: none !important; }
       //   [0] div.gap-12 (Top Models + LLM Leaderboard) — NOT a scroll-mt-24
       //   [1] div.scroll-mt-24 (Market Share) — THIS is what we want
       //   [2+] div.scroll-mt-24 (Benchmarks, Categories, etc.)
-      // For market-share, CSS only hides the gap-12 wrapper (Top Models).
-      // The scroll-mt-24 visibility is handled entirely by JS because CSS
-      // sibling selectors can't isolate "only the first scroll-mt-24".
+      // For market-share, CSS hides the gap-12 wrapper (Top Models) and
+      // clips body height so the iframe doesn't have excess empty space.
+      // Scroll-mt-24 visibility is handled by JS.
       sectionCSS = `
 .main-content-container-lg > .gap-12 { display: none !important; }
+body { overflow: hidden !important; max-height: 810px !important; }
 `;
       sectionJS = `
 document.addEventListener('DOMContentLoaded', function() {
