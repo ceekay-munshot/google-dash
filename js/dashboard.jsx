@@ -322,7 +322,7 @@ function ORTab({data,busy,ts,live,refresh}){
     <>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
         <div style={{display:"flex",alignItems:"center",gap:8}}>
-          <Pill text="openrouter.ai / rankings" bg="#dbeafe" color="#1e40af"/>
+          <Pill text="AI Adoption · openrouter.ai / rankings" bg="#dbeafe" color="#1e40af"/>
           <LiveDot live={live} ts={ts}/>
         </div>
         <RBtn busy={busy} onClick={refresh}/>
@@ -392,7 +392,7 @@ function RadarTab({data,busy,ts,live,refresh}){
     <>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
         <div style={{display:"flex",alignItems:"center",gap:8}}>
-          <Pill text="Cloudflare Radar · AI bots" bg="#d1fae5" color="#065f46"/>
+          <Pill text="Bot traffic / Radar · AI crawlers" bg="#d1fae5" color="#065f46"/>
           <LiveDot live={live} ts={ts}/>
         </div>
         <RBtn busy={busy} onClick={refresh}/>
@@ -598,7 +598,7 @@ function InsightsTab(){
    ROOT
 ═══════════════════════════════════════════════════════ */
 export default function App(){
-  const[tab,setTab]=useState("or");
+  const[tab,setTab]=useState("adoption");
   const or    =usePanel(LIVE.or,    fetchOR);
   const radar =usePanel(LIVE.bots,  fetchRadar);
   const trends=usePanel(LIVE.trends,fetchTrends);
@@ -610,10 +610,10 @@ export default function App(){
   const gBot =LIVE.bots[0];
 
   const TABS=[
-    {id:"or",      label:"OpenRouter", panel:or},
-    {id:"radar",   label:"Bot traffic",panel:radar},
-    {id:"trends",  label:"Trends",     panel:trends},
-    {id:"insights",label:"Insights"},
+    {id:"adoption",label:"AI Adoption",                   panel:or},
+    {id:"gcloud",  label:"Google Cloud / Model API Usage"},
+    {id:"appendix",label:"Appendix"},
+    {id:"history", label:"History"},
   ];
 
   return(
@@ -659,10 +659,32 @@ export default function App(){
 
       {/* Active tab */}
       <div style={S.card}>
-        {tab==="or"      &&<ORTab       {...or}/>}
-        {tab==="radar"   &&<RadarTab    {...radar}/>}
-        {tab==="trends"  &&<TrendsTab   {...trends}/>}
-        {tab==="insights"&&<InsightsTab/>}
+        {tab==="adoption"&&<ORTab {...or}/>}
+        {tab==="gcloud"&&(
+          <div style={{padding:"32px 16px",textAlign:"center"}}>
+            <div style={{...S.lbl,color:"#6366f1",marginBottom:8}}>Google Cloud / Model API Usage</div>
+            <div style={{fontSize:13,color:"#6b7280",maxWidth:480,margin:"0 auto",lineHeight:1.6}}>
+              Google / Gemini API usage proxy section — to be populated in the next step. Do not interpret this as consumer chatbot/search usage.
+            </div>
+          </div>
+        )}
+        {tab==="appendix"&&(
+          <>
+            <div style={{marginBottom:24}}>
+              <div style={{...S.lbl,color:"#374151",marginBottom:12,fontSize:11,borderBottom:"1px solid #f3f4f6",paddingBottom:8}}>Bot traffic / Radar</div>
+              <RadarTab {...radar}/>
+            </div>
+            <div style={{marginBottom:24,borderTop:"1px solid #e5e7eb",paddingTop:16}}>
+              <div style={{...S.lbl,color:"#374151",marginBottom:12,fontSize:11,borderBottom:"1px solid #f3f4f6",paddingBottom:8}}>Trends</div>
+              <TrendsTab {...trends}/>
+            </div>
+            <div style={{borderTop:"1px solid #e5e7eb",paddingTop:16}}>
+              <div style={{...S.lbl,color:"#374151",marginBottom:12,fontSize:11,borderBottom:"1px solid #f3f4f6",paddingBottom:8}}>Additional insights</div>
+              <InsightsTab/>
+            </div>
+          </>
+        )}
+        {tab==="history"&&<div style={{fontSize:12,color:"#9ca3af",textAlign:"center",padding:24}}>History tab — see compiled build</div>}
       </div>
 
       {/* Footer */}
