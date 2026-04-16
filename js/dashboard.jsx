@@ -254,6 +254,58 @@ function FilingAnchorRow(){
 }
 
 /* ═══════════════════════════════════════════════════════
+   EMBEDDED: OpenRouter Live Rankings (proxied page iframe)
+═══════════════════════════════════════════════════════ */
+function OpenRouterLiveEmbed(){
+  const[err,setErr]=useState(false);
+
+  return(
+    <div style={{...S.card,marginBottom:16}}>
+      {/* Section label */}
+      <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:4}}>
+        <span style={{width:7,height:7,borderRadius:"50%",background:"#10b981",display:"inline-block",animation:"orpulse 2s infinite"}}/>
+        <span style={{fontSize:10,textTransform:"uppercase",letterSpacing:".09em",fontWeight:700,color:"#10b981"}}>Primary live signal — OpenRouter</span>
+      </div>
+      <style>{`@keyframes orpulse{0%,100%{opacity:1}50%{opacity:.4}}`}</style>
+
+      {/* Title + subtitle */}
+      <div style={{marginBottom:10}}>
+        <div style={{fontSize:16,fontWeight:700,color:"#111827",lineHeight:1.3}}>OpenRouter Weekly Model Usage</div>
+        <div style={{fontSize:11,color:"#9ca3af",marginTop:3}}>
+          Real API token usage across models · strongest public proxy for developer / API adoption
+        </div>
+      </div>
+
+      {/* Iframe or fallback */}
+      {err?(
+        <div style={{background:"#f9fafb",border:"1px dashed #d1d5db",borderRadius:8,padding:"32px 16px",textAlign:"center"}}>
+          <div style={{fontSize:13,color:"#6b7280",fontWeight:500}}>OpenRouter weekly chart temporarily unavailable</div>
+          <button onClick={()=>setErr(false)}
+            style={{marginTop:10,fontSize:11,padding:"5px 14px",border:"0.5px solid #d1d5db",borderRadius:6,background:"#fff",color:"#374151",cursor:"pointer",fontFamily:"inherit"}}>
+            Retry
+          </button>
+        </div>
+      ):(
+        <div style={{borderRadius:8,overflow:"hidden",border:"0.5px solid #e5e7eb",background:"#fff"}}>
+          <iframe
+            src={"/api/openrouter-rankings-proxy?v="+Math.floor(Date.now()/3e5)}
+            title="OpenRouter — Weekly Model Rankings"
+            loading="lazy"
+            onError={()=>setErr(true)}
+            style={{border:0,display:"block",width:"100%",height:480,minHeight:380}}
+          />
+        </div>
+      )}
+
+      {/* Source note */}
+      <div style={{fontSize:10,color:"#9ca3af",marginTop:6}}>
+        Source: openrouter.ai/rankings · weekly token usage proxy
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════
    TAB: OpenRouter
 ═══════════════════════════════════════════════════════ */
 function ORTab({data,busy,ts,live,refresh}){
@@ -590,6 +642,9 @@ export default function App(){
 
       {/* ── FILING ANCHOR ROW ── */}
       <FilingAnchorRow/>
+
+      {/* ── OPENROUTER LIVE RANKINGS EMBED ── */}
+      <OpenRouterLiveEmbed/>
 
       {/* Tab bar */}
       <div style={{display:"flex",gap:4,marginBottom:12}}>
