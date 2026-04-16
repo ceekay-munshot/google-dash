@@ -103,17 +103,21 @@ table, [role="table"] { display: none !important; }
 
 /* === BODY: clean embed === */
 body {
-  overflow: hidden !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
   margin: 0 !important;
-  padding: 0 4px !important;
+  padding: 4px 8px 16px 4px !important;
   background: #fff !important;
 }
 body > div:first-child { min-height: unset !important; }
 main, [role="main"] {
   max-width: 100% !important;
-  padding: 0 !important;
+  padding: 0 4px !important;
   margin: 0 auto !important;
 }
+/* Ensure the chart SVG area has room for axis labels and tooltip */
+.recharts-wrapper { overflow: visible !important; }
+svg.recharts-surface { overflow: visible !important; }
 ::-webkit-scrollbar { width: 4px; }
 ::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 4px; }
 noscript { display: none !important; }

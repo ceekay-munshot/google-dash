@@ -292,7 +292,7 @@ function OpenRouterLiveEmbed(){
             title="OpenRouter — Weekly Model Rankings"
             loading="lazy"
             onError={()=>setErr(true)}
-            style={{border:0,display:"block",width:"100%",height:480,minHeight:380}}
+            style={{border:0,display:"block",width:"100%",height:560,minHeight:460}}
           />
         </div>
       )}
