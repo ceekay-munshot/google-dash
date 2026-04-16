@@ -361,6 +361,29 @@ function ORTab({data,busy,ts,live,refresh}){
           </BarChart>
         </ResponsiveContainer>
 
+        {/* OpenRouter — Market Share live embed */}
+        <div style={{marginTop:20,marginBottom:20}}>
+          <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:4}}>
+            <span style={{width:7,height:7,borderRadius:"50%",background:"#10b981",display:"inline-block",animation:"orpulse 2s infinite"}}/>
+            <span style={{fontSize:10,textTransform:"uppercase",letterSpacing:".09em",fontWeight:700,color:"#10b981"}}>OpenRouter / Ecosystem</span>
+          </div>
+          <div style={{fontSize:14,fontWeight:700,color:"#111827",lineHeight:1.3}}>OpenRouter Provider Market Share</div>
+          <div style={{fontSize:11,color:"#9ca3af",marginTop:2,marginBottom:8}}>
+            Weekly provider token share across OpenRouter · ecosystem benchmark, not Google revenue
+          </div>
+          <div style={{borderRadius:8,overflow:"hidden",border:"0.5px solid #e5e7eb",background:"#fff"}}>
+            <iframe
+              src={"/api/openrouter-rankings-proxy?section=market-share&v="+Math.floor(Date.now()/3e5)}
+              title="OpenRouter — Provider Market Share"
+              loading="lazy"
+              style={{border:0,display:"block",width:"100%",height:700,minHeight:550}}
+            />
+          </div>
+          <div style={{fontSize:10,color:"#9ca3af",marginTop:5}}>
+            Source: openrouter.ai/rankings · provider token share proxy
+          </div>
+        </div>
+
         {/* Cloudflare Radar — Generative AI services popularity ranking */}
         <div style={{marginTop:16}}>
           <div style={{...S.lbl,marginBottom:8}}>Generative AI services popularity</div>

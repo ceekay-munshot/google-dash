@@ -7,14 +7,20 @@
  * page HTML with relative URLs intact. Companion catch-all proxy functions
  * at /_next/*, /api/frontend/*, /api/internal/*, /images/* forward those
  * requests to openrouter.ai so the page's JS can load chunks, fetch data,
- * and render the chart. Injects CSS to hide everything except the chart
- * and a script to suppress Clerk auth errors.
+ * and render the chart.
+ *
+ * Supports two section modes via ?section= query param:
+ *   - top-models (default): shows only the Top Models stacked bar chart
+ *   - market-share: shows only the Market Share stacked % chart + provider ranking
  */
 
 const TARGET_URL = 'https://openrouter.ai/rankings?view=week';
 
-export async function onRequestGet() {
+export async function onRequestGet(context) {
   try {
+    const url = new URL(context.request.url);
+    const section = url.searchParams.get('section') || 'top-models';
+
     const resp = await fetch(TARGET_URL, {
       headers: {
         'User-Agent':
@@ -47,12 +53,10 @@ window.addEventListener('error', function(e) {
     return true;
   }
 });
-// Periodically hide error overlays and non-chart content
+// Periodically hide error overlays
 var _clean = function() {
-  // Next.js error overlay
   var p = document.querySelector('nextjs-portal');
   if (p) p.remove();
-  // "Application error" screen
   document.querySelectorAll('body > div').forEach(function(el) {
     var txt = el.innerText || '';
     if (txt.indexOf('Application error') !== -1 && !el.querySelector('svg.recharts-surface')) {
@@ -64,43 +68,21 @@ var _ival = setInterval(_clean, 300);
 setTimeout(function(){ clearInterval(_ival); _clean(); }, 30000);
 </script>`;
 
-    // ── 2. CSS to show ONLY the chart section ──
-    const cleanupCSS = `
-<style id="gdash-or-clean">
+    // ── 2. Shared base CSS ──
+    const baseCSS = `
 /* === HIDE: page chrome === */
 nav, header, footer,
 [role="banner"], [role="navigation"], [role="contentinfo"],
 aside { display: none !important; }
-
 /* === HIDE: modals, toasts, promos, auth === */
 [class*="cookie" i], [class*="toast" i], [class*="modal" i],
 [class*="banner" i], [data-sonner-toaster],
 [data-vaul-drawer], [data-vaul-overlay] { display: none !important; }
-
-/* === HIDE: Next.js error overlay === */
 nextjs-portal { display: none !important; }
-
-/* === HIDE: the large "AI Model Rankings" h1 === */
 h1 { display: none !important; }
-
-/* === HIDE: description paragraph above the chart sections === */
-/* "Based on real usage data from millions..." */
 h1 + p { display: none !important; }
-
-/* === HIDE: the rankings TABLE === */
 table, [role="table"] { display: none !important; }
-
-/* === HIDE: all scroll-mt sections EXCEPT the first (Top Models chart) === */
-.scroll-mt-24 ~ .scroll-mt-24 { display: none !important; }
-
-/* === HIDE: inside Top Models: the LLM Leaderboard heading + ranked list === */
-/* Keep only children 0 (heading) and 1 (chart) of the first scroll-mt section */
-.scroll-mt-24:first-of-type > div:nth-child(n+3) { display: none !important; }
-
-/* === HIDE: the "Based on real usage data" description === */
-/* It's in a flex-col gap-12 wrapper, first child is the description area */
 .gap-12 > .flex-col:first-child > p { display: none !important; }
-
 /* === BODY: clean embed === */
 body {
   overflow-x: hidden !important;
@@ -115,32 +97,79 @@ main, [role="main"] {
   padding: 0 4px !important;
   margin: 0 auto !important;
 }
-/* Ensure the chart SVG area has room for axis labels and tooltip */
 .recharts-wrapper { overflow: visible !important; }
 svg.recharts-surface { overflow: visible !important; }
 ::-webkit-scrollbar { width: 4px; }
 ::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 4px; }
 noscript { display: none !important; }
-</style>`;
+`;
 
-    // ── 2b. Post-render cleanup script — hides remaining non-chart content ──
-    const postCleanup = `
-<script>
+    // ── 3. Section-specific CSS ──
+    let sectionCSS;
+    let sectionJS;
+
+    if (section === 'market-share') {
+      // Show ONLY the Market Share section.
+      // DOM structure: section.main-content-container-lg has children:
+      //   [0] div.gap-12 (Top Models + LLM Leaderboard) — NOT a scroll-mt-24
+      //   [1] div.scroll-mt-24 (Market Share) — THIS is what we want
+      //   [2+] div.scroll-mt-24 (Benchmarks, Categories, etc.)
+      // For market-share, CSS only hides the gap-12 wrapper (Top Models).
+      // The scroll-mt-24 visibility is handled entirely by JS because CSS
+      // sibling selectors can't isolate "only the first scroll-mt-24".
+      sectionCSS = `
+.main-content-container-lg > .gap-12 { display: none !important; }
+`;
+      sectionJS = `
 document.addEventListener('DOMContentLoaded', function() {
-  function clipToChart() {
-    // Hide the top-level description paragraph
+  function clipToMarketShare() {
+    // Hide description
     var ps = document.querySelectorAll('p');
     for (var i = 0; i < ps.length; i++) {
       if (ps[i].textContent.indexOf('Based on real usage data') !== -1) {
         ps[i].style.display = 'none';
       }
     }
-    // Hide all scroll-mt-24 sections except the first one
+    // Use direct children of the main section container
+    var mainSec = document.querySelector('section.main-content-container-lg') ||
+                  document.querySelector('[class*="main-content"]');
+    if (!mainSec) return;
+    var kids = mainSec.children;
+    for (var i = 0; i < kids.length; i++) {
+      var cls = kids[i].className || '';
+      var txt = kids[i].innerText || '';
+      // Show only Market Share section, hide everything else
+      if (txt.indexOf('Market Share') !== -1 && cls.indexOf('scroll-mt') !== -1) {
+        kids[i].style.setProperty('display', 'flex', 'important');
+      } else {
+        kids[i].style.setProperty('display', 'none', 'important');
+      }
+    }
+  }
+  clipToMarketShare();
+  setTimeout(clipToMarketShare, 2000);
+  setTimeout(clipToMarketShare, 5000);
+  setTimeout(clipToMarketShare, 10000);
+});`;
+    } else {
+      // Default: show ONLY the first scroll-mt-24 section (Top Models)
+      sectionCSS = `
+.scroll-mt-24 ~ .scroll-mt-24 { display: none !important; }
+.scroll-mt-24:first-of-type > div:nth-child(n+3) { display: none !important; }
+`;
+      sectionJS = `
+document.addEventListener('DOMContentLoaded', function() {
+  function clipToChart() {
+    var ps = document.querySelectorAll('p');
+    for (var i = 0; i < ps.length; i++) {
+      if (ps[i].textContent.indexOf('Based on real usage data') !== -1) {
+        ps[i].style.display = 'none';
+      }
+    }
     var sections = document.querySelectorAll('[class*="scroll-mt-24"]');
     for (var j = 1; j < sections.length; j++) {
       sections[j].style.display = 'none';
     }
-    // Inside the first section, hide children after the chart (index 2+)
     if (sections[0]) {
       var kids = sections[0].children;
       for (var k = 2; k < kids.length; k++) {
@@ -152,10 +181,13 @@ document.addEventListener('DOMContentLoaded', function() {
   setTimeout(clipToChart, 2000);
   setTimeout(clipToChart, 5000);
   setTimeout(clipToChart, 10000);
-});
-</script>`;
+});`;
+    }
 
-    // ── 3. Inject into <head> ──
+    const cleanupCSS = `<style id="gdash-or-clean">${baseCSS}${sectionCSS}</style>`;
+    const postCleanup = `<script>${sectionJS}</script>`;
+
+    // ── 4. Inject into <head> ──
     if (html.includes('<head>')) {
       html = html.replace('<head>', '<head>' + errorSuppress);
     } else {
