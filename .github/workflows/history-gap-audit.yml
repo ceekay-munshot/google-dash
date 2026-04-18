@@ -1,0 +1,255 @@
+name: History Gap Audit
+
+# Detects mid-history gaps that the freshness watchdog cannot catch.
+#
+# The freshness watchdog only answers: "is today present?"
+# This audit answers:                   "are all UTC dates in the recent
+#                                        window present?"
+#
+# Scenario this catches: today's snapshot exists (so freshness passes), but
+# yesterday's snapshot was never written (cron skipped, capture failed silently,
+# manual run only filled today, etc.).
+#
+# Reports gaps as a rolling GitHub issue with copy-pasteable backfill
+# commands. Does NOT auto-backfill.
+
+on:
+  schedule:
+    # 13:47 UTC daily — ~24 minutes after the freshness check at 13:23 UTC.
+    # Runs second so the freshness alert (today missing) fires before this
+    # one (general gap detected). Off-minute (:47) keeps it out of the hot slot.
+    - cron: '47 13 * * *'
+
+  workflow_dispatch:
+    inputs:
+      window_days:
+        description: 'How many recent UTC days to audit (default 14)'
+        required: false
+        default: '14'
+      reason:
+        description: 'Optional note (for audit log)'
+        required: false
+        default: 'manual run'
+
+concurrency:
+  group: history-gap-audit
+  cancel-in-progress: false
+
+jobs:
+  audit:
+    name: Audit canonical history for gaps
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+
+    permissions:
+      contents: read
+      issues: write
+
+    steps:
+      - name: Validate required secrets
+        env:
+          READ_URL: ${{ secrets.HISTORY_READ_URL }}
+          CAPTURE_URL: ${{ secrets.HISTORY_CAPTURE_URL }}
+        run: |
+          if [ -z "$READ_URL" ]; then
+            echo "::error::HISTORY_READ_URL secret is not set"
+            echo "Set it to your production /api/history endpoint, e.g."
+            echo "  https://google-dash.pages.dev/api/history"
+            exit 1
+          fi
+          if [ -z "$CAPTURE_URL" ]; then
+            echo "::warning::HISTORY_CAPTURE_URL not set — backfill curl examples in alerts will use a <HISTORY_CAPTURE_URL> placeholder"
+          fi
+          echo "Required secrets present."
+
+      - name: Fetch /api/history?meta=true
+        id: fetch
+        env:
+          READ_URL: ${{ secrets.HISTORY_READ_URL }}
+        run: |
+          set -u
+          if echo "$READ_URL" | grep -q '?'; then
+            URL="${READ_URL}&meta=true"
+          else
+            URL="${READ_URL}?meta=true"
+          fi
+
+          RESPONSE_FILE="${RUNNER_TEMP}/gap-audit-response.json"
+          HTTP_CODE=$(curl \
+            --show-error \
+            --silent \
+            --max-time 30 \
+            --retry 2 \
+            --retry-delay 5 \
+            --output "$RESPONSE_FILE" \
+            --write-out "%{http_code}" \
+            -H "User-Agent: gdash-gap-audit/1.0" \
+            "$URL" || echo "000")
+
+          echo "HTTP $HTTP_CODE"
+          if jq . "$RESPONSE_FILE" >/dev/null 2>&1; then
+            jq '{success, count, earliest, latest, trackingSinceDate}' "$RESPONSE_FILE"
+          else
+            cat "$RESPONSE_FILE"
+            echo ""
+          fi
+
+          echo "http_code=$HTTP_CODE"        >> "$GITHUB_OUTPUT"
+          echo "response_file=$RESPONSE_FILE" >> "$GITHUB_OUTPUT"
+
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "::error::Could not reach /api/history (HTTP $HTTP_CODE) — gap audit cannot proceed"
+            exit 1
+          fi
+
+      - name: Compute gaps and alert if any
+        id: audit
+        uses: actions/github-script@v7
+        env:
+          WINDOW_DAYS:    ${{ github.event.inputs.window_days || '14' }}
+          RESPONSE_FILE:  ${{ steps.fetch.outputs.response_file }}
+          CAPTURE_URL:    ${{ secrets.HISTORY_CAPTURE_URL }}
+          RUN_URL:        ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          TRIGGER:        ${{ github.event_name }}
+          REASON:         ${{ github.event.inputs.reason || 'scheduled' }}
+        with:
+          script: |
+            const fs = require('fs');
+
+            // ── Parse response ──
+            const raw = fs.readFileSync(process.env.RESPONSE_FILE, 'utf8');
+            let data;
+            try { data = JSON.parse(raw); }
+            catch (e) {
+              core.setFailed('Response is not valid JSON: ' + e.message);
+              return;
+            }
+            if (!data.success) {
+              core.setFailed('API returned success:false (' + (data.error || 'no error') + ')');
+              return;
+            }
+
+            const present = new Set((data.snapshots || []).map(s => s.date));
+            const earliest = data.earliest || data.trackingSinceDate || null;
+
+            // ── Compute window ──
+            const WINDOW = parseInt(process.env.WINDOW_DAYS || '14', 10);
+            if (!Number.isFinite(WINDOW) || WINDOW < 2 || WINDOW > 365) {
+              core.setFailed('window_days must be between 2 and 365 (got: ' + process.env.WINDOW_DAYS + ')');
+              return;
+            }
+
+            const today = new Date().toISOString().slice(0, 10);
+            const dateAt = (base, offset) => {
+              const d = new Date(base + 'T00:00:00Z');
+              d.setUTCDate(d.getUTCDate() + offset);
+              return d.toISOString().slice(0, 10);
+            };
+            const naiveStart = dateAt(today, -(WINDOW - 1));
+            // Clamp to "tracking began" — never expect history before that
+            const effectiveStart = (earliest && earliest > naiveStart) ? earliest : naiveStart;
+
+            // Build expected list of UTC dates
+            const expected = [];
+            for (let d = effectiveStart; d <= today; d = dateAt(d, 1)) expected.push(d);
+
+            const missing = expected.filter(d => !present.has(d));
+            const presentInWindow = expected.filter(d => present.has(d));
+
+            // Step summary (always emitted)
+            const summaryLines = [
+              '### History Gap Audit',
+              '- Trigger: ' + process.env.TRIGGER,
+              '- Reason: ' + process.env.REASON,
+              '- Today (UTC): ' + today,
+              '- Window: ' + effectiveStart + ' → ' + today + ' (' + expected.length + ' day' + (expected.length === 1 ? '' : 's') + ')',
+              '- Expected: ' + expected.length,
+              '- Present: ' + presentInWindow.length,
+              '- Missing: ' + missing.length,
+              '- Earliest tracked: ' + (earliest || '(none)'),
+              '- Total snapshots in KV: ' + (data.count || 0),
+            ];
+            await core.summary.addRaw(summaryLines.join('\n')).write();
+
+            // ── Pass case ──
+            if (missing.length === 0) {
+              core.notice('No gaps detected in ' + expected.length + '-day window (' + effectiveStart + ' → ' + today + ')');
+              return;
+            }
+
+            // ── Fail case: build alert payload ──
+            const captureUrl = process.env.CAPTURE_URL || '<HISTORY_CAPTURE_URL>';
+            const curlLines = missing.map(d =>
+              `curl -fsS "${captureUrl}?date=${d}" -H "Authorization: Bearer $HISTORY_CAPTURE_SECRET" | jq`
+            ).join('\n');
+
+            const nowUTC = new Date().toISOString().replace('T', ' ').slice(0, 19) + ' UTC';
+            const issueBody = [
+              '**Run:** ' + process.env.RUN_URL,
+              '**When:** ' + nowUTC,
+              '**Trigger:** ' + process.env.TRIGGER + ' (' + process.env.REASON + ')',
+              '**Today UTC:** ' + today,
+              '**Window:** ' + effectiveStart + ' → ' + today + ' (' + expected.length + ' day' + (expected.length === 1 ? '' : 's') + ')',
+              '**Earliest tracked:** ' + (earliest || '(none)'),
+              '**Gaps found:** ' + missing.length,
+              '',
+              '#### Missing dates',
+              '```',
+              missing.join('\n'),
+              '```',
+              '',
+              '#### Present dates in window',
+              '```',
+              presentInWindow.length ? presentInWindow.join('\n') : '(none)',
+              '```',
+              '',
+              '#### Backfill commands',
+              'Run from a machine that has `$HISTORY_CAPTURE_SECRET` exported. ' +
+              '`backfill` writes the snapshot under the missing UTC date but the upstream values reflect ' +
+              'state **at capture time**, not the original missed day. See README caveat.',
+              '',
+              '```bash',
+              curlLines,
+              '```',
+              '',
+              '---',
+              'This issue auto-opens when `/api/history` shows gaps in the recent ' +
+              'window and auto-comments on each subsequent audit run that still finds ' +
+              'gaps. Close it once the missing dates are filled (re-run this workflow ' +
+              'or wait for the next scheduled run to verify); the next gap detection ' +
+              'will open a fresh issue.',
+            ].join('\n');
+
+            // ── Open or update rolling issue ──
+            const TITLE = '🟠 History gaps detected';
+            const LABEL = 'history-gap-detected';
+            const { data: openIssues } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo:  context.repo.repo,
+              state: 'open',
+              labels: LABEL,
+              per_page: 50,
+            });
+            const existing = openIssues.find(i => i.title === TITLE);
+
+            if (existing) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo:  context.repo.repo,
+                issue_number: existing.number,
+                body: '### New gap audit\n\n' + issueBody,
+              });
+              core.notice('Posted comment on existing issue #' + existing.number);
+            } else {
+              const { data: created } = await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo:  context.repo.repo,
+                title: TITLE,
+                body:  '### Initial gap detection\n\n' + issueBody,
+                labels: [LABEL],
+              });
+              core.notice('Opened new issue #' + created.number);
+            }
+
+            core.setFailed('Found ' + missing.length + ' gap(s) in canonical history (' +
+                           missing.slice(0, 5).join(', ') + (missing.length > 5 ? ', …' : '') + ')');

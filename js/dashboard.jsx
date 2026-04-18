@@ -618,6 +618,24 @@ function InsightsTab(){
 }
 
 /* ═══════════════════════════════════════════════════════
+   HISTORY TAB — canonical KV-backed history
+   Reads /api/history?view=...&range=365 on mount + on view change.
+   Three views: daily (raw), weekly (ISO Mon-Sun), quarterly (calendar Q).
+   Weekly + quarterly are derived server-side from daily canonical data.
+   Falls back to window.__ghist.snaps (daily view only) if the API errors.
+═══════════════════════════════════════════════════════ */
+function HistoryTabCanonical(){
+  // NOTE: This is a JSX placeholder. The compiled build in index.html
+  // contains the full inline implementation (uses $e.useState/useEffect).
+  // See HistoryTabCanonical in index.html for the runtime version.
+  return(
+    <div style={{fontSize:12,color:"#6b7280",padding:16}}>
+      History tab — see compiled build for full implementation
+      (Daily / Weekly / QTD views, KV-backed canonical history).
+    </div>
+  );
+}
+/* ═══════════════════════════════════════════════════════
    ROOT
 ═══════════════════════════════════════════════════════ */
 export default function App(){
@@ -706,7 +724,7 @@ export default function App(){
             </div>
           </>
         )}
-        {tab==="history"&&<div style={{fontSize:12,color:"#9ca3af",textAlign:"center",padding:24}}>History tab — see compiled build</div>}
+        {tab==="history"&&<HistoryTabCanonical/>}
       </div>
 
       {/* Footer */}

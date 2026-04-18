@@ -1,0 +1,199 @@
+name: Daily History Capture
+
+# Triggers canonical history capture once per day.
+# The endpoint is idempotent (same-day, same-hash = skip) so accidental
+# double-runs are safe.
+
+on:
+  schedule:
+    # 09:07 UTC daily. Off-minute (not :00 or :30) to avoid the hot slot
+    # where GitHub's scheduler is heavily queued and can run 30-60 min late.
+    - cron: '7 9 * * *'
+
+  # Manual trigger from the GitHub UI → Actions tab → "Daily History Capture" → Run workflow
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: 'Optional note (for audit log)'
+        required: false
+        default: 'manual run'
+
+# Prevent overlapping runs — if a previous run is still going, queue this one.
+# Cancel-in-progress=false so we never abandon a partial capture.
+concurrency:
+  group: history-capture
+  cancel-in-progress: false
+
+jobs:
+  capture:
+    name: Capture canonical history snapshot
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    # Required for the failure-alerting step to create/comment on issues.
+    # All other operations only need read access (default).
+    permissions:
+      contents: read
+      issues: write
+
+    steps:
+      - name: Validate required secrets
+        env:
+          CAPTURE_URL: ${{ secrets.HISTORY_CAPTURE_URL }}
+          CAPTURE_SECRET: ${{ secrets.HISTORY_CAPTURE_SECRET }}
+        run: |
+          if [ -z "$CAPTURE_URL" ]; then
+            echo "::error::HISTORY_CAPTURE_URL secret is not set"
+            exit 1
+          fi
+          if [ -z "$CAPTURE_SECRET" ]; then
+            echo "::error::HISTORY_CAPTURE_SECRET secret is not set"
+            exit 1
+          fi
+          echo "Both required secrets are configured."
+
+      - name: Call capture endpoint (with up to 3 attempts)
+        id: capture
+        env:
+          CAPTURE_URL: ${{ secrets.HISTORY_CAPTURE_URL }}
+          CAPTURE_SECRET: ${{ secrets.HISTORY_CAPTURE_SECRET }}
+          TRIGGER_REASON: ${{ github.event.inputs.reason || 'scheduled' }}
+        run: |
+          set -u
+          ATTEMPTS=3
+          # Persist the response across steps so the alerting step can include it
+          RESPONSE_FILE="${RUNNER_TEMP}/capture-response.txt"
+          EXIT_CODE=1
+          LAST_CODE="000"
+
+          for i in $(seq 1 $ATTEMPTS); do
+            echo "── Attempt $i of $ATTEMPTS (reason: $TRIGGER_REASON) ──"
+
+            HTTP_CODE=$(curl \
+              --show-error \
+              --silent \
+              --max-time 120 \
+              --retry 0 \
+              --output "$RESPONSE_FILE" \
+              --write-out "%{http_code}" \
+              -H "Authorization: Bearer $CAPTURE_SECRET" \
+              -H "User-Agent: gdash-gha-cron/1.0" \
+              "$CAPTURE_URL" || echo "000")
+
+            LAST_CODE="$HTTP_CODE"
+            echo "HTTP $HTTP_CODE"
+            echo "── Response body ──"
+            if command -v jq >/dev/null && jq . "$RESPONSE_FILE" >/dev/null 2>&1; then
+              jq . "$RESPONSE_FILE"
+            else
+              cat "$RESPONSE_FILE"
+              echo ""
+            fi
+            echo "───────────────────"
+
+            if [ "$HTTP_CODE" = "200" ]; then
+              EXIT_CODE=0
+              break
+            fi
+
+            if [ "$i" -lt "$ATTEMPTS" ]; then
+              SLEEP=$((i * 15))
+              echo "Retrying in ${SLEEP}s…"
+              sleep $SLEEP
+            fi
+          done
+
+          # Expose to later steps for the alerting payload
+          echo "http_code=$LAST_CODE"     >> "$GITHUB_OUTPUT"
+          echo "attempts=$ATTEMPTS"        >> "$GITHUB_OUTPUT"
+          echo "response_file=$RESPONSE_FILE" >> "$GITHUB_OUTPUT"
+
+          if [ "$EXIT_CODE" -ne 0 ]; then
+            echo "::error::Capture failed after $ATTEMPTS attempts (last HTTP $LAST_CODE)"
+            exit 1
+          fi
+          echo "Capture succeeded."
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "### History Capture Run" >> $GITHUB_STEP_SUMMARY
+          echo "- Trigger: ${{ github.event_name }}"           >> $GITHUB_STEP_SUMMARY
+          echo "- Reason: ${{ github.event.inputs.reason || 'scheduled' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Time (UTC): $(date -u '+%Y-%m-%d %H:%M:%S')" >> $GITHUB_STEP_SUMMARY
+          echo "- Status: ${{ job.status }}"                    >> $GITHUB_STEP_SUMMARY
+          echo "- Last HTTP: ${{ steps.capture.outputs.http_code || 'n/a' }}" >> $GITHUB_STEP_SUMMARY
+
+      # ── Failure alerting ──
+      # On any failure of this job, either open a new "History capture failing"
+      # issue or post a follow-up comment on the existing open one. Dedup keeps
+      # the inbox sane: one rolling issue accumulates failure history, then
+      # closes when manually resolved. Uses only the auto-provided GITHUB_TOKEN
+      # — no extra secrets, no external services.
+      - name: Open or update failure issue
+        if: failure()
+        uses: actions/github-script@v7
+        env:
+          HTTP_CODE: ${{ steps.capture.outputs.http_code }}
+          ATTEMPTS:  ${{ steps.capture.outputs.attempts }}
+          RUN_URL:   ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          TRIGGER:   ${{ github.event_name }}
+          REASON:    ${{ github.event.inputs.reason || 'scheduled' }}
+        with:
+          script: |
+            const fs = require('fs');
+            const TITLE = '🔴 History capture failing';
+            const responseFile = '${{ steps.capture.outputs.response_file }}';
+            let body = '';
+            try { body = fs.readFileSync(responseFile, 'utf8').slice(0, 4000); } catch (_) { body = '(no response body captured)'; }
+
+            const nowUTC = new Date().toISOString().replace('T', ' ').slice(0, 19) + ' UTC';
+            const summary = [
+              '**Run:** ' + process.env.RUN_URL,
+              '**When:** ' + nowUTC,
+              '**Trigger:** ' + process.env.TRIGGER + ' (' + process.env.REASON + ')',
+              '**Last HTTP:** ' + (process.env.HTTP_CODE || 'n/a'),
+              '**Attempts:** ' + (process.env.ATTEMPTS || 'n/a'),
+              '',
+              '<details><summary>Response body</summary>',
+              '',
+              '```',
+              body,
+              '```',
+              '',
+              '</details>',
+              '',
+              '---',
+              'This issue auto-opens when the daily history capture fails and ' +
+              'auto-comments on each subsequent failure. Close it once the underlying ' +
+              'issue is fixed; the next failure will open a fresh one.',
+            ].join('\n');
+
+            // Find existing open issue with the same title
+            const { data: openIssues } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo:  context.repo.repo,
+              state: 'open',
+              labels: 'history-capture-failure',
+              per_page: 50,
+            });
+            const existing = openIssues.find(i => i.title === TITLE);
+
+            if (existing) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo:  context.repo.repo,
+                issue_number: existing.number,
+                body: '### New failure\n\n' + summary,
+              });
+              core.notice('Posted comment on existing issue #' + existing.number);
+            } else {
+              const { data: created } = await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo:  context.repo.repo,
+                title: TITLE,
+                body:  '### Initial failure\n\n' + summary,
+                labels: ['history-capture-failure'],
+              });
+              core.notice('Opened new issue #' + created.number);
+            }

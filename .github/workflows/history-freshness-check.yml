@@ -1,0 +1,244 @@
+name: History Freshness Check
+
+# Independent watchdog: confirms canonical history actually got a new snapshot
+# for today UTC. Catches the failure mode where the daily capture workflow
+# never ran at all (GitHub cron skip, repo auto-disabled, scheduler outage)
+# — failure-alerting on the capture workflow itself can't detect that.
+
+on:
+  schedule:
+    # 13:23 UTC daily — well after the 09:07 UTC capture workflow's worst-case
+    # finish time (capture cron drift up to 30 min + retries up to ~6 min).
+    # Off-minute (:23) avoids the heavily-queued :00 / :30 hot slots.
+    - cron: '23 13 * * *'
+
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: 'Optional note (for audit log)'
+        required: false
+        default: 'manual run'
+
+# Single rolling check — overlap is harmless but pointless.
+concurrency:
+  group: history-freshness-check
+  cancel-in-progress: false
+
+jobs:
+  check:
+    name: Check canonical history freshness
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+
+    permissions:
+      contents: read
+      issues: write
+
+    steps:
+      - name: Validate required secrets
+        env:
+          READ_URL: ${{ secrets.HISTORY_READ_URL }}
+        run: |
+          if [ -z "$READ_URL" ]; then
+            echo "::error::HISTORY_READ_URL secret is not set"
+            echo "Set it to your production /api/history endpoint, e.g."
+            echo "  https://google-dash.pages.dev/api/history"
+            exit 1
+          fi
+          echo "HISTORY_READ_URL is configured."
+
+      - name: Fetch /api/history?meta=true and check freshness
+        id: check
+        env:
+          READ_URL: ${{ secrets.HISTORY_READ_URL }}
+        run: |
+          set -u
+          # Use ?meta=true to avoid pulling the full payload (we only need
+          # latest/earliest/count). Append separator-aware query param.
+          if echo "$READ_URL" | grep -q '?'; then
+            URL="${READ_URL}&meta=true"
+          else
+            URL="${READ_URL}?meta=true"
+          fi
+
+          RESPONSE_FILE="${RUNNER_TEMP}/freshness-response.json"
+          HTTP_CODE=$(curl \
+            --show-error \
+            --silent \
+            --max-time 30 \
+            --retry 2 \
+            --retry-delay 5 \
+            --output "$RESPONSE_FILE" \
+            --write-out "%{http_code}" \
+            -H "User-Agent: gdash-freshness-check/1.0" \
+            "$URL" || echo "000")
+
+          echo "HTTP $HTTP_CODE"
+          echo "── Response body ──"
+          if jq . "$RESPONSE_FILE" >/dev/null 2>&1; then
+            jq . "$RESPONSE_FILE"
+          else
+            cat "$RESPONSE_FILE"
+            echo ""
+          fi
+          echo "───────────────────"
+
+          # Persist for the alerting step
+          echo "http_code=$HTTP_CODE"        >> "$GITHUB_OUTPUT"
+          echo "response_file=$RESPONSE_FILE" >> "$GITHUB_OUTPUT"
+
+          if [ "$HTTP_CODE" != "200" ]; then
+            REASON="API unreachable or non-200 (HTTP $HTTP_CODE)"
+            echo "reason=$REASON"            >> "$GITHUB_OUTPUT"
+            echo "stale=true"                >> "$GITHUB_OUTPUT"
+            echo "::error::$REASON"
+            exit 1
+          fi
+
+          # Parse response — must be valid JSON with success:true
+          SUCCESS=$(jq -r '.success // false' "$RESPONSE_FILE")
+          if [ "$SUCCESS" != "true" ]; then
+            REASON="API returned success:false"
+            ERR=$(jq -r '.error // "(no error message)"' "$RESPONSE_FILE")
+            echo "reason=$REASON ($ERR)"     >> "$GITHUB_OUTPUT"
+            echo "stale=true"                >> "$GITHUB_OUTPUT"
+            echo "::error::$REASON: $ERR"
+            exit 1
+          fi
+
+          LATEST=$(jq -r '.latest // ""' "$RESPONSE_FILE")
+          EARLIEST=$(jq -r '.earliest // ""' "$RESPONSE_FILE")
+          COUNT=$(jq -r '.count // 0' "$RESPONSE_FILE")
+          TODAY=$(date -u +%Y-%m-%d)
+
+          echo "latest=$LATEST"              >> "$GITHUB_OUTPUT"
+          echo "earliest=$EARLIEST"          >> "$GITHUB_OUTPUT"
+          echo "count=$COUNT"                >> "$GITHUB_OUTPUT"
+          echo "today=$TODAY"                >> "$GITHUB_OUTPUT"
+
+          if [ -z "$LATEST" ] || [ "$LATEST" = "null" ]; then
+            REASON="No snapshots in canonical history at all (count=$COUNT)"
+            echo "reason=$REASON"            >> "$GITHUB_OUTPUT"
+            echo "stale=true"                >> "$GITHUB_OUTPUT"
+            echo "::error::$REASON"
+            exit 1
+          fi
+
+          # ── FRESHNESS RULE ──
+          # The latest canonical snapshot date must equal today UTC.
+          # By the time this workflow runs (13:23 UTC), the daily capture at
+          # 09:07 UTC should have written today's entry — even with worst-case
+          # GitHub cron drift (30 min) + retry budget (~6 min). Any other state
+          # means today's capture didn't happen.
+          if [ "$LATEST" = "$TODAY" ]; then
+            echo "::notice::Freshness OK — latest=$LATEST matches today UTC ($COUNT snapshots total)"
+            echo "stale=false"               >> "$GITHUB_OUTPUT"
+          else
+            REASON="Latest snapshot is $LATEST but today UTC is $TODAY (drift: $(( ($(date -u -d "$TODAY" +%s 2>/dev/null || date -u -j -f %Y-%m-%d "$TODAY" +%s) - $(date -u -d "$LATEST" +%s 2>/dev/null || date -u -j -f %Y-%m-%d "$LATEST" +%s) ) / 86400 )) day(s))"
+            echo "reason=$REASON"            >> "$GITHUB_OUTPUT"
+            echo "stale=true"                >> "$GITHUB_OUTPUT"
+            echo "::error::$REASON"
+            exit 1
+          fi
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "### History Freshness Check"                  >> $GITHUB_STEP_SUMMARY
+          echo "- Trigger: ${{ github.event_name }}"          >> $GITHUB_STEP_SUMMARY
+          echo "- Reason: ${{ github.event.inputs.reason || 'scheduled' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Time (UTC): $(date -u '+%Y-%m-%d %H:%M:%S')" >> $GITHUB_STEP_SUMMARY
+          echo "- Status: ${{ job.status }}"                   >> $GITHUB_STEP_SUMMARY
+          echo "- Today UTC: ${{ steps.check.outputs.today }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Latest snapshot: ${{ steps.check.outputs.latest || 'n/a' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Total snapshots: ${{ steps.check.outputs.count || 'n/a' }}" >> $GITHUB_STEP_SUMMARY
+
+      # ── Stale alerting ──
+      # Same rolling-issue pattern as the capture-failure workflow:
+      # one open issue accumulates failures, close it once you've fixed the
+      # underlying problem. Different label/title so it doesn't collide.
+      - name: Open or update stale-history issue
+        if: failure()
+        uses: actions/github-script@v7
+        env:
+          HTTP_CODE: ${{ steps.check.outputs.http_code }}
+          LATEST:    ${{ steps.check.outputs.latest }}
+          EARLIEST:  ${{ steps.check.outputs.earliest }}
+          COUNT:     ${{ steps.check.outputs.count }}
+          TODAY:     ${{ steps.check.outputs.today }}
+          REASON:    ${{ steps.check.outputs.reason }}
+          RUN_URL:   ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          TRIGGER:   ${{ github.event_name }}
+          WHY:       ${{ github.event.inputs.reason || 'scheduled' }}
+        with:
+          script: |
+            const fs = require('fs');
+            const TITLE = '🔴 History freshness stale';
+            const responseFile = '${{ steps.check.outputs.response_file }}';
+            let body = '';
+            try { body = fs.readFileSync(responseFile, 'utf8').slice(0, 4000); } catch (_) { body = '(no response body)'; }
+
+            const nowUTC = new Date().toISOString().replace('T', ' ').slice(0, 19) + ' UTC';
+            const summary = [
+              '**Run:** ' + process.env.RUN_URL,
+              '**When:** ' + nowUTC,
+              '**Trigger:** ' + process.env.TRIGGER + ' (' + process.env.WHY + ')',
+              '**Today UTC:** ' + (process.env.TODAY || 'n/a'),
+              '**Latest snapshot date:** ' + (process.env.LATEST || '(none)'),
+              '**Earliest snapshot date:** ' + (process.env.EARLIEST || '(none)'),
+              '**Total snapshots in KV:** ' + (process.env.COUNT || 'n/a'),
+              '**HTTP code from /api/history:** ' + (process.env.HTTP_CODE || 'n/a'),
+              '**Reason:** ' + (process.env.REASON || 'unknown'),
+              '',
+              '<details><summary>Response body</summary>',
+              '',
+              '```json',
+              body,
+              '```',
+              '',
+              '</details>',
+              '',
+              '---',
+              '**What this means:** the daily capture either did not run, ran late, ' +
+              'or ran but did not write a snapshot for today UTC. Investigate the ' +
+              '"Daily History Capture" workflow run for today first; if that succeeded ' +
+              'but no snapshot exists, the capture endpoint may be returning success ' +
+              'without writing.',
+              '',
+              '**Quick fix:** trigger a manual dispatch of "Daily History Capture" or ' +
+              'backfill via:',
+              '`curl -fsS "<HISTORY_CAPTURE_URL>?date=' + (process.env.TODAY || 'YYYY-MM-DD') +
+              '" -H "Authorization: Bearer <SECRET>"`',
+              '',
+              'This issue auto-opens on stale detection and auto-comments on each ' +
+              'subsequent stale check. Close it once you confirm the latest snapshot ' +
+              'date is today UTC; the next stale check will open a fresh one.',
+            ].join('\n');
+
+            const { data: openIssues } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo:  context.repo.repo,
+              state: 'open',
+              labels: 'history-freshness-stale',
+              per_page: 50,
+            });
+            const existing = openIssues.find(i => i.title === TITLE);
+
+            if (existing) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo:  context.repo.repo,
+                issue_number: existing.number,
+                body: '### New stale check\n\n' + summary,
+              });
+              core.notice('Posted comment on existing issue #' + existing.number);
+            } else {
+              const { data: created } = await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo:  context.repo.repo,
+                title: TITLE,
+                body:  '### Initial stale detection\n\n' + summary,
+                labels: ['history-freshness-stale'],
+              });
+              core.notice('Opened new issue #' + created.number);
+            }
