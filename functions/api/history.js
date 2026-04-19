@@ -324,6 +324,9 @@ function toMeta(snap) {
     botsCount: snap.bots?.length || 0,
     trendsCount: snap.trends?.length || 0,
     hasFiling: !!snap.filing,
+    // Small canonical metric — kept in meta-mode so the History tab and
+    // monitors can compute QoQ without fetching the full payload.
+    openrouterSummary: snap.openrouterSummary || null,
   };
 }
 

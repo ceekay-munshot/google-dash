@@ -16,10 +16,13 @@
  *   models:      ModelRow[],
  *   geminiRows:  ModelRow[],   // only Google/Gemini models
  *   summary: {
- *     totalModels:    number,
- *     topModel:       ModelRow,
- *     geminiHighest:  ModelRow | null,
- *     geminiVsPeers:  PeerRow[],  // Gemini + top OpenAI + Anthropic + Mistral rows
+ *     totalModels:      number,
+ *     totalTokensRaw:   number,        // sum of model.tokens across captured set
+ *     totalTokensLabel: string,        // formatted, e.g. "5.66T" / "289B"
+ *     topModel:         ModelRow,
+ *     geminiHighest:    ModelRow | null,
+ *     geminiShare:      number | null, // Gemini % of totalTokensRaw
+ *     geminiVsPeers:    PeerRow[],     // Gemini + top OpenAI + Anthropic + Mistral rows
  *   },
  *   fromCache:   bool,
  *   stale:       bool
@@ -406,12 +409,27 @@ function buildSummary(models) {
   const geminiShare  = totalTokens > 0 ? Math.round((geminiTokens / totalTokens) * 1000) / 10 : null;
 
   return {
-    totalModels:   models.length,
-    topModel:      top,
+    totalModels:      models.length,
+    totalTokensRaw:   totalTokens,
+    totalTokensLabel: formatTotalTokens(totalTokens),
+    topModel:         top,
     geminiHighest,
     geminiShare,
-    geminiVsPeers: peerRows
+    geminiVsPeers:    peerRows
   };
+}
+
+/**
+ * Format a token count for the "Total" line specifically.
+ * Uses 2 decimals for trillions to match the OpenRouter rankings tooltip
+ * format (e.g. "5.66T" rather than the rougher "5.7T" used in row labels).
+ */
+function formatTotalTokens(n) {
+  if (!n || n <= 0) return '—';
+  if (n >= 1e12) return (n / 1e12).toFixed(2).replace(/\.?0+$/, '') + 'T';
+  if (n >= 1e9)  return (n / 1e9).toFixed(1).replace(/\.0$/, '') + 'B';
+  if (n >= 1e6)  return (n / 1e6).toFixed(1).replace(/\.0$/, '') + 'M';
+  return n.toString();
 }
 
 /* ─── Helpers ────────────────────────────────────────────────── */

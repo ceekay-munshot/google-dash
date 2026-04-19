@@ -130,6 +130,38 @@ function normalizeOR(raw) {
   });
 }
 
+/**
+ * Extract canonical OpenRouter summary fields. Prefer the summary block
+ * computed by /api/openrouter (authoritative — sums raw token integers
+ * before label rounding). Fall back to summing normalized rows only if the
+ * upstream summary is unavailable, so historical entries don't lose this
+ * metric just because the upstream shape changed.
+ */
+function extractOpenRouterSummary(raw, normalized) {
+  if (raw?.summary?.totalTokensRaw && raw.summary.totalTokensLabel) {
+    return {
+      totalTokensRaw: raw.summary.totalTokensRaw,
+      totalTokensLabel: raw.summary.totalTokensLabel,
+    };
+  }
+  // Fallback: derive from normalized rows. Less precise (label rounding
+  // already applied to upstream rows in some scrape paths) but always works.
+  if (!normalized?.length) return null;
+  const totalTokensRaw = normalized.reduce((s, m) => s + (m.tokRaw || 0), 0);
+  return {
+    totalTokensRaw,
+    totalTokensLabel: formatTotalTokens(totalTokensRaw),
+  };
+}
+
+function formatTotalTokens(n) {
+  if (!n || n <= 0) return '—';
+  if (n >= 1e12) return (n / 1e12).toFixed(2).replace(/\.?0+$/, '') + 'T';
+  if (n >= 1e9)  return (n / 1e9).toFixed(1).replace(/\.0$/, '') + 'B';
+  if (n >= 1e6)  return (n / 1e6).toFixed(1).replace(/\.0$/, '') + 'M';
+  return String(n);
+}
+
 function parseTokLabel(lbl) {
   if (!lbl) return 0;
   const m = lbl.match(/([\d.]+)\s*([BTMKbtmk])/);
@@ -251,6 +283,7 @@ export async function onRequestGet({ request, env }) {
   const bots = normalizeBots(botsRaw);
   const trends = normalizeTrends(trendsRaw);
   const filing = normalizeFiling(filingRaw);
+  const openrouterSummary = extractOpenRouterSummary(orRaw, or);
 
   // Must have at least OR data to create a valid snapshot
   if (!or.length) {
@@ -267,7 +300,9 @@ export async function onRequestGet({ request, env }) {
   }
 
   // ── Build canonical payload (used for hashing) ──
-  const canonicalPayload = { or, bots, trends, filing };
+  // openrouterSummary is included so a change in totalTokensRaw forces a
+  // new hash even when ranking row order is unchanged.
+  const canonicalPayload = { or, bots, trends, filing, openrouterSummary };
   const hash = await contentHash(canonicalPayload);
 
   const dayKey = 'day:' + targetDate;
@@ -297,7 +332,7 @@ export async function onRequestGet({ request, env }) {
     date: targetDate,
     capturedAt,
     hash,
-    version: 1,
+    version: 2, // bumped: now stores openrouterSummary
     source: isBackfill ? 'backfill' : (authMethod === 'none' ? 'manual' : 'cron'),
     authMethod,
     dedup,
@@ -311,6 +346,7 @@ export async function onRequestGet({ request, env }) {
     bots,
     trends,
     filing,
+    openrouterSummary,
   };
 
   // ── Write to KV ──
@@ -343,6 +379,7 @@ export async function onRequestGet({ request, env }) {
       bots: bots.length + ' crawlers',
       trends: trends.length + ' terms',
       filing: filing ? filing.period : 'unavailable',
+      openrouterTotal: openrouterSummary?.totalTokensLabel || 'n/a',
     },
   });
 }
