@@ -30,6 +30,8 @@
  *     the data was captured later than the target date represents
  */
 
+import { PRICING_BASKET, BASKET_BY_SLUG, BASKET_SIZE } from './_pricing-basket.js';
+
 const CORS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, OPTIONS',
@@ -194,6 +196,45 @@ function normalizeTrends(raw) {
     .sort((a, b) => b.score - a.score);
 }
 
+/**
+ * Normalize the pricepertoken.com structured payload into the subset we
+ * persist daily. We store ONLY basket members (keyed by stable slug) to
+ * keep the snapshot small and focused — the live embed below still shows
+ * the full 530-model table to users, so we're not losing user-visible
+ * data. For each basket member we record input/output price per 1M
+ * tokens at the moment of capture.
+ *
+ * If a basket member isn't present in the upstream response, it simply
+ * doesn't appear in the `models` array — the pricing-history reader will
+ * see a missing slug and count it as a coverage miss for that day.
+ */
+function normalizePricing(raw) {
+  if (!raw || !raw.success || !Array.isArray(raw.rows)) return null;
+  const models = [];
+  for (const r of raw.rows) {
+    const basket = BASKET_BY_SLUG[r.slug];
+    if (!basket) continue;
+    if (typeof r.inputPricePer1M !== 'number') continue;
+    models.push({
+      slug: r.slug,
+      provider: r.provider || basket.provider,
+      modelName: r.modelName || r.model || basket.label,
+      input: r.inputPricePer1M,
+      output: typeof r.outputPricePer1M === 'number' ? r.outputPricePer1M : null,
+      updatedAt: r.updatedAt || null,
+    });
+  }
+  // Sort deterministic so the content hash is stable across runs
+  models.sort((a, b) => (a.slug < b.slug ? -1 : a.slug > b.slug ? 1 : 0));
+  return {
+    models,
+    basketSize: BASKET_SIZE,
+    coverage: models.length,
+    sourceUpdatedAt: raw.sourceUpdatedAt || null,
+    fetchedAt: raw.fetchedAt || new Date().toISOString(),
+  };
+}
+
 function normalizeFiling(raw) {
   if (!raw?.success) return null;
   return {
@@ -271,11 +312,12 @@ export async function onRequestGet({ request, env }) {
   }
 
   // ── Fetch all data sources in parallel ──
-  const [orRaw, botsRaw, trendsRaw, filingRaw] = await Promise.all([
+  const [orRaw, botsRaw, trendsRaw, filingRaw, pricingRaw] = await Promise.all([
     localFetch(request, '/api/openrouter?view=week&top=30'),
     localFetch(request, '/api/radar/ai/bots/summary/user_agent?dateRange=28d'),
     localFetch(request, '/api/trends?window=12m'),
     localFetch(request, '/api/google-filings'),
+    localFetch(request, '/api/pricepertoken-data'),
   ]);
 
   // ── Normalize ──
@@ -283,6 +325,7 @@ export async function onRequestGet({ request, env }) {
   const bots = normalizeBots(botsRaw);
   const trends = normalizeTrends(trendsRaw);
   const filing = normalizeFiling(filingRaw);
+  const pricing = normalizePricing(pricingRaw);
   const openrouterSummary = extractOpenRouterSummary(orRaw, or);
 
   // Must have at least OR data to create a valid snapshot
@@ -302,7 +345,9 @@ export async function onRequestGet({ request, env }) {
   // ── Build canonical payload (used for hashing) ──
   // openrouterSummary is included so a change in totalTokensRaw forces a
   // new hash even when ranking row order is unchanged.
-  const canonicalPayload = { or, bots, trends, filing, openrouterSummary };
+  // pricing is included so a price change on any basket member forces
+  // a new snapshot on that day.
+  const canonicalPayload = { or, bots, trends, filing, openrouterSummary, pricing };
   const hash = await contentHash(canonicalPayload);
 
   const dayKey = 'day:' + targetDate;
@@ -332,7 +377,7 @@ export async function onRequestGet({ request, env }) {
     date: targetDate,
     capturedAt,
     hash,
-    version: 2, // bumped: now stores openrouterSummary
+    version: 3, // bumped: now stores pricing (basket) alongside openrouterSummary
     source: isBackfill ? 'backfill' : (authMethod === 'none' ? 'manual' : 'cron'),
     authMethod,
     dedup,
@@ -347,6 +392,7 @@ export async function onRequestGet({ request, env }) {
     trends,
     filing,
     openrouterSummary,
+    pricing,
   };
 
   // ── Write to KV ──
@@ -380,6 +426,9 @@ export async function onRequestGet({ request, env }) {
       trends: trends.length + ' terms',
       filing: filing ? filing.period : 'unavailable',
       openrouterTotal: openrouterSummary?.totalTokensLabel || 'n/a',
+      pricing: pricing
+        ? pricing.coverage + '/' + pricing.basketSize + ' basket members'
+        : 'unavailable',
     },
   });
 }
