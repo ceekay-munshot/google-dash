@@ -1,15 +1,24 @@
 # google-dash — Cloudflare Pages project configuration
-# This file defines KV namespace bindings for persistent history storage.
-# Pages Functions access these via context.env or destructured { env }.
+#
+# IMPORTANT — why the kv_namespaces block is commented out:
+#   Cloudflare Pages validates wrangler.toml at deploy time. Invalid placeholder
+#   UUIDs in the kv_namespaces section caused every deploy since commit 071ef8b
+#   to fail silently — production was frozen at an older successful build and
+#   every /api/* route was returning the SPA HTML fallback instead of executing
+#   Pages Functions. With this block commented out, CF Pages falls back to
+#   bindings configured in the Cloudflare dashboard (Workers & Pages → google-
+#   dash → Settings → Functions → KV namespace bindings).
+#
+#   To re-enable wrangler.toml-managed bindings: replace PRODUCTION_KV_ID and
+#   PREVIEW_KV_ID below with the real UUIDs from the dashboard and uncomment.
+#   Until then, history-capture / history-read / pricing-history depend on
+#   the dashboard binding being set manually. The provider-pricing-matrix
+#   endpoint needs no KV and will work either way.
 
 name = "google-dash"
 compatibility_date = "2024-09-23"
 
-# ── KV Namespaces ──────────────────────────────────────────
-# Create these in Cloudflare dashboard → Workers & Pages → KV
-# then paste the IDs here. Use different IDs for preview vs production.
-
-[[kv_namespaces]]
-binding = "HISTORY_KV"
-id = "REPLACE_WITH_PRODUCTION_KV_NAMESPACE_ID"
-preview_id = "REPLACE_WITH_PREVIEW_KV_NAMESPACE_ID"
+# [[kv_namespaces]]
+# binding = "HISTORY_KV"
+# id = "PRODUCTION_KV_ID"
+# preview_id = "PREVIEW_KV_ID"
