@@ -254,21 +254,29 @@ function FilingAnchorRow(){
 }
 
 /* ═══════════════════════════════════════════════════════
-   MODEL PRICING HISTORY — Quarterly basket-average summary
+   MODEL PRICING HISTORY — Quarterly, grouped by provider/company
 
    Renders above the live pricepertoken embed. Data comes from
-   /api/pricing-history which derives QoQ/YoY from real KV snapshots
-   only (no backfill, no synthetic data). Falls back to a clean card
-   if the endpoint is unavailable so the live embed keeps working.
+   /api/provider-pricing-matrix which fans out to pricepertoken's own
+   historical pricing API per provider and bucketizes into calendar
+   quarters (equal-weighted daily mean of input/output $/1M tokens).
+
+   Honesty:
+     - Real upstream floor is ~2025-07-28. No synthetic 2023 data.
+     - YoY is empty for every quarter until a real year-ago quarter
+       exists upstream — shown as em dash, never fabricated.
+     - Per-cell model count is surfaced so the reader can judge
+       composition drift.
 ═══════════════════════════════════════════════════════ */
 function ModelPricingHistoryBlock(){
   const[metric,setMetric]=useState("input");
+  const[view,setView]=useState("avg"); // "avg" | "qoq" | "yoy"
   const[state,setState]=useState({phase:"loading",data:null,error:null});
 
   useEffect(()=>{
     let cancelled=false;
     setState(s=>({...s,phase:"loading"}));
-    fetch("/api/pricing-history?metric="+metric)
+    fetch("/api/provider-pricing-matrix?metric="+metric)
       .then(r=>r.json())
       .then(d=>{ if(cancelled) return;
         if(!d.success) setState({phase:"error",data:null,error:d.error||"Unknown error"});
@@ -278,10 +286,10 @@ function ModelPricingHistoryBlock(){
     return ()=>{cancelled=true;};
   },[metric]);
 
-  const metricLabel=metric==="input"?"Avg Input Price / 1M":"Avg Output Price / 1M";
-  const metricSub  =metric==="input"?"Input tokens, USD"   :"Output tokens, USD";
-  const title      ="Quarterly Average Model Price";
-  const subtitle   ="Average model API price per quarter with QoQ and YoY change, based on real captured snapshots.";
+  const title   ="Quarterly Model Pricing by Company";
+  const subtitle="Average model API price per token by calendar quarter, grouped by provider family, for historical comparison.";
+  const unitHint=metric==="input"?"Input $/1M tokens":"Output $/1M tokens";
+  const cellColor=(v)=>v===null||v===undefined?"#9ca3af":v>0?"#dc2626":v<0?"#059669":"#6b7280";
 
   return(
     <div style={{marginBottom:16}}>
@@ -295,55 +303,66 @@ function ModelPricingHistoryBlock(){
         <div style={{fontSize:11,color:"#9ca3af",marginTop:3}}>{subtitle}</div>
       </div>
 
-      {/* Metric toggle */}
-      <div style={{display:"flex",gap:5,marginBottom:10}}>
-        {["input","output"].map(m=>(
-          <button key={m} onClick={()=>setMetric(m)}
-            style={{fontSize:11,padding:"4px 11px",border:"0.5px solid "+(metric===m?"#111827":"#e5e7eb"),borderRadius:6,background:metric===m?"#111827":"#fff",color:metric===m?"#fff":"#6b7280",cursor:"pointer",fontFamily:"inherit",fontWeight:500,textTransform:"capitalize"}}>
-            {m}
-          </button>
-        ))}
-        {state.phase==="loading"&&<span style={{alignSelf:"center",marginLeft:6}}><Spin size={10}/></span>}
+      {/* Toggles */}
+      <div style={{display:"flex",gap:12,marginBottom:10,alignItems:"center",flexWrap:"wrap"}}>
+        <div style={{display:"flex",gap:5}}>
+          {["input","output"].map(m=>(
+            <button key={m} onClick={()=>setMetric(m)}
+              style={{fontSize:11,padding:"4px 11px",border:"0.5px solid "+(metric===m?"#111827":"#e5e7eb"),borderRadius:6,background:metric===m?"#111827":"#fff",color:metric===m?"#fff":"#6b7280",cursor:"pointer",fontFamily:"inherit",fontWeight:500,textTransform:"capitalize"}}>
+              {m}
+            </button>
+          ))}
+        </div>
+        <div style={{display:"flex",gap:5}}>
+          {[{id:"avg",label:"Avg $/1M"},{id:"qoq",label:"QoQ"},{id:"yoy",label:"YoY"}].map(v=>(
+            <button key={v.id} onClick={()=>setView(v.id)}
+              style={{fontSize:11,padding:"4px 11px",border:"0.5px solid "+(view===v.id?"#0e7490":"#e5e7eb"),borderRadius:6,background:view===v.id?"#0e7490":"#fff",color:view===v.id?"#fff":"#6b7280",cursor:"pointer",fontFamily:"inherit",fontWeight:500}}>
+              {v.label}
+            </button>
+          ))}
+        </div>
+        {state.phase==="loading"&&<span><Spin size={10}/></span>}
       </div>
 
       {/* Content */}
       {state.phase==="error"?(
         <div style={{background:"#fff",border:"0.5px dashed #fca5a5",borderRadius:10,padding:"20px 16px",textAlign:"center"}}>
-          <div style={{fontSize:13,color:"#991b1b",fontWeight:500,marginBottom:4}}>Quarterly model-pricing history temporarily unavailable</div>
-          <div style={{fontSize:11,color:"#6b7280"}}>{state.error||"/api/pricing-history did not return success"}</div>
+          <div style={{fontSize:13,color:"#991b1b",fontWeight:500,marginBottom:4}}>Provider-grouped pricing history temporarily unavailable</div>
+          <div style={{fontSize:11,color:"#6b7280"}}>{state.error||"/api/provider-pricing-matrix did not return success"}</div>
         </div>
       ):state.phase==="loading"?(
-        <div style={{...S.card}}><Shimmer rows={4}/></div>
+        <div style={{...S.card}}><Shimmer rows={5}/></div>
       ):state.data&&state.data.quarters&&state.data.quarters.length?(
-        <div style={{...S.card,padding:0,overflow:"hidden"}}>
-          <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
+        <div style={{...S.card,padding:0,overflow:"auto"}}>
+          <table style={{width:"100%",borderCollapse:"collapse",fontSize:12,minWidth:700}}>
             <thead>
               <tr>
-                {["Quarter",metricLabel,"QoQ","YoY","Coverage / Notes"].map(h=>(
-                  <th key={h} style={{...S.lbl,textAlign:"left",padding:"10px 12px",borderBottom:"1px solid #f3f4f6",background:"#fafafa"}}>{h}</th>
+                <th style={{...S.lbl,textAlign:"left",padding:"10px 12px",borderBottom:"1px solid #f3f4f6",background:"#fafafa",position:"sticky",left:0,zIndex:1}}>Quarter</th>
+                {state.data.providers.map(p=>(
+                  <th key={p.slug} style={{...S.lbl,textAlign:"right",padding:"10px 10px",borderBottom:"1px solid #f3f4f6",background:"#fafafa"}}>{p.label}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {state.data.quarters.map(q=>(
-                <tr key={q.id} style={{background:q.partial?"rgba(14,116,144,0.04)":"transparent"}}>
-                  <td style={{padding:"10px 12px",borderBottom:"1px solid #f9fafb",fontFamily:"monospace",color:"#111827",fontWeight:600}}>
-                    {q.id}
+                <tr key={q.quarter} style={{background:q.partial?"rgba(14,116,144,0.04)":"transparent"}}>
+                  <td style={{padding:"10px 12px",borderBottom:"1px solid #f9fafb",fontFamily:"monospace",color:"#111827",fontWeight:600,whiteSpace:"nowrap",background:q.partial?"rgba(14,116,144,0.04)":"#fff",position:"sticky",left:0,zIndex:1}}>
+                    {q.quarter}
                     {q.partial&&<span style={{marginLeft:6,fontSize:9,background:"#ecfeff",color:"#0e7490",padding:"1px 5px",borderRadius:3,fontWeight:600}}>QTD</span>}
                   </td>
-                  <td style={{padding:"10px 12px",borderBottom:"1px solid #f9fafb",fontFamily:"monospace",fontWeight:600,color:"#111827"}}>
-                    {q.avgLabel}
-                    <span style={{fontSize:10,color:"#9ca3af",fontWeight:400,marginLeft:5}}>/1M</span>
-                  </td>
-                  <td style={{padding:"10px 12px",borderBottom:"1px solid #f9fafb",fontFamily:"monospace",fontWeight:600,color:q.qoq===null?"#9ca3af":q.qoq>0?"#dc2626":q.qoq<0?"#059669":"#6b7280"}}>
-                    {q.qoqLabel||"—"}
-                  </td>
-                  <td style={{padding:"10px 12px",borderBottom:"1px solid #f9fafb",fontFamily:"monospace",fontWeight:600,color:q.yoy===null?"#9ca3af":q.yoy>0?"#dc2626":q.yoy<0?"#059669":"#6b7280"}}>
-                    {q.yoyLabel||"—"}
-                  </td>
-                  <td style={{padding:"10px 12px",borderBottom:"1px solid #f9fafb",fontSize:11,color:"#6b7280",lineHeight:1.5}}>
-                    {q.notes.join(" · ")}
-                  </td>
+                  {q.cells.map(c=>{
+                    let main,sub,color="#111827";
+                    if(view==="qoq"){ main=c.qoqLabel||"—"; color=cellColor(c.qoq); sub=c.avgLabel; }
+                    else if(view==="yoy"){ main=c.yoyLabel||"—"; color=cellColor(c.yoy); sub=c.avgLabel; }
+                    else { main=c.avgLabel; sub=c.modelCount?c.modelCount+" models":"—"; }
+                    return(
+                      <td key={c.slug} style={{padding:"10px 10px",borderBottom:"1px solid #f9fafb",fontFamily:"monospace",textAlign:"right",fontWeight:600,color,whiteSpace:"nowrap"}}
+                          title={c.avgLabel+" · "+(c.modelCount||0)+" models · "+(c.obsCount||0)+" daily observations"}>
+                        <div>{main}</div>
+                        <div style={{fontSize:9,color:"#9ca3af",fontWeight:400,marginTop:1}}>{sub}</div>
+                      </td>
+                    );
+                  })}
                 </tr>
               ))}
             </tbody>
@@ -351,16 +370,18 @@ function ModelPricingHistoryBlock(){
         </div>
       ):(
         <div style={{background:"#fff",border:"0.5px solid #e5e7eb",borderRadius:10,padding:"20px 16px",textAlign:"center"}}>
-          <div style={{fontSize:13,color:"#111827",fontWeight:500,marginBottom:4}}>No quarterly history yet</div>
-          <div style={{fontSize:11,color:"#6b7280"}}>Daily capture writes basket prices to canonical history · table will populate as real snapshots accrue.</div>
+          <div style={{fontSize:13,color:"#111827",fontWeight:500,marginBottom:4}}>No provider-grouped history available</div>
+          <div style={{fontSize:11,color:"#6b7280"}}>Upstream source returned no rows.</div>
         </div>
       )}
 
       {/* Methodology note */}
       <div style={{fontSize:10,color:"#9ca3af",marginTop:6,lineHeight:1.5}}>
-        {state.data?.basket?.size?("Based on stable equal-weight basket of "+state.data.basket.size+" flagship models; not full site universe. "):""}
-        {state.data?.trackingSinceDate?("Tracking since "+state.data.trackingSinceDate+". "):""}
-        QoQ / YoY shown only when real adjacent-period / year-ago snapshots exist.
+        {unitHint}. Equal-weighted mean across every (model, day) observation in each calendar quarter, grouped by provider family.
+        {state.data?.earliestDateObserved?(" Historical depth begins "+state.data.earliestDateObserved+" (upstream source floor) — no synthetic backfill."):""}
+        {" Hover a cell for model / observation counts."}
+        {" Model mix changes over time; averages reflect the models available in that quarter, not a fixed basket."}
+        {" Source: api.pricepertoken.com/api/provider-pricing-history."}
       </div>
     </div>
   );
