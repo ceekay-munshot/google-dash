@@ -254,6 +254,44 @@ function FilingAnchorRow(){
 }
 
 /* ═══════════════════════════════════════════════════════
+   TAB: Model Pricing (pricepertoken.com reverse-proxy embed)
+═══════════════════════════════════════════════════════ */
+function ModelPricingTab(){
+  const[err,setErr]=useState(false);
+  return(
+    <>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+        <div style={{display:"flex",alignItems:"center",gap:8}}>
+          <Pill text="Model Pricing · pricepertoken.com" bg="#ecfeff" color="#0e7490"/>
+        </div>
+      </div>
+      {err?(
+        <div style={{background:"#f9fafb",border:"1px dashed #d1d5db",borderRadius:8,padding:"32px 16px",textAlign:"center"}}>
+          <div style={{fontSize:13,color:"#6b7280",fontWeight:500}}>Model pricing embed temporarily unavailable</div>
+          <button onClick={()=>setErr(false)}
+            style={{marginTop:10,fontSize:11,padding:"5px 14px",border:"0.5px solid #d1d5db",borderRadius:6,background:"#fff",color:"#374151",cursor:"pointer",fontFamily:"inherit"}}>
+            Retry
+          </button>
+        </div>
+      ):(
+        <div style={{borderRadius:8,overflow:"hidden",border:"0.5px solid #e5e7eb",background:"#fff"}}>
+          <iframe
+            src={"/api/pricepertoken-proxy?v="+Math.floor(Date.now()/3e5)}
+            title="Price Per Token — Model Pricing"
+            loading="lazy"
+            onError={()=>setErr(true)}
+            style={{border:0,display:"block",width:"100%",height:"calc(100vh - 240px)",minHeight:700}}
+          />
+        </div>
+      )}
+      <div style={{fontSize:10,color:"#9ca3af",marginTop:6}}>
+        Source: pricepertoken.com · per-token LLM API pricing across 300+ models · updated daily
+      </div>
+    </>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════
    EMBEDDED: OpenRouter Live Rankings (proxied page iframe)
 ═══════════════════════════════════════════════════════ */
 function OpenRouterLiveEmbed(){
@@ -652,6 +690,7 @@ export default function App(){
 
   const TABS=[
     {id:"adoption",label:"AI Adoption",                   panel:or},
+    {id:"pricing", label:"Model Pricing"},
     {id:"gcloud",  label:"Google Cloud / Model API Usage"},
     {id:"appendix",label:"Appendix"},
     {id:"history", label:"History"},
@@ -700,6 +739,7 @@ export default function App(){
       {/* Active tab */}
       <div style={S.card}>
         {tab==="adoption"&&<ORTab {...or}/>}
+        {tab==="pricing"&&<ModelPricingTab/>}
         {tab==="gcloud"&&(
           <div style={{padding:"32px 16px",textAlign:"center"}}>
             <div style={{...S.lbl,color:"#6366f1",marginBottom:8}}>Google Cloud / Model API Usage</div>
