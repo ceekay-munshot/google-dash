@@ -254,6 +254,208 @@ function FilingAnchorRow(){
 }
 
 /* ═══════════════════════════════════════════════════════
+   PRICING / SHARE SIGNALS — Analytical read-through
+
+   Joins /api/provider-pricing-matrix (quarterly provider avg $/1M +
+   priceQoq) with canonical KV OpenRouter snapshots (provider token
+   share, averaged by quarter). Renders top callouts for the latest
+   comparable quarter, a per-provider signal table, and a compact
+   quadrant scatter (native SVG — no recharts scatter in bundle).
+
+   Honesty: directional ecosystem read-through, not a causal claim.
+   Only providers observed in BOTH dimensions in the quarter appear.
+═══════════════════════════════════════════════════════ */
+function PricingShareSignalBlock(){
+  const[state,setState]=useState({phase:"loading",data:null,error:null});
+  useEffect(()=>{
+    let cancelled=false;
+    fetch("/api/pricing-share-signal")
+      .then(r=>r.json())
+      .then(d=>{ if(cancelled) return;
+        if(!d.success) setState({phase:"error",data:null,error:d.error||"Unknown error"});
+        else setState({phase:"ready",data:d,error:null});
+      })
+      .catch(e=>{ if(!cancelled) setState({phase:"error",data:null,error:e.message}); });
+    return ()=>{cancelled=true;};
+  },[]);
+
+  /* Regime-to-color: green=favorable pricing-power, amber=neutral/ok, red=weak/anomaly */
+  const regimeColor=(priceReg,shareReg)=>{
+    if(priceReg==="hold"&&shareReg==="gain") return "#059669";  // pricing power
+    if(priceReg==="up"  &&shareReg==="gain") return "#059669";  // strong pricing power
+    if(priceReg==="cut" &&shareReg==="gain") return "#2563eb";  // effective cut
+    if(priceReg==="up"  &&shareReg==="loss") return "#dc2626";  // weak position
+    if(priceReg==="cut" &&shareReg==="loss") return "#dc2626";  // anomalous / cuts not defending
+    if(priceReg==="cut" &&shareReg==="flat") return "#d97706";  // cut not converting
+    return "#6b7280"; // flat/hold/flat and mixed neutrals
+  };
+
+  const header=(
+    <>
+      <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:4}}>
+        <span style={{width:7,height:7,borderRadius:"50%",background:"#7c3aed",display:"inline-block"}}/>
+        <span style={{fontSize:10,textTransform:"uppercase",letterSpacing:".09em",fontWeight:700,color:"#7c3aed"}}>Pricing / Share Signals</span>
+      </div>
+      <div style={{marginBottom:10}}>
+        <div style={{fontSize:16,fontWeight:700,color:"#111827",lineHeight:1.3}}>Pricing Behavior and Market Share Read-Through</div>
+        <div style={{fontSize:11,color:"#9ca3af",marginTop:3}}>Where pricing moves are translating into share gains, resilience, or anomalies.</div>
+      </div>
+    </>
+  );
+
+  if(state.phase==="error"){
+    return(
+      <div style={{marginBottom:16}}>
+        {header}
+        <div style={{background:"#fff",border:"0.5px dashed #fca5a5",borderRadius:10,padding:"14px 16px"}}>
+          <div style={{fontSize:12,color:"#991b1b",fontWeight:500}}>Pricing / share read-through temporarily unavailable</div>
+          <div style={{fontSize:11,color:"#6b7280",marginTop:2}}>{state.error||"/api/pricing-share-signal did not return success"}</div>
+        </div>
+      </div>
+    );
+  }
+  if(state.phase==="loading"){
+    return(
+      <div style={{marginBottom:16}}>
+        {header}
+        <div style={{...S.card}}><Shimmer rows={4}/></div>
+      </div>
+    );
+  }
+  const d=state.data;
+  const latest=d.quarters.find(q=>q.quarter===d.latestComparable);
+  if(!latest||!latest.rows||!latest.rows.length){
+    return(
+      <div style={{marginBottom:16}}>
+        {header}
+        <div style={{background:"#fff",border:"0.5px solid #e5e7eb",borderRadius:10,padding:"14px 16px"}}>
+          <div style={{fontSize:12,color:"#111827",fontWeight:500}}>No comparable quarter available yet</div>
+          <div style={{fontSize:11,color:"#6b7280",marginTop:2}}>Need at least one quarter with both price and market-share observations.</div>
+        </div>
+      </div>
+    );
+  }
+
+  /* SVG quadrant — Price QoQ % on x, Share QoQ pp on y. */
+  const W=440,H=180,P=24;
+  const rows=latest.rows.filter(r=>typeof r.priceQoq==="number"&&typeof r.shareQoqPP==="number");
+  let xMax=Math.max(5,...rows.map(r=>Math.abs(r.priceQoq*100)))*1.15;
+  let yMax=Math.max(1,...rows.map(r=>Math.abs(r.shareQoqPP)))*1.3;
+  const sx=(v)=>P+((v+xMax)/(2*xMax))*(W-2*P);
+  const sy=(v)=>H-P-((v+yMax)/(2*yMax))*(H-2*P);
+  const x0=sx(0),y0=sy(0);
+
+  return(
+    <div style={{marginBottom:16}}>
+      {header}
+
+      {/* Latest-quarter tag */}
+      <div style={{fontSize:11,color:"#6b7280",marginBottom:8}}>
+        Latest comparable quarter: <b style={{color:"#111827",fontFamily:"monospace"}}>{d.latestComparable}</b>
+        {latest.partial&&<span style={{marginLeft:5,fontSize:9,background:"#ecfeff",color:"#0e7490",padding:"1px 5px",borderRadius:3,fontWeight:600}}>QTD</span>}
+        <span style={{color:"#9ca3af"}}> vs {d.priorComparable} · {rows.length} providers observed in both dimensions</span>
+      </div>
+
+      {/* Callout chips */}
+      {d.callouts&&d.callouts.length>0&&(
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(210px,1fr))",gap:8,marginBottom:12}}>
+          {d.callouts.map((c,i)=>(
+            <div key={i} style={{background:"#fff",border:"0.5px solid #e5e7eb",borderRadius:8,padding:"8px 10px"}}>
+              <div style={{fontSize:9,textTransform:"uppercase",letterSpacing:".07em",fontWeight:700,color:"#7c3aed"}}>{c.title}</div>
+              <div style={{fontSize:13,fontWeight:700,color:"#111827",marginTop:2}}>{c.provider}</div>
+              <div style={{fontSize:10,color:"#6b7280",marginTop:2,lineHeight:1.4}}>{c.detail}</div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Quadrant chart + signal table side-by-side when wide, stacked when narrow */}
+      <div style={{display:"grid",gridTemplateColumns:"minmax(360px,1fr) minmax(420px,2fr)",gap:10}}>
+
+        {/* Quadrant */}
+        <div style={{...S.card,padding:"8px 8px 4px"}}>
+          <div style={{fontSize:10,color:"#6b7280",marginBottom:2,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+            <span>Price QoQ vs Share QoQ</span>
+            <span style={{fontSize:9,color:"#9ca3af"}}>x: price % · y: share pp</span>
+          </div>
+          <svg width="100%" height={H} viewBox={"0 0 "+W+" "+H} style={{display:"block"}}>
+            {/* Quadrant background tints */}
+            <rect x={P} y={P} width={x0-P} height={y0-P} fill="#ecfdf5" opacity="0.5"/>
+            <rect x={x0} y={P} width={W-P-x0} height={y0-P} fill="#ecfdf5" opacity="0.7"/>
+            <rect x={P} y={y0} width={x0-P} height={H-P-y0} fill="#fef2f2" opacity="0.5"/>
+            <rect x={x0} y={y0} width={W-P-x0} height={H-P-y0} fill="#fef2f2" opacity="0.5"/>
+            {/* Axes */}
+            <line x1={P} y1={y0} x2={W-P} y2={y0} stroke="#9ca3af" strokeWidth="0.5"/>
+            <line x1={x0} y1={P} x2={x0} y2={H-P} stroke="#9ca3af" strokeWidth="0.5"/>
+            {/* Axis labels */}
+            <text x={W-P-2} y={y0-4} fontSize="9" fill="#6b7280" textAnchor="end">Price QoQ +{xMax.toFixed(0)}%</text>
+            <text x={P+2}   y={y0-4} fontSize="9" fill="#6b7280">−{xMax.toFixed(0)}%</text>
+            <text x={x0+4}  y={P+9}  fontSize="9" fill="#6b7280">Share +{yMax.toFixed(1)}pp</text>
+            <text x={x0+4}  y={H-P+10} fontSize="9" fill="#6b7280">−{yMax.toFixed(1)}pp</text>
+            {/* Quadrant labels (corner hints) */}
+            <text x={P+4}    y={P+10} fontSize="8" fill="#059669" fontWeight="600">effective cut</text>
+            <text x={W-P-4}  y={P+10} fontSize="8" fill="#059669" fontWeight="600" textAnchor="end">pricing power</text>
+            <text x={P+4}    y={H-P-3} fontSize="8" fill="#dc2626" fontWeight="600">cuts not defending</text>
+            <text x={W-P-4}  y={H-P-3} fontSize="8" fill="#dc2626" fontWeight="600" textAnchor="end">weak position</text>
+            {/* Dots + labels */}
+            {rows.map(r=>{
+              const x=sx(r.priceQoq*100),y=sy(r.shareQoqPP);
+              return(
+                <g key={r.slug}>
+                  <circle cx={x} cy={y} r="4.5" fill={regimeColor(r.priceReg,r.shareReg)} stroke="#fff" strokeWidth="1"/>
+                  <text x={x+7} y={y+3} fontSize="10" fill="#111827" fontWeight="600">{r.label}</text>
+                </g>
+              );
+            })}
+          </svg>
+        </div>
+
+        {/* Signal table */}
+        <div style={{...S.card,padding:0,overflow:"auto"}}>
+          <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
+            <thead>
+              <tr>
+                {["Provider","Avg Price /1M","Price QoQ","Share QoQ","Regime / Interpretation"].map(h=>(
+                  <th key={h} style={{...S.lbl,textAlign:"left",padding:"8px 10px",borderBottom:"1px solid #f3f4f6",background:"#fafafa"}}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map(r=>(
+                <tr key={r.slug}>
+                  <td style={{padding:"8px 10px",borderBottom:"1px solid #f9fafb",fontWeight:600,color:"#111827",whiteSpace:"nowrap"}}>
+                    <span style={{display:"inline-block",width:8,height:8,borderRadius:"50%",background:regimeColor(r.priceReg,r.shareReg),marginRight:6,verticalAlign:"middle"}}/>
+                    {r.label}
+                  </td>
+                  <td style={{padding:"8px 10px",borderBottom:"1px solid #f9fafb",fontFamily:"monospace",color:"#111827"}}>{r.avgLabel}</td>
+                  <td style={{padding:"8px 10px",borderBottom:"1px solid #f9fafb",fontFamily:"monospace",fontWeight:600,color:r.priceQoq>0?"#dc2626":r.priceQoq<0?"#059669":"#6b7280"}}>{r.priceQoqLabel}</td>
+                  <td style={{padding:"8px 10px",borderBottom:"1px solid #f9fafb",fontFamily:"monospace",fontWeight:600,color:r.shareQoqPP>0?"#059669":r.shareQoqPP<0?"#dc2626":"#6b7280"}}>{r.shareQoqLabel}</td>
+                  <td style={{padding:"8px 10px",borderBottom:"1px solid #f9fafb",fontSize:11,color:"#374151",lineHeight:1.35}}>
+                    <div style={{fontWeight:600,color:"#111827"}}>{r.regimeLabel}</div>
+                    <div style={{color:"#6b7280",marginTop:1}}>{r.note}</div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Methodology caveat */}
+      <div style={{display:"flex",flexWrap:"wrap",gap:"4px 10px",fontSize:10,color:"#6b7280",marginTop:8,lineHeight:1.5}}>
+        <span><b style={{color:"#374151"}}>Rules:</b> price cut ≤ −2%, price up ≥ +2%, share gain ≥ +0.3pp, share loss ≤ −0.3pp</span>
+        <span>·</span>
+        <span><b style={{color:"#374151"}}>Scope:</b> directional ecosystem read-through, not a causal claim</span>
+        <span>·</span>
+        <span><b style={{color:"#374151"}}>Omissions:</b> providers outside the OpenRouter top-N during the quarter are excluded, never imputed</span>
+        <span>·</span>
+        <span><b style={{color:"#374151"}}>Sources:</b> pricepertoken provider pricing history + canonical HISTORY_KV OpenRouter snapshots</span>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════
    MODEL PRICING HISTORY — Quarterly, grouped by provider/company
 
    Renders above the live pricepertoken embed. Data comes from
@@ -483,7 +685,10 @@ function ModelPricingTab(){
         </div>
       </div>
 
-      {/* Derived quarterly summary — always first */}
+      {/* Analytical read-through (callouts + signal table + quadrant) — first */}
+      <PricingShareSignalBlock/>
+
+      {/* Quarterly trend chart + matrix */}
       <ModelPricingHistoryBlock/>
 
       {/* Live embed */}

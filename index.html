@@ -303,10 +303,150 @@ function ZX({data:e,busy:t,ts:r,live:n,refresh:i}){let o=Math.max(...e.map(l=>l.
     ]})
   ]});
 
+  /* ── Pricing / Share Signal block: fetches derived /api/pricing-share-signal, joins pricing + canonical market share ── */
+  var _ss=$e.useState({phase:"loading",data:null,error:null}),_sigState=_ss[0],_setSigState=_ss[1];
+  $e.useEffect(function(){
+    var cancelled=false;
+    fetch("/api/pricing-share-signal")
+      .then(function(r){return r.json()})
+      .then(function(d){ if(cancelled)return;
+        if(!d.success) _setSigState({phase:"error",data:null,error:d.error||"Unknown error"});
+        else _setSigState({phase:"ready",data:d,error:null});
+      })
+      .catch(function(e){ if(!cancelled) _setSigState({phase:"error",data:null,error:e.message}); });
+    return function(){cancelled=true};
+  },[]);
+  var _regColor=function(pr,sr){
+    if(pr==="hold"&&sr==="gain") return "#059669";
+    if(pr==="up"  &&sr==="gain") return "#059669";
+    if(pr==="cut" &&sr==="gain") return "#2563eb";
+    if(pr==="up"  &&sr==="loss") return "#dc2626";
+    if(pr==="cut" &&sr==="loss") return "#dc2626";
+    if(pr==="cut" &&sr==="flat") return "#d97706";
+    return "#6b7280";
+  };
+  var _sigHeader=(0,b.jsxs)(b.Fragment,{children:[
+    (0,b.jsxs)("div",{style:{display:"flex",alignItems:"center",gap:7,marginBottom:4},children:[
+      (0,b.jsx)("span",{style:{width:7,height:7,borderRadius:"50%",background:"#7c3aed",display:"inline-block"}}),
+      (0,b.jsx)("span",{style:{fontSize:10,textTransform:"uppercase",letterSpacing:".09em",fontWeight:700,color:"#7c3aed"},children:"Pricing / Share Signals"})
+    ]}),
+    (0,b.jsxs)("div",{style:{marginBottom:10},children:[
+      (0,b.jsx)("div",{style:{fontSize:16,fontWeight:700,color:"#111827",lineHeight:1.3},children:"Pricing Behavior and Market Share Read-Through"}),
+      (0,b.jsx)("div",{style:{fontSize:11,color:"#9ca3af",marginTop:3},children:"Where pricing moves are translating into share gains, resilience, or anomalies."})
+    ]})
+  ]});
+  var _signalBlock;
+  if(_sigState.phase==="error"){
+    _signalBlock=(0,b.jsxs)("div",{style:{marginBottom:16},children:[
+      _sigHeader,
+      (0,b.jsxs)("div",{style:{background:"#fff",border:"0.5px dashed #fca5a5",borderRadius:10,padding:"14px 16px"},children:[
+        (0,b.jsx)("div",{style:{fontSize:12,color:"#991b1b",fontWeight:500},children:"Pricing / share read-through temporarily unavailable"}),
+        (0,b.jsx)("div",{style:{fontSize:11,color:"#6b7280",marginTop:2},children:_sigState.error||"/api/pricing-share-signal did not return success"})
+      ]})
+    ]});
+  } else if(_sigState.phase==="loading"){
+    _signalBlock=(0,b.jsxs)("div",{style:{marginBottom:16},children:[_sigHeader,(0,b.jsx)("div",{style:_styles.card,children:(0,b.jsx)(_S,{rows:4})})]});
+  } else {
+    var _d=_sigState.data;
+    var _latest=(_d.quarters||[]).find(function(q){return q.quarter===_d.latestComparable});
+    if(!_latest||!_latest.rows||!_latest.rows.length){
+      _signalBlock=(0,b.jsxs)("div",{style:{marginBottom:16},children:[
+        _sigHeader,
+        (0,b.jsxs)("div",{style:{background:"#fff",border:"0.5px solid #e5e7eb",borderRadius:10,padding:"14px 16px"},children:[
+          (0,b.jsx)("div",{style:{fontSize:12,color:"#111827",fontWeight:500},children:"No comparable quarter available yet"}),
+          (0,b.jsx)("div",{style:{fontSize:11,color:"#6b7280",marginTop:2},children:"Need at least one quarter with both price and market-share observations."})
+        ]})
+      ]});
+    } else {
+      var _W=440,_H=180,_P=24;
+      var _rowsLatest=_latest.rows.filter(function(r){return typeof r.priceQoq==="number"&&typeof r.shareQoqPP==="number"});
+      var _xMax=5,_yMax=1;
+      for(var i=0;i<_rowsLatest.length;i++){
+        var ax=Math.abs(_rowsLatest[i].priceQoq*100); if(ax>_xMax) _xMax=ax;
+        var ay=Math.abs(_rowsLatest[i].shareQoqPP); if(ay>_yMax) _yMax=ay;
+      }
+      _xMax=_xMax*1.15; _yMax=_yMax*1.3;
+      var _sx=function(v){return _P+((v+_xMax)/(2*_xMax))*(_W-2*_P)};
+      var _sy=function(v){return _H-_P-((v+_yMax)/(2*_yMax))*(_H-2*_P)};
+      var _x0=_sx(0),_y0=_sy(0);
+      _signalBlock=(0,b.jsxs)("div",{style:{marginBottom:16},children:[
+        _sigHeader,
+        (0,b.jsxs)("div",{style:{fontSize:11,color:"#6b7280",marginBottom:8},children:[
+          "Latest comparable quarter: ",
+          (0,b.jsx)("b",{style:{color:"#111827",fontFamily:"monospace"},children:_d.latestComparable}),
+          _latest.partial?(0,b.jsx)("span",{style:{marginLeft:5,fontSize:9,background:"#ecfeff",color:"#0e7490",padding:"1px 5px",borderRadius:3,fontWeight:600},children:"QTD"}):null,
+          (0,b.jsxs)("span",{style:{color:"#9ca3af"},children:[" vs ",_d.priorComparable," \xB7 ",_rowsLatest.length," providers observed in both dimensions"]})
+        ]}),
+        (_d.callouts&&_d.callouts.length>0)?(0,b.jsx)("div",{style:{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(210px,1fr))",gap:8,marginBottom:12},children:_d.callouts.map(function(c,i){return (0,b.jsxs)("div",{style:{background:"#fff",border:"0.5px solid #e5e7eb",borderRadius:8,padding:"8px 10px"},children:[
+          (0,b.jsx)("div",{style:{fontSize:9,textTransform:"uppercase",letterSpacing:".07em",fontWeight:700,color:"#7c3aed"},children:c.title}),
+          (0,b.jsx)("div",{style:{fontSize:13,fontWeight:700,color:"#111827",marginTop:2},children:c.provider}),
+          (0,b.jsx)("div",{style:{fontSize:10,color:"#6b7280",marginTop:2,lineHeight:1.4},children:c.detail})
+        ]},i)})}):null,
+        (0,b.jsxs)("div",{style:{display:"grid",gridTemplateColumns:"minmax(360px,1fr) minmax(420px,2fr)",gap:10},children:[
+          (0,b.jsxs)("div",{style:Object.assign({},_styles.card,{padding:"8px 8px 4px"}),children:[
+            (0,b.jsxs)("div",{style:{fontSize:10,color:"#6b7280",marginBottom:2,display:"flex",justifyContent:"space-between",alignItems:"center"},children:[
+              (0,b.jsx)("span",{children:"Price QoQ vs Share QoQ"}),
+              (0,b.jsx)("span",{style:{fontSize:9,color:"#9ca3af"},children:"x: price % \xB7 y: share pp"})
+            ]}),
+            (0,b.jsxs)("svg",{width:"100%",height:_H,viewBox:"0 0 "+_W+" "+_H,style:{display:"block"},children:[
+              (0,b.jsx)("rect",{x:_P,y:_P,width:_x0-_P,height:_y0-_P,fill:"#ecfdf5",opacity:"0.5"}),
+              (0,b.jsx)("rect",{x:_x0,y:_P,width:_W-_P-_x0,height:_y0-_P,fill:"#ecfdf5",opacity:"0.7"}),
+              (0,b.jsx)("rect",{x:_P,y:_y0,width:_x0-_P,height:_H-_P-_y0,fill:"#fef2f2",opacity:"0.5"}),
+              (0,b.jsx)("rect",{x:_x0,y:_y0,width:_W-_P-_x0,height:_H-_P-_y0,fill:"#fef2f2",opacity:"0.5"}),
+              (0,b.jsx)("line",{x1:_P,y1:_y0,x2:_W-_P,y2:_y0,stroke:"#9ca3af",strokeWidth:"0.5"}),
+              (0,b.jsx)("line",{x1:_x0,y1:_P,x2:_x0,y2:_H-_P,stroke:"#9ca3af",strokeWidth:"0.5"}),
+              (0,b.jsx)("text",{x:_W-_P-2,y:_y0-4,fontSize:"9",fill:"#6b7280",textAnchor:"end",children:"Price QoQ +"+_xMax.toFixed(0)+"%"}),
+              (0,b.jsx)("text",{x:_P+2,y:_y0-4,fontSize:"9",fill:"#6b7280",children:"\u2212"+_xMax.toFixed(0)+"%"}),
+              (0,b.jsx)("text",{x:_x0+4,y:_P+9,fontSize:"9",fill:"#6b7280",children:"Share +"+_yMax.toFixed(1)+"pp"}),
+              (0,b.jsx)("text",{x:_x0+4,y:_H-_P+10,fontSize:"9",fill:"#6b7280",children:"\u2212"+_yMax.toFixed(1)+"pp"}),
+              (0,b.jsx)("text",{x:_P+4,y:_P+10,fontSize:"8",fill:"#059669",fontWeight:"600",children:"effective cut"}),
+              (0,b.jsx)("text",{x:_W-_P-4,y:_P+10,fontSize:"8",fill:"#059669",fontWeight:"600",textAnchor:"end",children:"pricing power"}),
+              (0,b.jsx)("text",{x:_P+4,y:_H-_P-3,fontSize:"8",fill:"#dc2626",fontWeight:"600",children:"cuts not defending"}),
+              (0,b.jsx)("text",{x:_W-_P-4,y:_H-_P-3,fontSize:"8",fill:"#dc2626",fontWeight:"600",textAnchor:"end",children:"weak position"}),
+              _rowsLatest.map(function(r){
+                var x=_sx(r.priceQoq*100),y=_sy(r.shareQoqPP);
+                return (0,b.jsxs)("g",{children:[
+                  (0,b.jsx)("circle",{cx:x,cy:y,r:"4.5",fill:_regColor(r.priceReg,r.shareReg),stroke:"#fff",strokeWidth:"1"}),
+                  (0,b.jsx)("text",{x:x+7,y:y+3,fontSize:"10",fill:"#111827",fontWeight:"600",children:r.label})
+                ]},r.slug);
+              })
+            ]})
+          ]}),
+          (0,b.jsx)("div",{style:Object.assign({},_styles.card,{padding:0,overflow:"auto"}),children:(0,b.jsxs)("table",{style:{width:"100%",borderCollapse:"collapse",fontSize:12},children:[
+            (0,b.jsx)("thead",{children:(0,b.jsx)("tr",{children:["Provider","Avg Price /1M","Price QoQ","Share QoQ","Regime / Interpretation"].map(function(h){return (0,b.jsx)("th",{style:Object.assign({},_styles.lbl,{textAlign:"left",padding:"8px 10px",borderBottom:"1px solid #f3f4f6",background:"#fafafa"}),children:h},h)})})}),
+            (0,b.jsx)("tbody",{children:_rowsLatest.map(function(r){return (0,b.jsxs)("tr",{children:[
+              (0,b.jsxs)("td",{style:{padding:"8px 10px",borderBottom:"1px solid #f9fafb",fontWeight:600,color:"#111827",whiteSpace:"nowrap"},children:[
+                (0,b.jsx)("span",{style:{display:"inline-block",width:8,height:8,borderRadius:"50%",background:_regColor(r.priceReg,r.shareReg),marginRight:6,verticalAlign:"middle"}}),
+                r.label
+              ]}),
+              (0,b.jsx)("td",{style:{padding:"8px 10px",borderBottom:"1px solid #f9fafb",fontFamily:"monospace",color:"#111827"},children:r.avgLabel}),
+              (0,b.jsx)("td",{style:{padding:"8px 10px",borderBottom:"1px solid #f9fafb",fontFamily:"monospace",fontWeight:600,color:r.priceQoq>0?"#dc2626":r.priceQoq<0?"#059669":"#6b7280"},children:r.priceQoqLabel}),
+              (0,b.jsx)("td",{style:{padding:"8px 10px",borderBottom:"1px solid #f9fafb",fontFamily:"monospace",fontWeight:600,color:r.shareQoqPP>0?"#059669":r.shareQoqPP<0?"#dc2626":"#6b7280"},children:r.shareQoqLabel}),
+              (0,b.jsxs)("td",{style:{padding:"8px 10px",borderBottom:"1px solid #f9fafb",fontSize:11,color:"#374151",lineHeight:1.35},children:[
+                (0,b.jsx)("div",{style:{fontWeight:600,color:"#111827"},children:r.regimeLabel}),
+                (0,b.jsx)("div",{style:{color:"#6b7280",marginTop:1},children:r.note})
+              ]})
+            ]},r.slug)})})
+          ]})})
+        ]}),
+        (0,b.jsxs)("div",{style:{display:"flex",flexWrap:"wrap",gap:"4px 10px",fontSize:10,color:"#6b7280",marginTop:8,lineHeight:1.5},children:[
+          (0,b.jsxs)("span",{children:[(0,b.jsx)("b",{style:{color:"#374151"},children:"Rules: "}),"price cut \u2264 \u22122%, price up \u2265 +2%, share gain \u2265 +0.3pp, share loss \u2264 \u22120.3pp"]}),
+          (0,b.jsx)("span",{children:"\xB7"}),
+          (0,b.jsxs)("span",{children:[(0,b.jsx)("b",{style:{color:"#374151"},children:"Scope: "}),"directional ecosystem read-through, not a causal claim"]}),
+          (0,b.jsx)("span",{children:"\xB7"}),
+          (0,b.jsxs)("span",{children:[(0,b.jsx)("b",{style:{color:"#374151"},children:"Omissions: "}),"providers outside the OpenRouter top-N during the quarter are excluded, never imputed"]}),
+          (0,b.jsx)("span",{children:"\xB7"}),
+          (0,b.jsxs)("span",{children:[(0,b.jsx)("b",{style:{color:"#374151"},children:"Sources: "}),"pricepertoken provider pricing history + canonical HISTORY_KV OpenRouter snapshots"]})
+        ]})
+      ]});
+    }
+  }
+
   /* ── Live embed (unchanged) ── */
   var _e=$e.useState(!1),_err=_e[0],_setErr=_e[1];
   return(0,b.jsxs)(b.Fragment,{children:[
     (0,b.jsx)("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14},children:(0,b.jsx)("div",{style:{display:"flex",alignItems:"center",gap:8},children:(0,b.jsx)(IS,{text:"Model Pricing \xB7 pricepertoken.com",bg:"#ecfeff",color:"#0e7490"})})}),
+    _signalBlock,
     _historyBlock,
     _err?(0,b.jsxs)("div",{style:{background:"#f9fafb",border:"1px dashed #d1d5db",borderRadius:8,padding:"32px 16px",textAlign:"center"},children:[(0,b.jsx)("div",{style:{fontSize:13,color:"#6b7280",fontWeight:500},children:"Model pricing embed temporarily unavailable"}),(0,b.jsx)("button",{onClick:function(){_setErr(!1)},style:{marginTop:10,fontSize:11,padding:"5px 14px",border:"0.5px solid #d1d5db",borderRadius:6,background:"#fff",color:"#374151",cursor:"pointer",fontFamily:"inherit"},children:"Retry"})]}):(0,b.jsx)("div",{style:{borderRadius:8,overflow:"hidden",border:"0.5px solid #e5e7eb",background:"#fff"},children:(0,b.jsx)("iframe",{src:"/api/pricepertoken-proxy?v="+Math.floor(Date.now()/3e5),title:"Price Per Token \u2014 Model Pricing",loading:"lazy",onError:function(){_setErr(!0)},style:{border:0,display:"block",width:"100%",height:"calc(100vh - 240px)",minHeight:700}})}),
     (0,b.jsx)("div",{style:{fontSize:10,color:"#9ca3af",marginTop:6},children:"Source: pricepertoken.com \xB7 per-token LLM API pricing across 300+ models \xB7 updated daily"})
