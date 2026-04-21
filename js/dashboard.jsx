@@ -935,10 +935,63 @@ function ModelPricingTab(){
 }
 
 /* ═══════════════════════════════════════════════════════
-   TAB: GPU Hardware Pricing (getdeploying.com reverse-proxy embed)
+   TAB: GPU Hardware Pricing (getdeploying.com reverse-proxy embed
+   + /api/gpu-hardware-pricing-data parsed-data summary)
 ═══════════════════════════════════════════════════════ */
+
+// Strategic SKU order for the comparison table. Matches decision-weight
+// (H/B class trainers first, then mid-training + inference workhorses).
+const GPU_STRATEGIC_ORDER=[
+  "Nvidia H100","Nvidia H200","Nvidia B200","Nvidia GB200",
+  "Nvidia A100","Nvidia L40S",
+];
+// KPI cards want just the cheapest by SKU — uses same canonical names.
+const GPU_KPI_SKUS=["Nvidia H100","Nvidia H200","Nvidia B200","Nvidia A100"];
+
+function fmtUSD(v){
+  if(v==null||!isFinite(v))return"—";
+  if(v<1)return"$"+v.toFixed(2);
+  if(v<10)return"$"+v.toFixed(2);
+  return"$"+v.toFixed(2);
+}
+
 function GPUHardwarePricingTab(){
   const[err,setErr]=useState(false);
+  const[data,setData]=useState(null);   // {ok, rows, sourceUpdatedAt, ...}
+  const[loadErr,setLoadErr]=useState(false);
+
+  useEffect(()=>{
+    let cancelled=false;
+    fetch("/api/gpu-hardware-pricing-data?v="+Math.floor(Date.now()/3e5))
+      .then(r=>r.ok?r.json():Promise.reject(r.status))
+      .then(j=>{if(!cancelled){if(j&&j.ok){setData(j);}else{setLoadErr(true);}}})
+      .catch(()=>{if(!cancelled)setLoadErr(true);});
+    return()=>{cancelled=true;};
+  },[]);
+
+  const rows=data?.rows||[];
+  const byName={};
+  for(const r of rows)if(!byName[r.gpuModel])byName[r.gpuModel]=r;
+
+  const kpiCards=GPU_KPI_SKUS.map(sku=>{
+    const r=byName[sku];
+    if(!r||r.minPricePerHour==null)return null;
+    const short=sku.replace(/^Nvidia\s+/i,"");
+    return{
+      sku,label:"Cheapest "+short+" $/hr",
+      value:fmtUSD(r.minPricePerHour),
+      sub:r.providerCount?r.providerCount+" providers":null,
+    };
+  }).filter(Boolean);
+
+  const totalProviders=rows.reduce((m,r)=>Math.max(m,r.providerCount||0),0);
+  const modelCount=rows.length;
+  const updatedTxt=data?.sourceUpdatedAt?.text||null;
+
+  const tableRows=GPU_STRATEGIC_ORDER.map(n=>byName[n]).filter(Boolean);
+
+  const showSummary=!loadErr&&(data||!data); // show skeleton while loading
+
   return(
     <>
       {/* Section label */}
@@ -948,13 +1001,69 @@ function GPUHardwarePricingTab(){
       </div>
       <style>{`@keyframes gpupulse{0%,100%{opacity:1}50%{opacity:.4}}`}</style>
 
-      {/* Title + subtitle */}
+      {/* Title + subtitle + source-updated line */}
       <div style={{marginBottom:12}}>
         <div style={{fontSize:16,fontWeight:700,color:"#111827",lineHeight:1.3}}>GPU Hardware Pricing</div>
         <div style={{fontSize:11,color:"#9ca3af",marginTop:3}}>
           Live cross-provider GPU hourly pricing across major accelerator types.
+          {updatedTxt&&<> · <b style={{color:"#6b7280",fontWeight:600}}>Source updated {updatedTxt}</b></>}
         </div>
       </div>
+
+      {/* KPI cards — cheapest $/hr per strategic SKU + totals */}
+      {loadErr?(
+        <div style={{background:"#f9fafb",border:"1px dashed #d1d5db",borderRadius:8,padding:"14px 16px",marginBottom:14}}>
+          <div style={{fontSize:11,color:"#6b7280"}}>Summary metrics unavailable — parser temporarily offline. Live embed below still loads.</div>
+        </div>
+      ):!data?(
+        <div style={{marginBottom:14}}>
+          <Shimmer rows={2}/>
+        </div>
+      ):(
+        <>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:8,marginBottom:10}}>
+            {kpiCards.map(c=>(
+              <KBox key={c.sku} label={c.label} value={c.value} sub={c.sub} bg="#ecfeff" fg="#0e7490"/>
+            ))}
+            <KBox label="Providers tracked"       value={totalProviders?totalProviders+"+":"—"} sub="across all SKUs"      bg="#f0fdf4" fg="#059669"/>
+            <KBox label="GPU models tracked"      value={modelCount||"—"}                       sub="parsed from source" bg="#eff6ff" fg="#1d4ed8"/>
+          </div>
+
+          {/* Strategic comparison table */}
+          {tableRows.length>0&&(
+            <div style={{border:"0.5px solid #e5e7eb",borderRadius:8,overflow:"hidden",marginBottom:14,background:"#fff"}}>
+              <div style={{padding:"9px 14px",borderBottom:"0.5px solid #f3f4f6",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                <span style={{fontSize:11,fontWeight:600,color:"#111827"}}>Strategic SKU comparison</span>
+                <span style={{fontSize:10,color:"#9ca3af"}}>ordered by decision weight · training → inference</span>
+              </div>
+              <div style={{overflowX:"auto"}}>
+                <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
+                  <thead>
+                    <tr style={{background:"#fafafa"}}>
+                      <th style={gpuTh}>GPU</th>
+                      <th style={gpuTh}>VRAM</th>
+                      <th style={{...gpuTh,textAlign:"right"}}>Lowest&nbsp;$/hr</th>
+                      <th style={{...gpuTh,textAlign:"right"}}>Highest&nbsp;$/hr</th>
+                      <th style={{...gpuTh,textAlign:"right"}}>Providers</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {tableRows.map(r=>(
+                      <tr key={r.gpuModel} style={{borderTop:"0.5px solid #f3f4f6"}}>
+                        <td style={gpuTd}><span style={{fontWeight:600,color:"#111827"}}>{r.gpuModel}</span></td>
+                        <td style={{...gpuTd,color:"#6b7280"}}>{r.vram||"—"}</td>
+                        <td style={{...gpuTd,textAlign:"right",color:"#059669",fontWeight:600}}>{fmtUSD(r.minPricePerHour)}</td>
+                        <td style={{...gpuTd,textAlign:"right",color:"#374151"}}>{fmtUSD(r.maxPricePerHour)}</td>
+                        <td style={{...gpuTd,textAlign:"right",color:"#6b7280"}}>{r.providerCount??"—"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </>
+      )}
 
       {/* Live embed */}
       {err?(
@@ -977,11 +1086,14 @@ function GPUHardwarePricingTab(){
         </div>
       )}
       <div style={{fontSize:10,color:"#9ca3af",marginTop:6}}>
-        Source: getdeploying.com/gpus (live reverse-proxied embed)
+        Source: getdeploying.com/gpus (live reverse-proxied embed · summary parsed from SSR HTML)
       </div>
     </>
   );
 }
+
+const gpuTh={textAlign:"left",padding:"7px 12px",fontSize:10,textTransform:"uppercase",letterSpacing:".06em",color:"#6b7280",fontWeight:600};
+const gpuTd={padding:"7px 12px",verticalAlign:"middle"};
 
 /* ═══════════════════════════════════════════════════════
    EMBEDDED: OpenRouter Live Rankings (proxied page iframe)
@@ -1406,8 +1518,16 @@ export default function App(){
   const or    =usePanel(LIVE.or,    fetchOR);
   const radar =usePanel(LIVE.bots,  fetchRadar);
   const trends=usePanel(LIVE.trends,fetchTrends);
+  const[fetchedAtLabel,setFetchedAtLabel]=useState(LIVE.fetchedAt);
 
-  function refreshAll(){or.refresh();radar.refresh();trends.refresh();}
+  function refreshAll(){
+    Promise.all([or.refresh(),radar.refresh(),trends.refresh()]).finally(()=>{
+      const d=new Date();
+      const datePart=d.toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric",timeZone:"UTC"});
+      const timePart=String(d.getUTCHours()).padStart(2,"0")+":"+String(d.getUTCMinutes()).padStart(2,"0");
+      setFetchedAtLabel(datePart+" \u00B7 "+timePart+" UTC");
+    });
+  }
 
   const best =LIVE.or.find(m=>m.isGemini);
   const top  =LIVE.or[0];
@@ -1430,7 +1550,7 @@ export default function App(){
         <div>
           <div style={{fontSize:15,fontWeight:600,color:"#111827"}}>AI model intelligence</div>
           <div style={{fontSize:11,color:"#9ca3af",marginTop:2}}>
-            Data fetched {LIVE.fetchedAt} · refresh buttons call live /api/* endpoints
+            Data fetched {fetchedAtLabel} · refresh buttons call live /api/* endpoints
           </div>
         </div>
         <button onClick={refreshAll}
