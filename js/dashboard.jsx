@@ -935,6 +935,55 @@ function ModelPricingTab(){
 }
 
 /* ═══════════════════════════════════════════════════════
+   TAB: GPU Hardware Pricing (getdeploying.com reverse-proxy embed)
+═══════════════════════════════════════════════════════ */
+function GPUHardwarePricingTab(){
+  const[err,setErr]=useState(false);
+  return(
+    <>
+      {/* Section label */}
+      <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:4}}>
+        <span style={{width:7,height:7,borderRadius:"50%",background:"#0e7490",display:"inline-block",animation:"gpupulse 2s infinite"}}/>
+        <span style={{fontSize:10,textTransform:"uppercase",letterSpacing:".09em",fontWeight:700,color:"#0e7490"}}>Live infra signal — GPU hardware pricing</span>
+      </div>
+      <style>{`@keyframes gpupulse{0%,100%{opacity:1}50%{opacity:.4}}`}</style>
+
+      {/* Title + subtitle */}
+      <div style={{marginBottom:12}}>
+        <div style={{fontSize:16,fontWeight:700,color:"#111827",lineHeight:1.3}}>GPU Hardware Pricing</div>
+        <div style={{fontSize:11,color:"#9ca3af",marginTop:3}}>
+          Live cross-provider GPU hourly pricing across major accelerator types.
+        </div>
+      </div>
+
+      {/* Live embed */}
+      {err?(
+        <div style={{background:"#f9fafb",border:"1px dashed #d1d5db",borderRadius:8,padding:"32px 16px",textAlign:"center"}}>
+          <div style={{fontSize:13,color:"#6b7280",fontWeight:500}}>getdeploying GPU pricing live embed temporarily unavailable</div>
+          <button onClick={()=>setErr(false)}
+            style={{marginTop:10,fontSize:11,padding:"5px 14px",border:"0.5px solid #d1d5db",borderRadius:6,background:"#fff",color:"#374151",cursor:"pointer",fontFamily:"inherit"}}>
+            Retry
+          </button>
+        </div>
+      ):(
+        <div style={{borderRadius:8,overflow:"hidden",border:"0.5px solid #e5e7eb",background:"#fff"}}>
+          <iframe
+            src={"/api/getdeploying-gpus-proxy?v="+Math.floor(Date.now()/3e5)}
+            title="GetDeploying — GPU Hardware Pricing"
+            loading="lazy"
+            onError={()=>setErr(true)}
+            style={{border:0,display:"block",width:"100%",height:"calc(100vh - 240px)",minHeight:720}}
+          />
+        </div>
+      )}
+      <div style={{fontSize:10,color:"#9ca3af",marginTop:6}}>
+        Source: getdeploying.com/gpus (live reverse-proxied embed)
+      </div>
+    </>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════
    EMBEDDED: OpenRouter Live Rankings (proxied page iframe)
 ═══════════════════════════════════════════════════════ */
 function OpenRouterLiveEmbed(){
@@ -1367,6 +1416,7 @@ export default function App(){
   const TABS=[
     {id:"adoption",label:"AI Adoption",                   panel:or},
     {id:"pricing", label:"Model Pricing"},
+    {id:"gpu",     label:"GPU Hardware Pricing"},
     {id:"gcloud",  label:"Google Cloud / Model API Usage"},
     {id:"appendix",label:"Appendix"},
     {id:"history", label:"History"},
@@ -1407,7 +1457,7 @@ export default function App(){
           <button key={t.id} onClick={()=>setTab(t.id)}
             style={{fontSize:12,padding:"7px 18px",border:"0.5px solid "+(tab===t.id?"#111827":"#e5e7eb"),borderRadius:8,background:tab===t.id?"#111827":"#fff",color:tab===t.id?"#fff":"#374151",cursor:"pointer",fontFamily:"inherit",fontWeight:500,display:"inline-flex",alignItems:"center",gap:6}}>
             {t.label}
-            {t.panel.busy&&<Spin size={10} color={tab===t.id?"#fff":"#3b82f6"}/>}
+            {t.panel?.busy&&<Spin size={10} color={tab===t.id?"#fff":"#3b82f6"}/>}
           </button>
         ))}
       </div>
@@ -1416,6 +1466,7 @@ export default function App(){
       <div style={S.card}>
         {tab==="adoption"&&<ORTab {...or}/>}
         {tab==="pricing"&&<ModelPricingTab/>}
+        {tab==="gpu"&&<GPUHardwarePricingTab/>}
         {tab==="gcloud"&&(
           <div style={{padding:"32px 16px",textAlign:"center"}}>
             <div style={{...S.lbl,color:"#6366f1",marginBottom:8}}>Google Cloud / Model API Usage</div>
