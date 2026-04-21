@@ -350,13 +350,136 @@ function ZX({data:e,busy:t,ts:r,live:n,refresh:i}){let o=Math.max(...e.map(l=>l.
     var _d=_sigState.data;
     var _latest=(_d.quarters||[]).find(function(q){return q.quarter===_d.latestComparable});
     if(!_latest||!_latest.rows||!_latest.rows.length){
-      _signalBlock=(0,b.jsxs)("div",{style:{marginBottom:16},children:[
-        _sigHeader,
-        (0,b.jsxs)("div",{style:{background:"#fff",border:"0.5px solid #e5e7eb",borderRadius:10,padding:"14px 16px"},children:[
-          (0,b.jsx)("div",{style:{fontSize:12,color:"#111827",fontWeight:500},children:"No comparable quarter available yet"}),
-          (0,b.jsx)("div",{style:{fontSize:11,color:"#6b7280",marginTop:2},children:"Need at least one quarter with both price and market-share observations."})
-        ]})
-      ]});
+      // Partial-mode fallback: if any quarter has priceQoq + shareAvg (but
+      // no shareQoqPP because prior snapshot is missing from KV), render a
+      // reduced Price QoQ vs current Share % view instead of a dead card.
+      var _partialQ=(_d.quarters||[]).find(function(q){return (q.rows||[]).some(function(r){return typeof r.priceQoq==="number"&&typeof r.shareAvg==="number";});});
+      if(!_partialQ){
+        _signalBlock=(0,b.jsxs)("div",{style:{marginBottom:16},children:[
+          _sigHeader,
+          (0,b.jsxs)("div",{style:{background:"#fff",border:"0.5px solid #e5e7eb",borderRadius:10,padding:"14px 16px"},children:[
+            (0,b.jsx)("div",{style:{fontSize:12,color:"#111827",fontWeight:500},children:"No comparable quarter available yet"}),
+            (0,b.jsx)("div",{style:{fontSize:11,color:"#6b7280",marginTop:2},children:"Need at least one quarter with both price and market-share observations."})
+          ]})
+        ]});
+      } else {
+        var _pvRows=(_partialQ.rows||[]).filter(function(r){return typeof r.priceQoq==="number"&&typeof r.shareAvg==="number";});
+        var _pvW=520,_pvH=360,_pvPL=44,_pvPR=18,_pvPT=22,_pvPB=32;
+        var _pvXMax=5; for(var _pvI=0;_pvI<_pvRows.length;_pvI++){var _pvA=Math.abs(_pvRows[_pvI].priceQoq*100); if(_pvA>_pvXMax) _pvXMax=_pvA;} _pvXMax*=1.15;
+        var _pvYMax=5; for(var _pvJ=0;_pvJ<_pvRows.length;_pvJ++){var _pvS=_pvRows[_pvJ].shareAvg; if(_pvS>_pvYMax) _pvYMax=_pvS;} _pvYMax*=1.12;
+        var _pvSx=function(v){return _pvPL+((v+_pvXMax)/(2*_pvXMax))*(_pvW-_pvPL-_pvPR);};
+        var _pvSy=function(v){return _pvH-_pvPB-(v/_pvYMax)*(_pvH-_pvPT-_pvPB);};
+        var _pvX0=_pvSx(0);
+        var _pvColor=function(pq){return pq<=-0.02?"#2563eb":pq>=0.02?"#dc2626":"#6b7280";};
+        var _pvDots=_pvRows.map(function(r){return {slug:r.slug,label:r.label,color:_pvColor(r.priceQoq),x:_pvSx(r.priceQoq*100),y:_pvSy(r.shareAvg)};});
+        var _pvPlaced=[];
+        _pvDots.slice().sort(function(a,b){return a.y-b.y;}).forEach(function(d){
+          var flipLeft=d.x>_pvW*0.6; var lAnchor=flipLeft?"end":"start"; var lx=flipLeft?d.x-7:d.x+7;
+          var lw=Math.max(36,d.label.length*5.8); var dy=3;
+          for(var k=0;k<6;k++){
+            var ly=d.y+dy;
+            var collides=_pvPlaced.some(function(p){
+              if(Math.abs(p.ly-ly)>11) return false;
+              var pLe=p.lAnchor==="end"?p.lx-p.lw:p.lx;
+              var pRi=p.lAnchor==="end"?p.lx:p.lx+p.lw;
+              var dLe=flipLeft?lx-lw:lx;
+              var dRi=flipLeft?lx:lx+lw;
+              return !(dRi<pLe-3||dLe>pRi+3);
+            });
+            if(!collides) break;
+            dy+=12;
+          }
+          _pvPlaced.push({slug:d.slug,label:d.label,color:d.color,x:d.x,y:d.y,lx:lx,ly:d.y+dy,lAnchor:lAnchor,lw:lw});
+        });
+        var _pvTableRows=_pvRows.slice().sort(function(a,b){return b.shareAvg-a.shareAvg;});
+        var _pvCuts=_pvRows.filter(function(r){return r.priceQoq<0;}).sort(function(a,b){return a.priceQoq-b.priceQoq;});
+        var _pvUps=_pvRows.filter(function(r){return r.priceQoq>0;}).sort(function(a,b){return b.priceQoq-a.priceQoq;});
+        var _pvBigCut=_pvCuts[0], _pvBigUp=_pvUps[0], _pvTopShare=_pvTableRows[0];
+        var _pvCallouts=[];
+        if(_pvBigCut) _pvCallouts.push({title:"Biggest price cut",provider:_pvBigCut.label,detail:_pvBigCut.priceQoqLabel+" input \xB7 current share "+_pvBigCut.shareAvgLabel});
+        if(_pvBigUp) _pvCallouts.push({title:"Biggest price increase",provider:_pvBigUp.label,detail:_pvBigUp.priceQoqLabel+" input \xB7 current share "+_pvBigUp.shareAvgLabel});
+        if(_pvTopShare) _pvCallouts.push({title:"Largest share holder",provider:_pvTopShare.label,detail:_pvTopShare.shareAvgLabel+" of observed tokens \xB7 price "+_pvTopShare.priceQoqLabel});
+        _signalBlock=(0,b.jsxs)("div",{style:{marginBottom:16},children:[
+          _sigHeader,
+          (0,b.jsxs)("div",{style:{fontSize:11,color:"#6b7280",marginBottom:8},children:[
+            "Quarter: ",(0,b.jsx)("b",{style:{color:"#111827",fontFamily:"monospace"},children:_partialQ.quarter}),
+            _partialQ.partial?(0,b.jsx)("span",{style:{marginLeft:5,fontSize:9,background:"#ecfeff",color:"#0e7490",padding:"1px 5px",borderRadius:3,fontWeight:600},children:"QTD"}):null,
+            (0,b.jsxs)("span",{style:{color:"#9ca3af"},children:[" \xB7 ",_pvRows.length," providers \xB7 partial view"]})
+          ]}),
+          (0,b.jsxs)("div",{style:{background:"#fffbeb",border:"0.5px solid #fde68a",borderRadius:8,padding:"8px 12px",marginBottom:12,fontSize:11,color:"#78350f",lineHeight:1.45},children:[
+            (0,b.jsx)("b",{children:"Share QoQ pending. "}),
+            "Prior-quarter KV snapshots not yet captured, so share-delta can't be computed. Showing Price QoQ vs ",
+            (0,b.jsx)("i",{children:"current"})," share % instead — full view returns automatically once the next quarter of snapshots lands."
+          ]}),
+          (0,b.jsx)("div",{style:{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(210px,1fr))",gap:8,marginBottom:12},children:_pvCallouts.map(function(c,i){return (0,b.jsxs)("div",{style:{background:"#fff",border:"0.5px solid #e5e7eb",borderRadius:8,padding:"8px 10px"},children:[
+            (0,b.jsx)("div",{style:{fontSize:9,textTransform:"uppercase",letterSpacing:".07em",fontWeight:700,color:"#7c3aed"},children:c.title}),
+            (0,b.jsx)("div",{style:{fontSize:13,fontWeight:700,color:"#111827",marginTop:2},children:c.provider}),
+            (0,b.jsx)("div",{style:{fontSize:10,color:"#6b7280",marginTop:2,lineHeight:1.4},children:c.detail})
+          ]},i);})}),
+          (0,b.jsxs)("div",{style:{display:"grid",gridTemplateColumns:"minmax(360px,1fr) minmax(420px,2fr)",gap:10},children:[
+            (0,b.jsxs)("div",{style:Object.assign({},_styles.card,{padding:"10px 12px 10px",display:"flex",flexDirection:"column"}),children:[
+              (0,b.jsxs)("div",{style:{fontSize:10,color:"#6b7280",marginBottom:6,display:"flex",justifyContent:"space-between",alignItems:"center"},children:[
+                (0,b.jsx)("span",{style:{fontWeight:600,color:"#374151"},children:"Price QoQ vs Current Share"}),
+                (0,b.jsx)("span",{style:{fontSize:9,color:"#9ca3af"},children:"x: price % \xB7 y: share %"})
+              ]}),
+              (0,b.jsxs)("svg",{viewBox:"0 0 "+_pvW+" "+_pvH,style:{display:"block",width:"100%",aspectRatio:_pvW+" / "+_pvH,overflow:"visible"},children:[
+                (0,b.jsx)("rect",{x:_pvPL,y:_pvPT,width:_pvX0-_pvPL,height:_pvH-_pvPT-_pvPB,fill:"#eff6ff",opacity:"0.6"}),
+                (0,b.jsx)("rect",{x:_pvX0,y:_pvPT,width:_pvW-_pvPR-_pvX0,height:_pvH-_pvPT-_pvPB,fill:"#fef2f2",opacity:"0.5"}),
+                (0,b.jsx)("line",{x1:_pvPL,y1:_pvH-_pvPB,x2:_pvW-_pvPR,y2:_pvH-_pvPB,stroke:"#9ca3af",strokeWidth:"0.5"}),
+                (0,b.jsx)("line",{x1:_pvX0,y1:_pvPT,x2:_pvX0,y2:_pvH-_pvPB,stroke:"#9ca3af",strokeWidth:"0.5"}),
+                (0,b.jsx)("text",{x:_pvPL,y:_pvH-_pvPB+14,fontSize:"9",fill:"#6b7280",children:"\u2212"+_pvXMax.toFixed(0)+"%"}),
+                (0,b.jsx)("text",{x:_pvW-_pvPR,y:_pvH-_pvPB+14,fontSize:"9",fill:"#6b7280",textAnchor:"end",children:"+"+_pvXMax.toFixed(0)+"%"}),
+                (0,b.jsx)("text",{x:_pvPL-4,y:_pvPT+4,fontSize:"9",fill:"#6b7280",textAnchor:"end",children:_pvYMax.toFixed(0)+"%"}),
+                (0,b.jsx)("text",{x:_pvPL-4,y:_pvH-_pvPB+2,fontSize:"9",fill:"#6b7280",textAnchor:"end",children:"0%"}),
+                (0,b.jsx)("text",{x:_pvPL+4,y:_pvPT+10,fontSize:"8",fill:"#2563eb",fontWeight:"600",children:"price cut"}),
+                (0,b.jsx)("text",{x:_pvW-_pvPR-4,y:_pvPT+10,fontSize:"8",fill:"#dc2626",fontWeight:"600",textAnchor:"end",children:"price up"}),
+                _pvPlaced.map(function(p){return (0,b.jsxs)("g",{children:[
+                  (0,b.jsx)("circle",{cx:p.x,cy:p.y,r:"4.5",fill:p.color,stroke:"#fff",strokeWidth:"1"}),
+                  (0,b.jsx)("text",{x:p.lx,y:p.ly,fontSize:"10",fill:"#111827",fontWeight:"600",textAnchor:p.lAnchor,children:p.label})
+                ]},p.slug);})
+              ]}),
+              (0,b.jsxs)("div",{style:{marginTop:"auto",paddingTop:12},children:[
+                (0,b.jsx)("div",{style:{fontSize:9,textTransform:"uppercase",letterSpacing:".07em",fontWeight:700,color:"#9ca3af",marginBottom:6},children:"How to read the dot"}),
+                (0,b.jsxs)("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"6px 12px",fontSize:10.5,color:"#374151",lineHeight:1.4},children:[
+                  (0,b.jsxs)("div",{style:{display:"flex",alignItems:"flex-start",gap:6},children:[
+                    (0,b.jsx)("span",{style:{width:8,height:8,borderRadius:"50%",background:"#2563eb",marginTop:4,flexShrink:0}}),
+                    (0,b.jsxs)("span",{children:[(0,b.jsx)("b",{style:{color:"#111827"},children:"Price cut"}),(0,b.jsx)("br",{}),(0,b.jsx)("span",{style:{color:"#6b7280"},children:"QoQ \u2264 \u22122%"})]})
+                  ]}),
+                  (0,b.jsxs)("div",{style:{display:"flex",alignItems:"flex-start",gap:6},children:[
+                    (0,b.jsx)("span",{style:{width:8,height:8,borderRadius:"50%",background:"#dc2626",marginTop:4,flexShrink:0}}),
+                    (0,b.jsxs)("span",{children:[(0,b.jsx)("b",{style:{color:"#111827"},children:"Price up"}),(0,b.jsx)("br",{}),(0,b.jsx)("span",{style:{color:"#6b7280"},children:"QoQ \u2265 +2%"})]})
+                  ]}),
+                  (0,b.jsxs)("div",{style:{display:"flex",alignItems:"flex-start",gap:6},children:[
+                    (0,b.jsx)("span",{style:{width:8,height:8,borderRadius:"50%",background:"#6b7280",marginTop:4,flexShrink:0}}),
+                    (0,b.jsxs)("span",{children:[(0,b.jsx)("b",{style:{color:"#111827"},children:"Price held"}),(0,b.jsx)("br",{}),(0,b.jsx)("span",{style:{color:"#6b7280"},children:"|QoQ| < 2%"})]})
+                  ]}),
+                  (0,b.jsxs)("div",{style:{display:"flex",alignItems:"flex-start",gap:6},children:[
+                    (0,b.jsx)("span",{style:{width:8,height:8,borderRadius:"50%",background:"transparent",border:"1px dashed #9ca3af",marginTop:4,flexShrink:0}}),
+                    (0,b.jsxs)("span",{children:[(0,b.jsx)("b",{style:{color:"#111827"},children:"Y = current %"}),(0,b.jsx)("br",{}),(0,b.jsx)("span",{style:{color:"#6b7280"},children:"not a QoQ delta"})]})
+                  ]})
+                ]})
+              ]})
+            ]}),
+            (0,b.jsx)("div",{style:Object.assign({},_styles.card,{padding:0,overflow:"auto"}),children:(0,b.jsxs)("table",{style:{width:"100%",borderCollapse:"collapse",fontSize:12},children:[
+              (0,b.jsx)("thead",{children:(0,b.jsx)("tr",{children:["Provider","Avg Price /1M","Price QoQ","Current Share"].map(function(h){return (0,b.jsx)("th",{style:Object.assign({},_styles.lbl,{textAlign:"left",padding:"8px 10px",borderBottom:"1px solid #f3f4f6",background:"#fafafa"}),children:h},h);})})}),
+              (0,b.jsx)("tbody",{children:_pvTableRows.map(function(r){return (0,b.jsxs)("tr",{children:[
+                (0,b.jsxs)("td",{style:{padding:"8px 10px",borderBottom:"1px solid #f9fafb",fontWeight:600,color:"#111827",whiteSpace:"nowrap"},children:[
+                  (0,b.jsx)("span",{style:{display:"inline-block",width:8,height:8,borderRadius:"50%",background:_pvColor(r.priceQoq),marginRight:6,verticalAlign:"middle"}}),
+                  r.label
+                ]}),
+                (0,b.jsx)("td",{style:{padding:"8px 10px",borderBottom:"1px solid #f9fafb",fontFamily:"monospace",color:"#111827"},children:r.avgLabel}),
+                (0,b.jsx)("td",{style:{padding:"8px 10px",borderBottom:"1px solid #f9fafb",fontFamily:"monospace",fontWeight:600,color:r.priceQoq>0?"#dc2626":r.priceQoq<0?"#059669":"#6b7280"},children:r.priceQoqLabel}),
+                (0,b.jsx)("td",{style:{padding:"8px 10px",borderBottom:"1px solid #f9fafb",fontFamily:"monospace",color:"#111827"},children:r.shareAvgLabel})
+              ]},r.slug);})})
+            ]})})
+          ]}),
+          (0,b.jsxs)("div",{style:{display:"flex",flexWrap:"wrap",gap:"4px 10px",fontSize:10,color:"#6b7280",marginTop:8,lineHeight:1.5},children:[
+            (0,b.jsxs)("span",{children:[(0,b.jsx)("b",{style:{color:"#374151"},children:"Scope:"})," partial view — Price QoQ shown, Share QoQ unavailable until a prior-quarter KV snapshot exists"]}),
+            (0,b.jsx)("span",{children:"\xB7"}),
+            (0,b.jsxs)("span",{children:[(0,b.jsx)("b",{style:{color:"#374151"},children:"Sources:"})," pricepertoken provider pricing history + canonical HISTORY_KV OpenRouter snapshots"]})
+          ]})
+        ]});
+      }
     } else {
       var _W=520,_H=360,_pL=40,_pR=18,_pT=22,_pB=32;
       var _rowsLatest=_latest.rows.filter(function(r){return typeof r.priceQoq==="number"&&typeof r.shareQoqPP==="number"});

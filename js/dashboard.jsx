@@ -253,6 +253,162 @@ function FilingAnchorRow(){
   );
 }
 
+/* Partial-mode render: used when KV share history hasn't yet crossed a
+   quarter boundary, so shareQoqPP is null everywhere. We pivot the Y axis
+   from "share QoQ (pp)" to "current share (%)" — still useful because the
+   reader can see which providers moved price AND where they sit in share
+   rank right now. Disappears automatically once a prior-quarter snapshot
+   exists in KV and the main block is renderable again. */
+function PricingSharePartialView({ header, quarter }){
+  const rows=(quarter.rows||[]).filter(r=>typeof r.priceQoq==="number"&&typeof r.shareAvg==="number");
+  const W=520,H=360,pL=44,pR=18,pT=22,pB=32;
+  const xMax=Math.max(5,...rows.map(r=>Math.abs(r.priceQoq*100)))*1.15;
+  const yMax=Math.max(5,...rows.map(r=>r.shareAvg))*1.12;
+  const sx=(v)=>pL+((v+xMax)/(2*xMax))*(W-pL-pR);
+  const sy=(v)=>H-pB-(v/yMax)*(H-pT-pB);
+  const x0=sx(0);
+
+  // Dot color: bias by price direction only (no share-QoQ regime available)
+  const dotColor=(pq)=>pq<=-0.02?"#2563eb":pq>=0.02?"#dc2626":"#6b7280";
+
+  // Smart label placement (flip + vertical stacking) — same logic as full view
+  const dotData=rows.map(r=>({
+    slug:r.slug,label:r.label,color:dotColor(r.priceQoq),
+    x:sx(r.priceQoq*100),y:sy(r.shareAvg),
+  }));
+  const placed=[];
+  [...dotData].sort((a,b)=>a.y-b.y).forEach(d=>{
+    const flipLeft=d.x>W*0.6;
+    const lAnchor=flipLeft?"end":"start";
+    const lx=flipLeft?d.x-7:d.x+7;
+    const lw=Math.max(36,d.label.length*5.8);
+    let dy=3;
+    for(let i=0;i<6;i++){
+      const ly=d.y+dy;
+      const collides=placed.some(p=>{
+        if(Math.abs(p.ly-ly)>11) return false;
+        const pLe=p.lAnchor==="end"?p.lx-p.lw:p.lx;
+        const pRi=p.lAnchor==="end"?p.lx:p.lx+p.lw;
+        const dLe=flipLeft?lx-lw:lx;
+        const dRi=flipLeft?lx:lx+lw;
+        return !(dRi<pLe-3||dLe>pRi+3);
+      });
+      if(!collides) break;
+      dy+=12;
+    }
+    placed.push({...d,lx,ly:d.y+dy,lAnchor,lw});
+  });
+
+  // Sort table by current share descending so the dominant provider reads first
+  const tableRows=[...rows].sort((a,b)=>b.shareAvg-a.shareAvg);
+  const biggestCut=[...rows].filter(r=>r.priceQoq<0).sort((a,b)=>a.priceQoq-b.priceQoq)[0];
+  const biggestUp=[...rows].filter(r=>r.priceQoq>0).sort((a,b)=>b.priceQoq-a.priceQoq)[0];
+  const topShare=[...rows].sort((a,b)=>b.shareAvg-a.shareAvg)[0];
+
+  return(
+    <div style={{marginBottom:16}}>
+      {header}
+      <div style={{fontSize:11,color:"#6b7280",marginBottom:8}}>
+        Quarter: <b style={{color:"#111827",fontFamily:"monospace"}}>{quarter.quarter}</b>
+        {quarter.partial&&<span style={{marginLeft:5,fontSize:9,background:"#ecfeff",color:"#0e7490",padding:"1px 5px",borderRadius:3,fontWeight:600}}>QTD</span>}
+        <span style={{color:"#9ca3af"}}> · {rows.length} providers · partial view</span>
+      </div>
+      {/* Explanation banner */}
+      <div style={{background:"#fffbeb",border:"0.5px solid #fde68a",borderRadius:8,padding:"8px 12px",marginBottom:12,fontSize:11,color:"#78350f",lineHeight:1.45}}>
+        <b>Share QoQ pending.</b> Prior-quarter KV snapshots not yet captured, so share-delta can't be computed. Showing Price QoQ vs <i>current</i> share % instead — full view returns automatically once the next quarter of snapshots lands.
+      </div>
+      {/* Callouts limited to what's computable from a single quarter */}
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(210px,1fr))",gap:8,marginBottom:12}}>
+        {biggestCut&&<div style={{background:"#fff",border:"0.5px solid #e5e7eb",borderRadius:8,padding:"8px 10px"}}>
+          <div style={{fontSize:9,textTransform:"uppercase",letterSpacing:".07em",fontWeight:700,color:"#7c3aed"}}>Biggest price cut</div>
+          <div style={{fontSize:13,fontWeight:700,color:"#111827",marginTop:2}}>{biggestCut.label}</div>
+          <div style={{fontSize:10,color:"#6b7280",marginTop:2,lineHeight:1.4}}>{biggestCut.priceQoqLabel} input · current share {biggestCut.shareAvgLabel}</div>
+        </div>}
+        {biggestUp&&<div style={{background:"#fff",border:"0.5px solid #e5e7eb",borderRadius:8,padding:"8px 10px"}}>
+          <div style={{fontSize:9,textTransform:"uppercase",letterSpacing:".07em",fontWeight:700,color:"#7c3aed"}}>Biggest price increase</div>
+          <div style={{fontSize:13,fontWeight:700,color:"#111827",marginTop:2}}>{biggestUp.label}</div>
+          <div style={{fontSize:10,color:"#6b7280",marginTop:2,lineHeight:1.4}}>{biggestUp.priceQoqLabel} input · current share {biggestUp.shareAvgLabel}</div>
+        </div>}
+        {topShare&&<div style={{background:"#fff",border:"0.5px solid #e5e7eb",borderRadius:8,padding:"8px 10px"}}>
+          <div style={{fontSize:9,textTransform:"uppercase",letterSpacing:".07em",fontWeight:700,color:"#7c3aed"}}>Largest share holder</div>
+          <div style={{fontSize:13,fontWeight:700,color:"#111827",marginTop:2}}>{topShare.label}</div>
+          <div style={{fontSize:10,color:"#6b7280",marginTop:2,lineHeight:1.4}}>{topShare.shareAvgLabel} of observed tokens · price {topShare.priceQoqLabel}</div>
+        </div>}
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"minmax(360px,1fr) minmax(420px,2fr)",gap:10}}>
+        <div style={{...S.card,padding:"10px 12px 10px",display:"flex",flexDirection:"column"}}>
+          <div style={{fontSize:10,color:"#6b7280",marginBottom:6,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+            <span style={{fontWeight:600,color:"#374151"}}>Price QoQ vs Current Share</span>
+            <span style={{fontSize:9,color:"#9ca3af"}}>x: price % · y: share %</span>
+          </div>
+          <svg viewBox={"0 0 "+W+" "+H} style={{display:"block",width:"100%",aspectRatio:`${W} / ${H}`,overflow:"visible"}}>
+            {/* Left half (price cut) — gentle blue tint; right half (price up) — gentle red tint */}
+            <rect x={pL} y={pT} width={x0-pL} height={H-pT-pB} fill="#eff6ff" opacity="0.6"/>
+            <rect x={x0} y={pT} width={W-pR-x0} height={H-pT-pB} fill="#fef2f2" opacity="0.5"/>
+            {/* Axes */}
+            <line x1={pL} y1={H-pB} x2={W-pR} y2={H-pB} stroke="#9ca3af" strokeWidth="0.5"/>
+            <line x1={x0} y1={pT} x2={x0} y2={H-pB} stroke="#9ca3af" strokeWidth="0.5"/>
+            {/* Price axis labels */}
+            <text x={pL} y={H-pB+14} fontSize="9" fill="#6b7280">−{xMax.toFixed(0)}%</text>
+            <text x={W-pR} y={H-pB+14} fontSize="9" fill="#6b7280" textAnchor="end">+{xMax.toFixed(0)}%</text>
+            {/* Share axis labels — absolute percentage, 0 at bottom, yMax at top */}
+            <text x={pL-4} y={pT+4} fontSize="9" fill="#6b7280" textAnchor="end">{yMax.toFixed(0)}%</text>
+            <text x={pL-4} y={H-pB+2} fontSize="9" fill="#6b7280" textAnchor="end">0%</text>
+            {/* Corner hints — price direction only */}
+            <text x={pL+4}    y={pT+10} fontSize="8" fill="#2563eb" fontWeight="600">price cut</text>
+            <text x={W-pR-4}  y={pT+10} fontSize="8" fill="#dc2626" fontWeight="600" textAnchor="end">price up</text>
+            {/* Dots */}
+            {placed.map(p=>(
+              <g key={p.slug}>
+                <circle cx={p.x} cy={p.y} r="4.5" fill={p.color} stroke="#fff" strokeWidth="1"/>
+                <text x={p.lx} y={p.ly} fontSize="10" fill="#111827" fontWeight="600" textAnchor={p.lAnchor}>{p.label}</text>
+              </g>
+            ))}
+          </svg>
+          <div style={{marginTop:"auto",paddingTop:12}}>
+            <div style={{fontSize:9,textTransform:"uppercase",letterSpacing:".07em",fontWeight:700,color:"#9ca3af",marginBottom:6}}>How to read the dot</div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"6px 12px",fontSize:10.5,color:"#374151",lineHeight:1.4}}>
+              <div style={{display:"flex",alignItems:"flex-start",gap:6}}><span style={{width:8,height:8,borderRadius:"50%",background:"#2563eb",marginTop:4,flexShrink:0}}/><span><b style={{color:"#111827"}}>Price cut</b><br/><span style={{color:"#6b7280"}}>QoQ ≤ −2%</span></span></div>
+              <div style={{display:"flex",alignItems:"flex-start",gap:6}}><span style={{width:8,height:8,borderRadius:"50%",background:"#dc2626",marginTop:4,flexShrink:0}}/><span><b style={{color:"#111827"}}>Price up</b><br/><span style={{color:"#6b7280"}}>QoQ ≥ +2%</span></span></div>
+              <div style={{display:"flex",alignItems:"flex-start",gap:6}}><span style={{width:8,height:8,borderRadius:"50%",background:"#6b7280",marginTop:4,flexShrink:0}}/><span><b style={{color:"#111827"}}>Price held</b><br/><span style={{color:"#6b7280"}}>|QoQ| &lt; 2%</span></span></div>
+              <div style={{display:"flex",alignItems:"flex-start",gap:6}}><span style={{width:8,height:8,borderRadius:"50%",background:"transparent",border:"1px dashed #9ca3af",marginTop:4,flexShrink:0}}/><span><b style={{color:"#111827"}}>Y = current %</b><br/><span style={{color:"#6b7280"}}>not a QoQ delta</span></span></div>
+            </div>
+          </div>
+        </div>
+        <div style={{...S.card,padding:0,overflow:"auto"}}>
+          <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
+            <thead>
+              <tr>
+                {["Provider","Avg Price /1M","Price QoQ","Current Share"].map(h=>(
+                  <th key={h} style={{...S.lbl,textAlign:"left",padding:"8px 10px",borderBottom:"1px solid #f3f4f6",background:"#fafafa"}}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {tableRows.map(r=>(
+                <tr key={r.slug}>
+                  <td style={{padding:"8px 10px",borderBottom:"1px solid #f9fafb",fontWeight:600,color:"#111827",whiteSpace:"nowrap"}}>
+                    <span style={{display:"inline-block",width:8,height:8,borderRadius:"50%",background:dotColor(r.priceQoq),marginRight:6,verticalAlign:"middle"}}/>
+                    {r.label}
+                  </td>
+                  <td style={{padding:"8px 10px",borderBottom:"1px solid #f9fafb",fontFamily:"monospace",color:"#111827"}}>{r.avgLabel}</td>
+                  <td style={{padding:"8px 10px",borderBottom:"1px solid #f9fafb",fontFamily:"monospace",fontWeight:600,color:r.priceQoq>0?"#dc2626":r.priceQoq<0?"#059669":"#6b7280"}}>{r.priceQoqLabel}</td>
+                  <td style={{padding:"8px 10px",borderBottom:"1px solid #f9fafb",fontFamily:"monospace",color:"#111827"}}>{r.shareAvgLabel}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div style={{display:"flex",flexWrap:"wrap",gap:"4px 10px",fontSize:10,color:"#6b7280",marginTop:8,lineHeight:1.5}}>
+        <span><b style={{color:"#374151"}}>Scope:</b> partial view — Price QoQ shown, Share QoQ unavailable until a prior-quarter KV snapshot exists</span>
+        <span>·</span>
+        <span><b style={{color:"#374151"}}>Sources:</b> pricepertoken provider pricing history + canonical HISTORY_KV OpenRouter snapshots</span>
+      </div>
+    </div>
+  );
+}
+
 /* ═══════════════════════════════════════════════════════
    PRICING / SHARE SIGNALS — Analytical read-through
 
@@ -324,16 +480,26 @@ function PricingShareSignalBlock(){
   }
   const d=state.data;
   const latest=d.quarters.find(q=>q.quarter===d.latestComparable);
+
+  /* Partial-mode fallback: when a full QoQ comparison isn't yet possible
+     (KV snapshot history hasn't crossed a quarter boundary) we still have
+     priceQoq + current share % for the newest quarter. Render a reduced
+     view — Price QoQ vs current Share % — so the block stays useful
+     instead of showing a dead empty state until Q3 snapshots accumulate. */
   if(!latest||!latest.rows||!latest.rows.length){
-    return(
-      <div style={{marginBottom:16}}>
-        {header}
-        <div style={{background:"#fff",border:"0.5px solid #e5e7eb",borderRadius:10,padding:"14px 16px"}}>
-          <div style={{fontSize:12,color:"#111827",fontWeight:500}}>No comparable quarter available yet</div>
-          <div style={{fontSize:11,color:"#6b7280",marginTop:2}}>Need at least one quarter with both price and market-share observations.</div>
+    const partialQuarter=(d.quarters||[]).find(q=>(q.rows||[]).some(r=>typeof r.priceQoq==="number"&&typeof r.shareAvg==="number"));
+    if(!partialQuarter){
+      return(
+        <div style={{marginBottom:16}}>
+          {header}
+          <div style={{background:"#fff",border:"0.5px solid #e5e7eb",borderRadius:10,padding:"14px 16px"}}>
+            <div style={{fontSize:12,color:"#111827",fontWeight:500}}>No comparable quarter available yet</div>
+            <div style={{fontSize:11,color:"#6b7280",marginTop:2}}>Need at least one quarter with both price and market-share observations.</div>
+          </div>
         </div>
-      </div>
-    );
+      );
+    }
+    return <PricingSharePartialView header={header} quarter={partialQuarter}/>;
   }
 
   /* SVG quadrant — Price QoQ % on x, Share QoQ pp on y.
