@@ -1,19 +1,19 @@
 # google-dash — Cloudflare Pages project configuration
 #
-# IMPORTANT — why the kv_namespaces block is commented out:
-#   Cloudflare Pages validates wrangler.toml at deploy time. Invalid placeholder
-#   UUIDs in the kv_namespaces section caused every deploy since commit 071ef8b
-#   to fail silently — production was frozen at an older successful build and
-#   every /api/* route was returning the SPA HTML fallback instead of executing
-#   Pages Functions. With this block commented out, CF Pages falls back to
-#   bindings configured in the Cloudflare dashboard (Workers & Pages → google-
-#   dash → Settings → Functions → KV namespace bindings).
+# HISTORY_KV binding:
+#   Previously the kv_namespaces block was commented out because placeholder
+#   UUIDs caused deploy validation to fail silently (freezing production at an
+#   older build). Real UUIDs are now wired in and the block is enforced via
+#   wrangler.toml — this gives us config-as-code that survives dashboard edits
+#   and applies identically across production and preview environments
+#   (preview was missing the binding in the dashboard, which caused the
+#   "Quarter service temporarily unavailable" banner to appear on preview
+#   deploys — see /api/gpu-hardware-pricing-history's env?.HISTORY_KV guard).
 #
-#   To re-enable wrangler.toml-managed bindings: replace PRODUCTION_KV_ID and
-#   PREVIEW_KV_ID below with the real UUIDs from the dashboard and uncomment.
-#   Until then, history-capture / history-read / pricing-history depend on
-#   the dashboard binding being set manually. The provider-pricing-matrix
-#   endpoint needs no KV and will work either way.
+# Same namespace used for both production and preview (preview_id === id) so
+# the preview deploys see the same history store as production. If you want
+# isolation later (e.g. a sandbox preview KV that can be wiped without
+# affecting prod), replace preview_id with a distinct KV namespace UUID.
 
 name = "google-dash"
 compatibility_date = "2024-09-23"
@@ -26,7 +26,7 @@ compatibility_date = "2024-09-23"
 # no build step, so the output dir is "./".
 pages_build_output_dir = "./"
 
-# [[kv_namespaces]]
-# binding = "HISTORY_KV"
-# id = "PRODUCTION_KV_ID"
-# preview_id = "PREVIEW_KV_ID"
+[[kv_namespaces]]
+binding = "HISTORY_KV"
+id = "322b0ca12e874e6a8568126e182e59f5"
+preview_id = "322b0ca12e874e6a8568126e182e59f5"
