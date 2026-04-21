@@ -81,19 +81,38 @@ jobs:
               "$CAPTURE_URL" || echo "000")
 
             LAST_CODE="$HTTP_CODE"
-            echo "HTTP $HTTP_CODE"
+            # Record the response content-type separately so we can tell
+            # silent HTML fallbacks apart from real JSON responses.
+            RESP_CT=$(curl -sI \
+              --max-time 30 \
+              -H "Authorization: Bearer $CAPTURE_SECRET" \
+              -H "User-Agent: gdash-gha-cron/1.0" \
+              "$CAPTURE_URL" | awk 'BEGIN{IGNORECASE=1}/^content-type:/{print $2; exit}' | tr -d '\r' || echo "unknown")
+
+            echo "HTTP $HTTP_CODE · content-type: ${RESP_CT:-unknown}"
             echo "── Response body ──"
+            JSON_OK=false
+            SUCCESS_FLAG="unknown"
             if command -v jq >/dev/null && jq . "$RESPONSE_FILE" >/dev/null 2>&1; then
               jq . "$RESPONSE_FILE"
+              JSON_OK=true
+              SUCCESS_FLAG=$(jq -r '.success // empty' "$RESPONSE_FILE" 2>/dev/null)
+              [ -z "$SUCCESS_FLAG" ] && SUCCESS_FLAG="(missing)"
             else
               cat "$RESPONSE_FILE"
               echo ""
             fi
-            echo "───────────────────"
+            echo "── Smoke check: json_ok=$JSON_OK · success=$SUCCESS_FLAG ──"
 
-            if [ "$HTTP_CODE" = "200" ]; then
+            # Strict success predicate: HTTP 200 AND JSON-parsable AND success:true.
+            # HTML fallbacks often return HTTP 200 with content-type text/html —
+            # previously they masqueraded as success. This check catches that.
+            if [ "$HTTP_CODE" = "200" ] && [ "$JSON_OK" = "true" ] && [ "$SUCCESS_FLAG" = "true" ]; then
               EXIT_CODE=0
               break
+            fi
+            if [ "$HTTP_CODE" = "200" ] && [ "$SUCCESS_FLAG" != "true" ]; then
+              echo "::warning::HTTP 200 but body was not JSON success:true (json_ok=$JSON_OK success=$SUCCESS_FLAG ct=$RESP_CT). Treating as failure."
             fi
 
             if [ "$i" -lt "$ATTEMPTS" ]; then
@@ -107,6 +126,9 @@ jobs:
           echo "http_code=$LAST_CODE"     >> "$GITHUB_OUTPUT"
           echo "attempts=$ATTEMPTS"        >> "$GITHUB_OUTPUT"
           echo "response_file=$RESPONSE_FILE" >> "$GITHUB_OUTPUT"
+          echo "resp_ct=${RESP_CT:-unknown}" >> "$GITHUB_OUTPUT"
+          echo "json_ok=$JSON_OK"          >> "$GITHUB_OUTPUT"
+          echo "success_flag=$SUCCESS_FLAG" >> "$GITHUB_OUTPUT"
 
           if [ "$EXIT_CODE" -ne 0 ]; then
             echo "::error::Capture failed after $ATTEMPTS attempts (last HTTP $LAST_CODE)"
@@ -123,6 +145,9 @@ jobs:
           echo "- Time (UTC): $(date -u '+%Y-%m-%d %H:%M:%S')" >> $GITHUB_STEP_SUMMARY
           echo "- Status: ${{ job.status }}"                    >> $GITHUB_STEP_SUMMARY
           echo "- Last HTTP: ${{ steps.capture.outputs.http_code || 'n/a' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Content-Type: ${{ steps.capture.outputs.resp_ct || 'n/a' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- JSON parsed: ${{ steps.capture.outputs.json_ok || 'n/a' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- success field: ${{ steps.capture.outputs.success_flag || 'n/a' }}" >> $GITHUB_STEP_SUMMARY
 
       # ── Failure alerting ──
       # On any failure of this job, either open a new "History capture failing"

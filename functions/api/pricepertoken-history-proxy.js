@@ -87,7 +87,9 @@ html, body {
   overflow-x: hidden !important;
 }
 .min-h-screen { min-height: 0 !important; }
-main { padding-top: 0 !important; padding-bottom: 8px !important; }
+/* padding-top leaves room for hover tooltips that can extend above
+   the chart card — without it they clip against the iframe edge. */
+main { padding-top: 40px !important; padding-bottom: 8px !important; }
 main > div.space-y-8 > section { margin-bottom: 0 !important; }
 ::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 4px; }
@@ -120,6 +122,76 @@ document.addEventListener('DOMContentLoaded', function(){
     var ro = new ResizeObserver(postHeight);
     ro.observe(document.body);
   }
+
+  // ECharts hover tooltip — ECharts picks "above the cursor" or "below"
+  // based on viewport space. In a short iframe it miscalculates and
+  // places the tooltip at translate(x, -900) which clips against the
+  // iframe top. Two-part fix:
+  //   (1) Clamp y to 4 so the tooltip always starts inside the iframe.
+  //   (2) Ensure the iframe is tall enough to show the full tooltip —
+  //       measure tooltip height and postHeight up to the parent so
+  //       the iframe grows. Shrinks back on mouseleave via ResizeObserver.
+  function looksLikeTooltip(el){
+    if (!el || el.nodeType !== 1 || !el.style) return false;
+    var z = el.style.zIndex;
+    return (z === '9999999' || z === '99999999') &&
+           el.style.position === 'absolute';
+  }
+  function clampAndFit(el){
+    if (!el || !el.style) return;
+    // Skip hidden tooltips (ECharts hides with opacity:0 or display:none)
+    if (el.style.display === 'none' || el.style.visibility === 'hidden') return;
+
+    var t = el.style.transform || '';
+    var m = t.match(/translate(3d)?\\s*\\(\\s*([-\\d.]+)px\\s*,\\s*([-\\d.]+)px/);
+    if (m) {
+      var x = parseFloat(m[2]);
+      var y = parseFloat(m[3]);
+      if (y < 4) {
+        // Use translate3d to match ECharts format (avoids an override loop)
+        var newT = 'translate3d(' + x + 'px, 4px, 0px)';
+        if (t !== newT) {
+          __clamping = true;
+          el.style.transform = newT;
+          __clamping = false;
+        }
+      }
+    }
+
+    // If tooltip is taller than the iframe body, grow the iframe.
+    var rect = el.getBoundingClientRect();
+    var needed = rect.bottom + 20;  // tooltip bottom + small buffer
+    var have = document.documentElement.clientHeight;
+    if (needed > have) {
+      try {
+        parent.postMessage({ __ppt: 'history-height', height: Math.ceil(needed) }, '*');
+      } catch(e){}
+    }
+  }
+  var __clamping = false;
+  var mo = new MutationObserver(function(muts){
+    if (__clamping) return;
+    for (var i = 0; i < muts.length; i++) {
+      var t = muts[i].target;
+      if (looksLikeTooltip(t)) clampAndFit(t);
+      if (muts[i].addedNodes) {
+        for (var j = 0; j < muts[i].addedNodes.length; j++) {
+          var n = muts[i].addedNodes[j];
+          if (looksLikeTooltip(n)) {
+            clampAndFit(n);
+            mo.observe(n, { attributes: true, attributeFilter: ['style'] });
+          }
+        }
+      }
+    }
+  });
+  mo.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['style'] });
+
+  // When the user moves off the chart, shrink back to natural content height.
+  document.addEventListener('mouseleave', postHeight, true);
+  document.addEventListener('mouseout', function(e){
+    if (e.target && e.target.tagName === 'CANVAS') setTimeout(postHeight, 150);
+  }, true);
 
   // Force every anchor out of the iframe so nav clicks open a real tab
   function retargetLinks(){

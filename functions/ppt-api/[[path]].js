@@ -36,7 +36,12 @@ export async function onRequest(context) {
 
     const headers = new Headers(resp.headers);
     headers.set('Access-Control-Allow-Origin', '*');
-    headers.set('Cache-Control', 'public, max-age=300, s-maxage=600');
+    // Only cache successful responses — a 502 should never stick.
+    if (resp.ok) {
+      headers.set('Cache-Control', 'public, max-age=300, s-maxage=600');
+    } else {
+      headers.set('Cache-Control', 'no-store');
+    }
     headers.delete('content-security-policy');
     headers.delete('x-frame-options');
 
@@ -44,7 +49,7 @@ export async function onRequest(context) {
   } catch (err) {
     return new Response('{"error":"proxy error"}', {
       status: 502,
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
     });
   }
 }
