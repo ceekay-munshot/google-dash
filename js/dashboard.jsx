@@ -485,6 +485,28 @@ function OpenRouterLiveEmbed(){
 /* ═══════════════════════════════════════════════════════
    TAB: OpenRouter
 ═══════════════════════════════════════════════════════ */
+function PPTHistoryIframe(){
+  const [h,setH]=useState(920);
+  useEffect(()=>{
+    function onMsg(e){
+      const d=e&&e.data;
+      if(d&&d.__ppt==="history-height"&&typeof d.height==="number"){
+        setH(Math.max(300,Math.ceil(d.height)));
+      }
+    }
+    window.addEventListener("message",onMsg);
+    return()=>window.removeEventListener("message",onMsg);
+  },[]);
+  return(
+    <iframe
+      src={"/api/pricepertoken-history-proxy?v="+Math.floor(Date.now()/3e5)}
+      title="Open Router Pricing History"
+      loading="lazy"
+      style={{border:0,display:"block",width:"100%",height:h,transition:"height .2s ease"}}
+    />
+  );
+}
+
 function ORTab({data,busy,ts,live,refresh}){
   const trunc=(s,n)=>s&&s.length>n?s.slice(0,n-1)+"…":(s||"");
   const best=data.find(m=>m.isGemini),top=data[0];
@@ -565,12 +587,7 @@ function ORTab({data,busy,ts,live,refresh}){
         <div style={{marginTop:20,marginBottom:20}}>
           <div style={{...S.lbl,marginBottom:8}}>Open Router Pricing History</div>
           <div style={{borderRadius:8,overflow:"hidden",border:"0.5px solid #e5e7eb",background:"#fff"}}>
-            <iframe
-              src={"/api/pricepertoken-history-proxy?v="+Math.floor(Date.now()/3e5)}
-              title="Open Router Pricing History"
-              loading="lazy"
-              style={{border:0,display:"block",width:"100%",height:900,minHeight:800}}
-            />
+            <PPTHistoryIframe/>
           </div>
           <div style={{fontSize:10,color:"#9ca3af",marginTop:5}}>
             Source: pricepertoken.com/pricing-history · reverse-proxied

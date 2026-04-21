@@ -78,19 +78,49 @@ div[class*="fixed"][class*="bottom-4"][class*="z-50"] { display: none !important
 /* Exit-intent / scroll-depth overlays */
 div.fixed.inset-0,
 div[class*="fixed"][class*="inset-0"][class*="z-50"] { display: none !important; }
-/* Body reset */
+/* Body reset — shrink-wrap to content so the iframe doesn't
+   inherit a 100vh wrapper that leaves empty space below. */
 html, body {
   background: #fff !important;
   margin: 0 !important;
   padding: 0 !important;
   overflow-x: hidden !important;
 }
-main { padding-top: 0 !important; padding-bottom: 16px !important; }
+.min-h-screen { min-height: 0 !important; }
+main { padding-top: 0 !important; padding-bottom: 8px !important; }
+main > div.space-y-8 > section { margin-bottom: 0 !important; }
 ::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 4px; }
 </style>
 <script>
 document.addEventListener('DOMContentLoaded', function(){
+  // Post the document body's natural height up to the parent so the
+  // dashboard iframe can size to content at any viewport width (chart
+  // + methodology both reflow).
+  function postHeight(){
+    // Measure main content only — documentElement.scrollHeight inherits
+    // the iframe viewport size and would over-report.
+    var main = document.querySelector('main');
+    var h = 0;
+    if (main) {
+      var r = main.getBoundingClientRect();
+      h = Math.ceil(r.bottom + window.scrollY);
+    } else {
+      h = document.body.scrollHeight;
+    }
+    if (!h) return;
+    try { parent.postMessage({ __ppt: 'history-height', height: h }, '*'); } catch(e){}
+  }
+  postHeight();
+  window.addEventListener('load', postHeight);
+  setTimeout(postHeight, 500);
+  setTimeout(postHeight, 1500);
+  setTimeout(postHeight, 3000);
+  if (window.ResizeObserver) {
+    var ro = new ResizeObserver(postHeight);
+    ro.observe(document.body);
+  }
+
   // Force every anchor out of the iframe so nav clicks open a real tab
   function retargetLinks(){
     var links = document.querySelectorAll('a[href]');
