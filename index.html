@@ -358,7 +358,7 @@ function ZX({data:e,busy:t,ts:r,live:n,refresh:i}){let o=Math.max(...e.map(l=>l.
         ]})
       ]});
     } else {
-      var _W=440,_H=180,_P=24;
+      var _W=520,_H=360,_pL=40,_pR=18,_pT=22,_pB=32;
       var _rowsLatest=_latest.rows.filter(function(r){return typeof r.priceQoq==="number"&&typeof r.shareQoqPP==="number"});
       var _xMax=5,_yMax=1;
       for(var i=0;i<_rowsLatest.length;i++){
@@ -366,9 +366,38 @@ function ZX({data:e,busy:t,ts:r,live:n,refresh:i}){let o=Math.max(...e.map(l=>l.
         var ay=Math.abs(_rowsLatest[i].shareQoqPP); if(ay>_yMax) _yMax=ay;
       }
       _xMax=_xMax*1.15; _yMax=_yMax*1.3;
-      var _sx=function(v){return _P+((v+_xMax)/(2*_xMax))*(_W-2*_P)};
-      var _sy=function(v){return _H-_P-((v+_yMax)/(2*_yMax))*(_H-2*_P)};
+      var _sx=function(v){return _pL+((v+_xMax)/(2*_xMax))*(_W-_pL-_pR)};
+      var _sy=function(v){return _H-_pB-((v+_yMax)/(2*_yMax))*(_H-_pT-_pB)};
       var _x0=_sx(0),_y0=_sy(0);
+      // Pre-compute dot placement with label-collision avoidance.
+      // Labels flip to the left of their dot when the dot sits in the right portion
+      // of the plot, and labels that would overlap are stacked vertically.
+      var _dotData=_rowsLatest.map(function(r){return {
+        slug:r.slug,label:r.label,color:_regColor(r.priceReg,r.shareReg),
+        x:_sx(r.priceQoq*100),y:_sy(r.shareQoqPP)
+      };});
+      var _placedLabels=[];
+      _dotData.slice().sort(function(a,b){return a.y-b.y;}).forEach(function(d){
+        var flipLeft=d.x>_W*0.6;
+        var lAnchor=flipLeft?"end":"start";
+        var lx=flipLeft?d.x-7:d.x+7;
+        var lw=Math.max(36,d.label.length*5.8);
+        var dy=3;
+        for(var k=0;k<6;k++){
+          var ly=d.y+dy;
+          var collides=_placedLabels.some(function(p){
+            if(Math.abs(p.ly-ly)>11) return false;
+            var pLe=p.lAnchor==="end"?p.lx-p.lw:p.lx;
+            var pRi=p.lAnchor==="end"?p.lx:p.lx+p.lw;
+            var dLe=flipLeft?lx-lw:lx;
+            var dRi=flipLeft?lx:lx+lw;
+            return !(dRi<pLe-3||dLe>pRi+3);
+          });
+          if(!collides) break;
+          dy+=12;
+        }
+        _placedLabels.push({slug:d.slug,label:d.label,color:d.color,x:d.x,y:d.y,lx:lx,ly:d.y+dy,lAnchor:lAnchor,lw:lw});
+      });
       _signalBlock=(0,b.jsxs)("div",{style:{marginBottom:16},children:[
         _sigHeader,
         (0,b.jsxs)("div",{style:{fontSize:11,color:"#6b7280",marginBottom:8},children:[
@@ -383,33 +412,53 @@ function ZX({data:e,busy:t,ts:r,live:n,refresh:i}){let o=Math.max(...e.map(l=>l.
           (0,b.jsx)("div",{style:{fontSize:10,color:"#6b7280",marginTop:2,lineHeight:1.4},children:c.detail})
         ]},i)})}):null,
         (0,b.jsxs)("div",{style:{display:"grid",gridTemplateColumns:"minmax(360px,1fr) minmax(420px,2fr)",gap:10},children:[
-          (0,b.jsxs)("div",{style:Object.assign({},_styles.card,{padding:"8px 8px 4px"}),children:[
-            (0,b.jsxs)("div",{style:{fontSize:10,color:"#6b7280",marginBottom:2,display:"flex",justifyContent:"space-between",alignItems:"center"},children:[
-              (0,b.jsx)("span",{children:"Price QoQ vs Share QoQ"}),
+          (0,b.jsxs)("div",{style:Object.assign({},_styles.card,{padding:"10px 12px 10px",display:"flex",flexDirection:"column"}),children:[
+            (0,b.jsxs)("div",{style:{fontSize:10,color:"#6b7280",marginBottom:6,display:"flex",justifyContent:"space-between",alignItems:"center"},children:[
+              (0,b.jsx)("span",{style:{fontWeight:600,color:"#374151"},children:"Price QoQ vs Share QoQ"}),
               (0,b.jsx)("span",{style:{fontSize:9,color:"#9ca3af"},children:"x: price % \xB7 y: share pp"})
             ]}),
-            (0,b.jsxs)("svg",{width:"100%",height:_H,viewBox:"0 0 "+_W+" "+_H,style:{display:"block"},children:[
-              (0,b.jsx)("rect",{x:_P,y:_P,width:_x0-_P,height:_y0-_P,fill:"#ecfdf5",opacity:"0.5"}),
-              (0,b.jsx)("rect",{x:_x0,y:_P,width:_W-_P-_x0,height:_y0-_P,fill:"#ecfdf5",opacity:"0.7"}),
-              (0,b.jsx)("rect",{x:_P,y:_y0,width:_x0-_P,height:_H-_P-_y0,fill:"#fef2f2",opacity:"0.5"}),
-              (0,b.jsx)("rect",{x:_x0,y:_y0,width:_W-_P-_x0,height:_H-_P-_y0,fill:"#fef2f2",opacity:"0.5"}),
-              (0,b.jsx)("line",{x1:_P,y1:_y0,x2:_W-_P,y2:_y0,stroke:"#9ca3af",strokeWidth:"0.5"}),
-              (0,b.jsx)("line",{x1:_x0,y1:_P,x2:_x0,y2:_H-_P,stroke:"#9ca3af",strokeWidth:"0.5"}),
-              (0,b.jsx)("text",{x:_W-_P-2,y:_y0-4,fontSize:"9",fill:"#6b7280",textAnchor:"end",children:"Price QoQ +"+_xMax.toFixed(0)+"%"}),
-              (0,b.jsx)("text",{x:_P+2,y:_y0-4,fontSize:"9",fill:"#6b7280",children:"\u2212"+_xMax.toFixed(0)+"%"}),
-              (0,b.jsx)("text",{x:_x0+4,y:_P+9,fontSize:"9",fill:"#6b7280",children:"Share +"+_yMax.toFixed(1)+"pp"}),
-              (0,b.jsx)("text",{x:_x0+4,y:_H-_P+10,fontSize:"9",fill:"#6b7280",children:"\u2212"+_yMax.toFixed(1)+"pp"}),
-              (0,b.jsx)("text",{x:_P+4,y:_P+10,fontSize:"8",fill:"#059669",fontWeight:"600",children:"effective cut"}),
-              (0,b.jsx)("text",{x:_W-_P-4,y:_P+10,fontSize:"8",fill:"#059669",fontWeight:"600",textAnchor:"end",children:"pricing power"}),
-              (0,b.jsx)("text",{x:_P+4,y:_H-_P-3,fontSize:"8",fill:"#dc2626",fontWeight:"600",children:"cuts not defending"}),
-              (0,b.jsx)("text",{x:_W-_P-4,y:_H-_P-3,fontSize:"8",fill:"#dc2626",fontWeight:"600",textAnchor:"end",children:"weak position"}),
-              _rowsLatest.map(function(r){
-                var x=_sx(r.priceQoq*100),y=_sy(r.shareQoqPP);
+            (0,b.jsxs)("svg",{viewBox:"0 0 "+_W+" "+_H,style:{display:"block",width:"100%",aspectRatio:_W+" / "+_H,overflow:"visible"},children:[
+              (0,b.jsx)("rect",{x:_pL,y:_pT,width:_x0-_pL,height:_y0-_pT,fill:"#ecfdf5",opacity:"0.5"}),
+              (0,b.jsx)("rect",{x:_x0,y:_pT,width:_W-_pR-_x0,height:_y0-_pT,fill:"#ecfdf5",opacity:"0.7"}),
+              (0,b.jsx)("rect",{x:_pL,y:_y0,width:_x0-_pL,height:_H-_pB-_y0,fill:"#fef2f2",opacity:"0.5"}),
+              (0,b.jsx)("rect",{x:_x0,y:_y0,width:_W-_pR-_x0,height:_H-_pB-_y0,fill:"#fef2f2",opacity:"0.5"}),
+              (0,b.jsx)("line",{x1:_pL,y1:_y0,x2:_W-_pR,y2:_y0,stroke:"#9ca3af",strokeWidth:"0.5"}),
+              (0,b.jsx)("line",{x1:_x0,y1:_pT,x2:_x0,y2:_H-_pB,stroke:"#9ca3af",strokeWidth:"0.5"}),
+              (0,b.jsx)("text",{x:_pL,y:_H-_pB+14,fontSize:"9",fill:"#6b7280",children:"\u2212"+_xMax.toFixed(0)+"%"}),
+              (0,b.jsx)("text",{x:_W-_pR,y:_H-_pB+14,fontSize:"9",fill:"#6b7280",textAnchor:"end",children:"+"+_xMax.toFixed(0)+"%"}),
+              (0,b.jsx)("text",{x:_pL-4,y:_pT+4,fontSize:"9",fill:"#6b7280",textAnchor:"end",children:"+"+_yMax.toFixed(1)+"pp"}),
+              (0,b.jsx)("text",{x:_pL-4,y:_H-_pB+2,fontSize:"9",fill:"#6b7280",textAnchor:"end",children:"\u2212"+_yMax.toFixed(1)+"pp"}),
+              (0,b.jsx)("text",{x:_pL+4,y:_pT+10,fontSize:"8",fill:"#059669",fontWeight:"600",children:"effective cut"}),
+              (0,b.jsx)("text",{x:_W-_pR-4,y:_pT+10,fontSize:"8",fill:"#059669",fontWeight:"600",textAnchor:"end",children:"pricing power"}),
+              (0,b.jsx)("text",{x:_pL+4,y:_H-_pB-3,fontSize:"8",fill:"#dc2626",fontWeight:"600",children:"cuts not defending"}),
+              (0,b.jsx)("text",{x:_W-_pR-4,y:_H-_pB-3,fontSize:"8",fill:"#dc2626",fontWeight:"600",textAnchor:"end",children:"weak position"}),
+              _placedLabels.map(function(p){
                 return (0,b.jsxs)("g",{children:[
-                  (0,b.jsx)("circle",{cx:x,cy:y,r:"4.5",fill:_regColor(r.priceReg,r.shareReg),stroke:"#fff",strokeWidth:"1"}),
-                  (0,b.jsx)("text",{x:x+7,y:y+3,fontSize:"10",fill:"#111827",fontWeight:"600",children:r.label})
-                ]},r.slug);
+                  (0,b.jsx)("circle",{cx:p.x,cy:p.y,r:"4.5",fill:p.color,stroke:"#fff",strokeWidth:"1"}),
+                  (0,b.jsx)("text",{x:p.lx,y:p.ly,fontSize:"10",fill:"#111827",fontWeight:"600",textAnchor:p.lAnchor,children:p.label})
+                ]},p.slug);
               })
+            ]}),
+            (0,b.jsxs)("div",{style:{marginTop:"auto",paddingTop:12},children:[
+              (0,b.jsx)("div",{style:{fontSize:9,textTransform:"uppercase",letterSpacing:".07em",fontWeight:700,color:"#9ca3af",marginBottom:6},children:"How to read the dot"}),
+              (0,b.jsxs)("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"6px 12px",fontSize:10.5,color:"#374151",lineHeight:1.4},children:[
+                (0,b.jsxs)("div",{style:{display:"flex",alignItems:"flex-start",gap:6},children:[
+                  (0,b.jsx)("span",{style:{width:8,height:8,borderRadius:"50%",background:"#059669",marginTop:4,flexShrink:0}}),
+                  (0,b.jsxs)("span",{children:[(0,b.jsx)("b",{style:{color:"#111827"},children:"Pricing power"}),(0,b.jsx)("br",{}),(0,b.jsx)("span",{style:{color:"#6b7280"},children:"price holds/up \xB7 share gain"})]})
+                ]}),
+                (0,b.jsxs)("div",{style:{display:"flex",alignItems:"flex-start",gap:6},children:[
+                  (0,b.jsx)("span",{style:{width:8,height:8,borderRadius:"50%",background:"#2563eb",marginTop:4,flexShrink:0}}),
+                  (0,b.jsxs)("span",{children:[(0,b.jsx)("b",{style:{color:"#111827"},children:"Effective cut"}),(0,b.jsx)("br",{}),(0,b.jsx)("span",{style:{color:"#6b7280"},children:"price cut \xB7 share gain"})]})
+                ]}),
+                (0,b.jsxs)("div",{style:{display:"flex",alignItems:"flex-start",gap:6},children:[
+                  (0,b.jsx)("span",{style:{width:8,height:8,borderRadius:"50%",background:"#dc2626",marginTop:4,flexShrink:0}}),
+                  (0,b.jsxs)("span",{children:[(0,b.jsx)("b",{style:{color:"#111827"},children:"Weak position"}),(0,b.jsx)("br",{}),(0,b.jsx)("span",{style:{color:"#6b7280"},children:"price up \xB7 share loss"})]})
+                ]}),
+                (0,b.jsxs)("div",{style:{display:"flex",alignItems:"flex-start",gap:6},children:[
+                  (0,b.jsx)("span",{style:{width:8,height:8,borderRadius:"50%",background:"#6b7280",marginTop:4,flexShrink:0}}),
+                  (0,b.jsxs)("span",{children:[(0,b.jsx)("b",{style:{color:"#111827"},children:"Neutral / mixed"}),(0,b.jsx)("br",{}),(0,b.jsx)("span",{style:{color:"#6b7280"},children:"flat or absorbed move"})]})
+                ]})
+              ]})
             ]})
           ]}),
           (0,b.jsx)("div",{style:Object.assign({},_styles.card,{padding:0,overflow:"auto"}),children:(0,b.jsxs)("table",{style:{width:"100%",borderCollapse:"collapse",fontSize:12},children:[

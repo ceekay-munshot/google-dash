@@ -336,14 +336,52 @@ function PricingShareSignalBlock(){
     );
   }
 
-  /* SVG quadrant — Price QoQ % on x, Share QoQ pp on y. */
-  const W=440,H=180,P=24;
+  /* SVG quadrant — Price QoQ % on x, Share QoQ pp on y.
+     Asymmetric padding: extra room on left for share labels, extra room
+     below for price labels. Keeps axis range labels OUTSIDE the plot so
+     they never collide with dots near the origin. H is tuned so the SVG
+     renders tall enough to visually balance the signal table alongside it. */
+  const W=520,H=360,pL=40,pR=18,pT=22,pB=32;
   const rows=latest.rows.filter(r=>typeof r.priceQoq==="number"&&typeof r.shareQoqPP==="number");
   let xMax=Math.max(5,...rows.map(r=>Math.abs(r.priceQoq*100)))*1.15;
   let yMax=Math.max(1,...rows.map(r=>Math.abs(r.shareQoqPP)))*1.3;
-  const sx=(v)=>P+((v+xMax)/(2*xMax))*(W-2*P);
-  const sy=(v)=>H-P-((v+yMax)/(2*yMax))*(H-2*P);
+  const sx=(v)=>pL+((v+xMax)/(2*xMax))*(W-pL-pR);
+  const sy=(v)=>H-pB-((v+yMax)/(2*yMax))*(H-pT-pB);
   const x0=sx(0),y0=sy(0);
+
+  /* Pre-compute dot placement with label-collision avoidance. Labels flip
+     to the left of their dot when the dot sits in the right portion of the
+     plot (prevents overflow past the SVG edge). Labels that would overlap
+     are stacked vertically. */
+  const dotData=rows.map(r=>({
+    slug:r.slug,
+    label:r.label,
+    color:regimeColor(r.priceReg,r.shareReg),
+    x:sx(r.priceQoq*100),
+    y:sy(r.shareQoqPP),
+  }));
+  const placedLabels=[];
+  [...dotData].sort((a,b)=>a.y-b.y).forEach(d=>{
+    const flipLeft=d.x>W*0.6;
+    const lAnchor=flipLeft?"end":"start";
+    const lx=flipLeft?d.x-7:d.x+7;
+    const lw=Math.max(36,d.label.length*5.8);
+    let dy=3;
+    for(let i=0;i<6;i++){
+      const ly=d.y+dy;
+      const collides=placedLabels.some(p=>{
+        if(Math.abs(p.ly-ly)>11) return false;
+        const pLe=p.lAnchor==="end"?p.lx-p.lw:p.lx;
+        const pRi=p.lAnchor==="end"?p.lx:p.lx+p.lw;
+        const dLe=flipLeft?lx-lw:lx;
+        const dRi=flipLeft?lx:lx+lw;
+        return !(dRi<pLe-3||dLe>pRi+3);
+      });
+      if(!collides) break;
+      dy+=12;
+    }
+    placedLabels.push({...d,lx,ly:d.y+dy,lAnchor,lw});
+  });
 
   return(
     <div style={{marginBottom:16}}>
@@ -369,45 +407,57 @@ function PricingShareSignalBlock(){
         </div>
       )}
 
-      {/* Quadrant chart + signal table side-by-side when wide, stacked when narrow */}
+      {/* Quadrant chart + signal table side-by-side. Cards stretch to the same
+         height (default grid behavior); the chart card uses flex column so the
+         legend strip pushes to the bottom, balancing the chart card against the
+         taller table. */}
       <div style={{display:"grid",gridTemplateColumns:"minmax(360px,1fr) minmax(420px,2fr)",gap:10}}>
 
         {/* Quadrant */}
-        <div style={{...S.card,padding:"8px 8px 4px"}}>
-          <div style={{fontSize:10,color:"#6b7280",marginBottom:2,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-            <span>Price QoQ vs Share QoQ</span>
+        <div style={{...S.card,padding:"10px 12px 10px",display:"flex",flexDirection:"column"}}>
+          <div style={{fontSize:10,color:"#6b7280",marginBottom:6,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+            <span style={{fontWeight:600,color:"#374151"}}>Price QoQ vs Share QoQ</span>
             <span style={{fontSize:9,color:"#9ca3af"}}>x: price % · y: share pp</span>
           </div>
-          <svg width="100%" height={H} viewBox={"0 0 "+W+" "+H} style={{display:"block"}}>
+          <svg viewBox={"0 0 "+W+" "+H} style={{display:"block",width:"100%",aspectRatio:`${W} / ${H}`,overflow:"visible"}}>
             {/* Quadrant background tints */}
-            <rect x={P} y={P} width={x0-P} height={y0-P} fill="#ecfdf5" opacity="0.5"/>
-            <rect x={x0} y={P} width={W-P-x0} height={y0-P} fill="#ecfdf5" opacity="0.7"/>
-            <rect x={P} y={y0} width={x0-P} height={H-P-y0} fill="#fef2f2" opacity="0.5"/>
-            <rect x={x0} y={y0} width={W-P-x0} height={H-P-y0} fill="#fef2f2" opacity="0.5"/>
+            <rect x={pL} y={pT} width={x0-pL} height={y0-pT} fill="#ecfdf5" opacity="0.5"/>
+            <rect x={x0} y={pT} width={W-pR-x0} height={y0-pT} fill="#ecfdf5" opacity="0.7"/>
+            <rect x={pL} y={y0} width={x0-pL} height={H-pB-y0} fill="#fef2f2" opacity="0.5"/>
+            <rect x={x0} y={y0} width={W-pR-x0} height={H-pB-y0} fill="#fef2f2" opacity="0.5"/>
             {/* Axes */}
-            <line x1={P} y1={y0} x2={W-P} y2={y0} stroke="#9ca3af" strokeWidth="0.5"/>
-            <line x1={x0} y1={P} x2={x0} y2={H-P} stroke="#9ca3af" strokeWidth="0.5"/>
-            {/* Axis labels */}
-            <text x={W-P-2} y={y0-4} fontSize="9" fill="#6b7280" textAnchor="end">Price QoQ +{xMax.toFixed(0)}%</text>
-            <text x={P+2}   y={y0-4} fontSize="9" fill="#6b7280">−{xMax.toFixed(0)}%</text>
-            <text x={x0+4}  y={P+9}  fontSize="9" fill="#6b7280">Share +{yMax.toFixed(1)}pp</text>
-            <text x={x0+4}  y={H-P+10} fontSize="9" fill="#6b7280">−{yMax.toFixed(1)}pp</text>
+            <line x1={pL} y1={y0} x2={W-pR} y2={y0} stroke="#9ca3af" strokeWidth="0.5"/>
+            <line x1={x0} y1={pT} x2={x0} y2={H-pB} stroke="#9ca3af" strokeWidth="0.5"/>
+            {/* Price (x) axis range labels — below plot, outside the dot area */}
+            <text x={pL} y={H-pB+14} fontSize="9" fill="#6b7280">−{xMax.toFixed(0)}%</text>
+            <text x={W-pR} y={H-pB+14} fontSize="9" fill="#6b7280" textAnchor="end">+{xMax.toFixed(0)}%</text>
+            {/* Share (y) axis range labels — left of plot, outside the dot area */}
+            <text x={pL-4} y={pT+4} fontSize="9" fill="#6b7280" textAnchor="end">+{yMax.toFixed(1)}pp</text>
+            <text x={pL-4} y={H-pB+2} fontSize="9" fill="#6b7280" textAnchor="end">−{yMax.toFixed(1)}pp</text>
             {/* Quadrant labels (corner hints) */}
-            <text x={P+4}    y={P+10} fontSize="8" fill="#059669" fontWeight="600">effective cut</text>
-            <text x={W-P-4}  y={P+10} fontSize="8" fill="#059669" fontWeight="600" textAnchor="end">pricing power</text>
-            <text x={P+4}    y={H-P-3} fontSize="8" fill="#dc2626" fontWeight="600">cuts not defending</text>
-            <text x={W-P-4}  y={H-P-3} fontSize="8" fill="#dc2626" fontWeight="600" textAnchor="end">weak position</text>
-            {/* Dots + labels */}
-            {rows.map(r=>{
-              const x=sx(r.priceQoq*100),y=sy(r.shareQoqPP);
-              return(
-                <g key={r.slug}>
-                  <circle cx={x} cy={y} r="4.5" fill={regimeColor(r.priceReg,r.shareReg)} stroke="#fff" strokeWidth="1"/>
-                  <text x={x+7} y={y+3} fontSize="10" fill="#111827" fontWeight="600">{r.label}</text>
-                </g>
-              );
-            })}
+            <text x={pL+4}    y={pT+10} fontSize="8" fill="#059669" fontWeight="600">effective cut</text>
+            <text x={W-pR-4}  y={pT+10} fontSize="8" fill="#059669" fontWeight="600" textAnchor="end">pricing power</text>
+            <text x={pL+4}    y={H-pB-3} fontSize="8" fill="#dc2626" fontWeight="600">cuts not defending</text>
+            <text x={W-pR-4}  y={H-pB-3} fontSize="8" fill="#dc2626" fontWeight="600" textAnchor="end">weak position</text>
+            {/* Dots + labels — labels flip and stack to avoid collisions */}
+            {placedLabels.map(p=>(
+              <g key={p.slug}>
+                <circle cx={p.x} cy={p.y} r="4.5" fill={p.color} stroke="#fff" strokeWidth="1"/>
+                <text x={p.lx} y={p.ly} fontSize="10" fill="#111827" fontWeight="600" textAnchor={p.lAnchor}>{p.label}</text>
+              </g>
+            ))}
           </svg>
+          {/* Legend — pushes to bottom via marginTop:auto so the chart card
+             visually matches the taller signal table alongside it. */}
+          <div style={{marginTop:"auto",paddingTop:12}}>
+            <div style={{fontSize:9,textTransform:"uppercase",letterSpacing:".07em",fontWeight:700,color:"#9ca3af",marginBottom:6}}>How to read the dot</div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"6px 12px",fontSize:10.5,color:"#374151",lineHeight:1.4}}>
+              <div style={{display:"flex",alignItems:"flex-start",gap:6}}><span style={{width:8,height:8,borderRadius:"50%",background:"#059669",marginTop:4,flexShrink:0}}/><span><b style={{color:"#111827"}}>Pricing power</b><br/><span style={{color:"#6b7280"}}>price holds/up · share gain</span></span></div>
+              <div style={{display:"flex",alignItems:"flex-start",gap:6}}><span style={{width:8,height:8,borderRadius:"50%",background:"#2563eb",marginTop:4,flexShrink:0}}/><span><b style={{color:"#111827"}}>Effective cut</b><br/><span style={{color:"#6b7280"}}>price cut · share gain</span></span></div>
+              <div style={{display:"flex",alignItems:"flex-start",gap:6}}><span style={{width:8,height:8,borderRadius:"50%",background:"#dc2626",marginTop:4,flexShrink:0}}/><span><b style={{color:"#111827"}}>Weak position</b><br/><span style={{color:"#6b7280"}}>price up · share loss</span></span></div>
+              <div style={{display:"flex",alignItems:"flex-start",gap:6}}><span style={{width:8,height:8,borderRadius:"50%",background:"#6b7280",marginTop:4,flexShrink:0}}/><span><b style={{color:"#111827"}}>Neutral / mixed</b><br/><span style={{color:"#6b7280"}}>flat or absorbed move</span></span></div>
+            </div>
+          </div>
         </div>
 
         {/* Signal table */}
