@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from "react";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, PieChart, Pie } from "recharts";
+import { BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, PieChart, Pie, CartesianGrid, Legend } from "recharts";
 
 /* ─── Live data fetched by me right now (Apr 11 2026) ───────
    Sources:
@@ -328,6 +328,75 @@ function ModelPricingHistoryBlock(){
       {state.data?.providerErrors?.length>0&&(
         <div style={{fontSize:11,color:"#92400e",background:"#fef3c7",border:"0.5px solid #fde68a",borderRadius:6,padding:"6px 10px",marginBottom:8,lineHeight:1.4}}>
           Partial data · upstream temporarily unavailable for {state.data.providerErrors.map(e=>e.slug).join(", ")} — other providers render as normal.
+        </div>
+      )}
+
+      {/* ── Trend chart (reads the same matrix payload — single source of truth) ── */}
+      {state.phase==="ready"&&state.data?.quarters?.length>0&&(() => {
+        // Transform quarters×cells → one row per quarter with provider-slug keys.
+        // Oldest quarter first (left→right on x-axis).
+        const rows=[...state.data.quarters].reverse().map(q=>{
+          const row={quarter:q.quarter,partial:q.partial};
+          for(const c of q.cells){ row[c.slug]= (typeof c.avg==="number"?c.avg:null); }
+          return row;
+        });
+        // Stable per-provider colours (distinct, investor-readable).
+        const COLOR={openai:"#10a37f",anthropic:"#d97757",google:"#4285f4",xai:"#0ea5e9",mistralai:"#f59e0b",deepseek:"#8b5cf6","meta-llama":"#1877f2",cohere:"#ec4899"};
+        const unit=metric==="input"?"Input $/1M":"Output $/1M";
+        // Log-scale y-axis because provider prices span ~50× ($0.13 – $6.93).
+        // Compute a domain floor strictly > 0.
+        let minV=Infinity,maxV=0;
+        for(const r of rows){ for(const p of state.data.providers){ const v=r[p.slug]; if(typeof v==="number"&&v>0){ if(v<minV) minV=v; if(v>maxV) maxV=v; } } }
+        const yMin=isFinite(minV)?Math.max(0.01,minV*0.5):0.05;
+        const yMax=isFinite(maxV)?maxV*1.4:10;
+        return(
+          <div style={{marginBottom:10}}>
+            <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:4}}>
+              <span style={{width:6,height:6,borderRadius:"50%",background:"#0e7490",display:"inline-block",opacity:0.7}}/>
+              <span style={{fontSize:9,textTransform:"uppercase",letterSpacing:".09em",fontWeight:700,color:"#0e7490"}}>Quarterly Pricing Trend</span>
+            </div>
+            <div style={{marginBottom:6}}>
+              <div style={{fontSize:13,fontWeight:700,color:"#111827",lineHeight:1.3}}>Quarterly Model Pricing by Company — Trend</div>
+              <div style={{fontSize:10,color:"#9ca3af",marginTop:2}}>Calendar-quarter average model API price per token, grouped by provider family. Log scale. Same data as matrix below.</div>
+            </div>
+            <div style={{...S.card,padding:"12px 12px 4px"}}>
+              <ResponsiveContainer width="100%" height={240}>
+                <LineChart data={rows} margin={{top:8,right:14,left:-6,bottom:6}}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" vertical={false}/>
+                  <XAxis dataKey="quarter" tick={{fontSize:10,fill:"#6b7280"}} tickLine={false} axisLine={{stroke:"#e5e7eb"}}/>
+                  <YAxis scale="log" domain={[yMin,yMax]} tick={{fontSize:10,fill:"#6b7280"}} tickLine={false} axisLine={{stroke:"#e5e7eb"}} tickFormatter={v=>v>=1?"$"+v.toFixed(0):"$"+v.toFixed(2)} width={48}/>
+                  <Tooltip
+                    contentStyle={{fontSize:11,borderRadius:6,border:"0.5px solid #e5e7eb"}}
+                    formatter={(v,n)=>[typeof v==="number"?"$"+v.toFixed(v>=1?2:3):"—",(state.data.providers.find(p=>p.slug===n)||{}).label||n]}
+                    labelStyle={{fontWeight:600,color:"#111827"}}
+                    labelFormatter={q=>q+" · "+unit}/>
+                  <Legend
+                    wrapperStyle={{fontSize:10,paddingTop:4}}
+                    iconSize={8}
+                    formatter={(n)=>(state.data.providers.find(p=>p.slug===n)||{}).label||n}/>
+                  {state.data.providers.map(p=>(
+                    <Line key={p.slug}
+                      type="monotone"
+                      dataKey={p.slug}
+                      stroke={COLOR[p.slug]||"#9ca3af"}
+                      strokeWidth={1.75}
+                      dot={{r:2.5,strokeWidth:0}}
+                      activeDot={{r:4}}
+                      connectNulls
+                      isAnimationActive={false}/>
+                  ))}
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* ── Matrix section header (kept minimal — methodology lives at bottom) ── */}
+      {state.phase==="ready"&&state.data?.quarters?.length>0&&(
+        <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:4,marginTop:4}}>
+          <span style={{width:6,height:6,borderRadius:"50%",background:"#0e7490",display:"inline-block",opacity:0.7}}/>
+          <span style={{fontSize:9,textTransform:"uppercase",letterSpacing:".09em",fontWeight:700,color:"#0e7490"}}>Quarterly Pricing Matrix</span>
         </div>
       )}
 

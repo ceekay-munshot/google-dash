@@ -229,6 +229,39 @@ function ZX({data:e,busy:t,ts:r,live:n,refresh:i}){let o=Math.max(...e.map(l=>l.
       _state.phase==="loading"?(0,b.jsx)("span",{children:(0,b.jsx)(Rs,{size:10})}):null
     ]}),
     _state.data&&_state.data.providerErrors&&_state.data.providerErrors.length>0?(0,b.jsx)("div",{style:{fontSize:11,color:"#92400e",background:"#fef3c7",border:"0.5px solid #fde68a",borderRadius:6,padding:"6px 10px",marginBottom:8,lineHeight:1.4},children:"Partial data \xB7 upstream temporarily unavailable for "+_state.data.providerErrors.map(function(e){return e.slug}).join(", ")+" \u2014 other providers render as normal."}):null,
+    /* ── Trend chart: single source of truth is the matrix payload ── */
+    (_state.phase==="ready"&&_state.data&&_state.data.quarters&&_state.data.quarters.length>0)?(function(){
+      var _rows=_state.data.quarters.slice().reverse().map(function(q){var r={quarter:q.quarter,partial:q.partial};for(var i=0;i<q.cells.length;i++){var c=q.cells[i];r[c.slug]=(typeof c.avg==="number"?c.avg:null);}return r;});
+      var _COLOR={openai:"#10a37f",anthropic:"#d97757",google:"#4285f4",xai:"#0ea5e9",mistralai:"#f59e0b",deepseek:"#8b5cf6","meta-llama":"#1877f2",cohere:"#ec4899"};
+      var _unit=_metric==="input"?"Input $/1M":"Output $/1M";
+      var _minV=Infinity,_maxV=0;
+      for(var i=0;i<_rows.length;i++){for(var j=0;j<_state.data.providers.length;j++){var v=_rows[i][_state.data.providers[j].slug];if(typeof v==="number"&&v>0){if(v<_minV)_minV=v;if(v>_maxV)_maxV=v;}}}
+      var _yMin=isFinite(_minV)?Math.max(0.01,_minV*0.5):0.05;
+      var _yMax=isFinite(_maxV)?_maxV*1.4:10;
+      return (0,b.jsxs)("div",{style:{marginBottom:10},children:[
+        (0,b.jsxs)("div",{style:{display:"flex",alignItems:"center",gap:7,marginBottom:4},children:[
+          (0,b.jsx)("span",{style:{width:6,height:6,borderRadius:"50%",background:"#0e7490",display:"inline-block",opacity:0.7}}),
+          (0,b.jsx)("span",{style:{fontSize:9,textTransform:"uppercase",letterSpacing:".09em",fontWeight:700,color:"#0e7490"},children:"Quarterly Pricing Trend"})
+        ]}),
+        (0,b.jsxs)("div",{style:{marginBottom:6},children:[
+          (0,b.jsx)("div",{style:{fontSize:13,fontWeight:700,color:"#111827",lineHeight:1.3},children:"Quarterly Model Pricing by Company \u2014 Trend"}),
+          (0,b.jsx)("div",{style:{fontSize:10,color:"#9ca3af",marginTop:2},children:"Calendar-quarter average model API price per token, grouped by provider family. Log scale. Same data as matrix below."})
+        ]}),
+        (0,b.jsx)("div",{style:Object.assign({},_styles.card,{padding:"12px 12px 4px"}),children:(0,b.jsx)(Uu,{width:"100%",height:240,children:(0,b.jsxs)(Is,{data:_rows,margin:{top:8,right:14,left:-6,bottom:6},children:[
+          (0,b.jsx)(Aa,{strokeDasharray:"3 3",stroke:"#f3f4f6",vertical:false}),
+          (0,b.jsx)(bo,{dataKey:"quarter",tick:{fontSize:10,fill:"#6b7280"},tickLine:false,axisLine:{stroke:"#e5e7eb"}}),
+          (0,b.jsx)(wo,{scale:"log",domain:[_yMin,_yMax],tick:{fontSize:10,fill:"#6b7280"},tickLine:false,axisLine:{stroke:"#e5e7eb"},tickFormatter:function(v){return v>=1?"$"+v.toFixed(0):"$"+v.toFixed(2)},width:48}),
+          (0,b.jsx)(po,{contentStyle:{fontSize:11,borderRadius:6,border:"0.5px solid #e5e7eb"},formatter:function(v,n){var lbl=(_state.data.providers.find(function(p){return p.slug===n})||{}).label||n;return [typeof v==="number"?"$"+v.toFixed(v>=1?2:3):"\u2014",lbl]},labelStyle:{fontWeight:600,color:"#111827"},labelFormatter:function(q){return q+" \xB7 "+_unit}}),
+          (0,b.jsx)(Gu,{wrapperStyle:{fontSize:10,paddingTop:4},iconSize:8,formatter:function(n){return (_state.data.providers.find(function(p){return p.slug===n})||{}).label||n}}),
+          _state.data.providers.map(function(p){return (0,b.jsx)(On,{type:"monotone",dataKey:p.slug,stroke:_COLOR[p.slug]||"#9ca3af",strokeWidth:1.75,dot:{r:2.5,strokeWidth:0},activeDot:{r:4},connectNulls:true,isAnimationActive:false},p.slug)})
+        ]})})})
+      ]});
+    })():null,
+    /* ── Matrix section header ── */
+    (_state.phase==="ready"&&_state.data&&_state.data.quarters&&_state.data.quarters.length>0)?(0,b.jsxs)("div",{style:{display:"flex",alignItems:"center",gap:7,marginBottom:4,marginTop:4},children:[
+      (0,b.jsx)("span",{style:{width:6,height:6,borderRadius:"50%",background:"#0e7490",display:"inline-block",opacity:0.7}}),
+      (0,b.jsx)("span",{style:{fontSize:9,textTransform:"uppercase",letterSpacing:".09em",fontWeight:700,color:"#0e7490"},children:"Quarterly Pricing Matrix"})
+    ]}):null,
     _state.phase==="error"?(0,b.jsxs)("div",{style:{background:"#fff",border:"0.5px dashed #fca5a5",borderRadius:10,padding:"20px 16px",textAlign:"center"},children:[
       (0,b.jsx)("div",{style:{fontSize:13,color:"#991b1b",fontWeight:500,marginBottom:4},children:"Provider-grouped pricing history temporarily unavailable"}),
       (0,b.jsx)("div",{style:{fontSize:11,color:"#6b7280"},children:_state.error||"/api/provider-pricing-matrix did not return success"})
