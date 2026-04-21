@@ -324,6 +324,13 @@ function ModelPricingHistoryBlock(){
         {state.phase==="loading"&&<span><Spin size={10}/></span>}
       </div>
 
+      {/* Per-provider upstream failure note — partial data still renders */}
+      {state.data?.providerErrors?.length>0&&(
+        <div style={{fontSize:11,color:"#92400e",background:"#fef3c7",border:"0.5px solid #fde68a",borderRadius:6,padding:"6px 10px",marginBottom:8,lineHeight:1.4}}>
+          Partial data · upstream temporarily unavailable for {state.data.providerErrors.map(e=>e.slug).join(", ")} — other providers render as normal.
+        </div>
+      )}
+
       {/* Content */}
       {state.phase==="error"?(
         <div style={{background:"#fff",border:"0.5px dashed #fca5a5",borderRadius:10,padding:"20px 16px",textAlign:"center"}}>
@@ -355,9 +362,10 @@ function ModelPricingHistoryBlock(){
                     if(view==="qoq"){ main=c.qoqLabel||"—"; color=cellColor(c.qoq); sub=c.avgLabel; }
                     else if(view==="yoy"){ main=c.yoyLabel||"—"; color=cellColor(c.yoy); sub=c.avgLabel; }
                     else { main=c.avgLabel; sub=c.modelCount?c.modelCount+" models":"—"; }
+                    const tip=(c.avgLabel||"—")+" avg · "+(c.modelCount||0)+" models in this quarter · "+(c.obsCount||0)+" daily observations"+(c.qoqLabel?" · QoQ "+c.qoqLabel:"")+(c.yoyLabel?" · YoY "+c.yoyLabel:"");
                     return(
                       <td key={c.slug} style={{padding:"10px 10px",borderBottom:"1px solid #f9fafb",fontFamily:"monospace",textAlign:"right",fontWeight:600,color,whiteSpace:"nowrap"}}
-                          title={c.avgLabel+" · "+(c.modelCount||0)+" models · "+(c.obsCount||0)+" daily observations"}>
+                          title={tip}>
                         <div>{main}</div>
                         <div style={{fontSize:9,color:"#9ca3af",fontWeight:400,marginTop:1}}>{sub}</div>
                       </td>
@@ -375,13 +383,19 @@ function ModelPricingHistoryBlock(){
         </div>
       )}
 
-      {/* Methodology note */}
-      <div style={{fontSize:10,color:"#9ca3af",marginTop:6,lineHeight:1.5}}>
-        {unitHint}. Equal-weighted mean across every (model, day) observation in each calendar quarter, grouped by provider family.
-        {state.data?.earliestDateObserved?(" Historical depth begins "+state.data.earliestDateObserved+" (upstream source floor) — no synthetic backfill."):""}
-        {" Hover a cell for model / observation counts."}
-        {" Model mix changes over time; averages reflect the models available in that quarter, not a fixed basket."}
-        {" Source: api.pricepertoken.com/api/provider-pricing-history."}
+      {/* Methodology strip — compact, investor-grade transparency */}
+      <div style={{display:"flex",flexWrap:"wrap",gap:"4px 10px",fontSize:10,color:"#6b7280",marginTop:8,lineHeight:1.5}}>
+        <span><b style={{color:"#374151"}}>Unit:</b> {unitHint}</span>
+        <span>·</span>
+        <span><b style={{color:"#374151"}}>Depth:</b> begins {state.data?.earliestDateObserved||"2025-07-28"}</span>
+        <span>·</span>
+        <span><b style={{color:"#374151"}}>Method:</b> equal-weighted mean of (model, day) observations per provider per quarter — model mix reflects what was available in that quarter, not a fixed basket</span>
+        <span>·</span>
+        <span><b style={{color:"#374151"}}>YoY:</b> appears only when a true year-ago quarter exists upstream</span>
+        <span>·</span>
+        <span><b style={{color:"#374151"}}>Backfill:</b> none — real snapshots only</span>
+        <span>·</span>
+        <span><b style={{color:"#374151"}}>Source:</b> api.pricepertoken.com provider pricing history</span>
       </div>
     </div>
   );

@@ -228,6 +228,7 @@ function ZX({data:e,busy:t,ts:r,live:n,refresh:i}){let o=Math.max(...e.map(l=>l.
       (0,b.jsx)("div",{style:{display:"flex",gap:5},children:[{id:"avg",label:"Avg $/1M"},{id:"qoq",label:"QoQ"},{id:"yoy",label:"YoY"}].map(function(v){return (0,b.jsx)("button",{onClick:function(){_setView(v.id)},style:{fontSize:11,padding:"4px 11px",border:"0.5px solid "+(_view===v.id?"#0e7490":"#e5e7eb"),borderRadius:6,background:_view===v.id?"#0e7490":"#fff",color:_view===v.id?"#fff":"#6b7280",cursor:"pointer",fontFamily:"inherit",fontWeight:500},children:v.label},v.id)})}),
       _state.phase==="loading"?(0,b.jsx)("span",{children:(0,b.jsx)(Rs,{size:10})}):null
     ]}),
+    _state.data&&_state.data.providerErrors&&_state.data.providerErrors.length>0?(0,b.jsx)("div",{style:{fontSize:11,color:"#92400e",background:"#fef3c7",border:"0.5px solid #fde68a",borderRadius:6,padding:"6px 10px",marginBottom:8,lineHeight:1.4},children:"Partial data \xB7 upstream temporarily unavailable for "+_state.data.providerErrors.map(function(e){return e.slug}).join(", ")+" \u2014 other providers render as normal."}):null,
     _state.phase==="error"?(0,b.jsxs)("div",{style:{background:"#fff",border:"0.5px dashed #fca5a5",borderRadius:10,padding:"20px 16px",textAlign:"center"},children:[
       (0,b.jsx)("div",{style:{fontSize:13,color:"#991b1b",fontWeight:500,marginBottom:4},children:"Provider-grouped pricing history temporarily unavailable"}),
       (0,b.jsx)("div",{style:{fontSize:11,color:"#6b7280"},children:_state.error||"/api/provider-pricing-matrix did not return success"})
@@ -243,7 +244,8 @@ function ZX({data:e,busy:t,ts:r,live:n,refresh:i}){let o=Math.max(...e.map(l=>l.
           if(_view==="qoq"){ main=c.qoqLabel||"—"; color=_cellColor(c.qoq); sub=c.avgLabel; }
           else if(_view==="yoy"){ main=c.yoyLabel||"—"; color=_cellColor(c.yoy); sub=c.avgLabel; }
           else { main=c.avgLabel; sub=c.modelCount?c.modelCount+" models":"—"; }
-          return (0,b.jsxs)("td",{style:{padding:"10px 10px",borderBottom:"1px solid #f9fafb",fontFamily:"monospace",textAlign:"right",fontWeight:600,color:color,whiteSpace:"nowrap"},title:c.avgLabel+" \xB7 "+(c.modelCount||0)+" models \xB7 "+(c.obsCount||0)+" daily observations",children:[
+          var _tip=(c.avgLabel||"\u2014")+" avg \xB7 "+(c.modelCount||0)+" models in this quarter \xB7 "+(c.obsCount||0)+" daily observations"+(c.qoqLabel?" \xB7 QoQ "+c.qoqLabel:"")+(c.yoyLabel?" \xB7 YoY "+c.yoyLabel:"");
+          return (0,b.jsxs)("td",{style:{padding:"10px 10px",borderBottom:"1px solid #f9fafb",fontFamily:"monospace",textAlign:"right",fontWeight:600,color:color,whiteSpace:"nowrap"},title:_tip,children:[
             (0,b.jsx)("div",{children:main}),
             (0,b.jsx)("div",{style:{fontSize:9,color:"#9ca3af",fontWeight:400,marginTop:1},children:sub})
           ]},c.slug);
@@ -253,12 +255,18 @@ function ZX({data:e,busy:t,ts:r,live:n,refresh:i}){let o=Math.max(...e.map(l=>l.
       (0,b.jsx)("div",{style:{fontSize:13,color:"#111827",fontWeight:500,marginBottom:4},children:"No provider-grouped history available"}),
       (0,b.jsx)("div",{style:{fontSize:11,color:"#6b7280"},children:"Upstream source returned no rows."})
     ]}),
-    (0,b.jsxs)("div",{style:{fontSize:10,color:"#9ca3af",marginTop:6,lineHeight:1.5},children:[
-      _unitHint,". Equal-weighted mean across every (model, day) observation in each calendar quarter, grouped by provider family.",
-      _state.data&&_state.data.earliestDateObserved?(" Historical depth begins "+_state.data.earliestDateObserved+" (upstream source floor) \u2014 no synthetic backfill."):"",
-      " Hover a cell for model / observation counts.",
-      " Model mix changes over time; averages reflect the models available in that quarter, not a fixed basket.",
-      " Source: api.pricepertoken.com/api/provider-pricing-history."
+    (0,b.jsxs)("div",{style:{display:"flex",flexWrap:"wrap",gap:"4px 10px",fontSize:10,color:"#6b7280",marginTop:8,lineHeight:1.5},children:[
+      (0,b.jsxs)("span",{children:[(0,b.jsx)("b",{style:{color:"#374151"},children:"Unit: "}),_unitHint]}),
+      (0,b.jsx)("span",{children:"\xB7"}),
+      (0,b.jsxs)("span",{children:[(0,b.jsx)("b",{style:{color:"#374151"},children:"Depth: "}),"begins "+((_state.data&&_state.data.earliestDateObserved)||"2025-07-28")]}),
+      (0,b.jsx)("span",{children:"\xB7"}),
+      (0,b.jsxs)("span",{children:[(0,b.jsx)("b",{style:{color:"#374151"},children:"Method: "}),"equal-weighted mean of (model, day) observations per provider per quarter \u2014 model mix reflects what was available in that quarter, not a fixed basket"]}),
+      (0,b.jsx)("span",{children:"\xB7"}),
+      (0,b.jsxs)("span",{children:[(0,b.jsx)("b",{style:{color:"#374151"},children:"YoY: "}),"appears only when a true year-ago quarter exists upstream"]}),
+      (0,b.jsx)("span",{children:"\xB7"}),
+      (0,b.jsxs)("span",{children:[(0,b.jsx)("b",{style:{color:"#374151"},children:"Backfill: "}),"none \u2014 real snapshots only"]}),
+      (0,b.jsx)("span",{children:"\xB7"}),
+      (0,b.jsxs)("span",{children:[(0,b.jsx)("b",{style:{color:"#374151"},children:"Source: "}),"api.pricepertoken.com provider pricing history"]})
     ]})
   ]});
 
