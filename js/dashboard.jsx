@@ -561,6 +561,22 @@ function ORTab({data,busy,ts,live,refresh}){
           </div>
         </div>
 
+        {/* PricePerToken — Open Router Pricing History embed */}
+        <div style={{marginTop:20,marginBottom:20}}>
+          <div style={{...S.lbl,marginBottom:8}}>Open Router Pricing History</div>
+          <div style={{borderRadius:8,overflow:"hidden",border:"0.5px solid #e5e7eb",background:"#fff"}}>
+            <iframe
+              src={"/api/pricepertoken-history-proxy?v="+Math.floor(Date.now()/3e5)}
+              title="Open Router Pricing History"
+              loading="lazy"
+              style={{border:0,display:"block",width:"100%",height:900,minHeight:800}}
+            />
+          </div>
+          <div style={{fontSize:10,color:"#9ca3af",marginTop:5}}>
+            Source: pricepertoken.com/pricing-history · reverse-proxied
+          </div>
+        </div>
+
         {/* Cloudflare Radar — Generative AI services popularity ranking */}
         <div style={{marginTop:16}}>
           <div style={{...S.lbl,marginBottom:8}}>Generative AI services popularity</div>
