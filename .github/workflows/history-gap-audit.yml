@@ -54,7 +54,7 @@ jobs:
           if [ -z "$READ_URL" ]; then
             echo "::error::HISTORY_READ_URL secret is not set"
             echo "Set it to your production /api/history endpoint, e.g."
-            echo "  https://google-dash.pages.dev/api/history"
+            echo "  https://google-dash-git.pages.dev/api/history"
             exit 1
           fi
           if [ -z "$CAPTURE_URL" ]; then

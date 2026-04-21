@@ -12,7 +12,7 @@ Add in the GitHub repo: **Settings → Secrets and variables → Actions → Rep
 
 | Secret | Example value | Purpose |
 |---|---|---|
-| `HISTORY_CAPTURE_URL` | `https://google-dash.pages.dev/api/history-capture` | Full URL of the production capture endpoint. Must be exact — no trailing slash, include scheme. |
+| `HISTORY_CAPTURE_URL` | `https://google-dash-git.pages.dev/api/history-capture` | Full URL of the production capture endpoint. Must be exact — no trailing slash, include scheme. |
 | `HISTORY_CAPTURE_SECRET` | `<random 32+ char string>` | Must match the `HISTORY_CAPTURE_SECRET` env var in Cloudflare Pages. |
 
 ### Required Cloudflare Pages Settings
@@ -109,7 +109,7 @@ After a run (scheduled or manual):
 
 2. **Confirm the new day is in KV**:
    ```bash
-   curl -s "https://google-dash.pages.dev/api/history?meta=true" | jq '.earliest, .latest, .count'
+   curl -s "https://google-dash-git.pages.dev/api/history?meta=true" | jq '.earliest, .latest, .count'
    ```
    The `latest` date should match today (UTC).
 
@@ -156,7 +156,7 @@ so a regression in one cannot mask the other.
 
 | Secret | Example value | Purpose |
 |---|---|---|
-| `HISTORY_READ_URL` | `https://google-dash.pages.dev/api/history` | Full URL of the production read endpoint. The `?meta=true` suffix is appended automatically. No auth needed (read endpoint is public). |
+| `HISTORY_READ_URL` | `https://google-dash-git.pages.dev/api/history` | Full URL of the production read endpoint. The `?meta=true` suffix is appended automatically. No auth needed (read endpoint is public). |
 
 ### Schedule
 
@@ -273,7 +273,7 @@ catches it.
 
 | Secret | Required? | Purpose |
 |---|---|---|
-| `HISTORY_READ_URL` | yes | Production read endpoint, e.g. `https://google-dash.pages.dev/api/history`. The `?meta=true` suffix is appended automatically. |
+| `HISTORY_READ_URL` | yes | Production read endpoint, e.g. `https://google-dash-git.pages.dev/api/history`. The `?meta=true` suffix is appended automatically. |
 | `HISTORY_CAPTURE_URL` | optional but recommended | Production capture endpoint, used to build copy-pasteable backfill `curl` commands inside the alert. If unset, the alert uses a `<HISTORY_CAPTURE_URL>` placeholder. |
 
 The capture secret (`HISTORY_CAPTURE_SECRET`) is **never** referenced by
@@ -337,9 +337,9 @@ Each alert includes:
 Example backfill block in an alert:
 
 ```bash
-curl -fsS "https://google-dash.pages.dev/api/history-capture?date=2026-04-12" \
+curl -fsS "https://google-dash-git.pages.dev/api/history-capture?date=2026-04-12" \
   -H "Authorization: Bearer $HISTORY_CAPTURE_SECRET" | jq
-curl -fsS "https://google-dash.pages.dev/api/history-capture?date=2026-04-13" \
+curl -fsS "https://google-dash-git.pages.dev/api/history-capture?date=2026-04-13" \
   -H "Authorization: Bearer $HISTORY_CAPTURE_SECRET" | jq
 ```
 
