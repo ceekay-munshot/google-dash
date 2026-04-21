@@ -959,6 +959,8 @@ function GPUHardwarePricingTab(){
   const[err,setErr]=useState(false);
   const[data,setData]=useState(null);   // {ok, rows, sourceUpdatedAt, ...}
   const[loadErr,setLoadErr]=useState(false);
+  const[hist,setHist]=useState(null);   // /api/gpu-hardware-pricing-history
+  const[histErr,setHistErr]=useState(false);
 
   useEffect(()=>{
     let cancelled=false;
@@ -966,6 +968,10 @@ function GPUHardwarePricingTab(){
       .then(r=>r.ok?r.json():Promise.reject(r.status))
       .then(j=>{if(!cancelled){if(j&&j.ok){setData(j);}else{setLoadErr(true);}}})
       .catch(()=>{if(!cancelled)setLoadErr(true);});
+    fetch("/api/gpu-hardware-pricing-history?window=60")
+      .then(r=>r.ok?r.json():Promise.reject(r.status))
+      .then(j=>{if(!cancelled){if(j&&j.success){setHist(j);}else{setHistErr(true);}}})
+      .catch(()=>{if(!cancelled)setHistErr(true);});
     return()=>{cancelled=true;};
   },[]);
 
@@ -1065,6 +1071,9 @@ function GPUHardwarePricingTab(){
         </>
       )}
 
+      {/* GPU Pricing History section */}
+      <GPUHistoryBlock hist={hist} histErr={histErr}/>
+
       {/* Live embed */}
       {err?(
         <div style={{background:"#f9fafb",border:"1px dashed #d1d5db",borderRadius:8,padding:"32px 16px",textAlign:"center"}}>
@@ -1094,6 +1103,228 @@ function GPUHardwarePricingTab(){
 
 const gpuTh={textAlign:"left",padding:"7px 12px",fontSize:10,textTransform:"uppercase",letterSpacing:".06em",color:"#6b7280",fontWeight:600};
 const gpuTd={padding:"7px 12px",verticalAlign:"middle"};
+
+/* ─── GPU History Block ─────────────────────────────────────
+   Trend cards + history comparison table + sparklines
+   Reads /api/gpu-hardware-pricing-history (layers on top of the
+   canonical day:YYYY-MM-DD snapshots written by /api/history-capture
+   and /api/gpu-hardware-pricing-history-refresh). */
+const GPU_HISTORY_TREND_SKUS=["Nvidia H100","Nvidia H200","Nvidia B200","Nvidia A100"];
+
+function GPUHistoryBlock({hist,histErr}){
+  // Hard-failure fallback — history service down, but we keep the rest of the tab alive.
+  if(histErr){
+    return(
+      <div style={{background:"#f9fafb",border:"1px dashed #d1d5db",borderRadius:8,padding:"14px 16px",marginBottom:14}}>
+        <div style={{...S.lbl,color:"#0e7490",marginBottom:6}}>GPU Pricing History</div>
+        <div style={{fontSize:11,color:"#6b7280"}}>History service temporarily unavailable — live embed below still loads.</div>
+      </div>
+    );
+  }
+  // Loading skeleton
+  if(!hist){
+    return(
+      <div style={{marginBottom:14}}>
+        <div style={{...S.lbl,color:"#0e7490",marginBottom:8}}>GPU Pricing History</div>
+        <Shimmer rows={3}/>
+      </div>
+    );
+  }
+
+  const since=hist.trackingSinceDate;
+  const latest=hist.latestDate;
+  const days=hist.daysWithGPU||0;
+  const d7=hist.comparisons?.d7||{};
+  const d30=hist.comparisons?.d30||{};
+  const signals=hist.signals||{};
+  const series=hist.series||{};
+  const latestBySku=hist.latest||{};
+  const trackedSKUs=hist.trackedSKUs||[];
+
+  // Empty-state: index exists but no snapshots had a gpu block yet.
+  if(!days){
+    return(
+      <div style={{background:"#fff",border:"0.5px solid #e5e7eb",borderRadius:10,padding:"14px 16px",marginBottom:14}}>
+        <div style={{...S.lbl,color:"#0e7490",marginBottom:6}}>GPU Pricing History</div>
+        <div style={{fontSize:12,color:"#111827",fontWeight:500}}>Tracking starts with the next daily capture</div>
+        <div style={{fontSize:11,color:"#6b7280",marginTop:3}}>
+          Daily snapshots of strategic GPU pricing will accumulate here. 7D and 30D comparisons become available once enough history is captured.
+        </div>
+      </div>
+    );
+  }
+
+  return(
+    <div style={{marginBottom:14}}>
+      {/* Header */}
+      <div style={{display:"flex",alignItems:"baseline",justifyContent:"space-between",marginBottom:8,flexWrap:"wrap",gap:6}}>
+        <div>
+          <div style={{...S.lbl,color:"#0e7490"}}>GPU Pricing History</div>
+          <div style={{fontSize:11,color:"#9ca3af",marginTop:2}}>
+            Tracking since <b style={{color:"#6b7280",fontWeight:600}}>{since||"—"}</b>
+            {latest&&since&&latest!==since&&<> · latest <b style={{color:"#6b7280",fontWeight:600}}>{latest}</b></>}
+            {" · "}{days} snapshot{days===1?"":"s"} captured
+          </div>
+        </div>
+      </div>
+
+      {/* Trend cards — 7D change in cheapest $/hr per strategic SKU */}
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(180px,1fr))",gap:8,marginBottom:10}}>
+        {GPU_HISTORY_TREND_SKUS.map(sku=>{
+          const c=d7[sku];
+          const latestPt=latestBySku[sku];
+          const short=sku.replace(/^Nvidia\s+/i,"");
+          if(!c||c.status!=="ok"){
+            return(
+              <div key={sku} style={{background:"#fafafa",border:"0.5px solid #e5e7eb",borderRadius:8,padding:"10px 12px"}}>
+                <div style={{...S.lbl,color:"#6b7280",fontSize:9}}>{short} · 7D change</div>
+                <div style={{fontSize:12,fontWeight:600,color:"#9ca3af",marginTop:4}}>not enough data yet</div>
+                <div style={{fontSize:10,color:"#9ca3af",marginTop:2}}>tracking since {since}</div>
+              </div>
+            );
+          }
+          const pct=c.minDeltaPct;
+          const providerDelta=c.providerDelta;
+          const up=pct!=null&&pct>0;
+          const down=pct!=null&&pct<0;
+          const color=up?"#dc2626":down?"#059669":"#6b7280";
+          const arrow=up?"▲":down?"▼":"•";
+          const sig=signals[sku];
+          const sigLabel=sig==="loosening"?"loosening":sig==="tightening"?"tightening":sig==="stable"?"stable":null;
+          const sigBg=sig==="loosening"?"#dcfce7":sig==="tightening"?"#fee2e2":sig==="stable"?"#f3f4f6":"#f3f4f6";
+          const sigFg=sig==="loosening"?"#059669":sig==="tightening"?"#dc2626":sig==="stable"?"#6b7280":"#9ca3af";
+          return(
+            <div key={sku} style={{background:"#fff",border:"0.5px solid #e5e7eb",borderRadius:8,padding:"10px 12px"}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:6}}>
+                <div style={{...S.lbl,color:"#6b7280",fontSize:9}}>{short} · 7D change</div>
+                {sigLabel&&<span style={{fontSize:9,padding:"1px 6px",borderRadius:3,background:sigBg,color:sigFg,fontWeight:600,textTransform:"uppercase",letterSpacing:".04em"}}>{sigLabel}</span>}
+              </div>
+              <div style={{display:"flex",alignItems:"baseline",gap:6,marginTop:4}}>
+                <span style={{fontSize:16,fontWeight:700,color}}>{arrow}&nbsp;{pct==null?"—":(pct>0?"+":"")+pct.toFixed(1)+"%"}</span>
+                <span style={{fontSize:11,color:"#6b7280"}}>min $/hr</span>
+              </div>
+              <div style={{fontSize:10,color:"#9ca3af",marginTop:3}}>
+                {latestPt?.minPricePerHour!=null?"now $"+latestPt.minPricePerHour.toFixed(2):"—"}
+                {providerDelta!=null&&<> · providers {providerDelta>0?"+":""}{providerDelta}</>}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Strategic history comparison table */}
+      <div style={{border:"0.5px solid #e5e7eb",borderRadius:8,overflow:"hidden",background:"#fff",marginBottom:10}}>
+        <div style={{padding:"9px 14px",borderBottom:"0.5px solid #f3f4f6",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+          <span style={{fontSize:11,fontWeight:600,color:"#111827"}}>Strategic SKU history</span>
+          <span style={{fontSize:10,color:"#9ca3af"}}>latest vs 7D / 30D prior · loosening = more providers or lower floor</span>
+        </div>
+        <div style={{overflowX:"auto"}}>
+          <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
+            <thead>
+              <tr style={{background:"#fafafa"}}>
+                <th style={gpuTh}>GPU</th>
+                <th style={{...gpuTh,textAlign:"right"}}>Latest&nbsp;min&nbsp;$/hr</th>
+                <th style={{...gpuTh,textAlign:"right"}}>7D&nbsp;Δ</th>
+                <th style={{...gpuTh,textAlign:"right"}}>30D&nbsp;Δ</th>
+                <th style={{...gpuTh,textAlign:"right"}}>Providers</th>
+                <th style={{...gpuTh,textAlign:"right"}}>7D&nbsp;Δ&nbsp;providers</th>
+                <th style={{...gpuTh,textAlign:"right"}}>Spread×</th>
+                <th style={{...gpuTh,textAlign:"right"}}>Trend (60d)</th>
+                <th style={gpuTh}>Tracking since</th>
+              </tr>
+            </thead>
+            <tbody>
+              {trackedSKUs.map(sku=>{
+                const pts=series[sku]||[];
+                const latestPt=latestBySku[sku];
+                const c7=d7[sku];
+                const c30=d30[sku];
+                const firstDate=pts[0]?.date||null;
+                return(
+                  <tr key={sku} style={{borderTop:"0.5px solid #f3f4f6"}}>
+                    <td style={gpuTd}><span style={{fontWeight:600,color:"#111827"}}>{sku}</span></td>
+                    <td style={{...gpuTd,textAlign:"right",color:"#059669",fontWeight:600}}>{latestPt?.minPricePerHour!=null?"$"+latestPt.minPricePerHour.toFixed(2):"—"}</td>
+                    <td style={{...gpuTd,textAlign:"right"}}><DeltaCell c={c7} field="minDeltaPct" suffix="%"/></td>
+                    <td style={{...gpuTd,textAlign:"right"}}><DeltaCell c={c30} field="minDeltaPct" suffix="%"/></td>
+                    <td style={{...gpuTd,textAlign:"right",color:"#374151"}}>{latestPt?.providerCount??"—"}</td>
+                    <td style={{...gpuTd,textAlign:"right"}}><DeltaCell c={c7} field="providerDelta" suffix="" integer/></td>
+                    <td style={{...gpuTd,textAlign:"right",color:"#6b7280"}}>{latestPt?.spreadMultiple?latestPt.spreadMultiple.toFixed(1)+"×":"—"}</td>
+                    <td style={{...gpuTd,textAlign:"right"}}><Sparkline pts={pts}/></td>
+                    <td style={{...gpuTd,color:"#9ca3af",fontSize:11}}>{firstDate||"—"}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Textual signal summary — only show when data-grounded */}
+      {(() => {
+        const msgs=[];
+        for(const sku of GPU_HISTORY_TREND_SKUS){
+          const c=d7[sku];
+          const sig=signals[sku];
+          if(!c||c.status!=="ok"||!sig||sig==="insufficient-data")continue;
+          const short=sku.replace(/^Nvidia\s+/i,"");
+          if(sig==="loosening"){
+            const parts=[];
+            if(c.minDeltaPct!=null&&c.minDeltaPct<=-2)parts.push("min "+c.minDeltaPct.toFixed(1)+"%");
+            if(c.providerDelta!=null&&c.providerDelta>0)parts.push("+"+c.providerDelta+" providers");
+            if(parts.length)msgs.push(short+" loosening ("+parts.join(" · ")+")");
+          } else if(sig==="tightening"){
+            const parts=[];
+            if(c.minDeltaPct!=null&&c.minDeltaPct>=2)parts.push("min +"+c.minDeltaPct.toFixed(1)+"%");
+            if(c.providerDelta!=null&&c.providerDelta<0)parts.push(c.providerDelta+" providers");
+            if(parts.length)msgs.push(short+" tightening ("+parts.join(" · ")+")");
+          }
+        }
+        if(!msgs.length)return null;
+        return(
+          <div style={{background:"#fef3c7",border:"0.5px solid #fde68a",borderRadius:6,padding:"8px 12px",fontSize:11,color:"#92400e",marginBottom:6}}>
+            <b style={{fontWeight:600}}>Signal (7D):</b> {msgs.join(" · ")}
+          </div>
+        );
+      })()}
+    </div>
+  );
+}
+
+function DeltaCell({c,field,suffix,integer}){
+  if(!c||c.status!=="ok"||c[field]==null){
+    return <span style={{color:"#9ca3af"}}>—</span>;
+  }
+  const v=c[field];
+  const up=v>0;
+  const down=v<0;
+  const color=up?"#dc2626":down?"#059669":"#6b7280";
+  const formatted=integer?(v>0?"+":"")+v:(v>0?"+":"")+v.toFixed(1);
+  return <span style={{color,fontWeight:600}}>{formatted}{suffix}</span>;
+}
+
+function Sparkline({pts,w=80,h=22}){
+  if(!pts||pts.length<2)return <span style={{color:"#d1d5db",fontSize:10}}>—</span>;
+  const vals=pts.map(p=>p.minPricePerHour).filter(v=>typeof v==="number");
+  if(vals.length<2)return <span style={{color:"#d1d5db",fontSize:10}}>—</span>;
+  const min=Math.min.apply(null,vals);
+  const max=Math.max.apply(null,vals);
+  const range=max-min||1;
+  const pad=2;
+  const step=vals.length>1?(w-pad*2)/(vals.length-1):0;
+  const points=vals.map((v,i)=>{
+    const x=pad+i*step;
+    const y=pad+(h-pad*2)*(1-(v-min)/range);
+    return x.toFixed(1)+","+y.toFixed(1);
+  }).join(" ");
+  const lastV=vals[vals.length-1];
+  const firstV=vals[0];
+  const trendColor=lastV>firstV?"#dc2626":lastV<firstV?"#059669":"#6b7280";
+  return(
+    <svg width={w} height={h} style={{display:"inline-block",verticalAlign:"middle"}}>
+      <polyline points={points} fill="none" stroke={trendColor} strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  );
+}
 
 /* ═══════════════════════════════════════════════════════
    EMBEDDED: OpenRouter Live Rankings (proxied page iframe)
@@ -1521,12 +1752,11 @@ export default function App(){
   const[fetchedAtLabel,setFetchedAtLabel]=useState(LIVE.fetchedAt);
 
   function refreshAll(){
-    Promise.all([or.refresh(),radar.refresh(),trends.refresh()]).finally(()=>{
-      const d=new Date();
-      const datePart=d.toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric",timeZone:"UTC"});
-      const timePart=String(d.getUTCHours()).padStart(2,"0")+":"+String(d.getUTCMinutes()).padStart(2,"0");
-      setFetchedAtLabel(datePart+" \u00B7 "+timePart+" UTC");
-    });
+    const d=new Date();
+    const datePart=d.toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric",timeZone:"UTC"});
+    const timePart=String(d.getUTCHours()).padStart(2,"0")+":"+String(d.getUTCMinutes()).padStart(2,"0")+":"+String(d.getUTCSeconds()).padStart(2,"0");
+    setFetchedAtLabel(datePart+" \u00B7 "+timePart+" UTC");
+    or.refresh();radar.refresh();trends.refresh();
   }
 
   const best =LIVE.or.find(m=>m.isGemini);

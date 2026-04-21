@@ -235,6 +235,65 @@ function normalizePricing(raw) {
   };
 }
 
+/**
+ * Normalize the getdeploying.com GPU pricing payload into the small
+ * per-day block we persist. We filter to a stable strategic SKU set so
+ * the daily snapshot stays focused on decision-weight accelerators —
+ * the live reverse-proxy embed in the GPU tab still shows the full 91
+ * rows to users, so we're not losing user-visible data.
+ *
+ * Stored per tracked SKU:
+ *   gpuModel, vram, category, providerCount,
+ *   minPricePerHour, maxPricePerHour,
+ *   spreadAbsolute, spreadMultiple, priceMidpoint
+ *
+ * If the parser is offline the block is `null` — readers count it as a
+ * coverage miss for that day rather than failing the snapshot.
+ */
+const GPU_TRACKED_SKUS = [
+  'Nvidia H100',
+  'Nvidia H200',
+  'Nvidia B200',
+  'Nvidia GB200',
+  'Nvidia A100',
+  'Nvidia L40S',
+];
+
+function normalizeGPU(raw) {
+  if (!raw || !raw.ok || !Array.isArray(raw.rows)) return null;
+  const trackedSet = new Set(GPU_TRACKED_SKUS);
+  const models = [];
+  for (const r of raw.rows) {
+    if (!trackedSet.has(r.gpuModel)) continue;
+    const min = typeof r.minPricePerHour === 'number' ? r.minPricePerHour : null;
+    const max = typeof r.maxPricePerHour === 'number' ? r.maxPricePerHour : null;
+    const spreadAbsolute = (min != null && max != null) ? +(max - min).toFixed(4) : null;
+    const spreadMultiple = (min != null && max != null && min > 0) ? +(max / min).toFixed(3) : null;
+    const priceMidpoint = (min != null && max != null) ? +((min + max) / 2).toFixed(4) : null;
+    models.push({
+      gpuModel: r.gpuModel,
+      vram: r.vram || null,
+      category: r.category || null,
+      providerCount: typeof r.providerCount === 'number' ? r.providerCount : null,
+      minPricePerHour: min,
+      maxPricePerHour: max,
+      spreadAbsolute,
+      spreadMultiple,
+      priceMidpoint,
+    });
+  }
+  // Deterministic ordering for stable content hashes
+  models.sort((a, b) => (a.gpuModel < b.gpuModel ? -1 : a.gpuModel > b.gpuModel ? 1 : 0));
+  return {
+    models,
+    trackedSKUs: GPU_TRACKED_SKUS,
+    coverage: models.length,
+    sourceUpdatedAt: raw.sourceUpdatedAt || null,
+    sourceUrl: raw.sourceUrl || null,
+    fetchedAt: raw.fetchedAt || new Date().toISOString(),
+  };
+}
+
 function normalizeFiling(raw) {
   if (!raw?.success) return null;
   return {
@@ -312,12 +371,13 @@ export async function onRequestGet({ request, env }) {
   }
 
   // ── Fetch all data sources in parallel ──
-  const [orRaw, botsRaw, trendsRaw, filingRaw, pricingRaw] = await Promise.all([
+  const [orRaw, botsRaw, trendsRaw, filingRaw, pricingRaw, gpuRaw] = await Promise.all([
     localFetch(request, '/api/openrouter?view=week&top=30'),
     localFetch(request, '/api/radar/ai/bots/summary/user_agent?dateRange=28d'),
     localFetch(request, '/api/trends?window=12m'),
     localFetch(request, '/api/google-filings'),
     localFetch(request, '/api/pricepertoken-data'),
+    localFetch(request, '/api/gpu-hardware-pricing-data'),
   ]);
 
   // ── Normalize ──
@@ -326,6 +386,7 @@ export async function onRequestGet({ request, env }) {
   const trends = normalizeTrends(trendsRaw);
   const filing = normalizeFiling(filingRaw);
   const pricing = normalizePricing(pricingRaw);
+  const gpu = normalizeGPU(gpuRaw);
   const openrouterSummary = extractOpenRouterSummary(orRaw, or);
 
   // Must have at least OR data to create a valid snapshot
@@ -347,7 +408,9 @@ export async function onRequestGet({ request, env }) {
   // new hash even when ranking row order is unchanged.
   // pricing is included so a price change on any basket member forces
   // a new snapshot on that day.
-  const canonicalPayload = { or, bots, trends, filing, openrouterSummary, pricing };
+  // gpu is included so a change in any strategic GPU min/max price or
+  // provider count forces a new snapshot on that day.
+  const canonicalPayload = { or, bots, trends, filing, openrouterSummary, pricing, gpu };
   const hash = await contentHash(canonicalPayload);
 
   const dayKey = 'day:' + targetDate;
@@ -377,7 +440,7 @@ export async function onRequestGet({ request, env }) {
     date: targetDate,
     capturedAt,
     hash,
-    version: 3, // bumped: now stores pricing (basket) alongside openrouterSummary
+    version: 4, // bumped: now stores gpu (strategic SKUs) alongside pricing + openrouterSummary
     source: isBackfill ? 'backfill' : (authMethod === 'none' ? 'manual' : 'cron'),
     authMethod,
     dedup,
@@ -393,6 +456,7 @@ export async function onRequestGet({ request, env }) {
     filing,
     openrouterSummary,
     pricing,
+    gpu,
   };
 
   // ── Write to KV ──
@@ -428,6 +492,9 @@ export async function onRequestGet({ request, env }) {
       openrouterTotal: openrouterSummary?.totalTokensLabel || 'n/a',
       pricing: pricing
         ? pricing.coverage + '/' + pricing.basketSize + ' basket members'
+        : 'unavailable',
+      gpu: gpu
+        ? gpu.coverage + '/' + gpu.trackedSKUs.length + ' strategic SKUs'
         : 'unavailable',
     },
   });

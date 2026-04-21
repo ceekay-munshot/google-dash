@@ -32,9 +32,10 @@
 const FIRECRAWL_API_KEY = 'fc-203d41c5b1984cdabee2a7564572efea';
 const FIRECRAWL_BASE    = 'https://api.firecrawl.dev/v1';
 
-const CACHE_TTL_MS  = 6 * 60 * 60 * 1000;   // 6 hours
-const STALE_TTL_MS  = 24 * 60 * 60 * 1000;  // 24 hours (still serve with stale flag)
-const REQUEST_DELAY = 12000;                  // 12 s between per-term calls
+const FRESH_TTL_MS   = 6 * 60 * 60 * 1000;    // 6 hours — serve silently
+const STALE_TTL_MS   = 7 * 24 * 60 * 60 * 1000; // 7 days — serve with stale flag, trigger background refresh
+const KV_TTL_SEC     = 14 * 24 * 60 * 60;     // 14 days — KV expiration ceiling
+const TERM_TIMEOUT_MS= 18000;                  // per-term Firecrawl cap so one slow term can't block refresh
 
 const DEFAULT_TERMS = ['Gemini AI', 'ChatGPT', 'Claude AI', 'Perplexity', 'Copilot'];
 
@@ -57,8 +58,9 @@ export async function onRequestOptions() {
 }
 
 /* ─── Entry: GET ─────────────────────────────────────────────── */
-export async function onRequestGet({ request }) {
+export async function onRequestGet(context) {
   try {
+  const { request, env, waitUntil } = context;
   const url    = new URL(request.url);
   const rawT   = url.searchParams.get('terms');
   const terms  = rawT
@@ -68,45 +70,53 @@ export async function onRequestGet({ request }) {
   const gtDate = GT_WINDOW[winKey] || 'today 12-m';
 
   const cacheKey = terms.join('|') + '|' + winKey;
-  const cached   = _cache[cacheKey];
+  const kvKey    = 'trends:v1:' + cacheKey;
+  const kv       = env?.HISTORY_KV || null;
   const now      = Date.now();
 
-  /* ── serve fresh cache immediately ─────────────────────────── */
-  if (cached && (now - cached.ts) < CACHE_TTL_MS) {
-    return jsonOk({ ...cached.payload, fromCache: true,
-                    cacheAge: Math.round((now - cached.ts) / 60000) + 'm' });
-  }
+  /* ── L1: in-memory cache (per-worker) ──────────────────────── */
+  let cached = _cache[cacheKey];
 
-  /* ── fetch each term sequentially with spacing ─────────────── */
-  const series = [];
-  const errors = [];
-
-  for (let i = 0; i < terms.length; i++) {
-    if (i > 0) await sleep(REQUEST_DELAY);
-
-    const term   = terms[i];
-    const result = await scrapeTerm(term, gtDate);
-
-    if (result.ok) {
-      series.push({ term, data: result.data });
-    } else {
-      errors.push({ term, error: result.error });
-
-      if (result.rateLimited && cached) {
-        /* rate-limited — return stale cache immediately */
-        return jsonOk({
-          ...cached.payload,
-          stale:       true,
-          staleReason: 'Firecrawl rate-limited (429)'
-        });
+  /* ── L2: KV cache (shared across workers) — try once if L1 empty ── */
+  if (!cached && kv) {
+    try {
+      const kvHit = await kv.get(kvKey, 'json');
+      if (kvHit && kvHit.payload && typeof kvHit.ts === 'number') {
+        cached = kvHit;
+        _cache[cacheKey] = kvHit; // promote to L1
       }
-      /* push empty so downstream doesn't crash */
-      series.push({ term, data: [] });
-    }
+    } catch (_) { /* KV failure is non-fatal */ }
   }
 
-  /* ── compute summary rows ───────────────────────────────────── */
-  const summary = buildSummary(series);
+  const age      = cached ? (now - cached.ts) : Infinity;
+  const isFresh  = cached && age < FRESH_TTL_MS;
+  const isStale  = cached && age >= FRESH_TTL_MS && age < STALE_TTL_MS;
+
+  /* ── Fresh cache: serve silently ───────────────────────────── */
+  if (isFresh) {
+    return jsonOk({ ...cached.payload, fromCache: true, stale: false,
+                    cacheAge: Math.round(age / 60000) + 'm' });
+  }
+
+  /* ── Stale cache: serve immediately, refresh in background ─── */
+  if (isStale) {
+    if (waitUntil) {
+      waitUntil(refreshInBackground({ terms, gtDate, winKey, cacheKey, kvKey, kv }));
+    }
+    return jsonOk({ ...cached.payload, fromCache: true, stale: true,
+                    cacheAge: Math.round(age / 60000) + 'm',
+                    staleReason: 'Serving cached data while background refresh runs' });
+  }
+
+  /* ── No usable cache: fetch synchronously, parallel ────────── */
+  const { series, errors, rateLimited } =
+    await fetchAllTermsParallel(terms, gtDate);
+
+  /* If rate-limited and we had ANY cache (even past 7d), still prefer it ── */
+  if (rateLimited && cached) {
+    return jsonOk({ ...cached.payload, fromCache: true, stale: true,
+                    staleReason: 'Firecrawl rate-limited (429) — serving last known data' });
+  }
 
   const payload = {
     success:      true,
@@ -114,7 +124,7 @@ export async function onRequestGet({ request }) {
     window:       winKey,
     terms,
     series,
-    summary,
+    summary:      buildSummary(series),
     errors,
     fromCache:    false,
     stale:        false,
@@ -122,15 +132,86 @@ export async function onRequestGet({ request }) {
                   'Directional fallback proxy — not session count, MAU, revenue, or absolute usage.'
   };
 
-  /* ── cache even partial results ─────────────────────────────── */
+  /* ── cache even partial results to both tiers ──────────────── */
   if (series.some(s => s.data.length > 0)) {
-    _cache[cacheKey] = { payload, ts: now };
+    const entry = { payload, ts: now };
+    _cache[cacheKey] = entry;
+    if (kv) {
+      /* don't await — putting to KV shouldn't block response */
+      const putPromise = kv.put(kvKey, JSON.stringify(entry), { expirationTtl: KV_TTL_SEC })
+        .catch(() => { /* non-fatal */ });
+      if (waitUntil) waitUntil(putPromise);
+    }
   }
 
   return jsonOk(payload);
   } catch (err) {
     return jsonOk({ success: false, error: err.message });
   }
+}
+
+/* ─── Fan out to all terms concurrently ─────────────────────── */
+async function fetchAllTermsParallel(terms, gtDate) {
+  const results = await Promise.allSettled(
+    terms.map(term => withTimeout(scrapeTerm(term, gtDate), TERM_TIMEOUT_MS, term))
+  );
+
+  const series = [];
+  const errors = [];
+  let   rateLimited = false;
+
+  results.forEach((r, i) => {
+    const term = terms[i];
+    if (r.status === 'fulfilled' && r.value?.ok) {
+      series.push({ term, data: r.value.data });
+    } else {
+      const reason = r.status === 'fulfilled'
+        ? (r.value?.error || 'unknown')
+        : (r.reason?.message || String(r.reason));
+      errors.push({ term, error: reason });
+      if (r.status === 'fulfilled' && r.value?.rateLimited) rateLimited = true;
+      series.push({ term, data: [] });
+    }
+  });
+
+  return { series, errors, rateLimited };
+}
+
+/* ─── Background refresh (no response awaited) ──────────────── */
+async function refreshInBackground({ terms, gtDate, winKey, cacheKey, kvKey, kv }) {
+  try {
+    const { series, errors } = await fetchAllTermsParallel(terms, gtDate);
+    if (!series.some(s => s.data.length > 0)) return; // nothing useful fetched
+    const payload = {
+      success:      true,
+      fetchedAt:    new Date().toISOString(),
+      window:       winKey,
+      terms,
+      series,
+      summary:      buildSummary(series),
+      errors,
+      fromCache:    false,
+      stale:        false,
+      methodology:  'Google Trends normalized 0–100, relative interest only.'
+    };
+    const entry = { payload, ts: Date.now() };
+    _cache[cacheKey] = entry;
+    if (kv) {
+      await kv.put(kvKey, JSON.stringify(entry), { expirationTtl: KV_TTL_SEC });
+    }
+  } catch (_) { /* background refresh failure is non-fatal */ }
+}
+
+/* ─── Per-term timeout wrapper ──────────────────────────────── */
+function withTimeout(promise, ms, label) {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(
+      () => resolve({ ok: false, error: 'timeout after ' + ms + 'ms (' + label + ')' }),
+      ms
+    );
+    promise.then(v => { clearTimeout(timer); resolve(v); },
+                 e => { clearTimeout(timer); reject(e); });
+  });
 }
 
 /* ─── Scrape one term via Firecrawl ─────────────────────────── */
@@ -436,10 +517,6 @@ function dedupeByMonth(rows) {
     date:  key + '-01',
     value: Math.round(avg(buckets[key]))
   }));
-}
-
-function sleep(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 function jsonOk(obj) {
