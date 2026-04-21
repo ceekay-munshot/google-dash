@@ -103,9 +103,15 @@ function KBox({label,value,sub,bg,fg}){
 }
 
 function RBtn({busy,onClick,label="↻  Refresh"}){
+  const[pressed,setPressed]=useState(false);
+  function handleClick(e){
+    setPressed(true);
+    setTimeout(()=>setPressed(false),180);
+    onClick&&onClick(e);
+  }
   return(
-    <button onClick={onClick} disabled={busy}
-      style={{display:"inline-flex",alignItems:"center",gap:6,fontSize:12,padding:"6px 14px",border:"0.5px solid "+(busy?"#e5e7eb":"#d1d5db"),borderRadius:8,background:busy?"#f9fafb":"#fff",color:busy?"#9ca3af":"#374151",cursor:busy?"not-allowed":"pointer",fontFamily:"inherit",fontWeight:500}}>
+    <button onClick={handleClick} disabled={busy}
+      style={{display:"inline-flex",alignItems:"center",gap:6,fontSize:12,padding:"6px 14px",border:"0.5px solid "+(busy?"#e5e7eb":"#d1d5db"),borderRadius:8,background:busy?"#f9fafb":"#fff",color:busy?"#9ca3af":"#374151",cursor:busy?"wait":"pointer",fontFamily:"inherit",fontWeight:500,transform:pressed?"scale(0.96)":"scale(1)",transition:"transform .12s ease, background .15s, color .15s"}}>
       {busy?<><Spin size={10}/> Fetching…</>:label}
     </button>
   );
@@ -957,10 +963,13 @@ function fmtUSD(v){
 
 function GPUHardwarePricingTab(){
   const[err,setErr]=useState(false);
-  const[data,setData]=useState(null);   // {ok, rows, sourceUpdatedAt, ...}
+  const[data,setData]=useState(null);
   const[loadErr,setLoadErr]=useState(false);
-  const[hist,setHist]=useState(null);   // /api/gpu-hardware-pricing-history
+  const[hist,setHist]=useState(null);       // daily
   const[histErr,setHistErr]=useState(false);
+  const[qHist,setQHist]=useState(null);     // quarter
+  const[qHistErr,setQHistErr]=useState(false);
+  const[histView,setHistView]=useState("quarter"); // "quarter" default per investor framing
 
   useEffect(()=>{
     let cancelled=false;
@@ -972,6 +981,10 @@ function GPUHardwarePricingTab(){
       .then(r=>r.ok?r.json():Promise.reject(r.status))
       .then(j=>{if(!cancelled){if(j&&j.success){setHist(j);}else{setHistErr(true);}}})
       .catch(()=>{if(!cancelled)setHistErr(true);});
+    fetch("/api/gpu-hardware-pricing-history?view=quarter&window=400")
+      .then(r=>r.ok?r.json():Promise.reject(r.status))
+      .then(j=>{if(!cancelled){if(j&&j.success){setQHist(j);}else{setQHistErr(true);}}})
+      .catch(()=>{if(!cancelled)setQHistErr(true);});
     return()=>{cancelled=true;};
   },[]);
 
@@ -1071,8 +1084,12 @@ function GPUHardwarePricingTab(){
         </>
       )}
 
-      {/* GPU Pricing History section */}
-      <GPUHistoryBlock hist={hist} histErr={histErr}/>
+      {/* GPU Pricing History section — Quarter view is the investor-facing default */}
+      <GPUHistoryShell
+        histView={histView} setHistView={setHistView}
+        qHist={qHist} qHistErr={qHistErr}
+        hist={hist} histErr={histErr}
+      />
 
       {/* Live embed */}
       {err?(
@@ -1104,19 +1121,494 @@ function GPUHardwarePricingTab(){
 const gpuTh={textAlign:"left",padding:"7px 12px",fontSize:10,textTransform:"uppercase",letterSpacing:".06em",color:"#6b7280",fontWeight:600};
 const gpuTd={padding:"7px 12px",verticalAlign:"middle"};
 
-/* ─── GPU History Block ─────────────────────────────────────
+/* ─── GPU History Shell ─────────────────────────────────────
+   Segmented Quarter | Daily toggle; Quarter is the investor-facing
+   default. Quarter view uses /api/gpu-hardware-pricing-history?view=quarter
+   (real-only by default — backfill/synthetic seeds are excluded). Daily
+   view remains available as a secondary drill-down. */
+function GPUHistoryShell({histView,setHistView,qHist,qHistErr,hist,histErr}){
+  return(
+    <div style={{marginBottom:14}}>
+      <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:8,flexWrap:"wrap"}}>
+        <div style={{...S.lbl,color:"#0e7490"}}>GPU Pricing History</div>
+        <div style={{display:"inline-flex",border:"0.5px solid #e5e7eb",borderRadius:6,overflow:"hidden",background:"#fff"}}>
+          {["quarter","daily"].map(v=>{
+            const active=histView===v;
+            return(
+              <button key={v} onClick={()=>setHistView(v)}
+                style={{fontSize:11,padding:"4px 12px",border:"none",background:active?"#111827":"#fff",color:active?"#fff":"#6b7280",cursor:"pointer",fontFamily:"inherit",fontWeight:500,textTransform:"capitalize"}}>
+                {v==="quarter"?"Quarter (QoQ)":"Daily"}
+              </button>
+            );
+          })}
+        </div>
+        <span style={{fontSize:10,color:"#9ca3af"}}>
+          Investor lens · daily snapshots aggregated by calendar quarter (Q1 Jan–Mar, Q2 Apr–Jun, Q3 Jul–Sep, Q4 Oct–Dec UTC)
+        </span>
+      </div>
+      {histView==="quarter"
+        ? <GPUQuarterlyBlock qHist={qHist} qHistErr={qHistErr}/>
+        : <GPUHistoryBlock hist={hist} histErr={histErr} hideHeader/>
+      }
+    </div>
+  );
+}
+
+/* ─── Quarterly GPU Pricing History ─────────────────────────
+   QoQ signal cards · quarter comparison table · quarter matrix
+   Values default to quarter-CLOSE (the last real snapshot inside the
+   quarter). Quarter-average is computed and surfaced separately — it
+   never silently replaces close-to-close. Low-coverage quarters (any
+   quarter with <25% daily coverage) are flagged in the UI. */
+const GPU_QUARTER_QOQ_SKUS=["Nvidia H100","Nvidia H200","Nvidia B200","Nvidia A100"];
+
+function fmtPct(v,digits=1){
+  if(v==null||!isFinite(v))return"—";
+  return (v>0?"+":"")+v.toFixed(digits)+"%";
+}
+function fmtNum(v,digits=2){
+  if(v==null||!isFinite(v))return"—";
+  return (v>0?"+":"")+v.toFixed(digits);
+}
+function fmtInt(v){
+  if(v==null||!isFinite(v))return"—";
+  return (v>0?"+":"")+Math.round(v);
+}
+
+/* State machine for the quarter section.
+   - service_unavailable       → qHistErr
+   - loading                   → no response yet
+   - empty_no_tracking         → no real snapshots at all
+   - insufficient_history_bootstrap  → ≥1 real snapshot but no SKU has qoq.status==="ok"
+   - qoq_available             → at least one SKU has a real prior completed quarter
+*/
+function computeSectionMode(qHist,qHistErr){
+  if(qHistErr)return"service_unavailable";
+  if(!qHist)return"loading";
+  if(!qHist.trackingSinceRealDate)return"empty_no_tracking";
+  const qoq=qHist.qoq||{};
+  const anyQoQ=Object.values(qoq).some(c=>c&&c.status==="ok");
+  return anyQoQ?"qoq_available":"insufficient_history_bootstrap";
+}
+
+function nextQuarterId(qid){
+  // "2026-Q2" → "2026-Q3"; "2026-Q4" → "2027-Q1"
+  const m=/^(\d{4})-Q([1-4])$/.exec(qid||"");
+  if(!m)return null;
+  const year=parseInt(m[1],10);
+  const q=parseInt(m[2],10);
+  if(q<4)return year+"-Q"+(q+1);
+  return (year+1)+"-Q1";
+}
+
+function qtdStatusLabel(q){
+  if(!q)return"no data";
+  const d=q.daysCoveredInQuarter||0;
+  const cov=q.coverageRatioWithinQuarter||0;
+  if(d<3)return"early tracking";
+  if(cov<0.25)return"low coverage";
+  if(cov<0.60)return"building history";
+  return"monitoring-grade (not yet QoQ)";
+}
+
+function GPUQuarterlyBlock({qHist,qHistErr}){
+  const mode=computeSectionMode(qHist,qHistErr);
+
+  if(mode==="service_unavailable"){
+    return(
+      <div style={{background:"#f9fafb",border:"1px dashed #d1d5db",borderRadius:8,padding:"14px 16px"}}>
+        <div style={{fontSize:11,color:"#6b7280"}}>Quarter service temporarily unavailable — live embed below still loads.</div>
+      </div>
+    );
+  }
+  if(mode==="loading"){
+    return <Shimmer rows={3}/>;
+  }
+  if(mode==="empty_no_tracking"){
+    return(
+      <div style={{background:"#fff",border:"0.5px solid #e5e7eb",borderRadius:10,padding:"14px 16px"}}>
+        <div style={{fontSize:12,color:"#111827",fontWeight:500}}>Tracking starts with the next daily capture</div>
+        <div style={{fontSize:11,color:"#6b7280",marginTop:3}}>
+          Real production snapshots will accumulate here. QTD metrics and QoQ comparisons appear automatically once real data is captured.
+        </div>
+      </div>
+    );
+  }
+
+  const since=qHist.trackingSinceRealDate;
+  const latest=qHist.latestRealSnapshotDate;
+  const quarters=qHist.quartersAvailable||[];
+  const series=qHist.series||{};
+  const qoq=qHist.qoq||{};
+  const signals=qHist.signals||{};
+  const trackedSKUs=qHist.trackedSKUs||[];
+
+  // Current quarter per SKU = last element in that SKU's quarter series (real-only).
+  const currentQuarterBySku={};
+  for(const sku of trackedSKUs){
+    const qs=series[sku]||[];
+    currentQuarterBySku[sku]=qs[qs.length-1]||null;
+  }
+  // Section-wide "current quarter" label — derived from whichever SKU has data.
+  const anyCurrent=Object.values(currentQuarterBySku).find(q=>q);
+  const currentQuarterId=anyCurrent?.quarter||null;
+  const firstQoQQuarter=currentQuarterId?nextQuarterId(currentQuarterId):null;
+  const currentIsQTD=anyCurrent?.isQTD===true;
+
+  const bootstrap=mode==="insufficient_history_bootstrap";
+
+  return(
+    <div>
+      {/* Header line — always rendered */}
+      <div style={{fontSize:11,color:"#9ca3af",marginBottom:8}}>
+        Tracking since <b style={{color:"#6b7280",fontWeight:600}}>{since}</b>
+        {latest&&latest!==since&&<> · latest <b style={{color:"#6b7280",fontWeight:600}}>{latest}</b></>}
+        {" · "}{quarters.length} quarter{quarters.length===1?"":"s"} observed
+        {" · "}<span style={{color:"#6b7280"}}>
+          {bootstrap?"QTD build-up · QoQ unlocks at "+(firstQoQQuarter||"next quarter"):"QoQ = quarter-close vs prior-quarter close"}
+        </span>
+      </div>
+
+      {/* Bootstrap banner + building-history strip (bootstrap mode only) */}
+      {bootstrap&&(
+        <BootstrapExplainer since={since} currentQuarterId={currentQuarterId} currentQuarter={anyCurrent} firstQoQQuarter={firstQoQQuarter} trackedSKUs={trackedSKUs} currentQuarterBySku={currentQuarterBySku}/>
+      )}
+
+      {/* Cards row — QoQ cards in qoq mode, QTD NOW cards in bootstrap mode. */}
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(220px,1fr))",gap:8,marginBottom:10}}>
+        {GPU_QUARTER_QOQ_SKUS.map(sku=>{
+          const c=qoq[sku];
+          const cur=currentQuarterBySku[sku];
+          const short=sku.replace(/^Nvidia\s+/i,"");
+          // Per-SKU mode selector: QoQ if this SKU specifically has ok status; QTD if we have current-quarter data; empty otherwise.
+          if(c&&c.status==="ok"){
+            return <QoQCard key={sku} short={short} c={c} sig={signals[sku]}/>;
+          }
+          if(cur){
+            return <QTDNowCard key={sku} short={short} since={since} cur={cur} firstQoQQuarter={firstQoQQuarter}/>;
+          }
+          return(
+            <div key={sku} style={{background:"#fafafa",border:"0.5px solid #e5e7eb",borderRadius:8,padding:"10px 12px"}}>
+              <div style={{...S.lbl,color:"#6b7280",fontSize:9}}>{short} · no current data</div>
+              <div style={{fontSize:11,color:"#9ca3af",marginTop:4}}>no real snapshot yet</div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Primary table — switches on section mode */}
+      {bootstrap
+        ? <CurrentQuarterSnapshotTable trackedSKUs={trackedSKUs} currentQuarterBySku={currentQuarterBySku} firstQoQQuarter={firstQoQQuarter}/>
+        : <QoQComparisonTable trackedSKUs={trackedSKUs} qoq={qoq} series={series} signals={signals} currentQuarterBySku={currentQuarterBySku}/>
+      }
+
+      {/* Quarter matrix — close min $/hr by SKU × quarter */}
+      {quarters.length>=1&&(
+        <div style={{border:"0.5px solid #e5e7eb",borderRadius:8,overflow:"hidden",background:"#fff",marginBottom:10}}>
+          <div style={{padding:"9px 14px",borderBottom:"0.5px solid #f3f4f6",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+            <span style={{fontSize:11,fontWeight:600,color:"#111827"}}>Quarter-close min $/hr · SKU × quarter matrix</span>
+            <span style={{fontSize:10,color:"#9ca3af"}}>quarter average shown in parentheses · QTD quarters marked</span>
+          </div>
+          <div style={{overflowX:"auto"}}>
+            <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
+              <thead>
+                <tr style={{background:"#fafafa"}}>
+                  <th style={gpuTh}>GPU</th>
+                  {quarters.map(q=>(
+                    <th key={q} style={{...gpuTh,textAlign:"right"}}>{q}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {trackedSKUs.map(sku=>{
+                  const quarterHistory=series[sku]||[];
+                  const byQuarter={};
+                  for(const q of quarterHistory)byQuarter[q.quarter]=q;
+                  return(
+                    <tr key={sku} style={{borderTop:"0.5px solid #f3f4f6"}}>
+                      <td style={gpuTd}><span style={{fontWeight:600,color:"#111827"}}>{sku}</span></td>
+                      {quarters.map(qid=>{
+                        const q=byQuarter[qid];
+                        if(!q)return <td key={qid} style={{...gpuTd,textAlign:"right",color:"#d1d5db"}}>—</td>;
+                        const close=q.quarterCloseMinPricePerHour;
+                        const avg=q.quarterAverageMinPricePerHour;
+                        return(
+                          <td key={qid} style={{...gpuTd,textAlign:"right"}}>
+                            <div style={{fontWeight:600,color:"#059669"}}>{close!=null?"$"+close.toFixed(2):"—"}{q.isQTD&&<span style={{fontSize:9,color:"#9ca3af",fontWeight:500,marginLeft:3}}>QTD</span>}</div>
+                            {avg!=null&&<div style={{fontSize:10,color:"#9ca3af",marginTop:1}}>avg ${avg.toFixed(2)}</div>}
+                            {q.lowCoverage&&<div style={{fontSize:9,color:"#b45309",marginTop:1}}>⚠ low coverage</div>}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* Methodology note */}
+      <div style={{fontSize:10,color:"#9ca3af",lineHeight:1.5,marginBottom:4}}>
+        <b style={{color:"#6b7280",fontWeight:600}}>Methodology:</b> QoQ uses quarter-close values (last real snapshot in the quarter). Quarter averages are computed across all real snapshots in the quarter and surfaced separately — they do not replace close-to-close. Coverage = distinct real snapshot days / calendar days in the quarter (QTD quarters use elapsed days only). Synthetic/backfill-only validation points are excluded; append <code>?include=all</code> to the history endpoint to inspect them.
+      </div>
+    </div>
+  );
+}
+
+function BootstrapExplainer({since,currentQuarterId,currentQuarter,firstQoQQuarter,trackedSKUs,currentQuarterBySku}){
+  // Aggregate strip: use the best-covered current-quarter entry to describe progress.
+  const qs=trackedSKUs.map(s=>currentQuarterBySku[s]).filter(Boolean);
+  const bestCovered=qs.reduce((a,b)=>{
+    if(!a)return b;
+    if(!b)return a;
+    return (b.coverageRatioWithinQuarter||0)>(a.coverageRatioWithinQuarter||0)?b:a;
+  },null);
+  const daysCovered=bestCovered?bestCovered.daysCoveredInQuarter:0;
+  const denom=bestCovered?bestCovered.quarterDayCount:null;
+  const coveragePct=bestCovered&&denom?Math.round((daysCovered/denom)*100):0;
+  return(
+    <>
+      <div style={{background:"#ecfeff",border:"0.5px solid #a5f3fc",borderRadius:8,padding:"10px 12px",marginBottom:10,fontSize:11,color:"#155e75",lineHeight:1.5}}>
+        <b style={{fontWeight:600}}>Quarter view is live.</b> Real tracking began on <b style={{fontWeight:600}}>{since}</b>, so this section currently shows <b style={{fontWeight:600}}>QTD build-up metrics</b> — real snapshots of close price, provider count, and spread for the in-progress quarter. True QoQ comparisons appear automatically once the first prior quarter completes{firstQoQQuarter?(<> (first QoQ quarter: <b style={{fontWeight:600}}>{firstQoQQuarter}</b>)</>):null}.
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(140px,1fr))",gap:8,marginBottom:10}}>
+        <MiniStat label="Tracking since" value={since||"—"}/>
+        <MiniStat label="Current quarter" value={currentQuarterId?(currentQuarterId+(currentQuarter?.isQTD?" (QTD)":"")):"—"}/>
+        <MiniStat label="Days captured" value={denom!=null?(daysCovered+" of "+denom):String(daysCovered)}/>
+        <MiniStat label="Coverage" value={coveragePct+"%"} warn={coveragePct<25}/>
+        <MiniStat label="First QoQ quarter" value={firstQoQQuarter||"—"} sub="QoQ unlocks here"/>
+      </div>
+    </>
+  );
+}
+
+function MiniStat({label,value,sub,warn}){
+  return(
+    <div style={{background:"#fff",border:"0.5px solid #e5e7eb",borderRadius:8,padding:"8px 10px"}}>
+      <div style={{...S.lbl,color:"#6b7280",fontSize:9}}>{label}</div>
+      <div style={{fontSize:13,fontWeight:700,color:warn?"#b45309":"#111827",marginTop:3,lineHeight:1.1}}>{value}</div>
+      {sub&&<div style={{fontSize:9,color:"#9ca3af",marginTop:2}}>{sub}</div>}
+    </div>
+  );
+}
+
+function QoQCard({short,c,sig}){
+  const pct=c.qoqPct;
+  const up=pct!=null&&pct>0;
+  const down=pct!=null&&pct<0;
+  const color=up?"#dc2626":down?"#059669":"#6b7280";
+  const arrow=up?"▲":down?"▼":"•";
+  const sigBg=sig==="loosening"?"#dcfce7":sig==="tightening"?"#fee2e2":sig==="stable"?"#f3f4f6":"#f3f4f6";
+  const sigFg=sig==="loosening"?"#059669":sig==="tightening"?"#dc2626":sig==="stable"?"#6b7280":"#9ca3af";
+  const sigLabel=sig==="loosening"?"loosening":sig==="tightening"?"tightening":sig==="stable"?"stable":null;
+  return(
+    <div style={{background:"#fff",border:"0.5px solid #e5e7eb",borderRadius:8,padding:"10px 12px"}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:6}}>
+        <div style={{...S.lbl,color:"#6b7280",fontSize:9}}>
+          {short} · QoQ {c.currentIsQTD&&<span style={{color:"#9ca3af",fontWeight:500}}>(QTD)</span>}
+        </div>
+        {sigLabel&&<span style={{fontSize:9,padding:"1px 6px",borderRadius:3,background:sigBg,color:sigFg,fontWeight:600,textTransform:"uppercase",letterSpacing:".04em"}}>{sigLabel}</span>}
+      </div>
+      <div style={{display:"flex",alignItems:"baseline",gap:6,marginTop:4}}>
+        <span style={{fontSize:16,fontWeight:700,color}}>{arrow}&nbsp;{fmtPct(pct)}</span>
+        <span style={{fontSize:11,color:"#6b7280"}}>close $/hr</span>
+      </div>
+      <div style={{fontSize:10,color:"#9ca3af",marginTop:3}}>
+        {c.priorQuarter} ${c.priorClose?.toFixed(2)} → {c.currentQuarter} ${c.currentClose?.toFixed(2)}
+        {c.providerDelta!=null&&<> · providers {fmtInt(c.providerDelta)}</>}
+      </div>
+      {c.lowCoverageFlag&&<div style={{fontSize:9,color:"#b45309",marginTop:2}}>⚠ low-coverage quarter — close may be imprecise</div>}
+    </div>
+  );
+}
+
+function QTDNowCard({short,cur,since,firstQoQQuarter}){
+  const coveragePct=Math.round((cur.coverageRatioWithinQuarter||0)*100);
+  return(
+    <div style={{background:"#fff",border:"0.5px solid #e5e7eb",borderRadius:8,padding:"10px 12px"}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:6}}>
+        <div style={{...S.lbl,color:"#0e7490",fontSize:9}}>
+          {short} · QTD NOW
+          {cur.isQTD&&<span style={{color:"#9ca3af",fontWeight:500,marginLeft:4}}>({cur.quarter})</span>}
+        </div>
+      </div>
+      <div style={{display:"flex",alignItems:"baseline",gap:6,marginTop:4}}>
+        <span style={{fontSize:16,fontWeight:700,color:"#059669"}}>{cur.quarterCloseMinPricePerHour!=null?"$"+cur.quarterCloseMinPricePerHour.toFixed(2):"—"}</span>
+        <span style={{fontSize:11,color:"#6b7280"}}>close $/hr</span>
+      </div>
+      <div style={{fontSize:10,color:"#9ca3af",marginTop:3}}>
+        avg ${cur.quarterAverageMinPricePerHour!=null?cur.quarterAverageMinPricePerHour.toFixed(2):"—"}
+        {cur.quarterCloseProviderCount!=null&&<> · {cur.quarterCloseProviderCount} providers</>}
+        {cur.quarterCloseSpreadMultiple!=null&&<> · spread {cur.quarterCloseSpreadMultiple.toFixed(1)}×</>}
+      </div>
+      <div style={{fontSize:10,color:"#9ca3af",marginTop:2}}>
+        {cur.daysCoveredInQuarter}d observed · {coveragePct}% coverage
+        {cur.lowCoverage&&<span style={{color:"#b45309",marginLeft:4}}>⚠</span>}
+      </div>
+      <div style={{fontSize:9,color:"#9ca3af",marginTop:4,borderTop:"0.5px dashed #e5e7eb",paddingTop:4}}>
+        QoQ available after first completed prior quarter{firstQoQQuarter?(<> · first QoQ: <b style={{fontWeight:600,color:"#6b7280"}}>{firstQoQQuarter}</b></>):null}
+      </div>
+    </div>
+  );
+}
+
+function CurrentQuarterSnapshotTable({trackedSKUs,currentQuarterBySku,firstQoQQuarter}){
+  return(
+    <div style={{border:"0.5px solid #e5e7eb",borderRadius:8,overflow:"hidden",background:"#fff",marginBottom:10}}>
+      <div style={{padding:"9px 14px",borderBottom:"0.5px solid #f3f4f6",display:"flex",justifyContent:"space-between",alignItems:"center",gap:8,flexWrap:"wrap"}}>
+        <span style={{fontSize:11,fontWeight:600,color:"#111827"}}>Current quarter snapshot (QTD)</span>
+        <span style={{fontSize:10,color:"#9ca3af"}}>
+          real-only · QoQ comparison unavailable until a prior quarter completes{firstQoQQuarter?" ("+firstQoQQuarter+")":""}
+        </span>
+      </div>
+      <div style={{overflowX:"auto"}}>
+        <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
+          <thead>
+            <tr style={{background:"#fafafa"}}>
+              <th style={gpuTh}>GPU</th>
+              <th style={{...gpuTh,textAlign:"right"}}>QTD&nbsp;close&nbsp;$/hr</th>
+              <th style={{...gpuTh,textAlign:"right"}}>QTD&nbsp;avg&nbsp;$/hr</th>
+              <th style={{...gpuTh,textAlign:"right"}}>Providers</th>
+              <th style={{...gpuTh,textAlign:"right"}}>Spread×</th>
+              <th style={{...gpuTh,textAlign:"right"}}>Days&nbsp;observed</th>
+              <th style={gpuTh}>Coverage</th>
+              <th style={gpuTh}>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {trackedSKUs.map(sku=>{
+              const cur=currentQuarterBySku[sku];
+              if(!cur){
+                return(
+                  <tr key={sku} style={{borderTop:"0.5px solid #f3f4f6"}}>
+                    <td style={gpuTd}><span style={{fontWeight:600,color:"#111827"}}>{sku}</span></td>
+                    <td colSpan="7" style={{...gpuTd,color:"#9ca3af"}}>no real snapshot yet</td>
+                  </tr>
+                );
+              }
+              const coveragePct=Math.round((cur.coverageRatioWithinQuarter||0)*100);
+              const status=qtdStatusLabel(cur);
+              const statusColor=status==="early tracking"?"#6b7280":status==="low coverage"?"#b45309":status==="building history"?"#0e7490":"#059669";
+              return(
+                <tr key={sku} style={{borderTop:"0.5px solid #f3f4f6"}}>
+                  <td style={gpuTd}>
+                    <div style={{fontWeight:600,color:"#111827"}}>{sku}</div>
+                    <div style={{fontSize:10,color:"#9ca3af",marginTop:1}}>{cur.quarter}{cur.isQTD?" · QTD":""}</div>
+                  </td>
+                  <td style={{...gpuTd,textAlign:"right",color:"#059669",fontWeight:600}}>
+                    {cur.quarterCloseMinPricePerHour!=null?"$"+cur.quarterCloseMinPricePerHour.toFixed(2):"—"}
+                  </td>
+                  <td style={{...gpuTd,textAlign:"right",color:"#374151"}}>
+                    {cur.quarterAverageMinPricePerHour!=null?"$"+cur.quarterAverageMinPricePerHour.toFixed(2):"—"}
+                  </td>
+                  <td style={{...gpuTd,textAlign:"right",color:"#374151"}}>{cur.quarterCloseProviderCount??"—"}</td>
+                  <td style={{...gpuTd,textAlign:"right",color:"#6b7280"}}>{cur.quarterCloseSpreadMultiple!=null?cur.quarterCloseSpreadMultiple.toFixed(1)+"×":"—"}</td>
+                  <td style={{...gpuTd,textAlign:"right",color:"#374151"}}>{cur.daysCoveredInQuarter}</td>
+                  <td style={{...gpuTd,color:"#6b7280",fontSize:11}}>
+                    {coveragePct}% of {cur.quarterDayCount}d
+                    {cur.lowCoverage&&<span style={{color:"#b45309",marginLeft:4}}>⚠</span>}
+                  </td>
+                  <td style={{...gpuTd,color:statusColor,fontWeight:600,fontSize:11}}>{status}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function QoQComparisonTable({trackedSKUs,qoq,series,signals,currentQuarterBySku}){
+  return(
+    <div style={{border:"0.5px solid #e5e7eb",borderRadius:8,overflow:"hidden",background:"#fff",marginBottom:10}}>
+      <div style={{padding:"9px 14px",borderBottom:"0.5px solid #f3f4f6",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+        <span style={{fontSize:11,fontWeight:600,color:"#111827"}}>Quarter-close comparison (prior vs current)</span>
+        <span style={{fontSize:10,color:"#9ca3af"}}>current = last real snapshot in quarter (QTD if in progress)</span>
+      </div>
+      <div style={{overflowX:"auto"}}>
+        <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
+          <thead>
+            <tr style={{background:"#fafafa"}}>
+              <th style={gpuTh}>GPU</th>
+              <th style={{...gpuTh,textAlign:"right"}}>Prior&nbsp;close&nbsp;$/hr</th>
+              <th style={{...gpuTh,textAlign:"right"}}>Current&nbsp;close&nbsp;$/hr</th>
+              <th style={{...gpuTh,textAlign:"right"}}>QoQ&nbsp;Δ</th>
+              <th style={{...gpuTh,textAlign:"right"}}>Prior&nbsp;providers</th>
+              <th style={{...gpuTh,textAlign:"right"}}>Current&nbsp;providers</th>
+              <th style={{...gpuTh,textAlign:"right"}}>QoQ&nbsp;Δ&nbsp;providers</th>
+              <th style={{...gpuTh,textAlign:"right"}}>Prior&nbsp;spread×</th>
+              <th style={{...gpuTh,textAlign:"right"}}>Current&nbsp;spread×</th>
+              <th style={{...gpuTh,textAlign:"right"}}>QoQ&nbsp;Δ&nbsp;spread</th>
+              <th style={gpuTh}>Coverage</th>
+              <th style={gpuTh}>Trend</th>
+            </tr>
+          </thead>
+          <tbody>
+            {trackedSKUs.map(sku=>{
+              const c=qoq[sku];
+              const cur=currentQuarterBySku[sku];
+              const coverageText=cur?(Math.round((cur.coverageRatioWithinQuarter||0)*100)+"% of "+cur.quarterDayCount+"d"):"—";
+              const trendLabel=(()=>{
+                const sig=signals[sku];
+                if(!sig||sig==="insufficient-data")return <span style={{color:"#9ca3af"}}>QTD only</span>;
+                const color=sig==="loosening"?"#059669":sig==="tightening"?"#dc2626":"#6b7280";
+                return <span style={{color,fontWeight:600,textTransform:"capitalize"}}>{sig}</span>;
+              })();
+              return(
+                <tr key={sku} style={{borderTop:"0.5px solid #f3f4f6"}}>
+                  <td style={gpuTd}><span style={{fontWeight:600,color:"#111827"}}>{sku}</span></td>
+                  <td style={{...gpuTd,textAlign:"right",color:"#374151"}}>{c?.priorClose!=null?"$"+c.priorClose.toFixed(2):"—"}</td>
+                  <td style={{...gpuTd,textAlign:"right",color:"#059669",fontWeight:600}}>
+                    {c?.currentClose!=null?"$"+c.currentClose.toFixed(2):(cur?.quarterCloseMinPricePerHour!=null?"$"+cur.quarterCloseMinPricePerHour.toFixed(2):"—")}
+                    {(c?.currentIsQTD||cur?.isQTD)&&<span style={{fontSize:9,color:"#9ca3af",fontWeight:500,marginLeft:3}}>QTD</span>}
+                  </td>
+                  <td style={{...gpuTd,textAlign:"right"}}><QoQCell v={c?.qoqPct} suffix="%"/></td>
+                  <td style={{...gpuTd,textAlign:"right",color:"#6b7280"}}>{c?.priorProviders??"—"}</td>
+                  <td style={{...gpuTd,textAlign:"right",color:"#374151"}}>{c?.currentProviders??cur?.quarterCloseProviderCount??"—"}</td>
+                  <td style={{...gpuTd,textAlign:"right"}}><QoQCell v={c?.providerDelta} integer/></td>
+                  <td style={{...gpuTd,textAlign:"right",color:"#6b7280"}}>{c?.priorSpread!=null?c.priorSpread.toFixed(1)+"×":"—"}</td>
+                  <td style={{...gpuTd,textAlign:"right",color:"#374151"}}>{c?.currentSpread!=null?c.currentSpread.toFixed(1)+"×":cur?.quarterCloseSpreadMultiple!=null?cur.quarterCloseSpreadMultiple.toFixed(1)+"×":"—"}</td>
+                  <td style={{...gpuTd,textAlign:"right"}}><QoQCell v={c?.spreadDelta}/></td>
+                  <td style={{...gpuTd,color:"#6b7280",fontSize:11}}>
+                    {coverageText}
+                    {cur?.lowCoverage&&<span style={{color:"#b45309",marginLeft:4}}>⚠</span>}
+                  </td>
+                  <td style={{...gpuTd}}>{trendLabel}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function QoQCell({v,suffix,integer}){
+  if(v==null||!isFinite(v))return <span style={{color:"#9ca3af"}}>—</span>;
+  const up=v>0;
+  const down=v<0;
+  const color=up?"#dc2626":down?"#059669":"#6b7280";
+  const formatted=integer?fmtInt(v):(v>0?"+":"")+v.toFixed(suffix==="%"?1:2);
+  return <span style={{color,fontWeight:600}}>{formatted}{suffix||""}</span>;
+}
+
+/* ─── GPU History Block (daily) ─────────────────────────────
    Trend cards + history comparison table + sparklines
    Reads /api/gpu-hardware-pricing-history (layers on top of the
    canonical day:YYYY-MM-DD snapshots written by /api/history-capture
    and /api/gpu-hardware-pricing-history-refresh). */
 const GPU_HISTORY_TREND_SKUS=["Nvidia H100","Nvidia H200","Nvidia B200","Nvidia A100"];
 
-function GPUHistoryBlock({hist,histErr}){
+function GPUHistoryBlock({hist,histErr,hideHeader}){
   // Hard-failure fallback — history service down, but we keep the rest of the tab alive.
   if(histErr){
     return(
-      <div style={{background:"#f9fafb",border:"1px dashed #d1d5db",borderRadius:8,padding:"14px 16px",marginBottom:14}}>
-        <div style={{...S.lbl,color:"#0e7490",marginBottom:6}}>GPU Pricing History</div>
+      <div style={{background:"#f9fafb",border:"1px dashed #d1d5db",borderRadius:8,padding:"14px 16px"}}>
+        {!hideHeader&&<div style={{...S.lbl,color:"#0e7490",marginBottom:6}}>GPU Pricing History</div>}
         <div style={{fontSize:11,color:"#6b7280"}}>History service temporarily unavailable — live embed below still loads.</div>
       </div>
     );
@@ -1124,8 +1616,8 @@ function GPUHistoryBlock({hist,histErr}){
   // Loading skeleton
   if(!hist){
     return(
-      <div style={{marginBottom:14}}>
-        <div style={{...S.lbl,color:"#0e7490",marginBottom:8}}>GPU Pricing History</div>
+      <div>
+        {!hideHeader&&<div style={{...S.lbl,color:"#0e7490",marginBottom:8}}>GPU Pricing History</div>}
         <Shimmer rows={3}/>
       </div>
     );
@@ -1144,8 +1636,8 @@ function GPUHistoryBlock({hist,histErr}){
   // Empty-state: index exists but no snapshots had a gpu block yet.
   if(!days){
     return(
-      <div style={{background:"#fff",border:"0.5px solid #e5e7eb",borderRadius:10,padding:"14px 16px",marginBottom:14}}>
-        <div style={{...S.lbl,color:"#0e7490",marginBottom:6}}>GPU Pricing History</div>
+      <div style={{background:"#fff",border:"0.5px solid #e5e7eb",borderRadius:10,padding:"14px 16px"}}>
+        {!hideHeader&&<div style={{...S.lbl,color:"#0e7490",marginBottom:6}}>GPU Pricing History</div>}
         <div style={{fontSize:12,color:"#111827",fontWeight:500}}>Tracking starts with the next daily capture</div>
         <div style={{fontSize:11,color:"#6b7280",marginTop:3}}>
           Daily snapshots of strategic GPU pricing will accumulate here. 7D and 30D comparisons become available once enough history is captured.
@@ -1155,18 +1647,27 @@ function GPUHistoryBlock({hist,histErr}){
   }
 
   return(
-    <div style={{marginBottom:14}}>
-      {/* Header */}
-      <div style={{display:"flex",alignItems:"baseline",justifyContent:"space-between",marginBottom:8,flexWrap:"wrap",gap:6}}>
-        <div>
-          <div style={{...S.lbl,color:"#0e7490"}}>GPU Pricing History</div>
-          <div style={{fontSize:11,color:"#9ca3af",marginTop:2}}>
-            Tracking since <b style={{color:"#6b7280",fontWeight:600}}>{since||"—"}</b>
-            {latest&&since&&latest!==since&&<> · latest <b style={{color:"#6b7280",fontWeight:600}}>{latest}</b></>}
-            {" · "}{days} snapshot{days===1?"":"s"} captured
+    <div>
+      {/* Header — suppressed when rendered inside the history shell */}
+      {!hideHeader&&(
+        <div style={{display:"flex",alignItems:"baseline",justifyContent:"space-between",marginBottom:8,flexWrap:"wrap",gap:6}}>
+          <div>
+            <div style={{...S.lbl,color:"#0e7490"}}>GPU Pricing History</div>
+            <div style={{fontSize:11,color:"#9ca3af",marginTop:2}}>
+              Tracking since <b style={{color:"#6b7280",fontWeight:600}}>{since||"—"}</b>
+              {latest&&since&&latest!==since&&<> · latest <b style={{color:"#6b7280",fontWeight:600}}>{latest}</b></>}
+              {" · "}{days} snapshot{days===1?"":"s"} captured
+            </div>
           </div>
         </div>
-      </div>
+      )}
+      {hideHeader&&(
+        <div style={{fontSize:11,color:"#9ca3af",marginBottom:8}}>
+          Raw daily view · tracking since <b style={{color:"#6b7280",fontWeight:600}}>{since||"—"}</b>
+          {latest&&since&&latest!==since&&<> · latest <b style={{color:"#6b7280",fontWeight:600}}>{latest}</b></>}
+          {" · "}{days} real snapshot{days===1?"":"s"}
+        </div>
+      )}
 
       {/* Trend cards — 7D change in cheapest $/hr per strategic SKU */}
       <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(180px,1fr))",gap:8,marginBottom:10}}>
@@ -1751,7 +2252,12 @@ export default function App(){
   const trends=usePanel(LIVE.trends,fetchTrends);
   const[fetchedAtLabel,setFetchedAtLabel]=useState(LIVE.fetchedAt);
 
+  const[allPressed,setAllPressed]=useState(false);
+  const anyBusy=or.busy||radar.busy||trends.busy;
+
   function refreshAll(){
+    setAllPressed(true);
+    setTimeout(()=>setAllPressed(false),180);
     const d=new Date();
     const datePart=d.toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric",timeZone:"UTC"});
     const timePart=String(d.getUTCHours()).padStart(2,"0")+":"+String(d.getUTCMinutes()).padStart(2,"0")+":"+String(d.getUTCSeconds()).padStart(2,"0");
@@ -1783,9 +2289,9 @@ export default function App(){
             Data fetched {fetchedAtLabel} · refresh buttons call live /api/* endpoints
           </div>
         </div>
-        <button onClick={refreshAll}
-          style={{fontSize:12,padding:"8px 16px",border:"none",borderRadius:8,background:"#111827",color:"#fff",cursor:"pointer",fontFamily:"inherit",fontWeight:500}}>
-          ↻  Refresh all
+        <button onClick={refreshAll} disabled={anyBusy}
+          style={{fontSize:12,padding:"8px 16px",border:"none",borderRadius:8,background:anyBusy?"#374151":"#111827",color:"#fff",cursor:anyBusy?"wait":"pointer",fontFamily:"inherit",fontWeight:500,display:"inline-flex",alignItems:"center",gap:8,transform:allPressed?"scale(0.96)":"scale(1)",opacity:anyBusy?0.9:1,transition:"transform .12s ease, background .18s, opacity .18s"}}>
+          {anyBusy?(<><Spin size={11} color="#fff"/> Refreshing…</>):"↻  Refresh all"}
         </button>
       </div>
 
