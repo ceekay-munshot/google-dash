@@ -18,6 +18,14 @@
 name = "google-dash"
 compatibility_date = "2024-09-23"
 
+# Required by Cloudflare Pages v2 build strategy. Without this property Pages
+# logs "A Wrangler configuration file was found but it does not appear to be
+# valid. … Skipping file and continuing." and silently ignores the entire
+# file. Functions auto-detection from /functions still works, but any
+# toml-managed binding/env-var would be lost. Assets live at repo root with
+# no build step, so the output dir is "./".
+pages_build_output_dir = "./"
+
 # [[kv_namespaces]]
 # binding = "HISTORY_KV"
 # id = "PRODUCTION_KV_ID"
