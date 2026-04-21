@@ -3,7 +3,7 @@
  * 
  * Tests all 4 working API endpoints with proper parameters
  * 
- * Usage: https://google-dash.pages.dev/api/radar-test-all
+ * Usage: https://google-dash-git.pages.dev/api/radar-test-all
  */
 
 export async function onRequestGet({ env }) {

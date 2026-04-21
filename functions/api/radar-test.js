@@ -2,7 +2,7 @@
  * Health check endpoint for Cloudflare Radar API proxy
  * 
  * Test this endpoint to verify your API token is working:
- * https://google-dash.pages.dev/api/radar-test
+ * https://google-dash-git.pages.dev/api/radar-test
  */
 
 export async function onRequestGet({ env }) {

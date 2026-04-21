@@ -6,7 +6,7 @@
  * 2. Token has valid format
  * 3. Which endpoints the token can access
  * 
- * Usage: https://google-dash.pages.dev/api/radar-check
+ * Usage: https://google-dash-git.pages.dev/api/radar-check
  */
 
 export async function onRequestGet({ env }) {
