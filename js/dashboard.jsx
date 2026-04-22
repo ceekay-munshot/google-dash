@@ -967,11 +967,12 @@ function GPUHardwarePricingTab(){
   const[loadErr,setLoadErr]=useState(false);
   const[hist,setHist]=useState(null);       // daily
   const[histErr,setHistErr]=useState(false);
-  const[qHist,setQHist]=useState(null);     // quarter
+  const[qHist,setQHist]=useState(null);     // quarter-close (operational)
   const[qHistErr,setQHistErr]=useState(false);
-  const[fHist,setFHist]=useState(null);     // financial correlation view
+  const[fHist,setFHist]=useState(null);     // financial (period-average)
   const[fHistErr,setFHistErr]=useState(false);
-  const[histView,setHistView]=useState("quarter"); // "quarter" default per investor framing
+  const[histView,setHistView]=useState("quarter");   // quarter | daily (inside Infra subtab)
+  const[gpuSubtab,setGpuSubtab]=useState("financial"); // "financial" default per investor framing
 
   useEffect(()=>{
     let cancelled=false;
@@ -994,6 +995,89 @@ function GPUHardwarePricingTab(){
     return()=>{cancelled=true;};
   },[]);
 
+  const updatedTxt=data?.sourceUpdatedAt?.text||null;
+
+  return(
+    <>
+      <style>{`@keyframes gpupulse{0%,100%{opacity:1}50%{opacity:.4}}`}</style>
+
+      {/* Page header — rendered once, above the subtab switcher */}
+      <div style={{marginBottom:10}}>
+        <div style={{fontSize:16,fontWeight:700,color:"#111827",lineHeight:1.3}}>GPU Hardware Pricing</div>
+        <div style={{fontSize:11,color:"#9ca3af",marginTop:3}}>
+          Two lenses on the same strategic GPU basket · daily snapshots underneath captured since <b style={{color:"#6b7280",fontWeight:600}}>{fHist?.trackingSinceRealDate||"—"}</b>
+        </div>
+      </div>
+
+      {/* Subtab switcher */}
+      <div style={{display:"flex",gap:4,marginBottom:14,borderBottom:"0.5px solid #e5e7eb",paddingBottom:0}}>
+        {[
+          {id:"financial",label:"Financial Correlation",sub:"period averages · QoQ · YoY"},
+          {id:"infra",    label:"Infra Monitoring",     sub:"live spot · quarter-close · operational history"},
+        ].map(t=>{
+          const active=gpuSubtab===t.id;
+          return(
+            <button key={t.id} onClick={()=>setGpuSubtab(t.id)}
+              style={{fontSize:12,padding:"8px 16px",border:"none",borderBottom:active?"2px solid #111827":"2px solid transparent",marginBottom:-1,background:"transparent",color:active?"#111827":"#6b7280",cursor:"pointer",fontFamily:"inherit",fontWeight:active?600:500,display:"flex",flexDirection:"column",alignItems:"flex-start",gap:1}}>
+              <span>{t.label}</span>
+              <span style={{fontSize:9,fontWeight:400,color:active?"#6b7280":"#9ca3af",textTransform:"lowercase"}}>{t.sub}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      {gpuSubtab==="financial"
+        ? <GPUFinancialSubtab fHist={fHist} fHistErr={fHistErr}/>
+        : <GPUInfraMonitoringSubtab
+            data={data} loadErr={loadErr} updatedTxt={updatedTxt}
+            histView={histView} setHistView={setHistView}
+            qHist={qHist} qHistErr={qHistErr}
+            hist={hist} histErr={histErr}
+            embedErr={err} setEmbedErr={setErr}
+          />
+      }
+    </>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════
+   SUBTAB: Financial Correlation (investor lens)
+   - No live KPI cards (those are infra monitoring)
+   - Period averages only · QoQ · YoY
+   - Primary rows (B200/H200/H100) always visible
+   - Secondary rows (A100/GB200/L40S) behind "Show more" expansion
+═══════════════════════════════════════════════════════ */
+function GPUFinancialSubtab({fHist,fHistErr}){
+  return(
+    <>
+      {/* Section label */}
+      <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:4}}>
+        <span style={{width:7,height:7,borderRadius:"50%",background:"#1d4ed8",display:"inline-block"}}/>
+        <span style={{fontSize:10,textTransform:"uppercase",letterSpacing:".09em",fontWeight:700,color:"#1d4ed8"}}>Investor lens — financial correlation</span>
+      </div>
+
+      {/* Title + subtitle */}
+      <div style={{marginBottom:12}}>
+        <div style={{fontSize:14,fontWeight:700,color:"#111827",lineHeight:1.3}}>Period-average pricing for equity correlation</div>
+        <div style={{fontSize:11,color:"#9ca3af",marginTop:3}}>
+          Arithmetic mean of daily <code>minPricePerHour</code> by calendar period · quarter labels = quarter-end month (Mar/Jun/Sep/Dec) · real-only, no fabricated history.
+        </div>
+      </div>
+
+      {/* Financial matrix */}
+      <GPUFinancialCorrelationBlock fHist={fHist} fHistErr={fHistErr}/>
+    </>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════
+   SUBTAB: Infra Monitoring (live market plumbing)
+   - Live KPI cards (current spot minimums)
+   - Strategic SKU comparison (live lowest / highest $/hr)
+   - Operational GPU Pricing History (quarter-close / QTD / daily)
+   - Live reverse-proxied getdeploying table
+═══════════════════════════════════════════════════════ */
+function GPUInfraMonitoringSubtab({data,loadErr,updatedTxt,histView,setHistView,qHist,qHistErr,hist,histErr,embedErr,setEmbedErr}){
   const rows=data?.rows||[];
   const byName={};
   for(const r of rows)if(!byName[r.gpuModel])byName[r.gpuModel]=r;
@@ -1003,7 +1087,7 @@ function GPUHardwarePricingTab(){
     if(!r||r.minPricePerHour==null)return null;
     const short=sku.replace(/^Nvidia\s+/i,"");
     return{
-      sku,label:"Cheapest "+short+" $/hr",
+      sku,label:"Live cheapest "+short+" $/hr",
       value:fmtUSD(r.minPricePerHour),
       sub:r.providerCount?r.providerCount+" providers":null,
     };
@@ -1011,31 +1095,26 @@ function GPUHardwarePricingTab(){
 
   const totalProviders=rows.reduce((m,r)=>Math.max(m,r.providerCount||0),0);
   const modelCount=rows.length;
-  const updatedTxt=data?.sourceUpdatedAt?.text||null;
-
   const tableRows=GPU_STRATEGIC_ORDER.map(n=>byName[n]).filter(Boolean);
-
-  const showSummary=!loadErr&&(data||!data); // show skeleton while loading
 
   return(
     <>
       {/* Section label */}
       <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:4}}>
         <span style={{width:7,height:7,borderRadius:"50%",background:"#0e7490",display:"inline-block",animation:"gpupulse 2s infinite"}}/>
-        <span style={{fontSize:10,textTransform:"uppercase",letterSpacing:".09em",fontWeight:700,color:"#0e7490"}}>Live infra signal — GPU hardware pricing</span>
+        <span style={{fontSize:10,textTransform:"uppercase",letterSpacing:".09em",fontWeight:700,color:"#0e7490"}}>Live infra signal — current market plumbing</span>
       </div>
-      <style>{`@keyframes gpupulse{0%,100%{opacity:1}50%{opacity:.4}}`}</style>
 
-      {/* Title + subtitle + source-updated line */}
+      {/* Title + subtitle */}
       <div style={{marginBottom:12}}>
-        <div style={{fontSize:16,fontWeight:700,color:"#111827",lineHeight:1.3}}>GPU Hardware Pricing</div>
+        <div style={{fontSize:14,fontWeight:700,color:"#111827",lineHeight:1.3}}>Live spot minimums, quarter-close history, and vendor table</div>
         <div style={{fontSize:11,color:"#9ca3af",marginTop:3}}>
-          Live cross-provider GPU hourly pricing across major accelerator types.
+          Current cheapest $/hr per SKU across 42+ providers · operational history uses quarter-close (last real snapshot in quarter).
           {updatedTxt&&<> · <b style={{color:"#6b7280",fontWeight:600}}>Source updated {updatedTxt}</b></>}
         </div>
       </div>
 
-      {/* KPI cards — cheapest $/hr per strategic SKU + totals */}
+      {/* KPI cards */}
       {loadErr?(
         <div style={{background:"#f9fafb",border:"1px dashed #d1d5db",borderRadius:8,padding:"14px 16px",marginBottom:14}}>
           <div style={{fontSize:11,color:"#6b7280"}}>Summary metrics unavailable — parser temporarily offline. Live embed below still loads.</div>
@@ -1046,7 +1125,7 @@ function GPUHardwarePricingTab(){
         </div>
       ):(
         <>
-          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:8,marginBottom:10}}>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(160px,1fr))",gap:8,marginBottom:10}}>
             {kpiCards.map(c=>(
               <KBox key={c.sku} label={c.label} value={c.value} sub={c.sub} bg="#ecfeff" fg="#0e7490"/>
             ))}
@@ -1058,7 +1137,7 @@ function GPUHardwarePricingTab(){
           {tableRows.length>0&&(
             <div style={{border:"0.5px solid #e5e7eb",borderRadius:8,overflow:"hidden",marginBottom:14,background:"#fff"}}>
               <div style={{padding:"9px 14px",borderBottom:"0.5px solid #f3f4f6",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                <span style={{fontSize:11,fontWeight:600,color:"#111827"}}>Strategic SKU comparison</span>
+                <span style={{fontSize:11,fontWeight:600,color:"#111827"}}>Strategic SKU comparison · live spot</span>
                 <span style={{fontSize:10,color:"#9ca3af"}}>ordered by decision weight · training → inference</span>
               </div>
               <div style={{overflowX:"auto"}}>
@@ -1067,8 +1146,8 @@ function GPUHardwarePricingTab(){
                     <tr style={{background:"#fafafa"}}>
                       <th style={gpuTh}>GPU</th>
                       <th style={gpuTh}>VRAM</th>
-                      <th style={{...gpuTh,textAlign:"right"}}>Lowest&nbsp;$/hr</th>
-                      <th style={{...gpuTh,textAlign:"right"}}>Highest&nbsp;$/hr</th>
+                      <th style={{...gpuTh,textAlign:"right"}}>Live&nbsp;lowest&nbsp;$/hr</th>
+                      <th style={{...gpuTh,textAlign:"right"}}>Live&nbsp;highest&nbsp;$/hr</th>
                       <th style={{...gpuTh,textAlign:"right"}}>Providers</th>
                     </tr>
                   </thead>
@@ -1090,10 +1169,7 @@ function GPUHardwarePricingTab(){
         </>
       )}
 
-      {/* Financial correlation view — analyst-worksheet period-average matrix */}
-      <GPUFinancialCorrelationBlock fHist={fHist} fHistErr={fHistErr}/>
-
-      {/* GPU Pricing History section — Quarter view is the investor-facing default */}
+      {/* Operational history (quarter-close / QTD bootstrap / daily) */}
       <GPUHistoryShell
         histView={histView} setHistView={setHistView}
         qHist={qHist} qHistErr={qHistErr}
@@ -1101,10 +1177,10 @@ function GPUHardwarePricingTab(){
       />
 
       {/* Live embed */}
-      {err?(
+      {embedErr?(
         <div style={{background:"#f9fafb",border:"1px dashed #d1d5db",borderRadius:8,padding:"32px 16px",textAlign:"center"}}>
           <div style={{fontSize:13,color:"#6b7280",fontWeight:500}}>getdeploying GPU pricing live embed temporarily unavailable</div>
-          <button onClick={()=>setErr(false)}
+          <button onClick={()=>setEmbedErr(false)}
             style={{marginTop:10,fontSize:11,padding:"5px 14px",border:"0.5px solid #d1d5db",borderRadius:6,background:"#fff",color:"#374151",cursor:"pointer",fontFamily:"inherit"}}>
             Retry
           </button>
@@ -1115,7 +1191,7 @@ function GPUHardwarePricingTab(){
             src={"/api/getdeploying-gpus-proxy?v="+Math.floor(Date.now()/3e5)}
             title="GetDeploying — GPU Hardware Pricing"
             loading="lazy"
-            onError={()=>setErr(true)}
+            onError={()=>setEmbedErr(true)}
             style={{border:0,display:"block",width:"100%",height:"calc(100vh - 240px)",minHeight:720}}
           />
         </div>
@@ -1142,6 +1218,11 @@ const GPU_FIN_PRIMARY_ROWS=[
   {sku:"Nvidia H200",   shortLabel:"H200 141GB HBM3e"},
   {sku:"Nvidia H100",   shortLabel:"H100 80GB HBM3"},
 ];
+const GPU_FIN_SECONDARY_ROWS=[
+  {sku:"Nvidia A100",   shortLabel:"A100 40/80GB HBM2e"},
+  {sku:"Nvidia GB200",  shortLabel:"GB200 (up to 13.4TB HBM3e)"},
+  {sku:"Nvidia L40S",   shortLabel:"L40S 48GB GDDR6"},
+];
 
 const finTh={textAlign:"right",padding:"5px 10px",fontSize:10,color:"#6b7280",fontWeight:600,whiteSpace:"nowrap"};
 const finThRow={textAlign:"left",padding:"5px 10px",fontSize:10,color:"#6b7280",fontWeight:600,whiteSpace:"nowrap"};
@@ -1164,6 +1245,7 @@ function fmtGrowth(v){
 
 function GPUFinancialCorrelationBlock({fHist,fHistErr}){
   const[mode,setMode]=useState("quarter"); // "quarter" default per investor framing
+  const[showSecondary,setShowSecondary]=useState(false);
 
   if(fHistErr){
     return(
@@ -1240,12 +1322,12 @@ function GPUFinancialCorrelationBlock({fHist,fHistErr}){
                 <tr>
                   <th style={{...finThRow,minWidth:170}}></th>
                   {periods.map(p=>{
-                    // Find partial flag from any SKU that has this period
+                    // Partial flag = any primary OR visible secondary SKU has that period partial
+                    const rowPool=showSecondary?[...GPU_FIN_PRIMARY_ROWS,...GPU_FIN_SECONDARY_ROWS]:GPU_FIN_PRIMARY_ROWS;
                     let partial=false;
-                    for(const row of GPU_FIN_PRIMARY_ROWS){
+                    for(const row of rowPool){
                       const sr=(series[row.sku]||[]).find(x=>x.period===p.period);
-                      if(sr&&sr[partialKey])partial=true;
-                      if(partial)break;
+                      if(sr&&sr[partialKey]){partial=true;break;}
                     }
                     return(
                       <th key={p.period} style={finTh}>
@@ -1259,60 +1341,37 @@ function GPUFinancialCorrelationBlock({fHist,fHistErr}){
               <tbody>
                 {/* Section A: Pricing per Hour */}
                 <tr><td colSpan={periods.length+1} style={finSectionTh}>Pricing per Hour</td></tr>
-                {GPU_FIN_PRIMARY_ROWS.map(row=>{
-                  const byPeriod=Object.fromEntries((series[row.sku]||[]).map(x=>[x.period,x]));
-                  return(
-                    <tr key={"price-"+row.sku}>
-                      <td style={finTdRow}>{row.shortLabel}</td>
-                      {periods.map(p=>{
-                        const s=byPeriod[p.period];
-                        const val=s?s.avgMinPricePerHour:null;
-                        return(
-                          <td key={p.period} style={finTd}>
-                            {fmtMoney(val)}
-                            {s&&s[partialKey]&&<span style={{marginLeft:2,fontSize:8,color:"#b45309"}}></span>}
-                          </td>
-                        );
-                      })}
-                    </tr>
-                  );
-                })}
+                {renderFinPriceRows(GPU_FIN_PRIMARY_ROWS,series,periods,partialKey)}
+                {showSecondary&&renderFinPriceRows(GPU_FIN_SECONDARY_ROWS,series,periods,partialKey,true)}
 
                 {/* Spacer */}
                 <tr><td colSpan={periods.length+1} style={{height:8}}></td></tr>
 
                 {/* Section B: QoQ/MoM Growth */}
                 <tr><td colSpan={periods.length+1} style={finSectionTh}>{growthLabel}</td></tr>
-                {GPU_FIN_PRIMARY_ROWS.map(row=>{
-                  const row_g=growth[row.sku]||{};
-                  return(
-                    <tr key={"g-"+row.sku}>
-                      <td style={finTdRow}>{row.shortLabel}</td>
-                      {periods.map(p=>(
-                        <td key={p.period} style={finTdDim}>{fmtGrowth(row_g[p.period])}</td>
-                      ))}
-                    </tr>
-                  );
-                })}
+                {renderFinGrowthRows(GPU_FIN_PRIMARY_ROWS,growth,periods)}
+                {showSecondary&&renderFinGrowthRows(GPU_FIN_SECONDARY_ROWS,growth,periods,true)}
 
                 {/* Spacer */}
                 <tr><td colSpan={periods.length+1} style={{height:8}}></td></tr>
 
                 {/* Section C: YoY Growth */}
                 <tr><td colSpan={periods.length+1} style={finSectionTh}>YoY Growth</td></tr>
-                {GPU_FIN_PRIMARY_ROWS.map(row=>{
-                  const row_y=yoy[row.sku]||{};
-                  return(
-                    <tr key={"y-"+row.sku}>
-                      <td style={finTdRow}>{row.shortLabel}</td>
-                      {periods.map(p=>(
-                        <td key={p.period} style={finTdDim}>{fmtGrowth(row_y[p.period])}</td>
-                      ))}
-                    </tr>
-                  );
-                })}
+                {renderFinGrowthRows(GPU_FIN_PRIMARY_ROWS,yoy,periods)}
+                {showSecondary&&renderFinGrowthRows(GPU_FIN_SECONDARY_ROWS,yoy,periods,true)}
               </tbody>
             </table>
+          </div>
+
+          {/* Show more / Collapse secondary rows */}
+          <div style={{padding:"6px 10px",borderTop:"0.5px solid #e5e7eb",background:"#fafafa",display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:6}}>
+            <span style={{fontSize:10,color:"#9ca3af"}}>
+              {showSecondary?"Primary + secondary GPUs (6 tracked)":"Primary GPUs (B200/H200/H100)"} · tracked basket is fixed at the strategic 6 accelerators; other 85+ SKUs render live in the Infra Monitoring tab's vendor table.
+            </span>
+            <button onClick={()=>setShowSecondary(s=>!s)}
+              style={{fontSize:10,padding:"4px 10px",border:"0.5px solid #d1d5db",borderRadius:4,background:"#fff",color:"#374151",cursor:"pointer",fontFamily:"inherit",fontWeight:500}}>
+              {showSecondary?"− Hide secondary (A100 / GB200 / L40S)":"+ Show A100 / GB200 / L40S"}
+            </button>
           </div>
         </div>
       )}
@@ -1323,6 +1382,40 @@ function GPUFinancialCorrelationBlock({fHist,fHistErr}){
       </div>
     </div>
   );
+}
+
+function renderFinPriceRows(rows,series,periods,partialKey,dim){
+  return rows.map(row=>{
+    const byPeriod=Object.fromEntries((series[row.sku]||[]).map(x=>[x.period,x]));
+    return(
+      <tr key={"price-"+row.sku}>
+        <td style={{...finTdRow,color:dim?"#6b7280":"#111827"}}>{row.shortLabel}</td>
+        {periods.map(p=>{
+          const s=byPeriod[p.period];
+          const val=s?s.avgMinPricePerHour:null;
+          return(
+            <td key={p.period} style={{...finTd,color:dim?"#6b7280":finTd.color}}>
+              {fmtMoney(val)}
+            </td>
+          );
+        })}
+      </tr>
+    );
+  });
+}
+
+function renderFinGrowthRows(rows,growth,periods,dim){
+  return rows.map(row=>{
+    const row_g=growth[row.sku]||{};
+    return(
+      <tr key={"g-"+row.sku}>
+        <td style={{...finTdRow,color:dim?"#6b7280":"#111827"}}>{row.shortLabel}</td>
+        {periods.map(p=>(
+          <td key={p.period} style={finTdDim}>{fmtGrowth(row_g[p.period])}</td>
+        ))}
+      </tr>
+    );
+  });
 }
 
 /* ─── GPU History Shell ─────────────────────────────────────
