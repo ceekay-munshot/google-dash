@@ -156,34 +156,43 @@ function derivePeriods(dailies, keyFn, rangeFn) {
 
   for (const periodId of sortedKeys) {
     const { snapshots: periodSnaps, range } = groups.get(periodId);
-    // Sort by date desc, pick the latest as representative
-    periodSnaps.sort((a, b) => (a.date < b.date ? 1 : -1));
-    const representative = periodSnaps[0];
+    periodSnaps.sort((a, b) => (a.date < b.date ? 1 : -1)); // date desc
     const dayCount = periodSnaps.length;
     const partial = periodId === todayKey;
     const distinctHashes = new Set(periodSnaps.map(s => s.hash)).size;
 
-    const meta = {
+    // Representative: latest day in the period that has OR data, if any.
+    // Falls back to latest day overall (may lack OR data — e.g. a gpu-refresh
+    // snapshot that landed last). This matters because a period's KPI card
+    // should reflect the strongest signal available for the period, not the
+    // most recent no-op capture.
+    const hasOR = s => !!(s && s.openrouterSummary && s.openrouterSummary.totalTokensRaw);
+    const representativeWithOR = periodSnaps.find(hasOR) || null;
+    const representative = representativeWithOR || periodSnaps[0];
+    const orDayCount = periodSnaps.filter(hasOR).length;
+
+    periods.push({
       id: periodId,
       start: range.start,
       end: range.end,
       dayCount,
+      orDayCount,
       distinctHashes,
       partial,
-    };
-    periods.push(meta);
+    });
 
-    // The snapshot returned to the client mirrors the daily shape but
-    // overrides ts/date with the period's representative day's values
-    // and adds a periodMeta field.
     snapshots.push({
       ...representative,
       periodId,
       periodStart: range.start,
       periodEnd: range.end,
       dayCount,
+      orDayCount,
       distinctHashes,
       partial,
+      // Flag for the client: was this period's representative chosen from an
+      // OR-carrying snapshot (strong signal) or a fallback (weak signal)?
+      representativeHasOR: !!representativeWithOR,
     });
   }
 
