@@ -1224,6 +1224,73 @@ const GPU_FIN_SECONDARY_ROWS=[
   {sku:"Nvidia L40S",   shortLabel:"L40S 48GB GDDR6"},
 ];
 
+/* Illustrative / design-preview values — NOT sourced from live data.
+   Rendered only when the user explicitly flips the toggle ON. Never
+   persisted to KV, never sent through the real pipeline, never mixed
+   with real snapshots. An amber warning banner is shown whenever this
+   data is visible. These values were supplied by the operator as a
+   layout/shape preview for the Financial Correlation matrix. */
+const GPU_FIN_ILLUSTRATIVE_QUARTERS=[
+  {period:"2024-Q1", label:"Mar-24"},
+  {period:"2024-Q2", label:"Jun-24"},
+  {period:"2024-Q3", label:"Sep-24"},
+  {period:"2024-Q4", label:"Dec-24"},
+  {period:"2025-Q1", label:"Mar-25"},
+  {period:"2025-Q2", label:"Jun-25"},
+  {period:"2025-Q3", label:"Sep-25"},
+  {period:"2025-Q4", label:"Dec-25"},
+  {period:"2026-Q1", label:"Mar-26"},
+  {period:"2026-Q2", label:"Jun-26"},
+];
+const GPU_FIN_ILLUSTRATIVE_PRICING={
+  "Nvidia B200":[10.00, 2.00, 4.00, 5.00,12.00,10.00,5.00,1.00,2.00,3.53],
+  "Nvidia H200":[ 8.00, 7.00, 6.00, 5.00, 4.50, 4.00,2.00,1.75,2.00,2.20],
+  "Nvidia H100":[ 4.00, 3.60, 3.00, 2.50, 1.85, 1.75,1.55,1.25,1.75,1.54],
+};
+
+/* Synthesize an fHist-shaped payload from the illustrative pricing values.
+   Quarterly-only. QoQ = pct change vs period N-1. YoY = pct change vs period
+   N-4. Partial flags are always false (these are purely display values, not
+   captured snapshots). */
+function buildIllustrativeFHist(){
+  const qLabels=GPU_FIN_ILLUSTRATIVE_QUARTERS;
+  const series={};
+  const qoq={};
+  const yoy={};
+  for(const[sku,values]of Object.entries(GPU_FIN_ILLUSTRATIVE_PRICING)){
+    series[sku]=values.map((v,i)=>({
+      period:qLabels[i].period,
+      label:qLabels[i].label,
+      avgMinPricePerHour:v,
+      isQTD:false,
+      isPartialQuarter:false,
+      daysCoveredInQuarter:null,
+      quarterDayCount:null,
+      coverageRatioWithinQuarter:null,
+    }));
+    qoq[sku]={};
+    yoy[sku]={};
+    for(let i=0;i<values.length;i++){
+      const cur=values[i];
+      const prior=i>0?values[i-1]:null;
+      const yoyPrior=i>=4?values[i-4]:null;
+      qoq[sku][qLabels[i].period]=(prior!=null&&prior!==0)
+        ?+(((cur-prior)/prior)*100).toFixed(1):null;
+      yoy[sku][qLabels[i].period]=(yoyPrior!=null&&yoyPrior!==0)
+        ?+(((cur-yoyPrior)/yoyPrior)*100).toFixed(1):null;
+    }
+  }
+  return{
+    success:true,
+    view:"financial",
+    include:"illustrative",
+    isIllustrative:true,
+    trackingSinceRealDate:null,
+    quarterly:{labels:qLabels,series,qoq,yoy},
+    monthly:{labels:[],series:{},mom:{},yoy:{}}, // not supported in illustrative mode
+  };
+}
+
 const finTh={textAlign:"right",padding:"5px 10px",fontSize:10,color:"#6b7280",fontWeight:600,whiteSpace:"nowrap"};
 const finThRow={textAlign:"left",padding:"5px 10px",fontSize:10,color:"#6b7280",fontWeight:600,whiteSpace:"nowrap"};
 const finTd={textAlign:"right",padding:"4px 10px",fontSize:12,color:"#2563eb",fontFamily:"ui-monospace,SFMono-Regular,Menlo,monospace",whiteSpace:"nowrap"};
@@ -1246,16 +1313,28 @@ function fmtGrowth(v){
 function GPUFinancialCorrelationBlock({fHist,fHistErr}){
   const[mode,setMode]=useState("quarter"); // "quarter" default per investor framing
   const[showSecondary,setShowSecondary]=useState(false);
+  const[illustrative,setIllustrative]=useState(false);
 
-  if(fHistErr){
+  // Illustrative mode overrides the real fHist entirely. Toggle is
+  // quarter-only (no monthly illustrative data), so mode is forced to
+  // "quarter" while on. Secondary SKUs (A100/GB200/L40S) aren't included
+  // in the illustrative payload — the expand button is hidden while on.
+  const illFHist=illustrative?buildIllustrativeFHist():null;
+  const effFHist=illustrative?illFHist:fHist;
+  const effMode=illustrative?"quarter":mode;
+
+  if(!illustrative && fHistErr){
     return(
       <div style={{background:"#f9fafb",border:"1px dashed #d1d5db",borderRadius:8,padding:"14px 16px",marginBottom:14}}>
         <div style={{...S.lbl,color:"#1d4ed8",marginBottom:6}}>Financial correlation view</div>
         <div style={{fontSize:11,color:"#6b7280"}}>Financial view service temporarily unavailable — operational history below still loads.</div>
+        <div style={{marginTop:10}}>
+          <IllustrativeToggle illustrative={illustrative} setIllustrative={setIllustrative}/>
+        </div>
       </div>
     );
   }
-  if(!fHist){
+  if(!illustrative && !fHist){
     return(
       <div style={{marginBottom:14}}>
         <div style={{...S.lbl,color:"#1d4ed8",marginBottom:8}}>Financial correlation view</div>
@@ -1264,13 +1343,13 @@ function GPUFinancialCorrelationBlock({fHist,fHistErr}){
     );
   }
 
-  const since=fHist.trackingSinceRealDate;
-  const periods=mode==="quarter"?(fHist.quarterly?.labels||[]):(fHist.monthly?.labels||[]);
-  const series=mode==="quarter"?(fHist.quarterly?.series||{}):(fHist.monthly?.series||{});
-  const growth=mode==="quarter"?(fHist.quarterly?.qoq||{}):(fHist.monthly?.mom||{});
-  const yoy=mode==="quarter"?(fHist.quarterly?.yoy||{}):(fHist.monthly?.yoy||{});
-  const growthLabel=mode==="quarter"?"QoQ Growth":"MoM Growth";
-  const partialKey=mode==="quarter"?"isQTD":"isMTD";
+  const since=effFHist.trackingSinceRealDate;
+  const periods=effMode==="quarter"?(effFHist.quarterly?.labels||[]):(effFHist.monthly?.labels||[]);
+  const series=effMode==="quarter"?(effFHist.quarterly?.series||{}):(effFHist.monthly?.series||{});
+  const growth=effMode==="quarter"?(effFHist.quarterly?.qoq||{}):(effFHist.monthly?.mom||{});
+  const yoy=effMode==="quarter"?(effFHist.quarterly?.yoy||{}):(effFHist.monthly?.yoy||{});
+  const growthLabel=effMode==="quarter"?"QoQ Growth":"MoM Growth";
+  const partialKey=effMode==="quarter"?"isQTD":"isMTD";
 
   const hasAnyData=periods.length>0;
 
@@ -1279,28 +1358,39 @@ function GPUFinancialCorrelationBlock({fHist,fHistErr}){
       {/* Header */}
       <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:8,flexWrap:"wrap"}}>
         <div style={{...S.lbl,color:"#1d4ed8"}}>Financial correlation view</div>
-        <div style={{display:"inline-flex",border:"0.5px solid #e5e7eb",borderRadius:6,overflow:"hidden",background:"#fff"}}>
+        <div style={{display:"inline-flex",border:"0.5px solid #e5e7eb",borderRadius:6,overflow:"hidden",background:"#fff",opacity:illustrative?0.5:1}}>
           {["quarter","month"].map(v=>{
-            const active=mode===v;
+            const active=effMode===v;
+            const disabled=illustrative&&v==="month";
             return(
-              <button key={v} onClick={()=>setMode(v)}
-                style={{fontSize:11,padding:"4px 12px",border:"none",background:active?"#111827":"#fff",color:active?"#fff":"#6b7280",cursor:"pointer",fontFamily:"inherit",fontWeight:500,textTransform:"capitalize"}}>
+              <button key={v} onClick={()=>!disabled&&setMode(v)} disabled={disabled}
+                title={disabled?"Illustrative data is quarterly-only":undefined}
+                style={{fontSize:11,padding:"4px 12px",border:"none",background:active?"#111827":"#fff",color:active?"#fff":"#6b7280",cursor:disabled?"not-allowed":"pointer",fontFamily:"inherit",fontWeight:500,textTransform:"capitalize"}}>
                 {v==="quarter"?"Quarter":"Month"}
               </button>
             );
           })}
         </div>
-        <span style={{fontSize:10,color:"#9ca3af"}}>
+        <span style={{fontSize:10,color:"#9ca3af",flex:1,minWidth:0}}>
           Analyst lens · period averages of daily $/hr · quarter labels = quarter-end month (Mar/Jun/Sep/Dec)
         </span>
+        <IllustrativeToggle illustrative={illustrative} setIllustrative={setIllustrative}/>
       </div>
 
-      {/* Tracking-since caption */}
-      {since&&(
+      {/* Illustrative warning banner */}
+      {illustrative&&(
+        <div style={{background:"#fef3c7",border:"1px solid #fbbf24",borderRadius:8,padding:"10px 12px",marginBottom:8,fontSize:11,color:"#92400e",lineHeight:1.5}}>
+          <div style={{fontWeight:700,marginBottom:2,textTransform:"uppercase",letterSpacing:".04em",fontSize:10}}>⚠ Illustrative — design preview only</div>
+          Values below are <b style={{fontWeight:600}}>not sourced from live data</b>. This toggle renders a fixed layout preview of what the full matrix will look like once real quarterly history accumulates. No values are written to KV. No real capture is affected. Flip off to return to the real-only investor view.
+        </div>
+      )}
+
+      {/* Tracking-since caption (real mode only) */}
+      {!illustrative&&since&&(
         <div style={{fontSize:11,color:"#9ca3af",marginBottom:8}}>
           Real tracking since <b style={{color:"#6b7280",fontWeight:600}}>{since}</b>
           {" · "}
-          {periods.length} {mode==="quarter"?"quarter":"month"}{periods.length===1?"":"s"} observed
+          {periods.length} {effMode==="quarter"?"quarter":"month"}{periods.length===1?"":"s"} observed
           {" · "}
           growth rows populate once at least two real periods exist; YoY requires a period from one year prior
         </div>
@@ -1311,7 +1401,7 @@ function GPUFinancialCorrelationBlock({fHist,fHistErr}){
         <div style={{background:"#fff",border:"0.5px solid #e5e7eb",borderRadius:8,padding:"14px 16px"}}>
           <div style={{fontSize:12,color:"#111827",fontWeight:500}}>Matrix populates as real daily snapshots accumulate</div>
           <div style={{fontSize:11,color:"#6b7280",marginTop:3}}>
-            This view will show one column per calendar {mode==="quarter"?"quarter":"month"} and include QoQ/MoM + YoY growth rows once enough real data exists.
+            This view will show one column per calendar {effMode==="quarter"?"quarter":"month"} and include QoQ/MoM + YoY growth rows once enough real data exists. Flip the <b>Illustrative</b> toggle above to preview the full-matrix layout with non-live placeholder values.
           </div>
         </div>
       ):(
@@ -1342,7 +1432,7 @@ function GPUFinancialCorrelationBlock({fHist,fHistErr}){
                 {/* Section A: Pricing per Hour */}
                 <tr><td colSpan={periods.length+1} style={finSectionTh}>Pricing per Hour</td></tr>
                 {renderFinPriceRows(GPU_FIN_PRIMARY_ROWS,series,periods,partialKey)}
-                {showSecondary&&renderFinPriceRows(GPU_FIN_SECONDARY_ROWS,series,periods,partialKey,true)}
+                {!illustrative&&showSecondary&&renderFinPriceRows(GPU_FIN_SECONDARY_ROWS,series,periods,partialKey,true)}
 
                 {/* Spacer */}
                 <tr><td colSpan={periods.length+1} style={{height:8}}></td></tr>
@@ -1350,7 +1440,7 @@ function GPUFinancialCorrelationBlock({fHist,fHistErr}){
                 {/* Section B: QoQ/MoM Growth */}
                 <tr><td colSpan={periods.length+1} style={finSectionTh}>{growthLabel}</td></tr>
                 {renderFinGrowthRows(GPU_FIN_PRIMARY_ROWS,growth,periods)}
-                {showSecondary&&renderFinGrowthRows(GPU_FIN_SECONDARY_ROWS,growth,periods,true)}
+                {!illustrative&&showSecondary&&renderFinGrowthRows(GPU_FIN_SECONDARY_ROWS,growth,periods,true)}
 
                 {/* Spacer */}
                 <tr><td colSpan={periods.length+1} style={{height:8}}></td></tr>
@@ -1358,29 +1448,51 @@ function GPUFinancialCorrelationBlock({fHist,fHistErr}){
                 {/* Section C: YoY Growth */}
                 <tr><td colSpan={periods.length+1} style={finSectionTh}>YoY Growth</td></tr>
                 {renderFinGrowthRows(GPU_FIN_PRIMARY_ROWS,yoy,periods)}
-                {showSecondary&&renderFinGrowthRows(GPU_FIN_SECONDARY_ROWS,yoy,periods,true)}
+                {!illustrative&&showSecondary&&renderFinGrowthRows(GPU_FIN_SECONDARY_ROWS,yoy,periods,true)}
               </tbody>
             </table>
           </div>
 
-          {/* Show more / Collapse secondary rows */}
-          <div style={{padding:"6px 10px",borderTop:"0.5px solid #e5e7eb",background:"#fafafa",display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:6}}>
-            <span style={{fontSize:10,color:"#9ca3af"}}>
-              {showSecondary?"Primary + secondary GPUs (6 tracked)":"Primary GPUs (B200/H200/H100)"} · tracked basket is fixed at the strategic 6 accelerators; other 85+ SKUs render live in the Infra Monitoring tab's vendor table.
-            </span>
-            <button onClick={()=>setShowSecondary(s=>!s)}
-              style={{fontSize:10,padding:"4px 10px",border:"0.5px solid #d1d5db",borderRadius:4,background:"#fff",color:"#374151",cursor:"pointer",fontFamily:"inherit",fontWeight:500}}>
-              {showSecondary?"− Hide secondary (A100 / GB200 / L40S)":"+ Show A100 / GB200 / L40S"}
-            </button>
-          </div>
+          {/* Show more / Collapse secondary rows — hidden in illustrative mode (no secondary data) */}
+          {!illustrative&&(
+            <div style={{padding:"6px 10px",borderTop:"0.5px solid #e5e7eb",background:"#fafafa",display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:6}}>
+              <span style={{fontSize:10,color:"#9ca3af"}}>
+                {showSecondary?"Primary + secondary GPUs (6 tracked)":"Primary GPUs (B200/H200/H100)"} · tracked basket is fixed at the strategic 6 accelerators; other 85+ SKUs render live in the Infra Monitoring tab's vendor table.
+              </span>
+              <button onClick={()=>setShowSecondary(s=>!s)}
+                style={{fontSize:10,padding:"4px 10px",border:"0.5px solid #d1d5db",borderRadius:4,background:"#fff",color:"#374151",cursor:"pointer",fontFamily:"inherit",fontWeight:500}}>
+                {showSecondary?"− Hide secondary (A100 / GB200 / L40S)":"+ Show A100 / GB200 / L40S"}
+              </button>
+            </div>
+          )}
+          {illustrative&&(
+            <div style={{padding:"6px 10px",borderTop:"0.5px solid #e5e7eb",background:"#fafafa",fontSize:10,color:"#9ca3af"}}>
+              Illustrative data covers primary GPUs only (B200 / H200 / H100). Secondary expansion is disabled while the illustrative toggle is on.
+            </div>
+          )}
         </div>
       )}
 
       {/* Methodology footnote */}
       <div style={{fontSize:10,color:"#9ca3af",lineHeight:1.5,marginTop:6}}>
-        <b style={{color:"#6b7280",fontWeight:600}}>Methodology:</b> Period averages = arithmetic mean of daily minPricePerHour within the calendar {mode==="quarter"?"quarter":"month"} (not month-of-months — daily average avoids coverage-weighted bias). {mode==="quarter"?"QoQ":"MoM"} = (current {mode} avg − prior {mode} avg) / prior {mode} avg × 100. YoY = (current {mode} avg − same {mode} previous year avg) / same {mode} previous year avg × 100. Quarter labels are quarter-end month to match equity conventions. Real-only by default; synthetic/backfill snapshots are excluded.
+        <b style={{color:"#6b7280",fontWeight:600}}>Methodology:</b> {illustrative
+          ? "Illustrative mode renders operator-supplied placeholder values for layout preview — NOT sourced from live data and NOT persisted. QoQ / YoY growth rows below are derived arithmetically from those placeholder values. Flip the toggle off to return to real-only data."
+          : <>Period averages = arithmetic mean of daily minPricePerHour within the calendar {effMode==="quarter"?"quarter":"month"} (not month-of-months — daily average avoids coverage-weighted bias). {effMode==="quarter"?"QoQ":"MoM"} = (current {effMode} avg − prior {effMode} avg) / prior {effMode} avg × 100. YoY = (current {effMode} avg − same {effMode} previous year avg) / same {effMode} previous year avg × 100. Quarter labels are quarter-end month to match equity conventions. Real-only by default; synthetic/backfill snapshots are excluded.</>
+        }
       </div>
     </div>
+  );
+}
+
+function IllustrativeToggle({illustrative,setIllustrative}){
+  return(
+    <label style={{display:"inline-flex",alignItems:"center",gap:6,fontSize:10,color:illustrative?"#92400e":"#6b7280",cursor:"pointer",padding:"3px 8px",borderRadius:12,background:illustrative?"#fef3c7":"#fff",border:"0.5px solid "+(illustrative?"#fbbf24":"#e5e7eb"),fontWeight:500,whiteSpace:"nowrap"}}>
+      <span style={{position:"relative",width:24,height:14,background:illustrative?"#f59e0b":"#d1d5db",borderRadius:7,transition:"background 0.15s",flexShrink:0}}>
+        <span style={{position:"absolute",top:1,left:illustrative?11:1,width:12,height:12,background:"#fff",borderRadius:"50%",transition:"left 0.15s",boxShadow:"0 1px 2px rgba(0,0,0,0.15)"}}/>
+      </span>
+      <input type="checkbox" checked={illustrative} onChange={e=>setIllustrative(e.target.checked)} style={{display:"none"}}/>
+      <span>Illustrative (design preview)</span>
+    </label>
   );
 }
 
