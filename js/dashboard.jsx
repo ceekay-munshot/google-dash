@@ -2769,12 +2769,21 @@ function formatTokensShort(n){
 }
 
 /**
- * Turn a raw OR model slug into something investor-readable.
+ * Turn an OR model slug OR a pre-formatted display name into a consistent
+ * investor-readable label. Handles both input shapes because Daily (from
+ * /api/history) carries pre-formatted names like "Claude Sonnet 4.6" and
+ * Weekly/QTD (from /api/openrouter-chart-weekly) carries slugs like
+ * "anthropic/claude-4.6-sonnet-20260217". We normalize both to the same
+ * "<Family> <Version> <Tier>" word order.
+ *
  *   "anthropic/claude-4.6-sonnet-20260217" → "Claude 4.6 Sonnet"
+ *   "Claude Sonnet 4.6"                    → "Claude 4.6 Sonnet"
  *   "google/gemini-3-flash-preview"        → "Gemini 3 Flash Preview"
- *   "qwen/qwen3.6-plus-04-02:free"         → "Qwen3.6 Plus 04-02 (free)"
+ *   "qwen/qwen3.6-plus-04-02:free"         → "Qwen3.6 Plus 04 02 (free)"
  *   "xiaomi/mimo-v2-pro-20260318"          → "Mimo V2 Pro"
  *   "deepseek/deepseek-v3.2-20251201"      → "DeepSeek V3.2"
+ *   "Minimax M2.5"                         → "Minimax M2.5"
+ *   "Grok Code Fast 1"                     → "Grok Code Fast 1"
  */
 function prettyModel(slug){
   if(!slug)return"—";
@@ -2785,17 +2794,28 @@ function prettyModel(slug){
   let s=tagMatch?bare.slice(0,tagMatch.index):bare;
   // Strip trailing date stamps (YYYYMMDD or YYYY-MM-DD)
   s=s.replace(/[-_]?20\d{6}$/,"").replace(/[-_]?20\d{2}-\d{2}-\d{2}$/,"");
-  // DeepSeek special-case (common brand capitalization)
-  const parts=s.split(/[-_]/).filter(Boolean).map(w=>{
+  // Split on any separator (hyphen, underscore, OR space) so pre-formatted
+  // inputs like "Claude Sonnet 4.6" get the same reorder treatment as slugs.
+  let parts=s.split(/[-_\s]+/).filter(Boolean).map(w=>{
     if(/^\d+(\.\d+)*$/.test(w))return w;
-    if(w.toLowerCase()==="deepseek")return"DeepSeek";
-    if(w.toLowerCase()==="openai")return"OpenAI";
-    if(w.toLowerCase()==="gpt")return"GPT";
-    if(w.toLowerCase()==="llama")return"Llama";
+    const lw=w.toLowerCase();
+    if(lw==="deepseek")return"DeepSeek";
+    if(lw==="openai") return"OpenAI";
+    if(lw==="gpt")    return"GPT";
+    if(lw==="llama")  return"Llama";
     // Version-with-letter like "v3.2" → "V3.2"
     if(/^v\d+(\.\d+)*$/i.test(w))return w.toUpperCase();
     return w.charAt(0).toUpperCase()+w.slice(1);
   });
+  // Normalize word order: if the last token is a pure decimal version
+  // (e.g. "4.6", "2.5"), move it to position 2. This converts
+  // "Claude Sonnet 4.6" → "Claude 4.6 Sonnet" and leaves names with plain
+  // integer suffixes ("Grok Code Fast 1") or letter-bearing suffixes
+  // ("Minimax M2.5") alone.
+  if(parts.length>=3&&/^\d+\.\d+$/.test(parts[parts.length-1])){
+    const v=parts.pop();
+    parts=[parts[0],v,...parts.slice(1)];
+  }
   let out=parts.join(" ");
   if(tag)out+=" ("+tag+")";
   return out;
@@ -3006,7 +3026,7 @@ function HistoryTabCanonical(){
   const METRIC_SHORT=view==="daily"?"OR weekly total (rolling)":"OR weekly total (chart-native)";
   const METRIC_QTD="OR quarterly total (Σ chart-native weeks)";
   const primaryKpiLabel=
-    view==="daily"     ? "OR weekly-to-date · captured"
+    view==="daily"     ? "OR weekly total (rolling) · captured"
   : view==="weekly"    ? "OR weekly total · last completed week"
   :                      "OR quarterly total · last completed quarter";
   const deltaLabel=
