@@ -2768,6 +2768,39 @@ function formatTokensShort(n){
   return String(n);
 }
 
+/**
+ * Turn a raw OR model slug into something investor-readable.
+ *   "anthropic/claude-4.6-sonnet-20260217" → "Claude 4.6 Sonnet"
+ *   "google/gemini-3-flash-preview"        → "Gemini 3 Flash Preview"
+ *   "qwen/qwen3.6-plus-04-02:free"         → "Qwen3.6 Plus 04-02 (free)"
+ *   "xiaomi/mimo-v2-pro-20260318"          → "Mimo V2 Pro"
+ *   "deepseek/deepseek-v3.2-20251201"      → "DeepSeek V3.2"
+ */
+function prettyModel(slug){
+  if(!slug)return"—";
+  const bare=slug.includes("/")?slug.split("/").slice(1).join("/"):slug;
+  // Separate variant tag like ":free", ":beta"
+  const tagMatch=bare.match(/:(free|beta|latest|preview|thinking|exp)$/i);
+  const tag=tagMatch?tagMatch[1].toLowerCase():null;
+  let s=tagMatch?bare.slice(0,tagMatch.index):bare;
+  // Strip trailing date stamps (YYYYMMDD or YYYY-MM-DD)
+  s=s.replace(/[-_]?20\d{6}$/,"").replace(/[-_]?20\d{2}-\d{2}-\d{2}$/,"");
+  // DeepSeek special-case (common brand capitalization)
+  const parts=s.split(/[-_]/).filter(Boolean).map(w=>{
+    if(/^\d+(\.\d+)*$/.test(w))return w;
+    if(w.toLowerCase()==="deepseek")return"DeepSeek";
+    if(w.toLowerCase()==="openai")return"OpenAI";
+    if(w.toLowerCase()==="gpt")return"GPT";
+    if(w.toLowerCase()==="llama")return"Llama";
+    // Version-with-letter like "v3.2" → "V3.2"
+    if(/^v\d+(\.\d+)*$/i.test(w))return w.toUpperCase();
+    return w.charAt(0).toUpperCase()+w.slice(1);
+  });
+  let out=parts.join(" ");
+  if(tag)out+=" ("+tag+")";
+  return out;
+}
+
 function raw_pace_note(data){
   const wp=data?.weeklyPace;
   if(!wp)return null;
@@ -2966,22 +2999,25 @@ function HistoryTabCanonical(){
   const priorTok  =orTok(priorSnap);
   const changePct =priorTok>0&&primaryTok>0?((primaryTok-priorTok)/priorTok)*100:null;
 
-  // Labels are explicit about what is being compared — no "Day-over-day" for
-  // what is really "24h delta between two rolling-weekly-total observations".
-  const METRIC_SHORT="OR weekly total (rolling)";
+  // Labels are explicit about what is being compared.
+  // Weekly metric = OR's chart-native weekly bucket. QTD metric = SUM of those
+  // weekly buckets within each calendar quarter — it's a quarterly TOTAL, not
+  // a "close" / point-in-time value, so labels must say so.
+  const METRIC_SHORT=view==="daily"?"OR weekly total (rolling)":"OR weekly total (chart-native)";
+  const METRIC_QTD="OR quarterly total (Σ chart-native weeks)";
   const primaryKpiLabel=
     view==="daily"     ? "OR weekly-to-date · captured"
   : view==="weekly"    ? "OR weekly total · last completed week"
-  :                      "OR weekly total · last completed quarter close";
+  :                      "OR quarterly total · last completed quarter";
   const deltaLabel=
     view==="daily"     ? "Δ24h (rolling weekly observation)"
   : view==="weekly"    ? "WoW (completed vs prior completed)"
-  :                      "QoQ (completed close vs prior close)";
+  :                      "QoQ total vs prior completed quarter";
   const deltaSub=changePct==null
     ? (view==="daily" ? "need ≥2 daily snapshots with OR data"
        : view==="weekly" ? "need ≥2 completed weeks"
        : "need ≥2 completed quarters")
-    : METRIC_SHORT;
+    : (view==="quarterly"?METRIC_QTD:METRIC_SHORT);
   const deltaVal=changePct==null?"—":((changePct>=0?"+":"")+changePct.toFixed(1)+"%");
 
   function periodRangeLabel(s){
@@ -3002,10 +3038,16 @@ function HistoryTabCanonical(){
     <div>
       {header}
 
-      {/* Tracking-since caption */}
+      {/* Tracking-since caption + freshness */}
       <div style={{fontSize:11,color:"#6b7280",marginBottom:10}}>
         tracking since <strong style={{color:"#374151"}}>{fmtDate(trackingSinceDate)}</strong>
         {" · "}<span>{snaps.length} {view==="daily"?"day":view==="weekly"?"week":"quarter"}{snaps.length===1?"":"s"} captured</span>
+        {d.fetchedAt&&(
+          <span>
+            {" · chart snapshot fetched "}
+            <strong style={{color:"#374151"}}>{new Date(d.fetchedAt).toISOString().slice(11,16)} UTC</strong>
+          </span>
+        )}
         {d._localFallback&&<span style={{color:"#b45309"}}> · falling back to local cache (API error)</span>}
       </div>
 
@@ -3017,9 +3059,10 @@ function HistoryTabCanonical(){
           <div style={{fontSize:11,color:"#92400e"}}>
             <strong style={{color:"#78350f"}}>Current {partialBadge} · in progress</strong>
             {" — "}{periodRangeLabel(partialSnap)}. Do not compare to completed {view==="weekly"?"weeks":"quarters"}.
+            {d.fetchedAt&&<span style={{color:"#92400e"}}>{" · chart fetched "}{new Date(d.fetchedAt).toISOString().slice(11,16)} UTC (live iframe may differ intraday as both series grow)</span>}
           </div>
           <div style={{fontSize:13,fontWeight:600,color:"#78350f",fontVariantNumeric:"tabular-nums"}}>
-            {fmtTokShort(partialTok)}{partialTok?" · "+METRIC_SHORT:""}
+            {fmtTokShort(partialTok)}{partialTok?" · "+(view==="weekly"?METRIC_SHORT:METRIC_QTD):""}
           </div>
         </div>
       )}
@@ -3040,16 +3083,18 @@ function HistoryTabCanonical(){
           bg={changePct==null?"#f9fafb":changePct>=0?"#f0fdf4":"#fef2f2"}
           fg={changePct==null?"#6b7280":changePct>=0?"#059669":"#b91c1c"}/>
         <KBox
-          label={"Top model · "+(primaryKind==="daily"?"at capture":primaryKind==="completed-week"?"week close":"quarter close")}
-          value={latestTop?"#"+latestTop.rank:"—"}
-          sub={latestTop?(latestTop.model||"").slice(0,22)+(latestGem?" · best Gemini #"+latestGem.rank:""):"no OR data"}
+          label={"Top model · "+(primaryKind==="daily"?"at capture":primaryKind==="completed-week"?"end of week":"latest week in quarter")}
+          value={latestTop?"#"+latestTop.rank+" "+prettyModel(latestTop.slug||latestTop.model):"—"}
+          sub={latestGem?"best Gemini #"+latestGem.rank+" · "+prettyModel(latestGem.slug||latestGem.model):(latestTop?"":"no OR data")}
           bg="#fef3c7" fg="#a16207"/>
       </div>
 
-      {/* Sparkline — OR weekly-rolling total at each snapshot point */}
+      {/* Sparkline — total at each snapshot point */}
       <div style={{...S.card,padding:12,marginBottom:14}}>
         <div style={{...S.lbl,marginBottom:8}}>
-          {METRIC_SHORT} · {view==="daily"?"daily captures":view==="weekly"?"weekly (completed + current)":"quarterly (completed + current)"}
+          {view==="quarterly"?METRIC_QTD:METRIC_SHORT}
+          {" · "}
+          {view==="daily"?"daily captures":view==="weekly"?"weekly (completed + current)":"quarterly (completed + current)"}
         </div>
         {chart.length>=2?(
           <ResponsiveContainer width="100%" height={180}>
@@ -3076,7 +3121,9 @@ function HistoryTabCanonical(){
       {/* Snapshot table */}
       <div style={{...S.card,padding:0,overflow:"hidden"}}>
         <div style={{...S.lbl,padding:"10px 12px",borderBottom:"1px solid #f3f4f6"}}>
-          {view==="daily"?"Daily snapshots":view==="weekly"?"Weekly periods (representative day per ISO week)":"Quarterly periods (representative day per calendar quarter)"}
+          {view==="daily"?"Daily snapshots · internal capture diagnostics"
+            :view==="weekly"?"Weekly periods · chart-native series"
+            :"Quarterly periods · sum of chart-native weeks"}
         </div>
         <div style={{maxHeight:360,overflowY:"auto"}}>
           <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
@@ -3086,7 +3133,7 @@ function HistoryTabCanonical(){
                   {view==="daily"?"Capture date":view==="weekly"?"ISO week":"Quarter"}
                 </th>
                 <th style={{padding:"7px 12px",fontWeight:600,color:"#374151",borderBottom:"1px solid #e5e7eb",textAlign:"right"}}>
-                  OR weekly total (rolling)
+                  {view==="quarterly"?"OR quarterly total":"OR weekly total"}
                 </th>
                 <th style={{padding:"7px 12px",fontWeight:600,color:"#374151",borderBottom:"1px solid #e5e7eb"}}>#1 model</th>
                 <th style={{padding:"7px 12px",fontWeight:600,color:"#374151",borderBottom:"1px solid #e5e7eb"}}>Best Gemini</th>
@@ -3105,22 +3152,24 @@ function HistoryTabCanonical(){
                 const notes=[];
                 if(s.partial)notes.push(view==="weekly"?"WTD":view==="quarterly"?"QTD":"partial");
                 if(s.dedup)notes.push("dedup");
-                // For chart-native Weekly/QTD: dayCount = # of weeks. For
-                // /api/history-derived: dayCount = # of daily snapshots.
-                const isChartNative=s.source==="or-chart";
-                if(view!=="daily"&&s.dayCount){
-                  const unit=isChartNative?"wk":"d";
-                  notes.push(s.dayCount+unit+(s.orDayCount&&s.orDayCount!==s.dayCount?" ("+s.orDayCount+(isChartNative?" wk":" w")+"/OR)":""));
+                // Weekly rows are 1 week by definition — no count chip needed.
+                // Quarterly rows show the number of chart-native weeks that
+                // rolled up into the total, spelled out explicitly.
+                if(view==="quarterly"&&s.dayCount){
+                  notes.push(s.dayCount+" week"+(s.dayCount===1?"":"s"));
                 }
+                // Daily rows are /api/history-derived; dayCount there is the
+                // number of daily snapshots (not weeks). Omit for daily too —
+                // the count doesn't add investor value.
                 if(view!=="daily"&&s.representativeHasOR===false)notes.push("no OR signal");
-                if(s.source&&s.source!=="cron")notes.push(s.source);
+                if(s.source&&s.source!=="cron"&&s.source!=="or-chart")notes.push(s.source);
                 const isPartial=s.partial;
                 return(
                   <tr key={key} style={{borderBottom:"1px solid #f3f4f6",background:isPartial?"#fffbeb":undefined}}>
                     <td style={{padding:"7px 12px",color:"#111827"}}>{periodLabel}</td>
                     <td style={{padding:"7px 12px",color:"#111827",textAlign:"right",fontVariantNumeric:"tabular-nums"}}>{fmtTokShort(orTok(s))}</td>
-                    <td style={{padding:"7px 12px",color:"#374151"}}>{top?.model?(top.model.slice(0,26)+(top.model.length>26?"…":"")):"—"}</td>
-                    <td style={{padding:"7px 12px",color:"#374151"}}>{gem?"#"+gem.rank+" "+(gem.model||"").slice(0,16):"—"}</td>
+                    <td style={{padding:"7px 12px",color:"#374151"}}>{top?prettyModel(top.slug||top.model):"—"}</td>
+                    <td style={{padding:"7px 12px",color:"#374151"}}>{gem?"#"+gem.rank+" "+prettyModel(gem.slug||gem.model):"—"}</td>
                     <td style={{padding:"7px 12px",color:"#6b7280",fontSize:11}}>
                       {notes.length?notes.map((n,j)=>{
                         const isPartialTag=n==="WTD"||n==="QTD"||n==="partial";
@@ -3139,11 +3188,13 @@ function HistoryTabCanonical(){
 
       <div style={{fontSize:10,color:"#9ca3af",marginTop:8,lineHeight:1.5}}>
         {view==="daily" ? (<>
-          Metric: <strong style={{color:"#6b7280"}}>OR weekly total (rolling)</strong> — sum of top-30 model tokens scraped from <code>openrouter.ai/rankings?view=week</code> at our daily capture time. OpenRouter has no native daily metric; every captured number is a weekly rolling total observed on a specific day. <strong>This is diagnostic, not investor-facing</strong> — for completed-week analysis use the Weekly tab, which reads the chart-native series directly.
-        </>):(<>
-          Source: <code>/api/openrouter-chart-weekly</code> — extracted from the same Next.js RSC payload (<code>self.__next_f.push</code>) that drives the OpenRouter Top Models live chart embedded above. Weekly totals are <strong>Σ ys</strong> across all model series including OR's "Others" rollup, matching the chart tooltip's <strong>Total</strong> field exactly (modulo observation time within a partial week — the value grows as the week progresses).
+          Metric: <strong style={{color:"#6b7280"}}>OR weekly total (rolling)</strong> — sum of top-30 model tokens scraped from <code>openrouter.ai/rankings?view=week</code> at our daily capture time. OpenRouter has no native daily metric; every captured number is a weekly rolling total observed on a specific day. <strong>This tab is internal capture diagnostics, not investor-facing</strong> — for completed-week and quarterly analysis use the Weekly and QTD tabs, which read the chart-native series directly.
+        </>):view==="weekly"?(<>
+          Source: <code>/api/openrouter-chart-weekly</code> — extracted from the same Next.js RSC payload (<code>self.__next_f.push</code>) that drives the OpenRouter Top Models live chart embedded above. Each row is one ISO week. Totals are <strong>Σ ys</strong> across all model series including OR's "Others" rollup, matching the chart tooltip's <strong>Total</strong> field exactly (modulo observation time within a partial week — the value grows as the week progresses).
           {raw_pace_note(state.data)}
-          {view==="quarterly"?<><br/>QTD totals are computed by summing chart-native week totals within each calendar quarter (week-start month).</>:null}
+        </>):(<>
+          Source: <code>/api/openrouter-chart-weekly</code>, grouped by calendar quarter (week-start month). Each row's total is <strong>Σ chart-native weekly totals</strong> in that quarter — it is a quarterly SUM, not a point-in-time quarter-close value. A quarter is marked partial (QTD) when it contains the current in-progress week.
+          {raw_pace_note(state.data)}
         </>)}
       </div>
     </div>
