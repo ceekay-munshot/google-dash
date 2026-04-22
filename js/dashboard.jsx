@@ -2640,14 +2640,159 @@ function InsightsTab(){
    Weekly + quarterly are derived server-side from daily canonical data.
    Falls back to window.__ghist.snaps (daily view only) if the API errors.
 ═══════════════════════════════════════════════════════ */
+/**
+ * Adapt the /api/openrouter-chart-weekly response to the renderer's snapshot
+ * shape. The renderer was originally built around the /api/history canonical
+ * snapshot shape; this converter lets us swap the source-of-truth without
+ * rewriting the table/chart/KPI code.
+ *
+ * Chart-native input:
+ *   { weeks: [{start, end, totalRaw, totalLabel, partial, topModels:[{slug, tokens}]}],
+ *     currentWeek, weeklyPace, fetchedAt, forecastFromTimestamp }
+ *
+ * Output (matches /api/history shape used by the renderer):
+ *   { snapshots: [{ date, periodId, periodStart, periodEnd, partial,
+ *                   openrouterSummary: {totalTokensRaw, totalTokensLabel},
+ *                   or: [{rank, model, slug, isGemini, tokRaw, provider}],
+ *                   dayCount, source, ... }],
+ *     trackingSinceDate, _chartNative: true, weeklyPace, fetchedAt }
+ */
+function adaptChartNative(raw, view){
+  const weeks=raw.weeks||[];
+  if(!weeks.length){
+    return {snapshots:[], trackingSinceDate:null, _chartNative:true, weeklyPace:raw.weeklyPace, fetchedAt:raw.fetchedAt};
+  }
+
+  function topModelsToOR(topModels){
+    // Filter out OR's synthetic "Others" rollup — it's the long-tail bucket,
+    // not a real model. Including it makes "#1 model" misleading because it's
+    // structurally always the largest entry on weeks with a wide tail.
+    const real=(topModels||[]).filter(tm=>tm.slug&&tm.slug!=="Others");
+    return real.map((tm,i)=>{
+      const slug=tm.slug;
+      const m=slug.toLowerCase();
+      const provider = slug.includes("/") ? slug.split("/")[0] : (m.includes("gemini")?"google":m.includes("gpt")||m.includes("openai")?"openai":m.includes("claude")?"anthropic":m.includes("deepseek")?"deepseek":"other");
+      return {
+        rank:i+1,
+        model:slug.includes("/")?slug.split("/").slice(1).join("/"):slug,
+        slug,
+        provider,
+        isGemini:/gemini/.test(m),
+        tokRaw:tm.tokens||0,
+      };
+    });
+  }
+
+  // Weekly: each chart week becomes one snapshot, newest first.
+  if(view==="weekly"){
+    const snapshots=[...weeks].reverse().map(w=>({
+      date:w.end,
+      periodId:w.start,
+      periodStart:w.start,
+      periodEnd:w.end,
+      partial:!!w.partial,
+      openrouterSummary:{totalTokensRaw:w.totalRaw,totalTokensLabel:w.totalLabel},
+      or:topModelsToOR(w.topModels),
+      dayCount:7,
+      orDayCount:7,
+      distinctHashes:1,
+      source:"or-chart",
+      representativeHasOR:true,
+    }));
+    return {
+      snapshots,
+      trackingSinceDate:weeks[0].start,
+      _chartNative:true,
+      weeklyPace:raw.weeklyPace,
+      fetchedAt:raw.fetchedAt,
+    };
+  }
+
+  // Quarterly: group weeks by calendar quarter (using week-start month).
+  // Sum totalRaw within each quarter to get the chart-native quarterly total.
+  // The representative top-models row is the latest week's topModels in that
+  // quarter (best signal for "what was leading at quarter close").
+  const groups=new Map();
+  for(const w of weeks){
+    const [y,m]=w.start.split("-").map(Number);
+    const q=Math.floor((m-1)/3)+1;
+    const id=y+"-Q"+q;
+    if(!groups.has(id)){
+      const startMonth=(q-1)*3;
+      const start=y+"-"+String(startMonth+1).padStart(2,"0")+"-01";
+      // last day of quarter = day 0 of next month
+      const endD=new Date(Date.UTC(y,startMonth+3,0));
+      const end=endD.toISOString().slice(0,10);
+      groups.set(id,{id,start,end,weeks:[],totalRaw:0,partial:false});
+    }
+    const g=groups.get(id);
+    g.weeks.push(w);
+    g.totalRaw+=(w.totalRaw||0);
+    if(w.partial)g.partial=true;
+  }
+  const snapshots=Array.from(groups.values())
+    .sort((a,b)=>a.id<b.id?1:-1)
+    .map(g=>{
+      const lastWeek=g.weeks[g.weeks.length-1];
+      return {
+        date:g.end,
+        periodId:g.id,
+        periodStart:g.start,
+        periodEnd:g.end,
+        partial:g.partial,
+        openrouterSummary:{
+          totalTokensRaw:g.totalRaw,
+          totalTokensLabel:formatTokensShort(g.totalRaw),
+        },
+        or:topModelsToOR(lastWeek?.topModels),
+        dayCount:g.weeks.length, // = number of ISO weeks in this quarter we have
+        orDayCount:g.weeks.length,
+        distinctHashes:1,
+        source:"or-chart",
+        representativeHasOR:true,
+      };
+    });
+  return {
+    snapshots,
+    trackingSinceDate:weeks[0].start,
+    _chartNative:true,
+    weeklyPace:raw.weeklyPace,
+    fetchedAt:raw.fetchedAt,
+  };
+}
+function formatTokensShort(n){
+  if(!n||n<=0)return"—";
+  if(n>=1e12)return(n/1e12).toFixed(2).replace(/\.?0+$/,"")+"T";
+  if(n>=1e9) return(n/1e9) .toFixed(1).replace(/\.0$/,"")    +"B";
+  if(n>=1e6) return(n/1e6) .toFixed(1).replace(/\.0$/,"")    +"M";
+  return String(n);
+}
+
+function raw_pace_note(data){
+  const wp=data?.weeklyPace;
+  if(!wp)return null;
+  return(<><br/>Our partial-week pace = <strong>{wp.label}</strong> via <code>{wp.method}</code>. OR's own "Weekly Pace" tooltip uses a proprietary forecast we do not replicate; treat ours as a sanity check, not a 1:1 match.</>);
+}
+
 function HistoryTabCanonical(){
-  const[view,setView]=useState("daily"); // "daily" | "weekly" | "quarterly"
+  // Default to Weekly — that's the chart-native investor-facing view that
+  // reconciles to the OpenRouter live chart embedded above.
+  const[view,setView]=useState("weekly"); // "weekly" | "quarterly" | "daily"
   const[state,setState]=useState({phase:"loading",data:null,error:null});
 
   useEffect(()=>{
     let cancelled=false;
     setState({phase:"loading",data:null,error:null});
-    fetch("/api/history?view="+view+"&range=365")
+
+    // Source-of-truth split:
+    //   weekly + quarterly → /api/openrouter-chart-weekly (the same RSC payload
+    //     that drives the live OR chart embedded above; reconciles 1:1 with it)
+    //   daily → /api/history?view=daily (our internal capture diagnostics)
+    const url = view==="daily"
+      ? "/api/history?view=daily&range=365"
+      : "/api/openrouter-chart-weekly";
+
+    fetch(url)
       .then(r=>r.ok?r.json():Promise.reject(new Error("HTTP "+r.status)))
       .then(d=>{
         if(cancelled)return;
@@ -2655,16 +2800,16 @@ function HistoryTabCanonical(){
           setState({phase:"error",data:null,error:d?.error||"Unknown error"});
           return;
         }
-        const snaps=d.snapshots||[];
+        const adapted = view==="daily" ? d : adaptChartNative(d,view);
+        const snaps=adapted.snapshots||[];
         if(!snaps.length){
-          setState({phase:"empty",data:d,error:null});
+          setState({phase:"empty",data:adapted,error:null});
           return;
         }
-        setState({phase:"ready",data:d,error:null});
+        setState({phase:"ready",data:adapted,error:null});
       })
       .catch(err=>{
         if(cancelled)return;
-        // Daily-view fallback: use local __ghist if the API errors.
         if(view==="daily"&&typeof window!=="undefined"&&window.__ghist?.snaps?.length){
           const local=window.__ghist.snaps.map(s=>({
             date:(s.ts||"").slice(0,10),
@@ -2678,7 +2823,7 @@ function HistoryTabCanonical(){
               totalTokensLabel:null,
             },
             source:"local",
-          })).reverse(); // newest first
+          })).reverse();
           setState({phase:"ready",data:{view:"daily",snapshots:local,count:local.length,trackingSinceDate:local.length?local[local.length-1].date:null,_localFallback:true},error:null});
           return;
         }
@@ -2687,10 +2832,11 @@ function HistoryTabCanonical(){
     return()=>{cancelled=true;};
   },[view]);
 
+  // Order matters — Weekly first because it's the canonical investor view.
   const VIEWS=[
-    {id:"daily",     label:"Daily"},
     {id:"weekly",    label:"Weekly"},
     {id:"quarterly", label:"QTD"},
+    {id:"daily",     label:"Daily (diagnostics)"},
   ];
 
   const toggle=(
@@ -2707,8 +2853,12 @@ function HistoryTabCanonical(){
   const header=(
     <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14,flexWrap:"wrap",gap:8}}>
       <div>
-        <div style={{fontSize:14,fontWeight:600,color:"#111827"}}>Canonical history</div>
-        <div style={{fontSize:11,color:"#6b7280",marginTop:2}}>KV-backed daily snapshots · weekly + QTD derived server-side from daily source-of-truth</div>
+        <div style={{fontSize:14,fontWeight:600,color:"#111827"}}>OpenRouter history</div>
+        <div style={{fontSize:11,color:"#6b7280",marginTop:2}}>
+          {view==="daily"
+            ? "Daily capture diagnostics · internal /api/history snapshots (rolling weekly observation per day)"
+            : "Chart-native series · same RSC payload as the OpenRouter live chart embedded above (reconciles 1:1)"}
+        </div>
       </div>
       {toggle}
     </div>
@@ -2728,7 +2878,9 @@ function HistoryTabCanonical(){
       <div>
         {header}
         <div style={{fontSize:12,color:"#b91c1c",background:"#fef2f2",border:"0.5px solid #fecaca",borderRadius:8,padding:12}}>
-          Failed to load history — {String(state.error)}. The canonical store at <code style={{fontFamily:"monospace"}}>/api/history?view={view}</code> returned an error. Check that HISTORY_KV is bound and that <code style={{fontFamily:"monospace"}}>/api/history-capture</code> has run at least once.
+          Failed to load history — {String(state.error)}. {view==="daily"
+            ? <>The canonical store at <code style={{fontFamily:"monospace"}}>/api/history?view=daily</code> returned an error. Check that HISTORY_KV is bound and that <code style={{fontFamily:"monospace"}}>/api/history-capture</code> has run at least once.</>
+            : <><code style={{fontFamily:"monospace"}}>/api/openrouter-chart-weekly</code> returned an error. The OpenRouter rankings page may be unreachable, or its RSC payload layout may have changed (see the parser in <code style={{fontFamily:"monospace"}}>functions/api/openrouter-chart-weekly.js</code>).</>}
         </div>
       </div>
     );
@@ -2739,8 +2891,13 @@ function HistoryTabCanonical(){
       <div>
         {header}
         <div style={{fontSize:12,color:"#6b7280",background:"#f9fafb",border:"0.5px solid #e5e7eb",borderRadius:8,padding:16,textAlign:"center"}}>
-          <div style={{fontWeight:600,color:"#374151",marginBottom:4}}>No canonical history yet</div>
-          <div>Run <code style={{fontFamily:"monospace"}}>/api/history-capture</code> to create the first snapshot. The daily cron (see <code style={{fontFamily:"monospace"}}>.github/workflows/history-capture.yml</code>) will then accumulate one snapshot per day.</div>
+          {view==="daily"?(<>
+            <div style={{fontWeight:600,color:"#374151",marginBottom:4}}>No canonical history yet</div>
+            <div>Run <code style={{fontFamily:"monospace"}}>/api/history-capture</code> to create the first snapshot. The daily cron (see <code style={{fontFamily:"monospace"}}>.github/workflows/history-capture.yml</code>) will then accumulate one snapshot per day.</div>
+          </>):(<>
+            <div style={{fontWeight:600,color:"#374151",marginBottom:4}}>No chart-native data returned</div>
+            <div>Try <code style={{fontFamily:"monospace"}}>/api/openrouter-chart-weekly</code> directly. If OpenRouter changed their RSC payload structure the parser may need updating.</div>
+          </>)}
         </div>
       </div>
     );
@@ -2948,7 +3105,13 @@ function HistoryTabCanonical(){
                 const notes=[];
                 if(s.partial)notes.push(view==="weekly"?"WTD":view==="quarterly"?"QTD":"partial");
                 if(s.dedup)notes.push("dedup");
-                if(view!=="daily"&&s.dayCount)notes.push(s.dayCount+"d"+(s.orDayCount&&s.orDayCount!==s.dayCount?" ("+s.orDayCount+" w/OR)":""));
+                // For chart-native Weekly/QTD: dayCount = # of weeks. For
+                // /api/history-derived: dayCount = # of daily snapshots.
+                const isChartNative=s.source==="or-chart";
+                if(view!=="daily"&&s.dayCount){
+                  const unit=isChartNative?"wk":"d";
+                  notes.push(s.dayCount+unit+(s.orDayCount&&s.orDayCount!==s.dayCount?" ("+s.orDayCount+(isChartNative?" wk":" w")+"/OR)":""));
+                }
                 if(view!=="daily"&&s.representativeHasOR===false)notes.push("no OR signal");
                 if(s.source&&s.source!=="cron")notes.push(s.source);
                 const isPartial=s.partial;
@@ -2975,9 +3138,13 @@ function HistoryTabCanonical(){
       </div>
 
       <div style={{fontSize:10,color:"#9ca3af",marginTop:8,lineHeight:1.5}}>
-        Metric: <strong style={{color:"#6b7280"}}>OR weekly total (rolling)</strong> — sum of top-30 model tokens as shown on <code>openrouter.ai/rankings?view=week</code> at capture time. OpenRouter has no native daily metric; every captured number is a weekly rolling total observed on a specific day. Weekly/QTD views group daily captures into ISO weeks / calendar quarters and display the latest day in each period as the representative.
-        <br/>
-        Not equal to the "Total" shown inside the embedded OpenRouter live chart above — that tooltip reflects OR's own weekly aggregation at the moment the iframe rendered, across all models (not top-30), and OR's "Weekly Pace" is an extrapolation we do not compute.
+        {view==="daily" ? (<>
+          Metric: <strong style={{color:"#6b7280"}}>OR weekly total (rolling)</strong> — sum of top-30 model tokens scraped from <code>openrouter.ai/rankings?view=week</code> at our daily capture time. OpenRouter has no native daily metric; every captured number is a weekly rolling total observed on a specific day. <strong>This is diagnostic, not investor-facing</strong> — for completed-week analysis use the Weekly tab, which reads the chart-native series directly.
+        </>):(<>
+          Source: <code>/api/openrouter-chart-weekly</code> — extracted from the same Next.js RSC payload (<code>self.__next_f.push</code>) that drives the OpenRouter Top Models live chart embedded above. Weekly totals are <strong>Σ ys</strong> across all model series including OR's "Others" rollup, matching the chart tooltip's <strong>Total</strong> field exactly (modulo observation time within a partial week — the value grows as the week progresses).
+          {raw_pace_note(state.data)}
+          {view==="quarterly"?<><br/>QTD totals are computed by summing chart-native week totals within each calendar quarter (week-start month).</>:null}
+        </>)}
       </div>
     </div>
   );
