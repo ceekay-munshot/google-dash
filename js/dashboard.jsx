@@ -969,6 +969,8 @@ function GPUHardwarePricingTab(){
   const[histErr,setHistErr]=useState(false);
   const[qHist,setQHist]=useState(null);     // quarter
   const[qHistErr,setQHistErr]=useState(false);
+  const[fHist,setFHist]=useState(null);     // financial correlation view
+  const[fHistErr,setFHistErr]=useState(false);
   const[histView,setHistView]=useState("quarter"); // "quarter" default per investor framing
 
   useEffect(()=>{
@@ -985,6 +987,10 @@ function GPUHardwarePricingTab(){
       .then(r=>r.ok?r.json():Promise.reject(r.status))
       .then(j=>{if(!cancelled){if(j&&j.success){setQHist(j);}else{setQHistErr(true);}}})
       .catch(()=>{if(!cancelled)setQHistErr(true);});
+    fetch("/api/gpu-hardware-pricing-history?view=financial&window=400")
+      .then(r=>r.ok?r.json():Promise.reject(r.status))
+      .then(j=>{if(!cancelled){if(j&&j.success){setFHist(j);}else{setFHistErr(true);}}})
+      .catch(()=>{if(!cancelled)setFHistErr(true);});
     return()=>{cancelled=true;};
   },[]);
 
@@ -1084,6 +1090,9 @@ function GPUHardwarePricingTab(){
         </>
       )}
 
+      {/* Financial correlation view — analyst-worksheet period-average matrix */}
+      <GPUFinancialCorrelationBlock fHist={fHist} fHistErr={fHistErr}/>
+
       {/* GPU Pricing History section — Quarter view is the investor-facing default */}
       <GPUHistoryShell
         histView={histView} setHistView={setHistView}
@@ -1120,6 +1129,201 @@ function GPUHardwarePricingTab(){
 
 const gpuTh={textAlign:"left",padding:"7px 12px",fontSize:10,textTransform:"uppercase",letterSpacing:".06em",color:"#6b7280",fontWeight:600};
 const gpuTd={padding:"7px 12px",verticalAlign:"middle"};
+
+/* ─── GPU Financial Correlation Block ─────────────────────
+   Analyst-worksheet matrix: period-AVERAGE $/hr (not close), with QoQ
+   and YoY growth rows directly underneath, quarter-end-month column
+   labels (Mar/Jun/Sep/Dec-YY). Uses real-only data; partial periods are
+   labeled QTD/MTD; growth cells only populate when both periods have
+   real averages. Sits above the existing operational history block. */
+
+const GPU_FIN_PRIMARY_ROWS=[
+  {sku:"Nvidia B200",   shortLabel:"B200 192GB HBM3e"},
+  {sku:"Nvidia H200",   shortLabel:"H200 141GB HBM3e"},
+  {sku:"Nvidia H100",   shortLabel:"H100 80GB HBM3"},
+];
+
+const finTh={textAlign:"right",padding:"5px 10px",fontSize:10,color:"#6b7280",fontWeight:600,whiteSpace:"nowrap"};
+const finThRow={textAlign:"left",padding:"5px 10px",fontSize:10,color:"#6b7280",fontWeight:600,whiteSpace:"nowrap"};
+const finTd={textAlign:"right",padding:"4px 10px",fontSize:12,color:"#2563eb",fontFamily:"ui-monospace,SFMono-Regular,Menlo,monospace",whiteSpace:"nowrap"};
+const finTdRow={textAlign:"left",padding:"4px 10px",fontSize:11,color:"#111827",fontWeight:600,whiteSpace:"nowrap"};
+const finTdDim={textAlign:"right",padding:"4px 10px",fontSize:12,color:"#6b7280",fontFamily:"ui-monospace,SFMono-Regular,Menlo,monospace",whiteSpace:"nowrap"};
+const finSectionTh={textAlign:"left",padding:"10px 10px 4px",fontSize:11,color:"#111827",fontWeight:700,textDecoration:"underline",textUnderlineOffset:"3px"};
+
+function fmtMoney(v){
+  if(v==null||!isFinite(v))return"—";
+  if(v<1)return"$"+v.toFixed(2);
+  return"$"+v.toFixed(2);
+}
+function fmtGrowth(v){
+  if(v==null||!isFinite(v))return<span style={{color:"#d1d5db"}}>—</span>;
+  const str=v<0?"("+Math.abs(v).toFixed(1)+"%)":v.toFixed(1)+"%";
+  const color=v>0?"#059669":v<0?"#dc2626":"#6b7280";
+  return <span style={{color}}>{str}</span>;
+}
+
+function GPUFinancialCorrelationBlock({fHist,fHistErr}){
+  const[mode,setMode]=useState("quarter"); // "quarter" default per investor framing
+
+  if(fHistErr){
+    return(
+      <div style={{background:"#f9fafb",border:"1px dashed #d1d5db",borderRadius:8,padding:"14px 16px",marginBottom:14}}>
+        <div style={{...S.lbl,color:"#1d4ed8",marginBottom:6}}>Financial correlation view</div>
+        <div style={{fontSize:11,color:"#6b7280"}}>Financial view service temporarily unavailable — operational history below still loads.</div>
+      </div>
+    );
+  }
+  if(!fHist){
+    return(
+      <div style={{marginBottom:14}}>
+        <div style={{...S.lbl,color:"#1d4ed8",marginBottom:8}}>Financial correlation view</div>
+        <Shimmer rows={3}/>
+      </div>
+    );
+  }
+
+  const since=fHist.trackingSinceRealDate;
+  const periods=mode==="quarter"?(fHist.quarterly?.labels||[]):(fHist.monthly?.labels||[]);
+  const series=mode==="quarter"?(fHist.quarterly?.series||{}):(fHist.monthly?.series||{});
+  const growth=mode==="quarter"?(fHist.quarterly?.qoq||{}):(fHist.monthly?.mom||{});
+  const yoy=mode==="quarter"?(fHist.quarterly?.yoy||{}):(fHist.monthly?.yoy||{});
+  const growthLabel=mode==="quarter"?"QoQ Growth":"MoM Growth";
+  const partialKey=mode==="quarter"?"isQTD":"isMTD";
+
+  const hasAnyData=periods.length>0;
+
+  return(
+    <div style={{marginBottom:14}}>
+      {/* Header */}
+      <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:8,flexWrap:"wrap"}}>
+        <div style={{...S.lbl,color:"#1d4ed8"}}>Financial correlation view</div>
+        <div style={{display:"inline-flex",border:"0.5px solid #e5e7eb",borderRadius:6,overflow:"hidden",background:"#fff"}}>
+          {["quarter","month"].map(v=>{
+            const active=mode===v;
+            return(
+              <button key={v} onClick={()=>setMode(v)}
+                style={{fontSize:11,padding:"4px 12px",border:"none",background:active?"#111827":"#fff",color:active?"#fff":"#6b7280",cursor:"pointer",fontFamily:"inherit",fontWeight:500,textTransform:"capitalize"}}>
+                {v==="quarter"?"Quarter":"Month"}
+              </button>
+            );
+          })}
+        </div>
+        <span style={{fontSize:10,color:"#9ca3af"}}>
+          Analyst lens · period averages of daily $/hr · quarter labels = quarter-end month (Mar/Jun/Sep/Dec)
+        </span>
+      </div>
+
+      {/* Tracking-since caption */}
+      {since&&(
+        <div style={{fontSize:11,color:"#9ca3af",marginBottom:8}}>
+          Real tracking since <b style={{color:"#6b7280",fontWeight:600}}>{since}</b>
+          {" · "}
+          {periods.length} {mode==="quarter"?"quarter":"month"}{periods.length===1?"":"s"} observed
+          {" · "}
+          growth rows populate once at least two real periods exist; YoY requires a period from one year prior
+        </div>
+      )}
+
+      {/* Matrix or empty */}
+      {!hasAnyData?(
+        <div style={{background:"#fff",border:"0.5px solid #e5e7eb",borderRadius:8,padding:"14px 16px"}}>
+          <div style={{fontSize:12,color:"#111827",fontWeight:500}}>Matrix populates as real daily snapshots accumulate</div>
+          <div style={{fontSize:11,color:"#6b7280",marginTop:3}}>
+            This view will show one column per calendar {mode==="quarter"?"quarter":"month"} and include QoQ/MoM + YoY growth rows once enough real data exists.
+          </div>
+        </div>
+      ):(
+        <div style={{border:"0.5px solid #e5e7eb",borderRadius:8,overflow:"hidden",background:"#f9fafb"}}>
+          <div style={{overflowX:"auto"}}>
+            <table style={{width:"100%",borderCollapse:"collapse",background:"#f3f4f6"}}>
+              <thead>
+                <tr>
+                  <th style={{...finThRow,minWidth:170}}></th>
+                  {periods.map(p=>{
+                    // Find partial flag from any SKU that has this period
+                    let partial=false;
+                    for(const row of GPU_FIN_PRIMARY_ROWS){
+                      const sr=(series[row.sku]||[]).find(x=>x.period===p.period);
+                      if(sr&&sr[partialKey])partial=true;
+                      if(partial)break;
+                    }
+                    return(
+                      <th key={p.period} style={finTh}>
+                        {p.label}
+                        {partial&&<span style={{marginLeft:3,fontSize:8,color:"#b45309",fontWeight:500}}>{mode==="quarter"?"QTD":"MTD"}</span>}
+                      </th>
+                    );
+                  })}
+                </tr>
+              </thead>
+              <tbody>
+                {/* Section A: Pricing per Hour */}
+                <tr><td colSpan={periods.length+1} style={finSectionTh}>Pricing per Hour</td></tr>
+                {GPU_FIN_PRIMARY_ROWS.map(row=>{
+                  const byPeriod=Object.fromEntries((series[row.sku]||[]).map(x=>[x.period,x]));
+                  return(
+                    <tr key={"price-"+row.sku}>
+                      <td style={finTdRow}>{row.shortLabel}</td>
+                      {periods.map(p=>{
+                        const s=byPeriod[p.period];
+                        const val=s?s.avgMinPricePerHour:null;
+                        return(
+                          <td key={p.period} style={finTd}>
+                            {fmtMoney(val)}
+                            {s&&s[partialKey]&&<span style={{marginLeft:2,fontSize:8,color:"#b45309"}}></span>}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  );
+                })}
+
+                {/* Spacer */}
+                <tr><td colSpan={periods.length+1} style={{height:8}}></td></tr>
+
+                {/* Section B: QoQ/MoM Growth */}
+                <tr><td colSpan={periods.length+1} style={finSectionTh}>{growthLabel}</td></tr>
+                {GPU_FIN_PRIMARY_ROWS.map(row=>{
+                  const row_g=growth[row.sku]||{};
+                  return(
+                    <tr key={"g-"+row.sku}>
+                      <td style={finTdRow}>{row.shortLabel}</td>
+                      {periods.map(p=>(
+                        <td key={p.period} style={finTdDim}>{fmtGrowth(row_g[p.period])}</td>
+                      ))}
+                    </tr>
+                  );
+                })}
+
+                {/* Spacer */}
+                <tr><td colSpan={periods.length+1} style={{height:8}}></td></tr>
+
+                {/* Section C: YoY Growth */}
+                <tr><td colSpan={periods.length+1} style={finSectionTh}>YoY Growth</td></tr>
+                {GPU_FIN_PRIMARY_ROWS.map(row=>{
+                  const row_y=yoy[row.sku]||{};
+                  return(
+                    <tr key={"y-"+row.sku}>
+                      <td style={finTdRow}>{row.shortLabel}</td>
+                      {periods.map(p=>(
+                        <td key={p.period} style={finTdDim}>{fmtGrowth(row_y[p.period])}</td>
+                      ))}
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* Methodology footnote */}
+      <div style={{fontSize:10,color:"#9ca3af",lineHeight:1.5,marginTop:6}}>
+        <b style={{color:"#6b7280",fontWeight:600}}>Methodology:</b> Period averages = arithmetic mean of daily minPricePerHour within the calendar {mode==="quarter"?"quarter":"month"} (not month-of-months — daily average avoids coverage-weighted bias). {mode==="quarter"?"QoQ":"MoM"} = (current {mode} avg − prior {mode} avg) / prior {mode} avg × 100. YoY = (current {mode} avg − same {mode} previous year avg) / same {mode} previous year avg × 100. Quarter labels are quarter-end month to match equity conventions. Real-only by default; synthetic/backfill snapshots are excluded.
+      </div>
+    </div>
+  );
+}
 
 /* ─── GPU History Shell ─────────────────────────────────────
    Segmented Quarter | Daily toggle; Quarter is the investor-facing

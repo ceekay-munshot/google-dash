@@ -122,22 +122,24 @@ export async function onRequestGet({ request, env }) {
   const url = new URL(request.url);
   const view = (url.searchParams.get('view') || 'daily').toLowerCase();
   const isQuarter = view === 'quarter' || view === 'quarterly';
+  const isFinancial = view === 'financial' || view === 'correlation';
   const include = (url.searchParams.get('include') || 'real').toLowerCase();
   const keepAll = include === 'all';
 
-  // Window: daily default 60, quarter default 400 (full cap).
+  // Window: daily default 60, quarter/financial default 400 (full cap).
   const windowParam = url.searchParams.get('window');
   let windowDays;
   if (windowParam != null) {
     windowDays = parseInt(windowParam, 10);
-    if (!isFinite(windowDays) || windowDays < 7) windowDays = isQuarter ? 400 : 60;
+    if (!isFinite(windowDays) || windowDays < 7) windowDays = (isQuarter || isFinancial) ? 400 : 60;
     if (windowDays > 400) windowDays = 400;
   } else {
-    windowDays = isQuarter ? 400 : 60;
+    windowDays = (isQuarter || isFinancial) ? 400 : 60;
   }
 
   const index = (await kv.get('index:days', 'json')) || [];
   if (!index.length) {
+    if (isFinancial) return emptyFinancialResponse('no history yet');
     return emptyResponse('no history yet', isQuarter);
   }
 
@@ -297,6 +299,20 @@ export async function onRequestGet({ request, env }) {
     return buildQuarterResponse({
       series,
       latestBySku,
+      trackingSinceReal,
+      latestRealDate,
+      trackingSince,
+      latestDate,
+      daysWithGPU,
+      availableSKUs,
+      windowDays,
+      include,
+    });
+  }
+
+  if (isFinancial) {
+    return buildFinancialResponse({
+      series,
       trackingSinceReal,
       latestRealDate,
       trackingSince,
@@ -553,6 +569,280 @@ function emptyResponse(reason, isQuarter) {
     series: {},
     comparisons: { d7: {}, d30: {} },
     signals: {},
+    note: reason,
+  });
+}
+
+/* ─── Financial correlation view ──────────────────────────
+   Analyst-worksheet matrix. Unlike the quarter view (which uses quarter-
+   CLOSE values), this view uses PERIOD AVERAGES — the arithmetic mean of
+   every real daily minPricePerHour within the calendar period. Averages
+   are computed from daily snapshots directly (not month-of-months) so
+   uneven daily coverage doesn't skew quarterly numbers.
+
+   QoQ growth = (current quarter avg - prior quarter avg) / prior quarter avg
+   YoY growth = (current quarter avg - same quarter previous year avg) / same quarter previous year avg
+   MoM growth = month analog of QoQ
+
+   Quarter labels are quarter-end month format (Q1→Mar, Q2→Jun, Q3→Sep,
+   Q4→Dec) — matches equity analyst period conventions. */
+
+const FINANCIAL_PRIMARY_SKUS = ['Nvidia B200', 'Nvidia H200', 'Nvidia H100'];
+const FINANCIAL_SECONDARY_SKUS = ['Nvidia GB200', 'Nvidia A100', 'Nvidia L40S'];
+
+function monthIdForDate(dateStr) {
+  return dateStr.slice(0, 7); // "2026-04-21" → "2026-04"
+}
+
+function monthBounds(year, monthIdx /* 1-12 */) {
+  const start = new Date(Date.UTC(year, monthIdx - 1, 1));
+  const nextStart = new Date(Date.UTC(year, monthIdx, 1));
+  const end = new Date(nextStart.getTime() - 86400000);
+  const days = Math.round((nextStart.getTime() - start.getTime()) / 86400000);
+  return {
+    start: start.toISOString().slice(0, 10),
+    end:   end.toISOString().slice(0, 10),
+    days,
+  };
+}
+
+function quarterEndLabel(year, q) {
+  const endMonth = q * 3; // Q1→3, Q2→6, Q3→9, Q4→12
+  const months = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  return months[endMonth] + '-' + String(year % 100).padStart(2, '0');
+}
+
+function monthLabel(year, monthIdx) {
+  const months = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  return months[monthIdx] + '-' + String(year % 100).padStart(2, '0');
+}
+
+function avgOrNull(arr) {
+  const valid = arr.filter(n => typeof n === 'number' && isFinite(n));
+  if (!valid.length) return null;
+  return valid.reduce((a, b) => a + b, 0) / valid.length;
+}
+
+function pctChange(curr, prior) {
+  if (curr == null || prior == null || prior === 0) return null;
+  return +(((curr - prior) / prior) * 100).toFixed(2);
+}
+
+function buildFinancialResponse(ctx) {
+  const { series, trackingSinceReal, latestRealDate, trackingSince, latestDate,
+          daysWithGPU, availableSKUs, windowDays, include } = ctx;
+  const today = new Date().toISOString().slice(0, 10);
+  const todayMonthId = today.slice(0, 7);
+  const { id: todayQuarterId } = quarterIdForDate(today);
+
+  // Build per-SKU month + quarter aggregates.
+  const monthlyBySku = {};
+  const quarterlyBySku = {};
+  const monthIdSet = new Set();
+  const quarterIdSet = new Set();
+
+  for (const sku of availableSKUs) {
+    const pts = series[sku] || [];
+    const monthBuckets = new Map();
+    const quarterBuckets = new Map();
+
+    for (const p of pts) {
+      const mid = monthIdForDate(p.date);
+      if (!monthBuckets.has(mid)) monthBuckets.set(mid, []);
+      monthBuckets.get(mid).push(p);
+      const { id: qid } = quarterIdForDate(p.date);
+      if (!quarterBuckets.has(qid)) quarterBuckets.set(qid, []);
+      quarterBuckets.get(qid).push(p);
+    }
+
+    const months = [];
+    for (const [mid, arr] of Array.from(monthBuckets.entries()).sort((a, b) => a[0] < b[0] ? -1 : 1)) {
+      monthIdSet.add(mid);
+      const [y, m] = mid.split('-').map(Number);
+      const { start, end, days: denom } = monthBounds(y, m);
+      const dates = new Set(arr.map(p => p.date));
+      const daysCovered = dates.size;
+      const isMTD = mid === todayMonthId;
+      // For MTD use days elapsed (today inclusive); for completed months use full month length.
+      const effectiveDays = isMTD ? daysInclusive(start, today) : denom;
+      const coverage = effectiveDays > 0 ? +(daysCovered / effectiveDays).toFixed(3) : null;
+      months.push({
+        period: mid,
+        label: monthLabel(y, m),
+        year: y,
+        month: m,
+        periodStart: start,
+        periodEnd: end,
+        daysCoveredInMonth: daysCovered,
+        monthDayCount: effectiveDays,
+        coverageRatioWithinMonth: coverage,
+        isPartialMonth: isMTD || daysCovered < denom,
+        isMTD,
+        avgMinPricePerHour: roundMaybe(avgOrNull(arr.map(p => p.minPricePerHour)), 4),
+        avgProviderCount:   roundMaybe(avgOrNull(arr.map(p => p.providerCount)), 2),
+        avgSpreadMultiple:  roundMaybe(avgOrNull(arr.map(p => p.spreadMultiple)), 3),
+      });
+    }
+    monthlyBySku[sku] = months;
+
+    const quarters = [];
+    for (const [qid, arr] of Array.from(quarterBuckets.entries()).sort((a, b) => a[0] < b[0] ? -1 : 1)) {
+      quarterIdSet.add(qid);
+      const m = /^(\d{4})-Q([1-4])$/.exec(qid);
+      const y = parseInt(m[1], 10);
+      const qi = parseInt(m[2], 10);
+      const { start, end, days: denom } = quarterBounds(y, qi);
+      const dates = new Set(arr.map(p => p.date));
+      const daysCovered = dates.size;
+      const isQTD = qid === todayQuarterId;
+      const effectiveDays = isQTD ? daysInclusive(start, today) : denom;
+      const coverage = effectiveDays > 0 ? +(daysCovered / effectiveDays).toFixed(3) : null;
+      quarters.push({
+        period: qid,
+        label: quarterEndLabel(y, qi),
+        year: y,
+        q: qi,
+        periodStart: start,
+        periodEnd: end,
+        daysCoveredInQuarter: daysCovered,
+        quarterDayCount: effectiveDays,
+        coverageRatioWithinQuarter: coverage,
+        isPartialQuarter: isQTD || daysCovered < denom,
+        isQTD,
+        avgMinPricePerHour: roundMaybe(avgOrNull(arr.map(p => p.minPricePerHour)), 4),
+        avgProviderCount:   roundMaybe(avgOrNull(arr.map(p => p.providerCount)), 2),
+        avgSpreadMultiple:  roundMaybe(avgOrNull(arr.map(p => p.spreadMultiple)), 3),
+      });
+    }
+    quarterlyBySku[sku] = quarters;
+  }
+
+  const monthlyLabels = Array.from(monthIdSet).sort().map(mid => {
+    const [y, m] = mid.split('-').map(Number);
+    return { period: mid, label: monthLabel(y, m) };
+  });
+  const quarterlyLabels = Array.from(quarterIdSet).sort().map(qid => {
+    const m = /^(\d{4})-Q([1-4])$/.exec(qid);
+    return { period: qid, label: quarterEndLabel(+m[1], +m[2]) };
+  });
+
+  // Growth matrices: MoM / QoQ / YoY (per SKU, keyed by period id, value = pct or null).
+  const mom = {};
+  const qoq = {};
+  const yoyMonth = {};
+  const yoyQuarter = {};
+
+  for (const sku of availableSKUs) {
+    mom[sku] = {};
+    qoq[sku] = {};
+    yoyMonth[sku] = {};
+    yoyQuarter[sku] = {};
+
+    // MoM
+    const months = monthlyBySku[sku];
+    const monthByPeriod = Object.fromEntries(months.map(x => [x.period, x]));
+    for (const cur of months) {
+      const priorId = priorMonthId(cur.period);
+      const prior = monthByPeriod[priorId];
+      mom[sku][cur.period] = pctChange(cur.avgMinPricePerHour, prior?.avgMinPricePerHour);
+      const yoyId = yearPriorMonthId(cur.period);
+      const yoyPrior = monthByPeriod[yoyId];
+      yoyMonth[sku][cur.period] = pctChange(cur.avgMinPricePerHour, yoyPrior?.avgMinPricePerHour);
+    }
+
+    // QoQ + YoY (quarter)
+    const quarters = quarterlyBySku[sku];
+    const quarterByPeriod = Object.fromEntries(quarters.map(x => [x.period, x]));
+    for (const cur of quarters) {
+      const priorId = priorQuarterId(cur.period);
+      const prior = quarterByPeriod[priorId];
+      qoq[sku][cur.period] = pctChange(cur.avgMinPricePerHour, prior?.avgMinPricePerHour);
+      const yoyId = yearPriorQuarterId(cur.period);
+      const yoyPrior = quarterByPeriod[yoyId];
+      yoyQuarter[sku][cur.period] = pctChange(cur.avgMinPricePerHour, yoyPrior?.avgMinPricePerHour);
+    }
+  }
+
+  return jsonResp({
+    success: true,
+    view: 'financial',
+    include,
+    trackingSinceRealDate: trackingSinceReal,
+    latestRealSnapshotDate: latestRealDate,
+    trackingSinceAny: trackingSince,
+    latestDateAny: latestDate,
+    daysWithGPU,
+    windowDays,
+    today,
+    primarySKUs: FINANCIAL_PRIMARY_SKUS,
+    secondarySKUs: FINANCIAL_SECONDARY_SKUS,
+    trackedSKUs: TRACKED_SKUS,
+    availableSKUs,
+    monthly: {
+      labels: monthlyLabels,
+      series: monthlyBySku,
+      mom,
+      yoy: yoyMonth,
+    },
+    quarterly: {
+      labels: quarterlyLabels,
+      series: quarterlyBySku,
+      qoq,
+      yoy: yoyQuarter,
+    },
+    methodology: {
+      avgBasis: 'daily',
+      note: 'Period averages are arithmetic means of daily minPricePerHour within the period. QoQ/YoY/MoM = (current period avg - prior period avg) / prior period avg × 100. Only real snapshots are included (synthetic backfill excluded by default).',
+    },
+  });
+}
+
+function roundMaybe(v, digits) {
+  if (v == null || !isFinite(v)) return null;
+  return +v.toFixed(digits);
+}
+
+function priorMonthId(monthId) {
+  const [y, m] = monthId.split('-').map(Number);
+  if (m === 1) return (y - 1) + '-12';
+  return y + '-' + String(m - 1).padStart(2, '0');
+}
+
+function yearPriorMonthId(monthId) {
+  const [y, m] = monthId.split('-').map(Number);
+  return (y - 1) + '-' + String(m).padStart(2, '0');
+}
+
+function priorQuarterId(qid) {
+  const m = /^(\d{4})-Q([1-4])$/.exec(qid);
+  if (!m) return null;
+  const y = +m[1], q = +m[2];
+  if (q === 1) return (y - 1) + '-Q4';
+  return y + '-Q' + (q - 1);
+}
+
+function yearPriorQuarterId(qid) {
+  const m = /^(\d{4})-Q([1-4])$/.exec(qid);
+  if (!m) return null;
+  return (+m[1] - 1) + '-Q' + m[2];
+}
+
+function emptyFinancialResponse(reason) {
+  return jsonResp({
+    success: true,
+    view: 'financial',
+    trackingSinceRealDate: null,
+    latestRealSnapshotDate: null,
+    trackingSinceAny: null,
+    latestDateAny: null,
+    daysWithGPU: 0,
+    windowDays: 0,
+    primarySKUs: FINANCIAL_PRIMARY_SKUS,
+    secondarySKUs: FINANCIAL_SECONDARY_SKUS,
+    trackedSKUs: TRACKED_SKUS,
+    availableSKUs: [],
+    monthly: { labels: [], series: {}, mom: {}, yoy: {} },
+    quarterly: { labels: [], series: {}, qoq: {}, yoy: {} },
     note: reason,
   });
 }
