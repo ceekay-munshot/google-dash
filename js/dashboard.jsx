@@ -2641,13 +2641,271 @@ function InsightsTab(){
    Falls back to window.__ghist.snaps (daily view only) if the API errors.
 ═══════════════════════════════════════════════════════ */
 function HistoryTabCanonical(){
-  // NOTE: This is a JSX placeholder. The compiled build in index.html
-  // contains the full inline implementation (uses $e.useState/useEffect).
-  // See HistoryTabCanonical in index.html for the runtime version.
+  const[view,setView]=useState("daily"); // "daily" | "weekly" | "quarterly"
+  const[state,setState]=useState({phase:"loading",data:null,error:null});
+
+  useEffect(()=>{
+    let cancelled=false;
+    setState({phase:"loading",data:null,error:null});
+    fetch("/api/history?view="+view+"&range=365")
+      .then(r=>r.ok?r.json():Promise.reject(new Error("HTTP "+r.status)))
+      .then(d=>{
+        if(cancelled)return;
+        if(!d||d.success===false){
+          setState({phase:"error",data:null,error:d?.error||"Unknown error"});
+          return;
+        }
+        const snaps=d.snapshots||[];
+        if(!snaps.length){
+          setState({phase:"empty",data:d,error:null});
+          return;
+        }
+        setState({phase:"ready",data:d,error:null});
+      })
+      .catch(err=>{
+        if(cancelled)return;
+        // Daily-view fallback: use local __ghist if the API errors.
+        if(view==="daily"&&typeof window!=="undefined"&&window.__ghist?.snaps?.length){
+          const local=window.__ghist.snaps.map(s=>({
+            date:(s.ts||"").slice(0,10),
+            ts:s.ts,
+            or:s.or||[],
+            bots:s.bots||[],
+            trends:s.trends||[],
+            filing:s.filing||null,
+            openrouterSummary:{
+              totalTokensRaw:(s.or||[]).reduce((x,m)=>x+(m.tokRaw||0),0),
+              totalTokensLabel:null,
+            },
+            source:"local",
+          })).reverse(); // newest first
+          setState({phase:"ready",data:{view:"daily",snapshots:local,count:local.length,trackingSinceDate:local.length?local[local.length-1].date:null,_localFallback:true},error:null});
+          return;
+        }
+        setState({phase:"error",data:null,error:err.message||"Fetch failed"});
+      });
+    return()=>{cancelled=true;};
+  },[view]);
+
+  const VIEWS=[
+    {id:"daily",     label:"Daily"},
+    {id:"weekly",    label:"Weekly"},
+    {id:"quarterly", label:"QTD"},
+  ];
+
+  const toggle=(
+    <div style={{display:"flex",gap:4}}>
+      {VIEWS.map(v=>(
+        <button key={v.id} onClick={()=>setView(v.id)}
+          style={{fontSize:12,padding:"6px 14px",border:"0.5px solid "+(view===v.id?"#111827":"#e5e7eb"),borderRadius:8,background:view===v.id?"#111827":"#fff",color:view===v.id?"#fff":"#374151",cursor:"pointer",fontFamily:"inherit",fontWeight:500}}>
+          {v.label}
+        </button>
+      ))}
+    </div>
+  );
+
+  const header=(
+    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14,flexWrap:"wrap",gap:8}}>
+      <div>
+        <div style={{fontSize:14,fontWeight:600,color:"#111827"}}>Canonical history</div>
+        <div style={{fontSize:11,color:"#6b7280",marginTop:2}}>KV-backed daily snapshots · weekly + QTD derived server-side from daily source-of-truth</div>
+      </div>
+      {toggle}
+    </div>
+  );
+
+  if(state.phase==="loading"){
+    return(
+      <div>
+        {header}
+        <div style={{padding:"8px 2px"}}><Shimmer rows={6}/></div>
+      </div>
+    );
+  }
+
+  if(state.phase==="error"){
+    return(
+      <div>
+        {header}
+        <div style={{fontSize:12,color:"#b91c1c",background:"#fef2f2",border:"0.5px solid #fecaca",borderRadius:8,padding:12}}>
+          Failed to load history — {String(state.error)}. The canonical store at <code style={{fontFamily:"monospace"}}>/api/history?view={view}</code> returned an error. Check that HISTORY_KV is bound and that <code style={{fontFamily:"monospace"}}>/api/history-capture</code> has run at least once.
+        </div>
+      </div>
+    );
+  }
+
+  if(state.phase==="empty"){
+    return(
+      <div>
+        {header}
+        <div style={{fontSize:12,color:"#6b7280",background:"#f9fafb",border:"0.5px solid #e5e7eb",borderRadius:8,padding:16,textAlign:"center"}}>
+          <div style={{fontWeight:600,color:"#374151",marginBottom:4}}>No canonical history yet</div>
+          <div>Run <code style={{fontFamily:"monospace"}}>/api/history-capture</code> to create the first snapshot. The daily cron (see <code style={{fontFamily:"monospace"}}>.github/workflows/history-capture.yml</code>) will then accumulate one snapshot per day.</div>
+        </div>
+      </div>
+    );
+  }
+
+  // ── ready ──
+  const d=state.data;
+  const snaps=d.snapshots||[];
+  const trackingSinceDate=d.trackingSinceDate;
+  const latest=snaps[0];
+  const partialLabel=view==="quarterly"?"QTD":view==="weekly"?"WTD":"partial";
+
+  // The newest snapshot isn't always useful — a GPU-refresh-only capture has
+  // no OR/bots/trends and would make every KPI show "—". Fall back to the
+  // newest snapshot that actually has OR data for the KPI cards.
+  const hasOR=s=>!!(s?.or?.length||s?.openrouterSummary?.totalTokensRaw);
+  const latestWithOR=snaps.find(hasOR)||latest;
+  const priorWithOR =snaps.slice(snaps.indexOf(latestWithOR)+1).find(hasOR);
+
+  // Sparkline data: oldest → newest, dropping snapshots missing OR totals.
+  const chart=[...snaps].reverse()
+    .filter(s=>(s.openrouterSummary?.totalTokensRaw||0)>0)
+    .map(s=>({
+      label: view==="daily" ? (s.date||"").slice(5)
+           : view==="weekly" ? (s.periodStart||s.date||"").slice(5)
+           : (s.periodId||s.date||""),
+      tokens:s.openrouterSummary?.totalTokensRaw||0,
+      partial:!!s.partial,
+    }));
+
+  // Latest vs prior change — using openrouterSummary as the canonical metric.
+  const latestTok=latestWithOR?.openrouterSummary?.totalTokensRaw||0;
+  const priorTok =priorWithOR ?.openrouterSummary?.totalTokensRaw||0;
+  const changePct=priorTok>0&&latestTok>0?((latestTok-priorTok)/priorTok)*100:null;
+  const changeLabel=changePct==null
+    ? (view==="daily" ? "not enough data for Day-over-day"
+       : view==="weekly" ? "not enough data for Week-over-week"
+       : "not enough data for QTD comparison")
+    : (changePct>=0?"+":"")+changePct.toFixed(1)+"%";
+  const changeSub=view==="daily"?"Day-over-day":view==="weekly"?"Week-over-week":"QTD vs prior quarter";
+
+  // Top Gemini rank in the latest snapshot
+  const latestGem=(latestWithOR?.or||[]).find(m=>m.isGemini);
+  const latestTop=(latestWithOR?.or||[])[0];
+
+  function fmtDate(s){
+    if(!s)return"—";
+    const d=new Date(s+"T00:00:00Z");
+    return d.toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric",timeZone:"UTC"});
+  }
+  function fmtTokShort(n){
+    if(!n||n<=0)return"—";
+    if(n>=1e12)return(n/1e12).toFixed(2).replace(/\.?0+$/,"")+"T";
+    if(n>=1e9) return(n/1e9) .toFixed(1).replace(/\.0$/,"")    +"B";
+    if(n>=1e6) return(n/1e6) .toFixed(1).replace(/\.0$/,"")    +"M";
+    return String(n);
+  }
+
   return(
-    <div style={{fontSize:12,color:"#6b7280",padding:16}}>
-      History tab — see compiled build for full implementation
-      (Daily / Weekly / QTD views, KV-backed canonical history).
+    <div>
+      {header}
+
+      {/* Tracking-since caption */}
+      <div style={{fontSize:11,color:"#6b7280",marginBottom:10}}>
+        tracking since <strong style={{color:"#374151"}}>{fmtDate(trackingSinceDate)}</strong>
+        {" · "}<span>{snaps.length} {view==="daily"?"day":view==="weekly"?"week":"quarter"}{snaps.length===1?"":"s"} captured</span>
+        {d._localFallback&&<span style={{color:"#b45309"}}> · falling back to local cache (API error)</span>}
+      </div>
+
+      {/* KPI row */}
+      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:14}}>
+        <KBox
+          label="Latest snapshot"
+          value={fmtTokShort(latestTok)}
+          sub={(latestWithOR?.date?fmtDate(latestWithOR.date):"—")+(latestWithOR?.partial?" · "+partialLabel:"")}
+          bg="#eff6ff" fg="#1d4ed8"/>
+        <KBox
+          label={changeSub}
+          value={changeLabel}
+          sub={changePct==null?"need ≥2 "+(view==="daily"?"days":view==="weekly"?"weeks":"quarters"):"OpenRouter total tokens"}
+          bg={changePct==null?"#f9fafb":changePct>=0?"#f0fdf4":"#fef2f2"}
+          fg={changePct==null?"#6b7280":changePct>=0?"#059669":"#b91c1c"}/>
+        <KBox
+          label="Top model (latest)"
+          value={latestTop?"#"+latestTop.rank:"—"}
+          sub={latestTop?(latestTop.model||"").slice(0,22)+(latestGem?" · best Gemini #"+latestGem.rank:""):"no OR data"}
+          bg="#fef3c7" fg="#a16207"/>
+      </div>
+
+      {/* Sparkline — OpenRouter total-tokens over time */}
+      <div style={{...S.card,padding:12,marginBottom:14}}>
+        <div style={{...S.lbl,marginBottom:8}}>OpenRouter total tokens · {view==="daily"?"daily":view==="weekly"?"weekly":"quarterly"}</div>
+        {chart.length>=2?(
+          <ResponsiveContainer width="100%" height={180}>
+            <LineChart data={chart} margin={{top:6,right:14,left:-6,bottom:6}}>
+              <CartesianGrid stroke="#f3f4f6" vertical={false}/>
+              <XAxis dataKey="label" tick={{fontSize:10,fill:"#6b7280"}} tickLine={false} axisLine={{stroke:"#e5e7eb"}}/>
+              <YAxis tick={{fontSize:10,fill:"#6b7280"}} tickLine={false} axisLine={{stroke:"#e5e7eb"}} tickFormatter={fmtTokShort} width={50}/>
+              <Tooltip
+                formatter={(v)=>[fmtTokShort(v),"tokens"]}
+                labelStyle={{fontSize:11,color:"#374151"}}
+                contentStyle={{fontSize:11,border:"0.5px solid #e5e7eb",borderRadius:6,padding:"6px 10px"}}/>
+              <Line type="monotone" dataKey="tokens" stroke="#3b82f6" strokeWidth={2} dot={{r:3,fill:"#3b82f6"}} activeDot={{r:5}} isAnimationActive={false}/>
+            </LineChart>
+          </ResponsiveContainer>
+        ):(
+          <div style={{fontSize:11,color:"#9ca3af",padding:"18px 0",textAlign:"center"}}>
+            need ≥2 {view==="daily"?"days":view==="weekly"?"weeks":"quarters"} of history to render a trend
+          </div>
+        )}
+      </div>
+
+      {/* Snapshot table */}
+      <div style={{...S.card,padding:0,overflow:"hidden"}}>
+        <div style={{...S.lbl,padding:"10px 12px",borderBottom:"1px solid #f3f4f6"}}>Snapshots</div>
+        <div style={{maxHeight:360,overflowY:"auto"}}>
+          <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
+            <thead>
+              <tr style={{background:"#f9fafb",textAlign:"left"}}>
+                <th style={{padding:"7px 12px",fontWeight:600,color:"#374151",borderBottom:"1px solid #e5e7eb"}}>
+                  {view==="daily"?"Date":view==="weekly"?"Week":"Quarter"}
+                </th>
+                <th style={{padding:"7px 12px",fontWeight:600,color:"#374151",borderBottom:"1px solid #e5e7eb",textAlign:"right"}}>OR tokens</th>
+                <th style={{padding:"7px 12px",fontWeight:600,color:"#374151",borderBottom:"1px solid #e5e7eb"}}>#1 model</th>
+                <th style={{padding:"7px 12px",fontWeight:600,color:"#374151",borderBottom:"1px solid #e5e7eb"}}>Best Gemini</th>
+                <th style={{padding:"7px 12px",fontWeight:600,color:"#374151",borderBottom:"1px solid #e5e7eb"}}>Notes</th>
+              </tr>
+            </thead>
+            <tbody>
+              {snaps.map((s,i)=>{
+                const gem=(s.or||[]).find(m=>m.isGemini);
+                const top=(s.or||[])[0];
+                const key = view==="daily" ? (s.date||i)
+                          : view==="weekly" ? (s.periodId||s.date||i)
+                          : (s.periodId||s.date||i);
+                const periodLabel = view==="daily" ? fmtDate(s.date)
+                          : view==="weekly" ? (s.periodStart?fmtDate(s.periodStart)+" – "+fmtDate(s.periodEnd):fmtDate(s.date))
+                          : (s.periodId||"—");
+                const notes=[];
+                if(s.partial)notes.push(partialLabel||"partial");
+                if(s.dedup)notes.push("dedup");
+                if(view!=="daily"&&s.dayCount)notes.push(s.dayCount+"d");
+                if(s.source&&s.source!=="cron")notes.push(s.source);
+                return(
+                  <tr key={key} style={{borderBottom:"1px solid #f3f4f6"}}>
+                    <td style={{padding:"7px 12px",color:"#111827"}}>{periodLabel}</td>
+                    <td style={{padding:"7px 12px",color:"#111827",textAlign:"right",fontVariantNumeric:"tabular-nums"}}>{fmtTokShort(s.openrouterSummary?.totalTokensRaw||0)}</td>
+                    <td style={{padding:"7px 12px",color:"#374151"}}>{top?.model?(top.model.slice(0,26)+(top.model.length>26?"…":"")):"—"}</td>
+                    <td style={{padding:"7px 12px",color:"#374151"}}>{gem?"#"+gem.rank+" "+(gem.model||"").slice(0,16):"—"}</td>
+                    <td style={{padding:"7px 12px",color:"#6b7280",fontSize:11}}>
+                      {notes.length?notes.map((n,j)=>(
+                        <span key={j} style={{display:"inline-block",marginRight:6,padding:"1px 6px",borderRadius:4,background:n===partialLabel?"#fef3c7":"#f3f4f6",color:n===partialLabel?"#a16207":"#374151"}}>{n}</span>
+                      )):<span style={{color:"#d1d5db"}}>—</span>}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div style={{fontSize:10,color:"#9ca3af",marginTop:8}}>
+        Source: Cloudflare KV (HISTORY_KV) via /api/history · canonical daily snapshots captured by /api/history-capture. Weekly and QTD views are derived on read — the daily snapshot remains the single source of truth.
+      </div>
     </div>
   );
 }
