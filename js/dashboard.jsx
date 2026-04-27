@@ -932,7 +932,12 @@ function ModelPricingMatrixTable(){
     // repricing on the same model class. This is REAL upstream historical
     // data — not the canonical KV snapshot store, which only reaches back as
     // far as the dashboard has been running.
-    fetch("/api/model-pricing-peer-matrix")
+    //
+    // The 5-minute bucket on the URL means every page load within that
+    // window hits the same edge-cache entry, but a schema/code change
+    // crossing the boundary always lands on a fresh URL — so a stale
+    // 6-hour edge-cached response shape can't trap clients.
+    fetch("/api/model-pricing-peer-matrix?v="+Math.floor(Date.now()/3e5))
       .then(r=>r.ok?r.json():Promise.reject(new Error("HTTP "+r.status)))
       .then(d=>{
         if(cancelled)return;
@@ -972,7 +977,18 @@ function ModelPricingMatrixTable(){
 
   const data=state.data;
   const quarters=(data?.quarters||[]);
-  const reps=(data?.reps||[]);
+  const allReps=(data?.reps||[]);
+  // Filter out reps that have no upstream data in any quarter — happens when
+  // an entire candidate list whiffs (e.g. provider has no Legacy variants in
+  // the upstream window). Per spec: don't render an all-`—` row.
+  const reps=allReps.filter(rep=>{
+    if(rep.hasData===false)return false;
+    const hasAnyInput =Object.values(rep.input ||{}).some(v=>v!=null);
+    const hasAnyOutput=Object.values(rep.output||{}).some(v=>v!=null);
+    return hasAnyInput||hasAnyOutput;
+  });
+  const frontierRef=(data?.frontierReference||[]);
+  const externalCatalog=data?.externalCatalog||null;
   if(!quarters.length||!reps.length){
     return(
       <div style={{marginBottom:16}}>{header}
@@ -1102,10 +1118,127 @@ function ModelPricingMatrixTable(){
           </table>
         </div>
       </div>
+
+      {/* Frontier Reference by Period — informational only. The customer's
+         "the frontier today is not the same model as 12 quarters ago" point
+         is answered here without contaminating the QoQ/YoY math above. */}
+      {frontierRef.length>0&&(
+        <div style={{marginTop:12,marginBottom:6}}>
+          <div style={{fontSize:11,fontWeight:700,color:"#374151",lineHeight:1.3}}>Frontier Reference by Period</div>
+          <div style={{fontSize:10,color:"#9ca3af",marginTop:2,marginBottom:6,lineHeight:1.45}}>Reference only: shows the highest-tier available model observed per provider in each period. The main matrix above uses fixed representatives to keep QoQ/YoY comparisons clean.</div>
+          <div style={{border:"0.5px solid #e5e7eb",borderRadius:8,overflow:"hidden",background:"#fafafa"}}>
+            <div style={{overflowX:"auto"}}>
+              <table style={{width:"100%",borderCollapse:"separate",borderSpacing:0,background:"#fafafa",minWidth:FIRST_COL_W+COL_W*quarters.length}}>
+                <thead>
+                  <tr>
+                    <th style={{...thFirst,background:"#fafafa"}}></th>
+                    {quarters.map(q=>(
+                      <th key={q.id} style={thMain}>
+                        {quarterIdToLabel(q.id)}
+                        {q.partial&&<span style={{marginLeft:3,fontSize:8,color:"#b45309",fontWeight:500}}>QTD</span>}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {frontierRef.map(row=>(
+                    <tr key={"ref-"+row.providerSlug}>
+                      <td style={{...tdFirst,background:"#fafafa"}}>
+                        <div style={{lineHeight:1.25,fontWeight:600,color:"#111827"}}>{row.providerLabel}</div>
+                      </td>
+                      {quarters.map(q=>{
+                        const cell=row.cells?.[q.id];
+                        const variantsTitle=cell?.matchedVariants?.length
+                          ? cell.matchedVariants.length+" upstream variant"+(cell.matchedVariants.length===1?"":"s")+" matched: "+cell.matchedVariants.join(", ")
+                          : undefined;
+                        return(
+                          <td key={q.id} title={variantsTitle} style={{textAlign:"right",padding:"6px 10px",fontSize:11,color:cell?"#374151":"#d1d5db",fontFamily:"ui-monospace,SFMono-Regular,Menlo,monospace",whiteSpace:"nowrap",minWidth:COL_W}}>
+                            {cell?cell.display:"—"}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Model Rep Freshness — optional Firecrawl-backed signal alongside
+         pricepertoken-only evidence. Compact per-rep table: Status / Reason /
+         External Signal. Pricing math above never reads this; reps are NEVER
+         auto-promoted — operator-driven only. */}
+      {externalCatalog&&(
+        <div style={{marginTop:12,marginBottom:6}}>
+          <div style={{fontSize:11,fontWeight:700,color:"#374151",lineHeight:1.3}}>
+            Model Rep Freshness
+            <span style={{marginLeft:6,fontSize:9,fontWeight:500,padding:"1px 6px",borderRadius:3,background:externalCatalog.enabled?"#ecfdf5":"#f3f4f6",color:externalCatalog.enabled?"#047857":"#6b7280"}}>
+              {externalCatalog.enabled?"firecrawl · live":"firecrawl · disabled"}
+            </span>
+            {externalCatalog.degraded&&<span style={{marginLeft:6,fontSize:9,fontWeight:500,padding:"1px 6px",borderRadius:3,background:"#fef2f2",color:"#991b1b"}}>scrape degraded</span>}
+          </div>
+          <div style={{fontSize:10,color:"#9ca3af",marginTop:2,marginBottom:6,lineHeight:1.45}}>
+            Per-rep audit. Pricepertoken evidence drives <b>STALE</b> / <b>REVIEW</b> status; Firecrawl on official docs drives <b>WATCH</b>. Reps are not auto-promoted because rotating fixed reps would make QoQ/YoY reflect lineup churn rather than pure repricing.
+          </div>
+          {!externalCatalog.enabled&&(
+            <div style={{background:"#fff",border:"0.5px dashed #d1d5db",borderRadius:8,padding:"8px 12px",fontSize:11,color:"#6b7280",marginBottom:6}}>
+              External signal disabled. <span style={{color:"#374151"}}>{externalCatalog.reason||"FIRECRAWL_API_KEY not configured"}</span>. Pricepertoken evidence still computed below.
+            </div>
+          )}
+          <div style={{border:"0.5px solid #e5e7eb",borderRadius:8,overflow:"hidden",background:"#fafafa"}}>
+            <div style={{overflowX:"auto"}}>
+              <table style={{width:"100%",borderCollapse:"separate",borderSpacing:0,fontSize:11,background:"#fafafa"}}>
+                <thead>
+                  <tr>
+                    <th style={{textAlign:"left",padding:"6px 10px",fontSize:10,color:"#6b7280",fontWeight:600,whiteSpace:"nowrap",background:"#f3f4f6"}}>Rep</th>
+                    <th style={{textAlign:"left",padding:"6px 10px",fontSize:10,color:"#6b7280",fontWeight:600,whiteSpace:"nowrap",background:"#f3f4f6"}}>Status</th>
+                    <th style={{textAlign:"left",padding:"6px 10px",fontSize:10,color:"#6b7280",fontWeight:600,background:"#f3f4f6"}}>Reason</th>
+                    <th style={{textAlign:"left",padding:"6px 10px",fontSize:10,color:"#6b7280",fontWeight:600,background:"#f3f4f6"}}>External Signal</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {reps.map(rep=>{
+                    const fr=rep.repFreshness||{status:"OK",reason:"",firecrawlEvidence:{enabled:false,possibleNewerModels:[]}};
+                    const statusBg=fr.status==="STALE"?"#fef2f2":fr.status==="REVIEW"?"#fef3c7":fr.status==="WATCH"?"#eff6ff":"#f3f4f6";
+                    const statusFg=fr.status==="STALE"?"#991b1b":fr.status==="REVIEW"?"#78350f":fr.status==="WATCH"?"#1d4ed8":"#374151";
+                    const fcModels=fr.firecrawlEvidence?.possibleNewerModels||[];
+                    return(
+                      <tr key={"fresh-"+rep.key} style={{borderTop:"0.5px solid #e5e7eb"}}>
+                        <td style={{padding:"6px 10px",whiteSpace:"nowrap",verticalAlign:"top"}}>
+                          <div style={{fontWeight:600,color:"#111827"}}>{rep.label}</div>
+                          <div style={{fontSize:10,color:"#9ca3af",fontFamily:"ui-monospace,SFMono-Regular,Menlo,monospace"}}>{rep.modelDisplay}</div>
+                        </td>
+                        <td style={{padding:"6px 10px",whiteSpace:"nowrap",verticalAlign:"top"}}>
+                          <span style={{fontSize:10,fontWeight:600,padding:"2px 7px",borderRadius:3,background:statusBg,color:statusFg}}>{fr.status}</span>
+                        </td>
+                        <td style={{padding:"6px 10px",fontSize:10,color:"#374151",lineHeight:1.4,verticalAlign:"top"}}>{fr.reason}</td>
+                        <td style={{padding:"6px 10px",fontSize:10,color:"#374151",verticalAlign:"top"}}>
+                          {!fr.firecrawlEvidence?.enabled
+                            ? <span style={{color:"#9ca3af"}}>—</span>
+                            : fcModels.length===0
+                              ? <span style={{color:"#059669"}}>none</span>
+                              : <span title={fcModels.join(", ")}>{fcModels.slice(0,3).join(", ")}{fcModels.length>3?` +${fcModels.length-3}`:""}</span>}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div style={{fontSize:10,color:"#9ca3af",lineHeight:1.5,marginTop:6}}>
         <b style={{color:"#6b7280",fontWeight:600}}>Methodology:</b> Per-model arithmetic mean of daily pricepertoken.com observations within each calendar quarter (the same upstream the per-provider matrix below draws from). QoQ = current quarter vs immediately prior quarter; YoY = current quarter vs same calendar quarter previous year. Growth is computed separately for input and output price so providers that drop one but not the other are visible. Color convention is inverted from the OpenRouter growth table — a price drop is favorable, so negatives render <span style={{color:"#059669",fontWeight:600}}>green</span> and increases render <span style={{color:"#dc2626",fontWeight:600}}>red</span>. Real upstream historical observations only — no backfill, no synthetic data. The current incomplete quarter is labeled <b>QTD</b> and its growth comparisons are suppressed because partial-quarter averages aren't cleanly comparable against full quarters; pre-upstream quarters simply do not appear (upstream's earliest observation determines the leftmost column).
         <br/>
-        <b style={{color:"#6b7280",fontWeight:600}}>Class selection &amp; matching:</b> Fixed deterministic peer pairs so growth math reflects real provider repricing rather than a drifting model lineup — Frontier picks the production flagship each provider sells most prominently (Gemini 2.5 Pro / GPT-4o / Claude 3.5 Sonnet); Fast/Cost-efficient picks the high-volume cheaper tier (Gemini 2.5 Flash / GPT-4o mini / Claude 3 Haiku). Upstream model strings are normalized (lowercased, punctuation stripped) and matched as the target form OR the target as a prefix followed by a non-tier suffix — this catches dated variants like <code style={{fontFamily:"ui-monospace,SFMono-Regular,Menlo,monospace"}}>gpt-4o-2024-11-20</code> or <code style={{fontFamily:"ui-monospace,SFMono-Regular,Menlo,monospace"}}>claude-3.5-sonnet-20240620</code> while rejecting different-tier names (mini / lite / flash / haiku / nano / micro). Hover the row label to see exactly which upstream model strings each row aggregates. Reasoning-specialty (o3, Opus) and other providers (Mistral, Cohere, DeepSeek, xAI) are visible in the per-provider matrix below.
+        <b style={{color:"#6b7280",fontWeight:600}}>Class selection &amp; matching:</b> Fixed deterministic peer pairs so growth math reflects real provider repricing rather than a drifting model lineup. Picks anchor to the latest model class with full upstream history so QoQ stays comparable across periods — Frontier: Gemini 2.5 Pro / GPT-5 / Claude Opus 4; Fast/Cost-efficient: Gemini 2.5 Flash / GPT-5 mini / Claude Haiku 4.5 (with Claude 3 Haiku as a fallback for periods before 4.5 shipped); Legacy walks a priority fallback list per provider — Google: Gemini 1.5 Pro then 1.5 Flash; OpenAI: GPT-4 Turbo then GPT-3.5 Turbo; Anthropic: Claude 3 Opus then Claude 3 Sonnet — and uses whichever candidate first has upstream rows. Legacy rows with zero upstream coverage are not rendered. Upstream model strings are normalized (lowercased, punctuation stripped) and matched as the target form OR the target as a prefix followed by a non-tier suffix — this catches dated variants like <code style={{fontFamily:"ui-monospace,SFMono-Regular,Menlo,monospace"}}>gpt-5-2025-08-07</code> or <code style={{fontFamily:"ui-monospace,SFMono-Regular,Menlo,monospace"}}>claude-opus-4-2025-08-12</code> while rejecting different-tier names (mini / lite / flash / haiku / nano / micro / image) and version bumps (so <code style={{fontFamily:"ui-monospace,SFMono-Regular,Menlo,monospace"}}>gpt-5</code> does not absorb <code style={{fontFamily:"ui-monospace,SFMono-Regular,Menlo,monospace"}}>gpt-5.1</code> or <code style={{fontFamily:"ui-monospace,SFMono-Regular,Menlo,monospace"}}>gpt-5.5</code>, and <code style={{fontFamily:"ui-monospace,SFMono-Regular,Menlo,monospace"}}>claude-opus-4</code> does not absorb <code style={{fontFamily:"ui-monospace,SFMono-Regular,Menlo,monospace"}}>claude-opus-4.7</code>). Hover any row label to see exactly which upstream model strings the row aggregates.
+        <br/>
+        <b style={{color:"#6b7280",fontWeight:600}}>Model Rep Freshness:</b> Price math uses pricepertoken historical rows only. Firecrawl is used only to detect newer official model names and trigger review warnings. Fixed reps are not auto-promoted because changing reps would make QoQ/YoY reflect model-lineup churn rather than pure repricing. Status meanings — <b>STALE</b>: pricepertoken has a non-version-bump newer model class with ≥60 daily observations (rotation safe); <b>REVIEW</b>: pricepertoken sees newer but with limited history; <b>WATCH</b>: Firecrawl saw a model on the official docs page that pricepertoken hasn't cataloged yet; <b>OK</b>: nothing actionable. Disabled when <code style={{fontFamily:"ui-monospace,SFMono-Regular,Menlo,monospace"}}>FIRECRAWL_API_KEY</code> is not configured (pricepertoken evidence is still computed; only the WATCH escalation requires Firecrawl).
+        <br/>
+        <b style={{color:"#6b7280",fontWeight:600}}>Frontier Reference by Period:</b> The main matrix uses fixed representatives to keep QoQ/YoY comparable. The Frontier Reference table is informational only and shows how the literal current frontier moves over time. Selection per (provider, quarter) walks a newest-first priority list — Google: Gemini 3.1 Pro Preview → 3 Pro Preview → 2.5 Pro → 1.5 Pro → Pro → 2.5 Flash; OpenAI: GPT-5.5 Pro → 5.5 → 5.4 → 5.3 → 5.2 → 5.1 → 5 Pro → 5 → 4.1 → 4o → 4 Turbo → 4 → 3.5 Turbo; Anthropic: Claude Opus 4.7 → 4.6 → 4.5 → 4.1 → 4 → Sonnet 4.6 → 4.5 → 4 → 3.7 Sonnet → 3.5 Sonnet → 3 Opus → 3 Sonnet → 3 Haiku — and returns the first candidate that has at least one upstream model in that quarter. So a quarter where Claude Opus 4.7 first appears (currently Q2-26) reads <i>Claude Opus 4.7</i> here while the main matrix continues to anchor on Claude Opus 4 for stable QoQ. No external benchmarks, no quality claims.
       </div>
     </div>
   );
