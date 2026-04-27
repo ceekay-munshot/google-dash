@@ -139,6 +139,13 @@ export async function onRequestGet({ request, env }) {
   }
 
   const url = new URL(request.url);
+  const view = (url.searchParams.get('view') || 'basket').toLowerCase();
+  if (view !== 'basket' && view !== 'by-slug') {
+    return jsonResp(
+      { success: false, error: 'view must be "basket" (default) or "by-slug"' },
+      400
+    );
+  }
   const metric = (url.searchParams.get('metric') || 'input').toLowerCase();
   if (metric !== 'input' && metric !== 'output') {
     return jsonResp(
@@ -161,10 +168,12 @@ export async function onRequestGet({ request, env }) {
   if (!dailies.length) {
     return jsonResp({
       success: true,
+      view,
       metric,
       basket: { size: BASKET_SIZE, members: PRICING_BASKET },
       trackingSinceDate: null,
       quarters: [],
+      models: view === 'by-slug' ? [] : undefined,
       message:
         'No canonical pricing snapshots yet. Run /api/history-capture to create the first snapshot.',
     });
@@ -175,6 +184,14 @@ export async function onRequestGet({ request, env }) {
     (min, s) => (s.date < min ? s.date : min),
     dailies[0].date
   );
+
+  // ── view=by-slug: per-model quarterly series (input + output together) ──
+  // Used by the Model Pricing matrix table. Same canonical basket, same
+  // quarter grouping, same real-only / no-backfill rule as the default
+  // basket-averaged view — just sliced per-slug instead of averaged across.
+  if (view === 'by-slug') {
+    return jsonResp(buildBySlugResponse(dailies, trackingSinceDate));
+  }
 
   // ── Per-day basket average ──
   // Equal-weighted mean across matched basket members on that day.
@@ -296,6 +313,127 @@ export async function onRequestGet({ request, env }) {
     trackingSinceDate,
     quarters,
   });
+}
+
+/* ── view=by-slug helper ──────────────────────────────────────
+   Builds a per-model quarterly series across the canonical basket. Same
+   real-only / no-backfill rule as the default basket-averaged view.
+   Response shape:
+     {
+       success, view: 'by-slug', trackingSinceDate,
+       basket: { size, members: [...] },
+       quarters: [{ id, start, end, partial, dayCount }, ...],   // chronological
+       models: [{
+         slug, provider, label,
+         input:    { '<qid>': avg, ... },
+         output:   { '<qid>': avg, ... },
+         dayCount: { '<qid>': n,   ... },
+         qoqInput, qoqOutput,    // (current - prior) / prior
+         yoyInput, yoyOutput,    // (current - same-quarter-prior-year) / same-quarter-prior-year
+         coverageDays  // total observed days across all quarters
+       }, ...]
+     }
+*/
+function buildBySlugResponse(dailies, trackingSinceDate) {
+  const todayQ = quarterKey(new Date());
+
+  // Per-slug observation list
+  const obsBySlug = new Map(); // slug -> [{date,input,output}, ...]
+  const allQuarters = new Set();
+  for (const s of dailies) {
+    const qid = quarterKey(parseDateUTC(s.date));
+    allQuarters.add(qid);
+    if (!Array.isArray(s.pricing?.models)) continue;
+    for (const m of s.pricing.models) {
+      if (!m?.slug) continue;
+      if (!obsBySlug.has(m.slug)) obsBySlug.set(m.slug, []);
+      obsBySlug.get(m.slug).push({
+        date: s.date,
+        input:  typeof m.input  === 'number' && isFinite(m.input)  ? m.input  : null,
+        output: typeof m.output === 'number' && isFinite(m.output) ? m.output : null,
+      });
+    }
+  }
+
+  // Quarter list, chronological so the renderer reads left → right
+  const quarterIds = Array.from(allQuarters).sort();
+  const dayCountByQ = {};
+  for (const s of dailies) {
+    const qid = quarterKey(parseDateUTC(s.date));
+    dayCountByQ[qid] = (dayCountByQ[qid] || 0) + 1;
+  }
+  const quarters = quarterIds.map(qid => {
+    const m = qid.match(/^(\d{4})-Q(\d)$/);
+    const y = parseInt(m[1], 10);
+    const q = parseInt(m[2], 10);
+    const startMonth = (q - 1) * 3;
+    const start = new Date(Date.UTC(y, startMonth, 1)).toISOString().slice(0, 10);
+    const end   = new Date(Date.UTC(y, startMonth + 3, 0)).toISOString().slice(0, 10);
+    return { id: qid, start, end, partial: qid === todayQ, dayCount: dayCountByQ[qid] || 0 };
+  });
+
+  // Per-slug per-quarter averages + comparisons
+  const models = [];
+  for (const basketEntry of PRICING_BASKET) {
+    const obs = obsBySlug.get(basketEntry.slug) || [];
+    const byQ = new Map();
+    for (const o of obs) {
+      const qid = quarterKey(parseDateUTC(o.date));
+      if (!byQ.has(qid)) byQ.set(qid, { inputs: [], outputs: [] });
+      const g = byQ.get(qid);
+      if (o.input  !== null) g.inputs.push(o.input);
+      if (o.output !== null) g.outputs.push(o.output);
+    }
+    const input = {};
+    const output = {};
+    const dayCount = {};
+    for (const [qid, g] of byQ) {
+      input[qid]  = g.inputs.length  ? round2(g.inputs.reduce((a, b) => a + b, 0)  / g.inputs.length)  : null;
+      output[qid] = g.outputs.length ? round2(g.outputs.reduce((a, b) => a + b, 0) / g.outputs.length) : null;
+      dayCount[qid] = Math.max(g.inputs.length, g.outputs.length);
+    }
+    const qoqInput = {}, qoqOutput = {}, yoyInput = {}, yoyOutput = {};
+    for (const qid of Object.keys(input)) {
+      const pri = priorKey(qid);
+      const ya  = yearAgoKey(qid);
+      // Don't compute growth for the partial (QTD) quarter — partial averages
+      // can't be cleanly compared against full-quarter comparators. Same rule
+      // as the default basket-averaged view.
+      if (qid === todayQ) continue;
+      if (input[qid]  != null && input[pri]  != null && input[pri]  > 0) qoqInput[qid]  = round2(((input[qid]  - input[pri])  / input[pri])  * 1000) / 1000;
+      if (input[qid]  != null && input[ya]   != null && input[ya]   > 0) yoyInput[qid]  = round2(((input[qid]  - input[ya])   / input[ya])   * 1000) / 1000;
+      if (output[qid] != null && output[pri] != null && output[pri] > 0) qoqOutput[qid] = round2(((output[qid] - output[pri]) / output[pri]) * 1000) / 1000;
+      if (output[qid] != null && output[ya]  != null && output[ya]  > 0) yoyOutput[qid] = round2(((output[qid] - output[ya])  / output[ya])  * 1000) / 1000;
+    }
+    models.push({
+      slug: basketEntry.slug,
+      provider: basketEntry.provider,
+      label: basketEntry.label,
+      input,
+      output,
+      dayCount,
+      qoqInput,
+      qoqOutput,
+      yoyInput,
+      yoyOutput,
+      coverageDays: obs.length,
+    });
+  }
+
+  return {
+    success: true,
+    view: 'by-slug',
+    methodology:
+      'Per-slug arithmetic mean of daily prices within each calendar quarter. ' +
+      'QoQ vs immediately prior quarter; YoY vs same calendar quarter one year earlier. ' +
+      'Real captured snapshots only — no backfill, no synthetic data. The current ' +
+      'in-progress quarter (QTD) is shown but its growth comparisons are suppressed ' +
+      'because partial-quarter averages aren\'t cleanly comparable against full quarters.',
+    basket: { size: BASKET_SIZE, members: PRICING_BASKET },
+    trackingSinceDate,
+    quarters,
+    models,
+  };
 }
 
 export async function onRequestOptions() {

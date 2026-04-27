@@ -895,6 +895,223 @@ function ModelPricingHistoryBlock(){
 }
 
 /* ═══════════════════════════════════════════════════════
+   MODEL PRICING — finance-model price matrix, by class & period
+   First detailed section in the Model Pricing tab. Rows = comparable
+   model class (Frontier vs Fast/Cost-efficient) per provider; columns
+   = calendar quarters with quarter-end labels (Mar/Jun/Sep/Dec). Same
+   visual language as the OpenRouter Token Demand table and the GPU
+   Hardware Pricing financial-correlation table.
+
+   Data source: /api/model-pricing-peer-matrix. That endpoint proxies
+   pricepertoken.com's own historical pricing API (same upstream that
+   /api/provider-pricing-matrix uses) and filters to a fixed peer-pair
+   set so QoQ math reflects real repricing on the same model class
+   instead of a drifting lineup average. The fixed peer mapping and the
+   model-name normalization rules live server-side in the endpoint —
+   this component just renders.
+
+   Pricing color convention: a price drop is favorable for buyers, so
+   negative changes render green / positive changes render red — the
+   inverse of the OpenRouter Token Demand growth table where positive
+   = green growth. Same parenthesized magnitude formatting either way.
+═══════════════════════════════════════════════════════ */
+function quarterIdToLabel(qid){
+  const m=qid.match(/^(\d{4})-Q(\d)$/);
+  if(!m)return qid;
+  const y=parseInt(m[1],10),q=parseInt(m[2],10);
+  return ["Mar","Jun","Sep","Dec"][q-1]+"-"+String(y).slice(2);
+}
+
+function ModelPricingMatrixTable(){
+  const[state,setState]=useState({phase:"loading",data:null,error:null});
+  useEffect(()=>{
+    let cancelled=false;
+    // Source: /api/model-pricing-peer-matrix proxies pricepertoken's own
+    // historical pricing API (the same upstream provider-pricing-matrix uses)
+    // and filters to a fixed peer-pair set so QoQ math reflects real provider
+    // repricing on the same model class. This is REAL upstream historical
+    // data — not the canonical KV snapshot store, which only reaches back as
+    // far as the dashboard has been running.
+    fetch("/api/model-pricing-peer-matrix")
+      .then(r=>r.ok?r.json():Promise.reject(new Error("HTTP "+r.status)))
+      .then(d=>{
+        if(cancelled)return;
+        if(!d||d.success===false){setState({phase:"error",data:null,error:d?.error||"Unknown error"});return;}
+        setState({phase:"ready",data:d,error:null});
+      })
+      .catch(e=>{if(!cancelled)setState({phase:"error",data:null,error:e.message||"Fetch failed"});});
+    return()=>{cancelled=true;};
+  },[]);
+
+  const header=(
+    <>
+      <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:4}}>
+        <span style={{width:7,height:7,borderRadius:"50%",background:"#0e7490",display:"inline-block"}}/>
+        <span style={{fontSize:10,textTransform:"uppercase",letterSpacing:".09em",fontWeight:700,color:"#0e7490"}}>Model Pricing Matrix</span>
+      </div>
+      <div style={{marginBottom:10}}>
+        <div style={{fontSize:16,fontWeight:700,color:"#111827",lineHeight:1.3}}>Model Pricing by Provider</div>
+        <div style={{fontSize:11,color:"#9ca3af",marginTop:3}}>Quarter-aligned price per token comparison across comparable model classes — real pricing history only.</div>
+      </div>
+    </>
+  );
+
+  if(state.phase==="loading"){
+    return(<div style={{marginBottom:16}}>{header}<div style={{...S.card}}><Shimmer rows={6}/></div></div>);
+  }
+  if(state.phase==="error"){
+    return(
+      <div style={{marginBottom:16}}>{header}
+        <div style={{background:"#fff",border:"0.5px dashed #fca5a5",borderRadius:10,padding:"14px 16px"}}>
+          <div style={{fontSize:12,color:"#991b1b",fontWeight:500}}>Pricing matrix temporarily unavailable</div>
+          <div style={{fontSize:11,color:"#6b7280",marginTop:2}}>{state.error||"/api/model-pricing-peer-matrix did not return success"}</div>
+        </div>
+      </div>
+    );
+  }
+
+  const data=state.data;
+  const quarters=(data?.quarters||[]);
+  const reps=(data?.reps||[]);
+  if(!quarters.length||!reps.length){
+    return(
+      <div style={{marginBottom:16}}>{header}
+        <div style={{background:"#fff",border:"0.5px solid #e5e7eb",borderRadius:10,padding:"14px 16px"}}>
+          <div style={{fontSize:12,color:"#111827",fontWeight:500}}>Matrix populates as upstream historical pricing data becomes available</div>
+          <div style={{fontSize:11,color:"#6b7280",marginTop:3}}>This view filters pricepertoken.com's historical pricing API to comparable peer models per provider.</div>
+        </div>
+      </div>
+    );
+  }
+
+  const fmtPrice=v=>{
+    if(v==null||!isFinite(v))return"—";
+    if(v>=10)return"$"+v.toFixed(2);
+    if(v>=1) return"$"+v.toFixed(2);
+    return "$"+v.toFixed(3);
+  };
+  // Pricing change colors are INVERTED from the growth table convention:
+  // a price drop is favorable for the buyer (green), a price hike is
+  // cost pressure (red). Magnitude format mirrors finance: negatives in
+  // parentheses, positives prefixed with +.
+  const fmtChange=v=>{
+    if(v==null||!isFinite(v))return<span style={{color:"#d1d5db"}}>—</span>;
+    const pct=v*100;
+    const str=pct<0?"("+Math.abs(pct).toFixed(1)+"%)":(pct>0?"+":"")+pct.toFixed(1)+"%";
+    const color=pct>0?"#dc2626":pct<0?"#059669":"#6b7280";
+    return <span style={{color}}>{str}</span>;
+  };
+
+  const STICKY_BG="#f3f4f6";
+  const STICKY_SHADOW="2px 0 0 #e5e7eb, 6px 0 6px -4px rgba(17,24,39,0.08)";
+  const FIRST_COL_W=260;
+  const COL_W=110;
+  const stickyFirstBase={position:"sticky",left:0,background:STICKY_BG,boxShadow:STICKY_SHADOW,minWidth:FIRST_COL_W,maxWidth:FIRST_COL_W,width:FIRST_COL_W};
+  const stickySectionBase={position:"sticky",left:0,background:STICKY_BG};
+  const thMain={textAlign:"right",padding:"5px 10px",fontSize:10,color:"#6b7280",fontWeight:600,whiteSpace:"nowrap",minWidth:COL_W};
+  const thFirst={...stickyFirstBase,textAlign:"left",padding:"5px 10px",fontSize:10,color:"#6b7280",fontWeight:600,whiteSpace:"nowrap",zIndex:3};
+  const tdMain={textAlign:"right",padding:"4px 10px",fontSize:12,color:"#111827",fontFamily:"ui-monospace,SFMono-Regular,Menlo,monospace",whiteSpace:"nowrap",minWidth:COL_W};
+  const tdDim ={textAlign:"right",padding:"4px 10px",fontSize:12,color:"#6b7280",fontFamily:"ui-monospace,SFMono-Regular,Menlo,monospace",whiteSpace:"nowrap",minWidth:COL_W};
+  const tdFirst={...stickyFirstBase,textAlign:"left",padding:"6px 10px 6px 18px",fontSize:11,whiteSpace:"nowrap",zIndex:2};
+  const sectionTh={...stickySectionBase,textAlign:"left",padding:"10px 10px 4px",fontSize:11,color:"#111827",fontWeight:700,textDecoration:"underline",textUnderlineOffset:"3px",zIndex:1};
+
+  const renderSectionRow=label=>(
+    <tr key={"sec-"+label}>
+      <td style={sectionTh}>{label}</td>
+      {quarters.map(q=>(<td key={q.id} style={{padding:"10px 10px 4px",background:"#f3f4f6",minWidth:COL_W}}/>))}
+    </tr>
+  );
+  const renderModelLabel=rep=>{
+    const matchedSummary=(rep.matchedModels||[]).length
+      ? rep.matchedModels.length+" upstream variant"+(rep.matchedModels.length===1?"":"s")+" matched: "+rep.matchedModels.join(", ")
+      : "no upstream model matched";
+    return(
+      <td style={tdFirst} title={matchedSummary}>
+        <div style={{lineHeight:1.25}}>
+          <div style={{fontWeight:600,color:"#111827"}}>{rep.label}</div>
+          <div style={{fontSize:10,color:"#9ca3af",fontFamily:"ui-monospace,SFMono-Regular,Menlo,monospace"}}>{rep.modelDisplay}</div>
+        </div>
+      </td>
+    );
+  };
+  const renderPriceRow=(rep,metricKey)=>(
+    <tr key={metricKey+"-"+rep.key}>
+      {renderModelLabel(rep)}
+      {quarters.map(q=>{
+        const val=rep[metricKey]?.[q.id];
+        return(<td key={q.id} style={tdMain}>{fmtPrice(val)}</td>);
+      })}
+    </tr>
+  );
+  const renderChangeRow=(rep,key)=>(
+    <tr key={key+"-"+rep.key}>
+      {renderModelLabel(rep)}
+      {quarters.map(q=>{
+        const val=rep[key]?.[q.id];
+        return(<td key={q.id} style={tdDim}>{fmtChange(val)}</td>);
+      })}
+    </tr>
+  );
+
+  return(
+    <div style={{marginBottom:16}}>
+      {header}
+      <div style={{border:"0.5px solid #e5e7eb",borderRadius:8,overflow:"hidden",background:"#f9fafb"}}>
+        <div style={{overflowX:"auto"}}>
+          <table style={{width:"100%",borderCollapse:"separate",borderSpacing:0,background:"#f3f4f6",minWidth:FIRST_COL_W+COL_W*quarters.length}}>
+            <thead>
+              <tr>
+                <th style={thFirst}></th>
+                {quarters.map(q=>(
+                  <th key={q.id} style={thMain}>
+                    {quarterIdToLabel(q.id)}
+                    {q.partial&&<span style={{marginLeft:3,fontSize:8,color:"#b45309",fontWeight:500}}>QTD</span>}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {renderSectionRow("Input Price / 1M Tokens")}
+              {reps.map(rep=>renderPriceRow(rep,"input"))}
+
+              <tr><td colSpan={quarters.length+1} style={{height:8,background:"#f9fafb"}}></td></tr>
+
+              {renderSectionRow("Output Price / 1M Tokens")}
+              {reps.map(rep=>renderPriceRow(rep,"output"))}
+
+              <tr><td colSpan={quarters.length+1} style={{height:8,background:"#f9fafb"}}></td></tr>
+
+              {renderSectionRow("QoQ Price Change (input)")}
+              {reps.map(rep=>renderChangeRow(rep,"qoqInput"))}
+
+              <tr><td colSpan={quarters.length+1} style={{height:8,background:"#f9fafb"}}></td></tr>
+
+              {renderSectionRow("QoQ Price Change (output)")}
+              {reps.map(rep=>renderChangeRow(rep,"qoqOutput"))}
+
+              <tr><td colSpan={quarters.length+1} style={{height:8,background:"#f9fafb"}}></td></tr>
+
+              {renderSectionRow("YoY Price Change (input)")}
+              {reps.map(rep=>renderChangeRow(rep,"yoyInput"))}
+
+              <tr><td colSpan={quarters.length+1} style={{height:8,background:"#f9fafb"}}></td></tr>
+
+              {renderSectionRow("YoY Price Change (output)")}
+              {reps.map(rep=>renderChangeRow(rep,"yoyOutput"))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div style={{fontSize:10,color:"#9ca3af",lineHeight:1.5,marginTop:6}}>
+        <b style={{color:"#6b7280",fontWeight:600}}>Methodology:</b> Per-model arithmetic mean of daily pricepertoken.com observations within each calendar quarter (the same upstream the per-provider matrix below draws from). QoQ = current quarter vs immediately prior quarter; YoY = current quarter vs same calendar quarter previous year. Growth is computed separately for input and output price so providers that drop one but not the other are visible. Color convention is inverted from the OpenRouter growth table — a price drop is favorable, so negatives render <span style={{color:"#059669",fontWeight:600}}>green</span> and increases render <span style={{color:"#dc2626",fontWeight:600}}>red</span>. Real upstream historical observations only — no backfill, no synthetic data. The current incomplete quarter is labeled <b>QTD</b> and its growth comparisons are suppressed because partial-quarter averages aren't cleanly comparable against full quarters; pre-upstream quarters simply do not appear (upstream's earliest observation determines the leftmost column).
+        <br/>
+        <b style={{color:"#6b7280",fontWeight:600}}>Class selection &amp; matching:</b> Fixed deterministic peer pairs so growth math reflects real provider repricing rather than a drifting model lineup — Frontier picks the production flagship each provider sells most prominently (Gemini 2.5 Pro / GPT-4o / Claude 3.5 Sonnet); Fast/Cost-efficient picks the high-volume cheaper tier (Gemini 2.5 Flash / GPT-4o mini / Claude 3 Haiku). Upstream model strings are normalized (lowercased, punctuation stripped) and matched as the target form OR the target as a prefix followed by a non-tier suffix — this catches dated variants like <code style={{fontFamily:"ui-monospace,SFMono-Regular,Menlo,monospace"}}>gpt-4o-2024-11-20</code> or <code style={{fontFamily:"ui-monospace,SFMono-Regular,Menlo,monospace"}}>claude-3.5-sonnet-20240620</code> while rejecting different-tier names (mini / lite / flash / haiku / nano / micro). Hover the row label to see exactly which upstream model strings each row aggregates. Reasoning-specialty (o3, Opus) and other providers (Mistral, Cohere, DeepSeek, xAI) are visible in the per-provider matrix below.
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════
    TAB: Model Pricing (pricepertoken.com reverse-proxy embed)
 ═══════════════════════════════════════════════════════ */
 function ModelPricingTab(){
@@ -907,7 +1124,12 @@ function ModelPricingTab(){
         </div>
       </div>
 
-      {/* Analytical read-through (callouts + signal table + quadrant) — first */}
+      {/* First detailed section — finance-model price matrix by class & period.
+         Sits above the existing analytical read-through and quarterly trend
+         chart so the reader gets the comparable peer-pair view first. */}
+      <ModelPricingMatrixTable/>
+
+      {/* Analytical read-through (callouts + signal table + quadrant) */}
       <PricingShareSignalBlock/>
 
       {/* Quarterly trend chart + matrix */}
@@ -2308,7 +2530,150 @@ function bucketProviderFromSlug(slug){
   return null;
 }
 
+/* Period builders. Both return the same row shape so the table renderer
+   can stay mode-agnostic:
+     {id,label,year,(quarter|month),start,end,partial,shortCoverage,
+      coverageObserved,coverageDenom,coverageUnit,total,google,openai,anthropic,other}
+
+   Quarter rule: a week is wholly attributed to the calendar quarter of its
+   start date (Monday). ISO weeks rarely cross quarter boundaries — when they
+   do (e.g. Mar 31 → Apr 6) one quarter gets a small over-attribution and
+   the neighbour gets a small under, but error is bounded at <1 week per year.
+   This is the same convention HistoryTabCanonical uses; we keep both views
+   consistent.
+
+   Month rule: an ISO week routinely straddles a calendar month, so we split
+   the week's tokens across the two months by day-count fraction. That keeps
+   Σ months = Σ weeks exactly while attributing tokens to the calendar period
+   they were actually earned in. */
+function _bucketWeekProviderSums(w){
+  const ys=w.allModels||Object.fromEntries((w.topModels||[]).map(tm=>[tm.slug,tm.tokens]));
+  const out={google:0,openai:0,anthropic:0};
+  for(const slug of Object.keys(ys)){
+    const tokens=ys[slug];
+    if(!tokens||tokens<=0)continue;
+    const b=bucketProviderFromSlug(slug);
+    if(b)out[b]+=tokens;
+  }
+  return out;
+}
+
+function buildQuarterlyPeriods(weeks){
+  const QLBL=["Mar","Jun","Sep","Dec"];
+  const groups=new Map();
+  for(const w of weeks){
+    const [y,m]=w.start.split("-").map(Number);
+    const q=Math.floor((m-1)/3)+1;
+    const id=y+"-Q"+q;
+    if(!groups.has(id)){
+      const startMonth=(q-1)*3;
+      const start=y+"-"+String(startMonth+1).padStart(2,"0")+"-01";
+      const endD=new Date(Date.UTC(y,startMonth+3,0));
+      groups.set(id,{
+        id,year:y,quarter:q,
+        label:QLBL[q-1]+"-"+String(y).slice(2),
+        start,end:endD.toISOString().slice(0,10),
+        partial:false,weekCount:0,
+        total:0,google:0,openai:0,anthropic:0,
+      });
+    }
+    const g=groups.get(id);
+    g.weekCount+=1;
+    g.total+=(w.totalRaw||0);
+    if(w.partial)g.partial=true;
+    const buckets=_bucketWeekProviderSums(w);
+    g.google+=buckets.google;
+    g.openai+=buckets.openai;
+    g.anthropic+=buckets.anthropic;
+  }
+  const out=Array.from(groups.values()).sort((a,b)=>a.id<b.id?-1:1);
+  for(const g of out){
+    g.other=Math.max(0,g.total-g.google-g.openai-g.anthropic);
+    g.shortCoverage=!g.partial&&g.weekCount<12;
+    g.coverageObserved=g.weekCount;
+    g.coverageDenom=13;
+    g.coverageUnit="w";
+  }
+  return out;
+}
+
+function buildMonthlyPeriods(weeks){
+  const MNAMES=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  const NOW=new Date();
+  const TODAY_TS=Date.UTC(NOW.getUTCFullYear(),NOW.getUTCMonth(),NOW.getUTCDate());
+  const todayKey=NOW.getUTCFullYear()+"-"+String(NOW.getUTCMonth()+1).padStart(2,"0");
+  const groups=new Map();
+
+  function ensure(y,m){
+    const id=y+"-"+String(m).padStart(2,"0");
+    if(!groups.has(id)){
+      const startD=new Date(Date.UTC(y,m-1,1));
+      const endD=new Date(Date.UTC(y,m,0));
+      groups.set(id,{
+        id,year:y,month:m,
+        label:MNAMES[m-1]+"-"+String(y).slice(2),
+        start:startD.toISOString().slice(0,10),
+        end:endD.toISOString().slice(0,10),
+        partial:false,
+        daysObserved:0,daysInMonth:endD.getUTCDate(),
+        total:0,google:0,openai:0,anthropic:0,
+      });
+    }
+    return groups.get(id);
+  }
+
+  for(const w of weeks){
+    const [sy,sm,sd]=w.start.split("-").map(Number);
+    const startTs=Date.UTC(sy,sm-1,sd);
+    // For an in-progress week the totalRaw reflects tokens accumulated only
+    // through `forecastFromTimestamp` — i.e. up to "today". Days past today
+    // haven't happened yet, so we must not distribute tokens to them. Cap
+    // the day-window at the elapsed days for partial weeks; full weeks use
+    // all 7. This prevents future months from appearing as MTD columns
+    // (e.g. a Mon Apr 27 in-progress week was previously bleeding 3 days'
+    // worth of tokens into May).
+    const elapsed=Math.max(1,Math.min(7,Math.floor((TODAY_TS-startTs)/86400000)+1));
+    const dayCount=w.partial?elapsed:7;
+
+    const dayMonthCounts=new Map();
+    for(let i=0;i<dayCount;i++){
+      const d=new Date(startTs+i*86400000);
+      const id=d.getUTCFullYear()+"-"+String(d.getUTCMonth()+1).padStart(2,"0");
+      dayMonthCounts.set(id,(dayMonthCounts.get(id)||0)+1);
+    }
+    const buckets=_bucketWeekProviderSums(w);
+    for(const [monthId,days] of dayMonthCounts){
+      const fraction=days/dayCount;
+      const [y,m]=monthId.split("-").map(Number);
+      const g=ensure(y,m);
+      g.total     +=(w.totalRaw||0)*fraction;
+      g.google    +=buckets.google*fraction;
+      g.openai    +=buckets.openai*fraction;
+      g.anthropic +=buckets.anthropic*fraction;
+      g.daysObserved+=days;
+    }
+  }
+
+  // Partial = MTD applies ONLY to the current calendar month. Previous months
+  // touched by an in-progress week are still complete (they happened before
+  // today); we don't want to flag them MTD.
+  for(const g of groups.values()){
+    if(g.id===todayKey)g.partial=true;
+  }
+
+  const out=Array.from(groups.values()).sort((a,b)=>a.id<b.id?-1:1);
+  for(const g of out){
+    g.other=Math.max(0,g.total-g.google-g.openai-g.anthropic);
+    g.shortCoverage=!g.partial&&g.daysObserved<g.daysInMonth;
+    g.coverageObserved=g.daysObserved;
+    g.coverageDenom=g.daysInMonth;
+    g.coverageUnit="d";
+  }
+  return out;
+}
+
 function OpenRouterTokenDemandTable(){
+  const[mode,setMode]=useState("quarter"); // "quarter" (default) | "month"
   const[state,setState]=useState({phase:"loading",data:null,error:null});
   useEffect(()=>{
     let cancelled=false;
@@ -2323,15 +2688,36 @@ function OpenRouterTokenDemandTable(){
     return()=>{cancelled=true;};
   },[]);
 
+  const subtitle=mode==="month"
+    ? "Month-aligned OpenRouter token demand, provider share, and growth — real historical chart data only."
+    : "Quarter-aligned OpenRouter token demand, provider share, and growth — real historical chart data only.";
+
+  const ModeToggle=(
+    <div style={{display:"inline-flex",border:"0.5px solid #e5e7eb",borderRadius:6,overflow:"hidden",background:"#fff",flexShrink:0}}>
+      {["quarter","month"].map(v=>{
+        const active=mode===v;
+        return(
+          <button key={v} onClick={()=>setMode(v)}
+            style={{fontSize:11,padding:"4px 12px",border:"none",background:active?"#111827":"#fff",color:active?"#fff":"#6b7280",cursor:"pointer",fontFamily:"inherit",fontWeight:500,textTransform:"capitalize"}}>
+            {v==="quarter"?"Quarter":"Month"}
+          </button>
+        );
+      })}
+    </div>
+  );
+
   const header=(
     <>
       <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:4}}>
         <span style={{width:7,height:7,borderRadius:"50%",background:"#1d4ed8",display:"inline-block"}}/>
         <span style={{fontSize:10,textTransform:"uppercase",letterSpacing:".09em",fontWeight:700,color:"#1d4ed8"}}>OpenRouter Token Demand</span>
       </div>
-      <div style={{marginBottom:10}}>
-        <div style={{fontSize:16,fontWeight:700,color:"#111827",lineHeight:1.3}}>OpenRouter Token Demand by Provider</div>
-        <div style={{fontSize:11,color:"#9ca3af",marginTop:3}}>Quarter-aligned OpenRouter token demand, provider share, and growth — real historical chart data only.</div>
+      <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:12,marginBottom:10,flexWrap:"wrap"}}>
+        <div style={{flex:"1 1 auto",minWidth:0}}>
+          <div style={{fontSize:16,fontWeight:700,color:"#111827",lineHeight:1.3}}>OpenRouter Token Demand by Provider</div>
+          <div style={{fontSize:11,color:"#9ca3af",marginTop:3}}>{subtitle}</div>
+        </div>
+        {ModeToggle}
       </div>
     </>
   );
@@ -2362,76 +2748,43 @@ function OpenRouterTokenDemandTable(){
     );
   }
 
-  // Group weeks into calendar quarters; sum tokens per provider bucket.
-  const groups=new Map();
-  const QLBL=["Mar","Jun","Sep","Dec"]; // quarter-end month labels (Q1..Q4)
-  for(const w of weeks){
-    const [y,m]=w.start.split("-").map(Number);
-    const q=Math.floor((m-1)/3)+1;
-    const id=y+"-Q"+q;
-    if(!groups.has(id)){
-      const startMonth=(q-1)*3;
-      const start=y+"-"+String(startMonth+1).padStart(2,"0")+"-01";
-      const endD=new Date(Date.UTC(y,startMonth+3,0));
-      const end=endD.toISOString().slice(0,10);
-      groups.set(id,{
-        id,year:y,quarter:q,
-        label:QLBL[q-1]+"-"+String(y).slice(2),
-        start,end,
-        partial:false,
-        weekCount:0,
-        total:0,google:0,openai:0,anthropic:0,
-      });
-    }
-    const g=groups.get(id);
-    g.weekCount+=1;
-    g.total+=(w.totalRaw||0);
-    if(w.partial)g.partial=true;
-    const ys=w.allModels||Object.fromEntries((w.topModels||[]).map(tm=>[tm.slug,tm.tokens]));
-    for(const slug of Object.keys(ys)){
-      const tokens=ys[slug];
-      if(!tokens||tokens<=0)continue;
-      const b=bucketProviderFromSlug(slug);
-      if(b)g[b]+=tokens;
-    }
-  }
+  // Periods: same row shape regardless of mode, so the renderer below stays
+  // unified. Quarter view is the default; Month view shares everything except
+  // the period builder, the growth-row label (QoQ ↔ MoM), the partial badge
+  // (QTD ↔ MTD), and the short-coverage unit (w ↔ d).
+  const periods=mode==="month"?buildMonthlyPeriods(weeks):buildQuarterlyPeriods(weeks);
+  const byId=Object.fromEntries(periods.map(p=>[p.id,p]));
 
-  // Chronological (oldest first) so the table reads left → right.
-  const quarters=Array.from(groups.values()).sort((a,b)=>a.id<b.id?-1:1);
-  for(const q of quarters){
-    q.other=Math.max(0,q.total-q.google-q.openai-q.anthropic);
-    // shortCoverage = real-but-truncated quarter (data window opened
-    // mid-quarter, so fewer than ~13 ISO weeks observed). Used to annotate
-    // the column header so growth math against it is interpretable, but
-    // does NOT suppress the calculation — withholding a real comparison
-    // just because the data window is shorter than a calendar quarter
-    // hides signal the reader can otherwise see.
-    q.shortCoverage=!q.partial&&q.weekCount<12;
-  }
-  const byId=Object.fromEntries(quarters.map(q=>[q.id,q]));
-  const priorQ=(y,q)=>q===1?(y-1)+"-Q4":y+"-Q"+(q-1);
-  const yoyQ  =(y,q)=>(y-1)+"-Q"+q;
+  const priorIdFn=mode==="month"
+    ? (p)=>p.month===1?(p.year-1)+"-12":p.year+"-"+String(p.month-1).padStart(2,"0")
+    : (p)=>p.quarter===1?(p.year-1)+"-Q4":p.year+"-Q"+(p.quarter-1);
+  const yoyIdFn=mode==="month"
+    ? (p)=>(p.year-1)+"-"+String(p.month).padStart(2,"0")
+    : (p)=>(p.year-1)+"-Q"+p.quarter;
 
-  const growth={qoq:{},yoy:{}};
-  for(const q of quarters){
-    growth.qoq[q.id]={};
-    growth.yoy[q.id]={};
-    if(q.partial)continue; // QTD: full-quarter comparisons are not meaningful
-    const prior=byId[priorQ(q.year,q.quarter)];
-    const yoy  =byId[yoyQ(q.year,q.quarter)];
+  const growth={primary:{},yoy:{}};
+  for(const p of periods){
+    growth.primary[p.id]={};
+    growth.yoy[p.id]={};
+    if(p.partial)continue; // QTD/MTD: full-period comparisons are not meaningful
+    const prior=byId[priorIdFn(p)];
+    const yoy  =byId[yoyIdFn(p)];
     for(const k of["google","openai","anthropic","other","total"]){
-      // Compute against any non-QTD comparator that has data. A short-coverage
-      // comparator (e.g. data window opened mid-quarter) still represents real
-      // observed tokens — flagging it on the column header is enough; we don't
-      // also need to blank the cell.
+      // Compute against any non-QTD/MTD comparator that has data. A short-coverage
+      // comparator still represents real observed tokens — flagging it on the
+      // column header is enough; we don't also need to blank the cell.
       if(prior&&!prior.partial&&prior[k]>0){
-        growth.qoq[q.id][k]=((q[k]-prior[k])/prior[k])*100;
+        growth.primary[p.id][k]=((p[k]-prior[k])/prior[k])*100;
       }
       if(yoy&&!yoy.partial&&yoy[k]>0){
-        growth.yoy[q.id][k]=((q[k]-yoy[k])/yoy[k])*100;
+        growth.yoy[p.id][k]=((p[k]-yoy[k])/yoy[k])*100;
       }
     }
   }
+
+  const partialBadge=mode==="month"?"MTD":"QTD";
+  const primaryGrowthLabel=mode==="month"?"MoM Growth":"QoQ Growth";
+  const periodWord=mode==="month"?"month":"quarter";
 
   // Display rules: a genuine 0 is rendered as "0" / "0.0%" so the Tokens and
   // Share rows agree (missing tokens with non-zero share would be incoherent
@@ -2487,28 +2840,28 @@ function OpenRouterTokenDemandTable(){
     {key:"other",    label:"Other"},
   ];
 
-  const renderSectionRow=(label,qs,style)=>(
+  const renderSectionRow=(label,ps,style)=>(
     <tr key={"sec-"+label}>
       <td style={style}>{label}</td>
-      {qs.map(q=>(<td key={q.id} style={{padding:"10px 10px 4px",background:"#f3f4f6",minWidth:COL_W}}/>))}
+      {ps.map(p=>(<td key={p.id} style={{padding:"10px 10px 4px",background:"#f3f4f6",minWidth:COL_W}}/>))}
     </tr>
   );
   const renderTokenRow=b=>(
     <tr key={"tok-"+b.key}>
       <td style={tdFirst}>{b.label}</td>
-      {quarters.map(q=>(<td key={q.id} style={tdMain}>{fmtTok(q[b.key])}</td>))}
+      {periods.map(p=>(<td key={p.id} style={tdMain}>{fmtTok(p[b.key])}</td>))}
     </tr>
   );
   const renderShareRow=b=>(
     <tr key={"sh-"+b.key}>
       <td style={tdFirst}>{b.label}</td>
-      {quarters.map(q=>(<td key={q.id} style={tdDim}>{fmtShare(q[b.key],q.total)}</td>))}
+      {periods.map(p=>(<td key={p.id} style={tdDim}>{fmtShare(p[b.key],p.total)}</td>))}
     </tr>
   );
   const renderGrowthRow=(b,bucket)=>(
     <tr key={bucket+"-"+b.key}>
       <td style={tdFirst}>{b.label}</td>
-      {quarters.map(q=>(<td key={q.id} style={tdDim}>{fmtG(growth[bucket][q.id]?.[b.key])}</td>))}
+      {periods.map(p=>(<td key={p.id} style={tdDim}>{fmtG(growth[bucket][p.id]?.[b.key])}</td>))}
     </tr>
   );
 
@@ -2522,15 +2875,15 @@ function OpenRouterTokenDemandTable(){
            paint cleanly on table cells across browsers — collapsed borders
            leak into the sticky cell and cause render artifacts on scroll. */}
         <div style={{overflowX:"auto"}}>
-          <table style={{width:"100%",borderCollapse:"separate",borderSpacing:0,background:"#f3f4f6",minWidth:FIRST_COL_W+COL_W*Math.max(quarters.length,4)}}>
+          <table style={{width:"100%",borderCollapse:"separate",borderSpacing:0,background:"#f3f4f6",minWidth:FIRST_COL_W+COL_W*Math.max(periods.length,4)}}>
             <thead>
               <tr>
                 <th style={thFirst}></th>
-                {quarters.map(q=>(
-                  <th key={q.id} style={thMain}>
-                    {q.label}
-                    {q.partial&&<span style={{marginLeft:3,fontSize:8,color:"#b45309",fontWeight:500}}>QTD</span>}
-                    {q.shortCoverage&&<span title={q.weekCount+" / 13 ISO weeks observed (data window opened mid-quarter)"} style={{marginLeft:3,fontSize:8,color:"#b45309",fontWeight:500}}>{q.weekCount}w</span>}
+                {periods.map(p=>(
+                  <th key={p.id} style={thMain}>
+                    {p.label}
+                    {p.partial&&<span style={{marginLeft:3,fontSize:8,color:"#b45309",fontWeight:500}}>{partialBadge}</span>}
+                    {p.shortCoverage&&<span title={p.coverageObserved+" / "+p.coverageDenom+" "+(p.coverageUnit==="d"?"days":"ISO weeks")+" observed (data window opened mid-"+periodWord+")"} style={{marginLeft:3,fontSize:8,color:"#b45309",fontWeight:500}}>{p.coverageObserved}{p.coverageUnit}</span>}
                   </th>
                 ))}
               </tr>
@@ -2541,43 +2894,46 @@ function OpenRouterTokenDemandTable(){
                  row width, which breaks the sticky-left anchor). Instead, the
                  heading lives in the sticky first column and the remaining
                  columns get an empty filler cell so the row keeps its grid. */}
-              {renderSectionRow("Tokens",quarters,sectionTh)}
+              {renderSectionRow("Tokens",periods,sectionTh)}
               {provBuckets.map(renderTokenRow)}
               <tr key="tok-total">
                 <td style={tdFirstTotal}>Total</td>
-                {quarters.map(q=>(<td key={q.id} style={{...tdMain,fontWeight:700}}>{fmtTok(q.total)}</td>))}
+                {periods.map(p=>(<td key={p.id} style={{...tdMain,fontWeight:700}}>{fmtTok(p.total)}</td>))}
               </tr>
 
-              <tr><td colSpan={quarters.length+1} style={{height:8,background:"#f9fafb"}}></td></tr>
+              <tr><td colSpan={periods.length+1} style={{height:8,background:"#f9fafb"}}></td></tr>
 
-              {renderSectionRow("Share of Tokens",quarters,sectionTh)}
+              {renderSectionRow("Share of Tokens",periods,sectionTh)}
               {provBuckets.map(renderShareRow)}
 
-              <tr><td colSpan={quarters.length+1} style={{height:8,background:"#f9fafb"}}></td></tr>
+              <tr><td colSpan={periods.length+1} style={{height:8,background:"#f9fafb"}}></td></tr>
 
-              {renderSectionRow("QoQ Growth",quarters,sectionTh)}
-              {provBuckets.map(b=>renderGrowthRow(b,"qoq"))}
-              <tr key="qoq-total">
+              {renderSectionRow(primaryGrowthLabel,periods,sectionTh)}
+              {provBuckets.map(b=>renderGrowthRow(b,"primary"))}
+              <tr key="primary-total">
                 <td style={tdFirstTotal}>Total</td>
-                {quarters.map(q=>(<td key={q.id} style={tdDim}>{fmtG(growth.qoq[q.id]?.total)}</td>))}
+                {periods.map(p=>(<td key={p.id} style={tdDim}>{fmtG(growth.primary[p.id]?.total)}</td>))}
               </tr>
 
-              <tr><td colSpan={quarters.length+1} style={{height:8,background:"#f9fafb"}}></td></tr>
+              <tr><td colSpan={periods.length+1} style={{height:8,background:"#f9fafb"}}></td></tr>
 
-              {renderSectionRow("YoY Growth",quarters,sectionTh)}
+              {renderSectionRow("YoY Growth",periods,sectionTh)}
               {provBuckets.map(b=>renderGrowthRow(b,"yoy"))}
               <tr key="yoy-total">
                 <td style={tdFirstTotal}>Total</td>
-                {quarters.map(q=>(<td key={q.id} style={tdDim}>{fmtG(growth.yoy[q.id]?.total)}</td>))}
+                {periods.map(p=>(<td key={p.id} style={tdDim}>{fmtG(growth.yoy[p.id]?.total)}</td>))}
               </tr>
             </tbody>
           </table>
         </div>
       </div>
       <div style={{fontSize:10,color:"#9ca3af",lineHeight:1.5,marginTop:6}}>
-        <b style={{color:"#6b7280",fontWeight:600}}>Methodology:</b> Quarter buckets aggregate weekly OpenRouter chart-native data (the same RSC payload as the live provider-share embed below). Provider buckets group models by slug prefix and family-name match: Google / Gemini, OpenAI (incl. GPT/o-series), Anthropic (incl. Claude). Other = quarter total − the three named buckets. QoQ = current quarter vs immediately prior quarter; YoY = current quarter vs same calendar quarter previous year. Growth values render <b>—</b> only when the comparator quarter is the current in-progress period (QTD) or doesn't exist in the observed window. The current incomplete quarter is labeled <b>QTD</b>; full-quarter comparisons against QTD are not computed.
+        <b style={{color:"#6b7280",fontWeight:600}}>Methodology:</b> {mode==="month"
+          ? <>Month buckets aggregate weekly OpenRouter chart-native data into calendar months. ISO weeks that straddle a month boundary are split across the two months by day-count fraction (so Σ months = Σ weeks exactly). </>
+          : <>Quarter buckets aggregate weekly OpenRouter chart-native data into calendar quarters (a week is attributed to the quarter of its Monday start). </>}
+        Provider buckets group models by slug prefix and family-name match: Google / Gemini, OpenAI (incl. GPT/o-series), Anthropic (incl. Claude). Other = period total − the three named buckets. {mode==="month"?"MoM":"QoQ"} = current {periodWord} vs immediately prior calendar {periodWord}; YoY = current {periodWord} vs same calendar {periodWord} previous year. Growth values render <b>—</b> only when the comparator {periodWord} is the current in-progress period ({partialBadge}) or doesn't exist in the observed window. The current incomplete {periodWord} is labeled <b>{partialBadge}</b>; full-{periodWord} comparisons against {partialBadge} are not computed.
         <br/>
-        <b style={{color:"#6b7280",fontWeight:600}}>Short-coverage quarters:</b> Quarters at the start of the data window may have fewer than 13 ISO weeks observed (the chart-native source begins mid-quarter). These columns are tagged with their week count (e.g. <span style={{color:"#b45309",fontWeight:500}}>10w</span>). QoQ growth into the next quarter against a short-coverage comparator can be inflated by the week-count gap — read the magnitude with that in mind.
+        <b style={{color:"#6b7280",fontWeight:600}}>Short-coverage {periodWord}s:</b> {periodWord==="month"?"Months":"Quarters"} at the start of the data window may have fewer than the full {mode==="month"?"calendar days":"~13 ISO weeks"} observed (the chart-native source begins mid-{periodWord}). These columns are tagged with their {mode==="month"?"day":"week"} count (e.g. <span style={{color:"#b45309",fontWeight:500}}>{mode==="month"?"3d":"10w"}</span>). {mode==="month"?"MoM":"QoQ"} growth into the next {periodWord} against a short-coverage comparator can be inflated by the {mode==="month"?"day":"week"}-count gap — read the magnitude with that in mind.
         <br/>
         <b style={{color:"#6b7280",fontWeight:600}}>Source coverage caveat:</b> The OpenRouter chart payload exposes the week's top-9 named models plus a single <i>Others</i> rollup — long-tail models below the top-9 cutoff are aggregated into Others and flow into this table's <i>Other</i> bucket. A 0 in a named provider's row therefore means <i>"no model in OR's tracked top-9 for that period"</i>, not "literally zero usage": tokens for that provider's smaller models are still counted in the period total and absorbed into Other.
       </div>
