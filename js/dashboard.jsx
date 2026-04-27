@@ -924,6 +924,7 @@ function quarterIdToLabel(qid){
 
 function ModelPricingMatrixTable(){
   const[state,setState]=useState({phase:"loading",data:null,error:null});
+  const[diagOpen,setDiagOpen]=useState(false);
   useEffect(()=>{
     let cancelled=false;
     // Source: /api/model-pricing-peer-matrix proxies pricepertoken's own
@@ -1166,79 +1167,114 @@ function ModelPricingMatrixTable(){
         </div>
       )}
 
-      {/* Model Rep Freshness — optional Firecrawl-backed signal alongside
-         pricepertoken-only evidence. Compact per-rep table: Status / Reason /
-         External Signal. Pricing math above never reads this; reps are NEVER
-         auto-promoted — operator-driven only. */}
-      {externalCatalog&&(
-        <div style={{marginTop:12,marginBottom:6}}>
-          <div style={{fontSize:11,fontWeight:700,color:"#374151",lineHeight:1.3}}>
-            Model Rep Freshness
-            <span style={{marginLeft:6,fontSize:9,fontWeight:500,padding:"1px 6px",borderRadius:3,background:externalCatalog.enabled?"#ecfdf5":"#f3f4f6",color:externalCatalog.enabled?"#047857":"#6b7280"}}>
-              {externalCatalog.enabled?"firecrawl · live":"firecrawl · disabled"}
-            </span>
-            {externalCatalog.degraded&&<span style={{marginLeft:6,fontSize:9,fontWeight:500,padding:"1px 6px",borderRadius:3,background:"#fef2f2",color:"#991b1b"}}>scrape degraded</span>}
-          </div>
-          <div style={{fontSize:10,color:"#9ca3af",marginTop:2,marginBottom:6,lineHeight:1.45}}>
-            Per-rep audit. Pricepertoken evidence drives <b>STALE</b> / <b>REVIEW</b> status; Firecrawl on official docs drives <b>WATCH</b>. Reps are not auto-promoted because rotating fixed reps would make QoQ/YoY reflect lineup churn rather than pure repricing.
-          </div>
-          {!externalCatalog.enabled&&(
-            <div style={{background:"#fff",border:"0.5px dashed #d1d5db",borderRadius:8,padding:"8px 12px",fontSize:11,color:"#6b7280",marginBottom:6}}>
-              External signal disabled. <span style={{color:"#374151"}}>{externalCatalog.reason||"FIRECRAWL_API_KEY not configured"}</span>. Pricepertoken evidence still computed below.
+      {/* Representative Model Check — compact investor-facing strip. The
+         detailed per-rep diagnostics live behind a "Show diagnostics" toggle
+         and are intentionally collapsed by default. Pricing math never reads
+         this section; reps are never auto-promoted. */}
+      {externalCatalog&&(()=>{
+        const counts=reps.reduce((acc,r)=>{
+          const s=r.repFreshness?.status||"OK";
+          acc[s]=(acc[s]||0)+1;
+          return acc;
+        },{});
+        const monitored=reps.length;
+        const critical=counts.STALE||0;
+        const review  =counts.REVIEW||0;
+        const watch   =counts.WATCH||0;
+        const ok      =counts.OK||0;
+        const fcLabel = !externalCatalog.enabled ? "Not configured in this environment"
+                      : externalCatalog.degraded ? "Degraded"
+                      : "Live";
+        const fcBg    = !externalCatalog.enabled ? "#f3f4f6"
+                      : externalCatalog.degraded ? "#fef3c7"
+                      : "#ecfdf5";
+        const fcFg    = !externalCatalog.enabled ? "#6b7280"
+                      : externalCatalog.degraded ? "#92400e"
+                      : "#047857";
+        const lastChecked = externalCatalog.generatedAt
+          ? new Date(externalCatalog.generatedAt).toLocaleString(undefined,{dateStyle:"medium",timeStyle:"short"})
+          : null;
+        const summaryParts=[
+          monitored+" mappings monitored",
+          critical+" critical",
+          (review+watch)+" watch",
+        ];
+        return(
+          <div style={{marginTop:12,marginBottom:6,border:"0.5px solid #e5e7eb",borderRadius:8,padding:"10px 12px",background:"#fafafa"}}>
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:10,flexWrap:"wrap"}}>
+              <div style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
+                <div style={{fontSize:11,fontWeight:700,color:"#374151"}}>Representative Model Check</div>
+                <span style={{fontSize:10,fontWeight:500,padding:"2px 7px",borderRadius:3,background:fcBg,color:fcFg}}>Firecrawl: {fcLabel}</span>
+                <span style={{fontSize:10,color:"#6b7280"}}>Price source: <b style={{color:"#374151",fontWeight:600}}>pricepertoken historical API</b></span>
+                <span style={{fontSize:10,color:"#6b7280"}}>·</span>
+                <span style={{fontSize:10,color:"#6b7280"}}>{summaryParts.join(" · ")}</span>
+                {lastChecked&&<>
+                  <span style={{fontSize:10,color:"#6b7280"}}>·</span>
+                  <span style={{fontSize:10,color:"#9ca3af"}}>checked {lastChecked}</span>
+                </>}
+              </div>
+              <button onClick={()=>setDiagOpen(o=>!o)}
+                style={{fontSize:10,padding:"3px 10px",border:"0.5px solid #d1d5db",borderRadius:4,background:"#fff",color:"#374151",cursor:"pointer",fontFamily:"inherit",fontWeight:500}}>
+                {diagOpen?"Hide diagnostics":"Show diagnostics"}
+              </button>
             </div>
-          )}
-          <div style={{border:"0.5px solid #e5e7eb",borderRadius:8,overflow:"hidden",background:"#fafafa"}}>
-            <div style={{overflowX:"auto"}}>
-              <table style={{width:"100%",borderCollapse:"separate",borderSpacing:0,fontSize:11,background:"#fafafa"}}>
-                <thead>
-                  <tr>
-                    <th style={{textAlign:"left",padding:"6px 10px",fontSize:10,color:"#6b7280",fontWeight:600,whiteSpace:"nowrap",background:"#f3f4f6"}}>Rep</th>
-                    <th style={{textAlign:"left",padding:"6px 10px",fontSize:10,color:"#6b7280",fontWeight:600,whiteSpace:"nowrap",background:"#f3f4f6"}}>Status</th>
-                    <th style={{textAlign:"left",padding:"6px 10px",fontSize:10,color:"#6b7280",fontWeight:600,background:"#f3f4f6"}}>Reason</th>
-                    <th style={{textAlign:"left",padding:"6px 10px",fontSize:10,color:"#6b7280",fontWeight:600,background:"#f3f4f6"}}>External Signal</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {reps.map(rep=>{
-                    const fr=rep.repFreshness||{status:"OK",reason:"",firecrawlEvidence:{enabled:false,possibleNewerModels:[]}};
-                    const statusBg=fr.status==="STALE"?"#fef2f2":fr.status==="REVIEW"?"#fef3c7":fr.status==="WATCH"?"#eff6ff":"#f3f4f6";
-                    const statusFg=fr.status==="STALE"?"#991b1b":fr.status==="REVIEW"?"#78350f":fr.status==="WATCH"?"#1d4ed8":"#374151";
-                    const fcModels=fr.firecrawlEvidence?.possibleNewerModels||[];
-                    return(
-                      <tr key={"fresh-"+rep.key} style={{borderTop:"0.5px solid #e5e7eb"}}>
-                        <td style={{padding:"6px 10px",whiteSpace:"nowrap",verticalAlign:"top"}}>
-                          <div style={{fontWeight:600,color:"#111827"}}>{rep.label}</div>
-                          <div style={{fontSize:10,color:"#9ca3af",fontFamily:"ui-monospace,SFMono-Regular,Menlo,monospace"}}>{rep.modelDisplay}</div>
-                        </td>
-                        <td style={{padding:"6px 10px",whiteSpace:"nowrap",verticalAlign:"top"}}>
-                          <span style={{fontSize:10,fontWeight:600,padding:"2px 7px",borderRadius:3,background:statusBg,color:statusFg}}>{fr.status}</span>
-                        </td>
-                        <td style={{padding:"6px 10px",fontSize:10,color:"#374151",lineHeight:1.4,verticalAlign:"top"}}>{fr.reason}</td>
-                        <td style={{padding:"6px 10px",fontSize:10,color:"#374151",verticalAlign:"top"}}>
-                          {!fr.firecrawlEvidence?.enabled
-                            ? <span style={{color:"#9ca3af"}}>—</span>
-                            : fcModels.length===0
-                              ? <span style={{color:"#059669"}}>none</span>
-                              : <span title={fcModels.join(", ")}>{fcModels.slice(0,3).join(", ")}{fcModels.length>3?` +${fcModels.length-3}`:""}</span>}
-                        </td>
+            <div style={{fontSize:10,color:"#9ca3af",marginTop:6,lineHeight:1.4}}>Fixed reps are not auto-rotated; review signals are advisory.</div>
+            {diagOpen&&(
+              <div style={{marginTop:10,border:"0.5px solid #e5e7eb",borderRadius:6,overflow:"hidden",background:"#fff"}}>
+                <div style={{overflowX:"auto"}}>
+                  <table style={{width:"100%",borderCollapse:"separate",borderSpacing:0,fontSize:11,background:"#fff"}}>
+                    <thead>
+                      <tr>
+                        <th style={{textAlign:"left",padding:"6px 10px",fontSize:10,color:"#6b7280",fontWeight:600,whiteSpace:"nowrap",background:"#f3f4f6"}}>Rep</th>
+                        <th style={{textAlign:"left",padding:"6px 10px",fontSize:10,color:"#6b7280",fontWeight:600,whiteSpace:"nowrap",background:"#f3f4f6"}}>Status</th>
+                        <th style={{textAlign:"left",padding:"6px 10px",fontSize:10,color:"#6b7280",fontWeight:600,background:"#f3f4f6"}}>Pricepertoken signal</th>
+                        <th style={{textAlign:"left",padding:"6px 10px",fontSize:10,color:"#6b7280",fontWeight:600,background:"#f3f4f6"}}>External docs signal</th>
                       </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+                    </thead>
+                    <tbody>
+                      {reps.map(rep=>{
+                        const fr=rep.repFreshness||{status:"OK",ppEvidence:{newerStable:[],newerLimited:[]},firecrawlEvidence:{enabled:false,possibleNewerModels:[]}};
+                        const statusBg=fr.status==="STALE"?"#fef2f2":fr.status==="REVIEW"?"#fef3c7":fr.status==="WATCH"?"#eff6ff":"#f3f4f6";
+                        const statusFg=fr.status==="STALE"?"#991b1b":fr.status==="REVIEW"?"#78350f":fr.status==="WATCH"?"#1d4ed8":"#374151";
+                        const ppAll=[...(fr.ppEvidence?.newerStable||[]),...(fr.ppEvidence?.newerLimited||[])];
+                        const fcModels=fr.firecrawlEvidence?.possibleNewerModels||[];
+                        return(
+                          <tr key={"fresh-"+rep.key} style={{borderTop:"0.5px solid #e5e7eb"}}>
+                            <td style={{padding:"6px 10px",whiteSpace:"nowrap",verticalAlign:"top"}}>
+                              <div style={{fontWeight:600,color:"#111827"}}>{rep.label}</div>
+                              <div style={{fontSize:10,color:"#9ca3af",fontFamily:"ui-monospace,SFMono-Regular,Menlo,monospace"}}>{rep.modelDisplay}</div>
+                            </td>
+                            <td style={{padding:"6px 10px",whiteSpace:"nowrap",verticalAlign:"top"}}>
+                              <span style={{fontSize:10,fontWeight:600,padding:"2px 7px",borderRadius:3,background:statusBg,color:statusFg}}>{fr.status}</span>
+                            </td>
+                            <td style={{padding:"6px 10px",fontSize:10,color:"#374151",verticalAlign:"top"}}>
+                              {ppAll.length===0
+                                ? <span style={{color:"#9ca3af"}}>—</span>
+                                : <span title={ppAll.map(e=>e.model+" ("+e.obs+" obs)").join(", ")}>
+                                    {ppAll.slice(0,2).map(e=>e.model).join(", ")}{ppAll.length>2?` +${ppAll.length-2}`:""}
+                                  </span>}
+                            </td>
+                            <td style={{padding:"6px 10px",fontSize:10,color:"#374151",verticalAlign:"top"}}>
+                              {!fr.firecrawlEvidence?.enabled
+                                ? <span style={{color:"#9ca3af"}}>External docs check unavailable</span>
+                                : fcModels.length===0
+                                  ? <span style={{color:"#059669"}}>none</span>
+                                  : <span title={fcModels.join(", ")}>{fcModels.slice(0,3).join(", ")}{fcModels.length>3?` +${fcModels.length-3}`:""}</span>}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       <div style={{fontSize:10,color:"#9ca3af",lineHeight:1.5,marginTop:6}}>
-        <b style={{color:"#6b7280",fontWeight:600}}>Methodology:</b> Per-model arithmetic mean of daily pricepertoken.com observations within each calendar quarter (the same upstream the per-provider matrix below draws from). QoQ = current quarter vs immediately prior quarter; YoY = current quarter vs same calendar quarter previous year. Growth is computed separately for input and output price so providers that drop one but not the other are visible. Color convention is inverted from the OpenRouter growth table — a price drop is favorable, so negatives render <span style={{color:"#059669",fontWeight:600}}>green</span> and increases render <span style={{color:"#dc2626",fontWeight:600}}>red</span>. Real upstream historical observations only — no backfill, no synthetic data. The current incomplete quarter is labeled <b>QTD</b> and its growth comparisons are suppressed because partial-quarter averages aren't cleanly comparable against full quarters; pre-upstream quarters simply do not appear (upstream's earliest observation determines the leftmost column).
-        <br/>
-        <b style={{color:"#6b7280",fontWeight:600}}>Class selection &amp; matching:</b> Fixed deterministic peer pairs so growth math reflects real provider repricing rather than a drifting model lineup. Picks anchor to the latest model class with full upstream history so QoQ stays comparable across periods — Frontier: Gemini 2.5 Pro / GPT-5 / Claude Opus 4; Fast/Cost-efficient: Gemini 2.5 Flash / GPT-5 mini / Claude Haiku 4.5 (with Claude 3 Haiku as a fallback for periods before 4.5 shipped); Legacy walks a priority fallback list per provider — Google: Gemini 1.5 Pro then 1.5 Flash; OpenAI: GPT-4 Turbo then GPT-3.5 Turbo; Anthropic: Claude 3 Opus then Claude 3 Sonnet — and uses whichever candidate first has upstream rows. Legacy rows with zero upstream coverage are not rendered. Upstream model strings are normalized (lowercased, punctuation stripped) and matched as the target form OR the target as a prefix followed by a non-tier suffix — this catches dated variants like <code style={{fontFamily:"ui-monospace,SFMono-Regular,Menlo,monospace"}}>gpt-5-2025-08-07</code> or <code style={{fontFamily:"ui-monospace,SFMono-Regular,Menlo,monospace"}}>claude-opus-4-2025-08-12</code> while rejecting different-tier names (mini / lite / flash / haiku / nano / micro / image) and version bumps (so <code style={{fontFamily:"ui-monospace,SFMono-Regular,Menlo,monospace"}}>gpt-5</code> does not absorb <code style={{fontFamily:"ui-monospace,SFMono-Regular,Menlo,monospace"}}>gpt-5.1</code> or <code style={{fontFamily:"ui-monospace,SFMono-Regular,Menlo,monospace"}}>gpt-5.5</code>, and <code style={{fontFamily:"ui-monospace,SFMono-Regular,Menlo,monospace"}}>claude-opus-4</code> does not absorb <code style={{fontFamily:"ui-monospace,SFMono-Regular,Menlo,monospace"}}>claude-opus-4.7</code>). Hover any row label to see exactly which upstream model strings the row aggregates.
-        <br/>
-        <b style={{color:"#6b7280",fontWeight:600}}>Model Rep Freshness:</b> Price math uses pricepertoken historical rows only. Firecrawl is used only to detect newer official model names on each provider's public docs and trigger watch warnings. Fixed reps are <b>never</b> auto-promoted — rotating reps would make QoQ/YoY reflect lineup churn rather than pure repricing. Status meanings: <b>WATCH</b> = Firecrawl saw a model on the official docs page that pricepertoken hasn't cataloged yet; <b>OK</b> = nothing actionable. Pricepertoken-side newer-launched models are listed in <code style={{fontFamily:"ui-monospace,SFMono-Regular,Menlo,monospace"}}>ppEvidence</code> on the response for operator review but don't drive status escalation today (detecting "genuinely newer model class" vs version bump, peer tier, or specialty mode — audio / codex / deep-research / image — needs per-provider class parsing not yet implemented; the conservative default is to under-flag rather than push false rotations). Disabled when <code style={{fontFamily:"ui-monospace,SFMono-Regular,Menlo,monospace"}}>FIRECRAWL_API_KEY</code> is not configured.
-        <br/>
-        <b style={{color:"#6b7280",fontWeight:600}}>Frontier Reference by Period:</b> The main matrix uses fixed representatives to keep QoQ/YoY comparable. The Frontier Reference table is informational only and shows how the literal current frontier moves over time. Selection per (provider, quarter) walks a newest-first priority list — Google: Gemini 3.1 Pro Preview → 3 Pro Preview → 2.5 Pro → 1.5 Pro → Pro → 2.5 Flash; OpenAI: GPT-5.5 Pro → 5.5 → 5.4 → 5.3 → 5.2 → 5.1 → 5 Pro → 5 → 4.1 → 4o → 4 Turbo → 4 → 3.5 Turbo; Anthropic: Claude Opus 4.7 → 4.6 → 4.5 → 4.1 → 4 → Sonnet 4.6 → 4.5 → 4 → 3.7 Sonnet → 3.5 Sonnet → 3 Opus → 3 Sonnet → 3 Haiku — and returns the first candidate that has at least one upstream model in that quarter. So a quarter where Claude Opus 4.7 first appears (currently Q2-26) reads <i>Claude Opus 4.7</i> here while the main matrix continues to anchor on Claude Opus 4 for stable QoQ. No external benchmarks, no quality claims.
+        <b style={{color:"#6b7280",fontWeight:600}}>Methodology:</b> Prices use pricepertoken historical model-level rows, averaged by calendar quarter and shown as $/1M tokens. QoQ/YoY compare only valid full historical periods; QTD growth is suppressed. Fixed representative models keep growth math comparable; the Frontier Reference shows how latest frontier labels change by period. Firecrawl is used only as an advisory model-discovery signal, never for pricing math.
       </div>
     </div>
   );
