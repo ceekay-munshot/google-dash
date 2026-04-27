@@ -2289,6 +2289,283 @@ function OpenRouterLiveEmbed(){
 }
 
 /* ═══════════════════════════════════════════════════════
+   AI ADOPTION — OpenRouter Token Demand by Provider
+   Finance-model layout: rows = metric groups + provider buckets,
+   columns = quarter-end periods (Mar/Jun/Sep/Dec). Mirrors the
+   visual language of the GPU Hardware Pricing financial-correlation
+   table. Sourced from /api/openrouter-chart-weekly?full=1 (the same
+   chart-native payload that drives the live OpenRouter chart embed
+   below). Real captured history only — no illustrative data, no
+   design-preview toggle. Empty/incomplete comparisons render `—`.
+═══════════════════════════════════════════════════════ */
+function bucketProviderFromSlug(slug){
+  if(!slug||slug==="Others")return null;
+  const head=slug.includes("/")?slug.split("/")[0].toLowerCase():"";
+  const sl=slug.toLowerCase();
+  if(head==="google"||/gemini|gemma/.test(sl))return"google";
+  if(head==="openai"||/(^|\/)gpt[-_]|(^|\/)o[1-9]/.test(sl))return"openai";
+  if(head==="anthropic"||/claude/.test(sl))return"anthropic";
+  return null;
+}
+
+function OpenRouterTokenDemandTable(){
+  const[state,setState]=useState({phase:"loading",data:null,error:null});
+  useEffect(()=>{
+    let cancelled=false;
+    fetch("/api/openrouter-chart-weekly?full=1")
+      .then(r=>r.ok?r.json():Promise.reject(new Error("HTTP "+r.status)))
+      .then(d=>{
+        if(cancelled)return;
+        if(!d||d.success===false){setState({phase:"error",data:null,error:d?.error||"Unknown error"});return;}
+        setState({phase:"ready",data:d,error:null});
+      })
+      .catch(e=>{if(!cancelled)setState({phase:"error",data:null,error:e.message||"Fetch failed"});});
+    return()=>{cancelled=true;};
+  },[]);
+
+  const header=(
+    <>
+      <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:4}}>
+        <span style={{width:7,height:7,borderRadius:"50%",background:"#1d4ed8",display:"inline-block"}}/>
+        <span style={{fontSize:10,textTransform:"uppercase",letterSpacing:".09em",fontWeight:700,color:"#1d4ed8"}}>OpenRouter Token Demand</span>
+      </div>
+      <div style={{marginBottom:10}}>
+        <div style={{fontSize:16,fontWeight:700,color:"#111827",lineHeight:1.3}}>OpenRouter Token Demand by Provider</div>
+        <div style={{fontSize:11,color:"#9ca3af",marginTop:3}}>Quarter-aligned token demand, provider share, and growth — real captured history only.</div>
+      </div>
+    </>
+  );
+
+  if(state.phase==="loading"){
+    return(<div style={{marginBottom:16}}>{header}<div style={{...S.card}}><Shimmer rows={5}/></div></div>);
+  }
+  if(state.phase==="error"){
+    return(
+      <div style={{marginBottom:16}}>{header}
+        <div style={{background:"#fff",border:"0.5px dashed #fca5a5",borderRadius:10,padding:"14px 16px"}}>
+          <div style={{fontSize:12,color:"#991b1b",fontWeight:500}}>Token-demand history temporarily unavailable</div>
+          <div style={{fontSize:11,color:"#6b7280",marginTop:2}}>{state.error||"/api/openrouter-chart-weekly did not return success"}</div>
+        </div>
+      </div>
+    );
+  }
+
+  const weeks=state.data?.weeks||[];
+  if(!weeks.length){
+    return(
+      <div style={{marginBottom:16}}>{header}
+        <div style={{background:"#fff",border:"0.5px solid #e5e7eb",borderRadius:10,padding:"14px 16px"}}>
+          <div style={{fontSize:12,color:"#111827",fontWeight:500}}>Quarter matrix populates as real OpenRouter weeks accumulate</div>
+          <div style={{fontSize:11,color:"#6b7280",marginTop:3}}>This view aggregates the chart-native OpenRouter payload by calendar quarter.</div>
+        </div>
+      </div>
+    );
+  }
+
+  // Group weeks into calendar quarters; sum tokens per provider bucket.
+  const groups=new Map();
+  const QLBL=["Mar","Jun","Sep","Dec"]; // quarter-end month labels (Q1..Q4)
+  for(const w of weeks){
+    const [y,m]=w.start.split("-").map(Number);
+    const q=Math.floor((m-1)/3)+1;
+    const id=y+"-Q"+q;
+    if(!groups.has(id)){
+      const startMonth=(q-1)*3;
+      const start=y+"-"+String(startMonth+1).padStart(2,"0")+"-01";
+      const endD=new Date(Date.UTC(y,startMonth+3,0));
+      const end=endD.toISOString().slice(0,10);
+      groups.set(id,{
+        id,year:y,quarter:q,
+        label:QLBL[q-1]+"-"+String(y).slice(2),
+        start,end,
+        partial:false,
+        weekCount:0,
+        total:0,google:0,openai:0,anthropic:0,
+      });
+    }
+    const g=groups.get(id);
+    g.weekCount+=1;
+    g.total+=(w.totalRaw||0);
+    if(w.partial)g.partial=true;
+    const ys=w.allModels||Object.fromEntries((w.topModels||[]).map(tm=>[tm.slug,tm.tokens]));
+    for(const slug of Object.keys(ys)){
+      const tokens=ys[slug];
+      if(!tokens||tokens<=0)continue;
+      const b=bucketProviderFromSlug(slug);
+      if(b)g[b]+=tokens;
+    }
+  }
+
+  // Chronological (oldest first) so the table reads left → right.
+  const quarters=Array.from(groups.values()).sort((a,b)=>a.id<b.id?-1:1);
+  for(const q of quarters){
+    q.other=Math.max(0,q.total-q.google-q.openai-q.anthropic);
+    // A non-current quarter with materially fewer than 13 ISO weeks of
+    // observed data is itself incomplete — flag so we don't compute QoQ/YoY
+    // from a truncated comparator.
+    q.complete=!q.partial&&q.weekCount>=12;
+  }
+  const byId=Object.fromEntries(quarters.map(q=>[q.id,q]));
+  const priorQ=(y,q)=>q===1?(y-1)+"-Q4":y+"-Q"+(q-1);
+  const yoyQ  =(y,q)=>(y-1)+"-Q"+q;
+
+  const growth={qoq:{},yoy:{}};
+  for(const q of quarters){
+    growth.qoq[q.id]={};
+    growth.yoy[q.id]={};
+    if(q.partial)continue; // QTD: full-quarter comparisons are not meaningful
+    const prior=byId[priorQ(q.year,q.quarter)];
+    const yoy  =byId[yoyQ(q.year,q.quarter)];
+    for(const k of["google","openai","anthropic","other","total"]){
+      if(prior&&prior.complete&&prior[k]>0){
+        growth.qoq[q.id][k]=((q[k]-prior[k])/prior[k])*100;
+      }
+      if(yoy&&yoy.complete&&yoy[k]>0){
+        growth.yoy[q.id][k]=((q[k]-yoy[k])/yoy[k])*100;
+      }
+    }
+  }
+
+  const fmtTok=v=>{
+    if(v==null||!isFinite(v)||v<=0)return"—";
+    if(v>=1e12)return(v/1e12).toFixed(2).replace(/\.?0+$/,"")+"T";
+    if(v>=1e9) return(v/1e9) .toFixed(1).replace(/\.0$/,"")    +"B";
+    if(v>=1e6) return(v/1e6) .toFixed(1).replace(/\.0$/,"")    +"M";
+    return Math.round(v).toString();
+  };
+  const fmtShare=(num,den)=>{
+    if(num==null||!isFinite(num)||den==null||!isFinite(den)||den<=0)return"—";
+    return (num/den*100).toFixed(1)+"%";
+  };
+  const fmtG=v=>{
+    if(v==null||!isFinite(v))return<span style={{color:"#d1d5db"}}>—</span>;
+    const str=v<0?"("+Math.abs(v).toFixed(1)+"%)":(v>0?"+":"")+v.toFixed(1)+"%";
+    const color=v>0?"#059669":v<0?"#dc2626":"#6b7280";
+    return <span style={{color}}>{str}</span>;
+  };
+
+  // Sticky-column styling: opaque background + right-edge shadow so the
+  // frozen label column reads cleanly as a separate plane once the table
+  // scrolls horizontally. Width is locked via minWidth/maxWidth on every
+  // first-column cell so the column can't be squeezed by a wide tail of
+  // quarters. The section-header rows use colSpan and intentionally OMIT
+  // width constraints — they need to span the full row, not be pinned at
+  // FIRST_COL_W. The underlined label still anchors left thanks to sticky.
+  const STICKY_BG="#f3f4f6";
+  const STICKY_SHADOW="2px 0 0 #e5e7eb, 6px 0 6px -4px rgba(17,24,39,0.08)";
+  const FIRST_COL_W=210;
+  const COL_W=110;
+  const stickyFirstBase={position:"sticky",left:0,background:STICKY_BG,boxShadow:STICKY_SHADOW,minWidth:FIRST_COL_W,maxWidth:FIRST_COL_W,width:FIRST_COL_W};
+  const stickySectionBase={position:"sticky",left:0,background:STICKY_BG};
+  const thMain={textAlign:"right",padding:"5px 10px",fontSize:10,color:"#6b7280",fontWeight:600,whiteSpace:"nowrap",minWidth:COL_W};
+  const thFirst={...stickyFirstBase,textAlign:"left",padding:"5px 10px",fontSize:10,color:"#6b7280",fontWeight:600,whiteSpace:"nowrap",zIndex:3};
+  const tdMain={textAlign:"right",padding:"4px 10px",fontSize:12,color:"#111827",fontFamily:"ui-monospace,SFMono-Regular,Menlo,monospace",whiteSpace:"nowrap",minWidth:COL_W};
+  const tdDim ={textAlign:"right",padding:"4px 10px",fontSize:12,color:"#6b7280",fontFamily:"ui-monospace,SFMono-Regular,Menlo,monospace",whiteSpace:"nowrap",minWidth:COL_W};
+  const tdFirst={...stickyFirstBase,textAlign:"left",padding:"4px 10px 4px 24px",fontSize:11,color:"#374151",whiteSpace:"nowrap",zIndex:2};
+  const tdFirstTotal={...stickyFirstBase,textAlign:"left",padding:"4px 10px 4px 24px",fontSize:11,color:"#111827",fontWeight:700,whiteSpace:"nowrap",zIndex:2};
+  const sectionTh={...stickySectionBase,textAlign:"left",padding:"10px 10px 4px",fontSize:11,color:"#111827",fontWeight:700,textDecoration:"underline",textUnderlineOffset:"3px",zIndex:1};
+
+  const provBuckets=[
+    {key:"google",   label:"Google / Gemini"},
+    {key:"openai",   label:"OpenAI"},
+    {key:"anthropic",label:"Anthropic"},
+    {key:"other",    label:"Other"},
+  ];
+
+  const renderSectionRow=(label,qs,style)=>(
+    <tr key={"sec-"+label}>
+      <td style={style}>{label}</td>
+      {qs.map(q=>(<td key={q.id} style={{padding:"10px 10px 4px",background:"#f3f4f6",minWidth:COL_W}}/>))}
+    </tr>
+  );
+  const renderTokenRow=b=>(
+    <tr key={"tok-"+b.key}>
+      <td style={tdFirst}>{b.label}</td>
+      {quarters.map(q=>(<td key={q.id} style={tdMain}>{fmtTok(q[b.key])}</td>))}
+    </tr>
+  );
+  const renderShareRow=b=>(
+    <tr key={"sh-"+b.key}>
+      <td style={tdFirst}>{b.label}</td>
+      {quarters.map(q=>(<td key={q.id} style={tdDim}>{fmtShare(q[b.key],q.total)}</td>))}
+    </tr>
+  );
+  const renderGrowthRow=(b,bucket)=>(
+    <tr key={bucket+"-"+b.key}>
+      <td style={tdFirst}>{b.label}</td>
+      {quarters.map(q=>(<td key={q.id} style={tdDim}>{fmtG(growth[bucket][q.id]?.[b.key])}</td>))}
+    </tr>
+  );
+
+  return(
+    <div style={{marginBottom:16}}>
+      {header}
+      <div style={{border:"0.5px solid #e5e7eb",borderRadius:8,overflow:"hidden",background:"#f9fafb"}}>
+        {/* overflow-x:auto on the inner div is what creates the scrollable
+           viewport that position:sticky on the first-column cells anchors to.
+           border-collapse must be `separate` (not `collapse`) for sticky to
+           paint cleanly on table cells across browsers — collapsed borders
+           leak into the sticky cell and cause render artifacts on scroll. */}
+        <div style={{overflowX:"auto"}}>
+          <table style={{width:"100%",borderCollapse:"separate",borderSpacing:0,background:"#f3f4f6",minWidth:FIRST_COL_W+COL_W*Math.max(quarters.length,4)}}>
+            <thead>
+              <tr>
+                <th style={thFirst}></th>
+                {quarters.map(q=>(
+                  <th key={q.id} style={thMain}>
+                    {q.label}
+                    {q.partial&&<span style={{marginLeft:3,fontSize:8,color:"#b45309",fontWeight:500}}>QTD</span>}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {/* Section header rows do NOT use colSpan — colSpan + position:sticky
+                 is unreliable across browsers (the cell tries to span the full
+                 row width, which breaks the sticky-left anchor). Instead, the
+                 heading lives in the sticky first column and the remaining
+                 columns get an empty filler cell so the row keeps its grid. */}
+              {renderSectionRow("Tokens",quarters,sectionTh)}
+              {provBuckets.map(renderTokenRow)}
+              <tr key="tok-total">
+                <td style={tdFirstTotal}>Total</td>
+                {quarters.map(q=>(<td key={q.id} style={{...tdMain,fontWeight:700}}>{fmtTok(q.total)}</td>))}
+              </tr>
+
+              <tr><td colSpan={quarters.length+1} style={{height:8,background:"#f9fafb"}}></td></tr>
+
+              {renderSectionRow("Share of Tokens",quarters,sectionTh)}
+              {provBuckets.map(renderShareRow)}
+
+              <tr><td colSpan={quarters.length+1} style={{height:8,background:"#f9fafb"}}></td></tr>
+
+              {renderSectionRow("QoQ Growth",quarters,sectionTh)}
+              {provBuckets.map(b=>renderGrowthRow(b,"qoq"))}
+              <tr key="qoq-total">
+                <td style={tdFirstTotal}>Total</td>
+                {quarters.map(q=>(<td key={q.id} style={tdDim}>{fmtG(growth.qoq[q.id]?.total)}</td>))}
+              </tr>
+
+              <tr><td colSpan={quarters.length+1} style={{height:8,background:"#f9fafb"}}></td></tr>
+
+              {renderSectionRow("YoY Growth",quarters,sectionTh)}
+              {provBuckets.map(b=>renderGrowthRow(b,"yoy"))}
+              <tr key="yoy-total">
+                <td style={tdFirstTotal}>Total</td>
+                {quarters.map(q=>(<td key={q.id} style={tdDim}>{fmtG(growth.yoy[q.id]?.total)}</td>))}
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div style={{fontSize:10,color:"#9ca3af",lineHeight:1.5,marginTop:6}}>
+        <b style={{color:"#6b7280",fontWeight:600}}>Methodology:</b> Quarter buckets aggregate weekly OpenRouter chart-native data (the same RSC payload as the live provider-share embed below). Provider buckets group models by slug prefix and family-name match: Google / Gemini, OpenAI (incl. GPT/o-series), Anthropic (incl. Claude). Other = quarter total − the three named buckets. QoQ = current quarter vs immediately prior quarter; YoY = current quarter vs same calendar quarter previous year. Growth values render <b>—</b> when the comparator quarter is itself partial / unavailable. The current incomplete quarter is labeled <b>QTD</b>; full-quarter comparisons against QTD are not computed.
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════
    TAB: OpenRouter
 ═══════════════════════════════════════════════════════ */
 function PPTHistoryIframe(){
@@ -2332,6 +2609,12 @@ function ORTab({data,busy,ts,live,refresh}){
         </div>
         <RBtn busy={busy} onClick={refresh}/>
       </div>
+
+      {/* First detailed section — finance-model quarterly token-demand matrix.
+         Renders independently of the rankings refresh state so it stays visible
+         while the OR rankings card/table/chart below shimmer through a refresh. */}
+      <OpenRouterTokenDemandTable/>
+
       {busy?<Shimmer rows={7}/>:(<>
         <div style={{display:"flex",gap:10,marginBottom:14}}>
           {best&&<KBox label="Best Gemini" value={"#"+best.rank} sub={trunc(best.model,22)} bg="#f0fdf4" fg="#059669"/>}
