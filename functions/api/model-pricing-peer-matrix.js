@@ -497,10 +497,26 @@ function computeRepFreshness(rep, providerData, externalCatalog) {
   //   - have ≥REP_FRESHNESS_PP_STABLE_OBS observations.
   // Aggregate per distinct upstream model name.
   const repModelSet = new Set(rep.matchedModels || []);
+  // A candidate model that is a version-bump sibling of any rep norm
+  // (e.g. claude-opus-4.7 vs rep claude-opus-4) or a tier sibling
+  // (e.g. gpt-5-mini vs rep gpt-5) is the SAME class for fixed-rep
+  // purposes — the matcher already rejects these so they aren't part
+  // of repModelSet. Without this guard the freshness check treats every
+  // version bump as a "newer model class" and floods every rep with
+  // STALE noise — exactly the lineup-churn signal the customer wanted
+  // the fixed-rep design to suppress in the first place.
+  const isVersionOrTierSibling = (candNorm) =>
+    repNorms.some(rn => {
+      if (candNorm === rn) return false;
+      if (!candNorm.startsWith(rn)) return false;
+      const suffix = candNorm.slice(rn.length);
+      return TIER_REJECT_PREFIXES.test(suffix) || VERSION_BUMP_SUFFIX.test(suffix);
+    });
   const ppByModel = new Map();
   for (const row of ppRows) {
     if (typeof row?.model !== 'string') continue;
     if (repModelSet.has(row.model)) continue;
+    if (isVersionOrTierSibling(normalizeModel(row.model))) continue;
     if (typeof row?.date !== 'string') continue;
     const e = ppByModel.get(row.model) || { model: row.model, firstDate: row.date, obs: 0 };
     if (row.date < e.firstDate) e.firstDate = row.date;
@@ -526,30 +542,30 @@ function computeRepFreshness(rep, providerData, externalCatalog) {
   const firecrawlEnabled = !!externalCatalog?.enabled;
   const firecrawlPossibleNewer = fcProvider?.possibleNewerModels || [];
 
-  // Decide status
+  // Decide status. Only Firecrawl evidence escalates status today —
+  // pp-evidence stays visible in ppEvidence for transparency but doesn't
+  // claim STALE/REVIEW because detecting "genuinely newer model class"
+  // (vs version bump, peer tier, specialty mode like audio/image/codex)
+  // requires per-provider class parsing that's out of scope here.
+  // Bias is conservative on purpose: better to under-flag than to push
+  // the operator to rotate a rep on a noisy heuristic, which would defeat
+  // the whole point of having stable peer reps for QoQ continuity.
   let status = 'OK';
   const reasonParts = [];
 
-  if (ppNewerStable.length) {
-    status = 'STALE';
-    const top = ppNewerStable.sort((a, b) => b.obs - a.obs).slice(0, 2);
+  if (ppNewerStable.length || ppNewerLimited.length) {
+    const top = [...ppNewerStable, ...ppNewerLimited].sort((a, b) => b.obs - a.obs).slice(0, 2);
     reasonParts.push(
-      'pricepertoken: ' + top.map(t => t.model + ' (' + t.obs + ' obs)').join(', ') +
-      ' — newer model class with stable history; rep can be rotated.'
-    );
-  } else if (ppNewerLimited.length) {
-    status = 'REVIEW';
-    const top = ppNewerLimited.sort((a, b) => b.obs - a.obs).slice(0, 2);
-    reasonParts.push(
-      'pricepertoken: newer ' + top.map(t => t.model + ' (' + t.obs + ' obs)').join(', ') +
-      ' — limited history, rotation would fragment QoQ.'
+      'pricepertoken: same-provider newer-launched models in catalog — ' +
+      top.map(t => t.model + ' (' + t.obs + ' obs)').join(', ') +
+      '. Operator review only; status escalation requires per-provider class parsing not yet implemented.'
     );
   } else {
-    reasonParts.push('pricepertoken: no newer model class beyond the current rep.');
+    reasonParts.push('pricepertoken: no newer-launched same-provider models.');
   }
 
   if (firecrawlEnabled && firecrawlPossibleNewer.length) {
-    if (status === 'OK') status = 'WATCH';
+    status = 'WATCH';
     reasonParts.push(
       'Firecrawl/' + (fcProvider?.providerLabel || rep.provider) +
       ' docs: ' + firecrawlPossibleNewer.slice(0, 3).join(', ') +
