@@ -380,10 +380,13 @@ function extractModels(markdown, pattern) {
   const matches = markdown.match(pattern) || [];
   const seen = new Map();
   for (const raw of matches) {
+    let cleaned = raw.toLowerCase();
+    // Strip trailing image/asset extensions that the regex catches when a
+    // model name appears inside a markdown image filename (e.g.
+    // "gpt-image-2.png", "gpt-4o-mini-tts.png").
+    cleaned = cleaned.replace(/\.(png|jpe?g|gif|svg|webp)$/i, '');
     // Strip trailing punctuation that might cling from sentence context
-    const cleaned = raw.toLowerCase().replace(/[\.\,\)\]\:\;]+$/, '');
-    // Reject obvious fragments — must contain at least one alpha-after-prefix
-    // and at least one digit somewhere (every real model name does).
+    cleaned = cleaned.replace(/[\.\,\)\]\:\;]+$/, '');
     if (!/\d/.test(cleaned)) continue;
     if (cleaned.length < 5 || cleaned.length > 60) continue;
     const norm = normalizeModel(cleaned);
@@ -640,6 +643,7 @@ export async function onRequestGet({ request, env }) {
     return {
       key: rep.key,
       provider: rep.provider,
+      providerSlug: rep.providerSlug,
       tier: rep.tier,
       label: rep.label,
       modelDisplay: chosen?.display || rep.candidates[0]?.display || null,
