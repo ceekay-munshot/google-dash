@@ -2331,7 +2331,7 @@ function OpenRouterTokenDemandTable(){
       </div>
       <div style={{marginBottom:10}}>
         <div style={{fontSize:16,fontWeight:700,color:"#111827",lineHeight:1.3}}>OpenRouter Token Demand by Provider</div>
-        <div style={{fontSize:11,color:"#9ca3af",marginTop:3}}>Quarter-aligned token demand, provider share, and growth — real captured history only.</div>
+        <div style={{fontSize:11,color:"#9ca3af",marginTop:3}}>Quarter-aligned OpenRouter token demand, provider share, and growth — real historical chart data only.</div>
       </div>
     </>
   );
@@ -2400,10 +2400,13 @@ function OpenRouterTokenDemandTable(){
   const quarters=Array.from(groups.values()).sort((a,b)=>a.id<b.id?-1:1);
   for(const q of quarters){
     q.other=Math.max(0,q.total-q.google-q.openai-q.anthropic);
-    // A non-current quarter with materially fewer than 13 ISO weeks of
-    // observed data is itself incomplete — flag so we don't compute QoQ/YoY
-    // from a truncated comparator.
-    q.complete=!q.partial&&q.weekCount>=12;
+    // shortCoverage = real-but-truncated quarter (data window opened
+    // mid-quarter, so fewer than ~13 ISO weeks observed). Used to annotate
+    // the column header so growth math against it is interpretable, but
+    // does NOT suppress the calculation — withholding a real comparison
+    // just because the data window is shorter than a calendar quarter
+    // hides signal the reader can otherwise see.
+    q.shortCoverage=!q.partial&&q.weekCount<12;
   }
   const byId=Object.fromEntries(quarters.map(q=>[q.id,q]));
   const priorQ=(y,q)=>q===1?(y-1)+"-Q4":y+"-Q"+(q-1);
@@ -2417,24 +2420,36 @@ function OpenRouterTokenDemandTable(){
     const prior=byId[priorQ(q.year,q.quarter)];
     const yoy  =byId[yoyQ(q.year,q.quarter)];
     for(const k of["google","openai","anthropic","other","total"]){
-      if(prior&&prior.complete&&prior[k]>0){
+      // Compute against any non-QTD comparator that has data. A short-coverage
+      // comparator (e.g. data window opened mid-quarter) still represents real
+      // observed tokens — flagging it on the column header is enough; we don't
+      // also need to blank the cell.
+      if(prior&&!prior.partial&&prior[k]>0){
         growth.qoq[q.id][k]=((q[k]-prior[k])/prior[k])*100;
       }
-      if(yoy&&yoy.complete&&yoy[k]>0){
+      if(yoy&&!yoy.partial&&yoy[k]>0){
         growth.yoy[q.id][k]=((q[k]-yoy[k])/yoy[k])*100;
       }
     }
   }
 
+  // Display rules: a genuine 0 is rendered as "0" / "0.0%" so the Tokens and
+  // Share rows agree (missing tokens with non-zero share would be incoherent
+  // — e.g. OpenAI Jun-26 QTD ≈ 0 tokens reads "0" + "0.0%", not "—" + "0.0%").
+  // "—" is reserved for genuinely absent values (null / non-finite) and for
+  // shares whose denominator is zero (no period total to divide against).
   const fmtTok=v=>{
-    if(v==null||!isFinite(v)||v<=0)return"—";
+    if(v==null||!isFinite(v))return"—";
+    if(v===0)return"0";
+    if(v<0)return"—";
     if(v>=1e12)return(v/1e12).toFixed(2).replace(/\.?0+$/,"")+"T";
     if(v>=1e9) return(v/1e9) .toFixed(1).replace(/\.0$/,"")    +"B";
     if(v>=1e6) return(v/1e6) .toFixed(1).replace(/\.0$/,"")    +"M";
     return Math.round(v).toString();
   };
   const fmtShare=(num,den)=>{
-    if(num==null||!isFinite(num)||den==null||!isFinite(den)||den<=0)return"—";
+    if(num==null||!isFinite(num))return"—";
+    if(den==null||!isFinite(den)||den<=0)return"—";
     return (num/den*100).toFixed(1)+"%";
   };
   const fmtG=v=>{
@@ -2515,6 +2530,7 @@ function OpenRouterTokenDemandTable(){
                   <th key={q.id} style={thMain}>
                     {q.label}
                     {q.partial&&<span style={{marginLeft:3,fontSize:8,color:"#b45309",fontWeight:500}}>QTD</span>}
+                    {q.shortCoverage&&<span title={q.weekCount+" / 13 ISO weeks observed (data window opened mid-quarter)"} style={{marginLeft:3,fontSize:8,color:"#b45309",fontWeight:500}}>{q.weekCount}w</span>}
                   </th>
                 ))}
               </tr>
@@ -2559,7 +2575,11 @@ function OpenRouterTokenDemandTable(){
         </div>
       </div>
       <div style={{fontSize:10,color:"#9ca3af",lineHeight:1.5,marginTop:6}}>
-        <b style={{color:"#6b7280",fontWeight:600}}>Methodology:</b> Quarter buckets aggregate weekly OpenRouter chart-native data (the same RSC payload as the live provider-share embed below). Provider buckets group models by slug prefix and family-name match: Google / Gemini, OpenAI (incl. GPT/o-series), Anthropic (incl. Claude). Other = quarter total − the three named buckets. QoQ = current quarter vs immediately prior quarter; YoY = current quarter vs same calendar quarter previous year. Growth values render <b>—</b> when the comparator quarter is itself partial / unavailable. The current incomplete quarter is labeled <b>QTD</b>; full-quarter comparisons against QTD are not computed.
+        <b style={{color:"#6b7280",fontWeight:600}}>Methodology:</b> Quarter buckets aggregate weekly OpenRouter chart-native data (the same RSC payload as the live provider-share embed below). Provider buckets group models by slug prefix and family-name match: Google / Gemini, OpenAI (incl. GPT/o-series), Anthropic (incl. Claude). Other = quarter total − the three named buckets. QoQ = current quarter vs immediately prior quarter; YoY = current quarter vs same calendar quarter previous year. Growth values render <b>—</b> only when the comparator quarter is the current in-progress period (QTD) or doesn't exist in the observed window. The current incomplete quarter is labeled <b>QTD</b>; full-quarter comparisons against QTD are not computed.
+        <br/>
+        <b style={{color:"#6b7280",fontWeight:600}}>Short-coverage quarters:</b> Quarters at the start of the data window may have fewer than 13 ISO weeks observed (the chart-native source begins mid-quarter). These columns are tagged with their week count (e.g. <span style={{color:"#b45309",fontWeight:500}}>10w</span>). QoQ growth into the next quarter against a short-coverage comparator can be inflated by the week-count gap — read the magnitude with that in mind.
+        <br/>
+        <b style={{color:"#6b7280",fontWeight:600}}>Source coverage caveat:</b> The OpenRouter chart payload exposes the week's top-9 named models plus a single <i>Others</i> rollup — long-tail models below the top-9 cutoff are aggregated into Others and flow into this table's <i>Other</i> bucket. A 0 in a named provider's row therefore means <i>"no model in OR's tracked top-9 for that period"</i>, not "literally zero usage": tokens for that provider's smaller models are still counted in the period total and absorbed into Other.
       </div>
     </div>
   );
