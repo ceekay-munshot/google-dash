@@ -1449,9 +1449,9 @@ function GPUFinancialSubtab({fHist,fHistErr}){
 
       {/* Title + subtitle */}
       <div style={{marginBottom:12}}>
-        <div style={{fontSize:14,fontWeight:700,color:"#111827",lineHeight:1.3}}>Period-average pricing for equity correlation</div>
+        <div style={{fontSize:14,fontWeight:700,color:"#111827",lineHeight:1.3}}>Period-average GPU pricing for equity correlation</div>
         <div style={{fontSize:11,color:"#9ca3af",marginTop:3}}>
-          Arithmetic mean of daily <code>minPricePerHour</code> by calendar period · quarter labels = quarter-end month (Mar/Jun/Sep/Dec) · real-only, no fabricated history.
+          Arithmetic mean of daily minPricePerHour by calendar period — real historical GPU pricing only.
         </div>
       </div>
 
@@ -1604,14 +1604,21 @@ const gpuTd={padding:"7px 12px",verticalAlign:"middle"};
    labeled QTD/MTD; growth cells only populate when both periods have
    real averages. Sits above the existing operational history block. */
 
+// Primary visible rows ordered by generation (A100 oldest → GB200 newest), per
+// the customer's investor framing: "from A100 to … Grace Blackwell". A100 is
+// promoted from secondary because the customer named it explicitly as a major
+// generation marker. AMD MI3xx, Rubin, Groq and other accelerators are NOT
+// included here because the upstream getdeploying.com basket does not yet
+// track them — adding empty rows would violate "do not include empty future
+// rows just to show the names".
 const GPU_FIN_PRIMARY_ROWS=[
-  {sku:"Nvidia B200",   shortLabel:"B200 192GB HBM3e"},
-  {sku:"Nvidia H200",   shortLabel:"H200 141GB HBM3e"},
+  {sku:"Nvidia A100",   shortLabel:"A100 40/80GB HBM2e"},
   {sku:"Nvidia H100",   shortLabel:"H100 80GB HBM3"},
+  {sku:"Nvidia H200",   shortLabel:"H200 141GB HBM3e"},
+  {sku:"Nvidia B200",   shortLabel:"B200 192GB HBM3e"},
+  {sku:"Nvidia GB200",  shortLabel:"GB200 (Grace Blackwell)"},
 ];
 const GPU_FIN_SECONDARY_ROWS=[
-  {sku:"Nvidia A100",   shortLabel:"A100 40/80GB HBM2e"},
-  {sku:"Nvidia GB200",  shortLabel:"GB200 (up to 13.4TB HBM3e)"},
   {sku:"Nvidia L40S",   shortLabel:"L40S 48GB GDDR6"},
 ];
 
@@ -1694,10 +1701,15 @@ function fmtMoney(v){
   if(v<1)return"$"+v.toFixed(2);
   return"$"+v.toFixed(2);
 }
+// GPU price growth — color convention is buyer/cost-analysis: a price drop
+// is favorable, so negatives render green and increases render red. Same
+// inverted convention as the Model Pricing matrix; matches customer spec
+// for this tab. (Resilience-signal callout below the growth rows still
+// flags "stable/up" GREEN to convey the investor-side ROI read.)
 function fmtGrowth(v){
   if(v==null||!isFinite(v))return<span style={{color:"#d1d5db"}}>—</span>;
-  const str=v<0?"("+Math.abs(v).toFixed(1)+"%)":v.toFixed(1)+"%";
-  const color=v>0?"#059669":v<0?"#dc2626":"#6b7280";
+  const str=v<0?"("+Math.abs(v).toFixed(1)+"%)":(v>0?"+":"")+v.toFixed(1)+"%";
+  const color=v>0?"#dc2626":v<0?"#059669":"#6b7280";
   return <span style={{color}}>{str}</span>;
 }
 
@@ -1705,6 +1717,9 @@ function GPUFinancialCorrelationBlock({fHist,fHistErr}){
   const[mode,setMode]=useState("quarter"); // "quarter" default per investor framing
   const[showSecondary,setShowSecondary]=useState(false);
   const[illustrative,setIllustrative]=useState(false);
+  const[diagOpen,setDiagOpen]=useState(false); // diagnostics off by default; the
+  // illustrative-data toggle is internal-only and lives inside this disclosure
+  // so the customer-facing main view never shows fabricated values.
 
   // Illustrative mode overrides the real fHist entirely. Toggle is
   // quarter-only (no monthly illustrative data), so mode is forced to
@@ -1719,9 +1734,6 @@ function GPUFinancialCorrelationBlock({fHist,fHistErr}){
       <div style={{background:"#f9fafb",border:"1px dashed #d1d5db",borderRadius:8,padding:"14px 16px",marginBottom:14}}>
         <div style={{...S.lbl,color:"#1d4ed8",marginBottom:6}}>Financial correlation view</div>
         <div style={{fontSize:11,color:"#6b7280"}}>Financial view service temporarily unavailable — operational history below still loads.</div>
-        <div style={{marginTop:10}}>
-          <IllustrativeToggle illustrative={illustrative} setIllustrative={setIllustrative}/>
-        </div>
       </div>
     );
   }
@@ -1765,7 +1777,6 @@ function GPUFinancialCorrelationBlock({fHist,fHistErr}){
         <span style={{fontSize:10,color:"#9ca3af",flex:1,minWidth:0}}>
           Analyst lens · period averages of daily $/hr · quarter labels = quarter-end month (Mar/Jun/Sep/Dec)
         </span>
-        <IllustrativeToggle illustrative={illustrative} setIllustrative={setIllustrative}/>
       </div>
 
       {/* Illustrative warning banner */}
@@ -1840,6 +1851,28 @@ function GPUFinancialCorrelationBlock({fHist,fHistErr}){
                 <tr><td colSpan={periods.length+1} style={finSectionTh}>YoY Growth</td></tr>
                 {renderFinGrowthRows(GPU_FIN_PRIMARY_ROWS,yoy,periods)}
                 {!illustrative&&showSecondary&&renderFinGrowthRows(GPU_FIN_SECONDARY_ROWS,yoy,periods,true)}
+
+                {/* Spacer */}
+                <tr><td colSpan={periods.length+1} style={{height:8}}></td></tr>
+
+                {/* Section D: Provider Count — vendor breadth observed per (SKU, period).
+                   Not rendered in illustrative mode (placeholder values don't carry it). */}
+                {!illustrative&&<>
+                  <tr><td colSpan={periods.length+1} style={finSectionTh}>Provider Count</td></tr>
+                  {renderFinProviderRows(GPU_FIN_PRIMARY_ROWS,series,periods)}
+                  {showSecondary&&renderFinProviderRows(GPU_FIN_SECONDARY_ROWS,series,periods,true)}
+
+                  {/* Spacer */}
+                  <tr><td colSpan={periods.length+1} style={{height:8}}></td></tr>
+
+                  {/* Section E: Price Resilience Signal — flags where price has
+                     held flat or risen across 2 consecutive completed periods.
+                     Customer's "for prices not to go down is a big deal" lens —
+                     stable older-gen prices imply tight supply / strong ROI. */}
+                  <tr><td colSpan={periods.length+1} style={finSectionTh}>Price Resilience Signal</td></tr>
+                  {renderFinResilienceRows(GPU_FIN_PRIMARY_ROWS,growth,periods,series,partialKey)}
+                  {showSecondary&&renderFinResilienceRows(GPU_FIN_SECONDARY_ROWS,growth,periods,series,partialKey,true)}
+                </>}
               </tbody>
             </table>
           </div>
@@ -1848,28 +1881,41 @@ function GPUFinancialCorrelationBlock({fHist,fHistErr}){
           {!illustrative&&(
             <div style={{padding:"6px 10px",borderTop:"0.5px solid #e5e7eb",background:"#fafafa",display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:6}}>
               <span style={{fontSize:10,color:"#9ca3af"}}>
-                {showSecondary?"Primary + secondary GPUs (6 tracked)":"Primary GPUs (B200/H200/H100)"} · tracked basket is fixed at the strategic 6 accelerators; other 85+ SKUs render live in the Infra Monitoring tab's vendor table.
+                {showSecondary?"Primary + secondary GPUs":"Primary GPUs (A100 / H100 / H200 / B200 / GB200)"} · tracked basket is fixed at the strategic accelerators captured by the upstream; the full 90+ SKU vendor table lives in Infra Monitoring.
               </span>
               <button onClick={()=>setShowSecondary(s=>!s)}
                 style={{fontSize:10,padding:"4px 10px",border:"0.5px solid #d1d5db",borderRadius:4,background:"#fff",color:"#374151",cursor:"pointer",fontFamily:"inherit",fontWeight:500}}>
-                {showSecondary?"− Hide secondary (A100 / GB200 / L40S)":"+ Show A100 / GB200 / L40S"}
+                {showSecondary?"− Hide secondary (L40S)":"+ Show L40S"}
               </button>
             </div>
           )}
           {illustrative&&(
-            <div style={{padding:"6px 10px",borderTop:"0.5px solid #e5e7eb",background:"#fafafa",fontSize:10,color:"#9ca3af"}}>
-              Illustrative data covers primary GPUs only (B200 / H200 / H100). Secondary expansion is disabled while the illustrative toggle is on.
+            <div style={{padding:"6px 10px",borderTop:"0.5px solid #e5e7eb",background:"#fffbeb",fontSize:10,color:"#92400e",fontWeight:500}}>
+              ⚠ Illustrative mode is on — values are NOT live. Flip off in diagnostics to return to the real-only investor view.
             </div>
           )}
         </div>
       )}
 
-      {/* Methodology footnote */}
+      {/* Methodology footnote — concise, customer-spec wording. */}
       <div style={{fontSize:10,color:"#9ca3af",lineHeight:1.5,marginTop:6}}>
-        <b style={{color:"#6b7280",fontWeight:600}}>Methodology:</b> {illustrative
-          ? "Illustrative mode renders operator-supplied placeholder values for layout preview — NOT sourced from live data and NOT persisted. QoQ / YoY growth rows below are derived arithmetically from those placeholder values. Flip the toggle off to return to real-only data."
-          : <>Period averages = arithmetic mean of daily minPricePerHour within the calendar {effMode==="quarter"?"quarter":"month"} (not month-of-months — daily average avoids coverage-weighted bias). {effMode==="quarter"?"QoQ":"MoM"} = (current {effMode} avg − prior {effMode} avg) / prior {effMode} avg × 100. YoY = (current {effMode} avg − same {effMode} previous year avg) / same {effMode} previous year avg × 100. Quarter labels are quarter-end month to match equity conventions. Real-only by default; synthetic/backfill snapshots are excluded.</>
-        }
+        <b style={{color:"#6b7280",fontWeight:600}}>Methodology:</b> GPU prices use real historical minPricePerHour observations, averaged by SKU and calendar period. QoQ/YoY compare only valid completed periods; QTD growth is suppressed. GPU prices are not summed, because there is no meaningful total price across SKUs. Provider count shows observed vendor breadth where available. Stable or rising prices in older GPUs can indicate tight supply or strong ROI.
+      </div>
+
+      {/* Internal diagnostics — illustrative-data toggle lives here so it
+         never appears in the customer-facing main view by default. Off by
+         default; intended for layout/QA preview only. */}
+      <div style={{marginTop:8}}>
+        <button onClick={()=>setDiagOpen(o=>!o)}
+          style={{fontSize:10,padding:"3px 10px",border:"0.5px solid #d1d5db",borderRadius:4,background:"#fff",color:"#6b7280",cursor:"pointer",fontFamily:"inherit",fontWeight:500}}>
+          {diagOpen?"Hide diagnostics":"Show diagnostics"}
+        </button>
+        {diagOpen&&(
+          <div style={{marginTop:8,padding:"10px 12px",border:"0.5px dashed #d1d5db",borderRadius:6,background:"#fafafa",display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
+            <span style={{fontSize:10,color:"#6b7280"}}>Internal-only — does not affect the live customer-facing view.</span>
+            <IllustrativeToggle illustrative={illustrative} setIllustrative={setIllustrative}/>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -1916,6 +1962,78 @@ function renderFinGrowthRows(rows,growth,periods,dim){
         {periods.map(p=>(
           <td key={p.period} style={finTdDim}>{fmtGrowth(row_g[p.period])}</td>
         ))}
+      </tr>
+    );
+  });
+}
+
+// Provider count per (SKU, period) — integer count of distinct providers
+// observed in the period. Comes from the API's avgProviderCount field
+// (mean of daily provider counts within the period; rounded for display).
+// Customer's "Where are the providers?" lens: lets the operator see vendor
+// breadth without cluttering the price cells.
+function renderFinProviderRows(rows,series,periods,dim){
+  const fmtProv=v=>{
+    if(v==null||!isFinite(v)||v<=0)return<span style={{color:"#d1d5db"}}>—</span>;
+    const n=Math.round(v);
+    return <span style={{color:"#374151"}}>{n}</span>;
+  };
+  return rows.map(row=>{
+    const byPeriod=Object.fromEntries((series[row.sku]||[]).map(x=>[x.period,x]));
+    return(
+      <tr key={"prov-"+row.sku}>
+        <td style={{...finTdRow,color:dim?"#6b7280":"#111827"}}>{row.shortLabel}</td>
+        {periods.map(p=>{
+          const s=byPeriod[p.period];
+          return(
+            <td key={p.period} style={finTdDim}
+                title={s?Math.round(s.avgProviderCount||0)+" distinct providers observed (avg of daily counts in "+p.label+")":undefined}>
+              {fmtProv(s?s.avgProviderCount:null)}
+            </td>
+          );
+        })}
+      </tr>
+    );
+  });
+}
+
+// Per-(SKU, period) price resilience signal. For period P, looks at QoQ at
+// P (current vs P-1) AND QoQ at P-1 (P-1 vs P-2). If both are ≥0 → "Stable/up 2Q"
+// (green; investor-bullish — aligns with the customer's "for prices not to go
+// down is a big deal" point). If either is <0 → "Falling" (muted gray;
+// neutral framing — not bearish per se, just no resilience signal). Suppressed
+// to "—" for partial periods (QTD/MTD) and where the two-quarter look-back
+// can't be computed.
+function renderFinResilienceRows(rows,growth,periods,series,partialKey,dim){
+  return rows.map(row=>{
+    const row_g=growth[row.sku]||{};
+    const byPeriod=Object.fromEntries((series[row.sku]||[]).map(x=>[x.period,x]));
+    return(
+      <tr key={"res-"+row.sku}>
+        <td style={{...finTdRow,color:dim?"#6b7280":"#111827"}}>{row.shortLabel}</td>
+        {periods.map((p,i)=>{
+          // Suppress for the current partial period — a partial-quarter avg
+          // can't honestly be compared against a full-quarter prior.
+          const cur=byPeriod[p.period];
+          if(cur&&cur[partialKey]){
+            return <td key={p.period} style={finTdDim}><span style={{color:"#d1d5db"}}>—</span></td>;
+          }
+          const cqp=row_g[p.period];
+          const priorPeriod=i>0?periods[i-1]:null;
+          const pqp=priorPeriod?row_g[priorPeriod.period]:null;
+          if(cqp==null||pqp==null||!isFinite(cqp)||!isFinite(pqp)){
+            return <td key={p.period} style={finTdDim}><span style={{color:"#d1d5db"}}>—</span></td>;
+          }
+          const stable=cqp>=0&&pqp>=0;
+          const label=stable?"Stable/up 2Q":"Falling";
+          const bg=stable?"#ecfdf5":"#f3f4f6";
+          const fg=stable?"#047857":"#6b7280";
+          return(
+            <td key={p.period} style={finTdDim}>
+              <span style={{fontSize:9,fontWeight:600,padding:"1px 6px",borderRadius:3,background:bg,color:fg,whiteSpace:"nowrap"}} title={"QoQ "+p.label+": "+cqp.toFixed(1)+"% · prior QoQ: "+pqp.toFixed(1)+"%"}>{label}</span>
+            </td>
+          );
+        })}
       </tr>
     );
   });
