@@ -3521,23 +3521,22 @@ function GoogleGeminiPricingTable(){
     );
   }
 
-  // Tier classification — finance-model grouping. Order matters: each
-  // model lands in the FIRST matching tier, so brand checks (Gemma, Lyria)
-  // run before sub-tier checks. Inside Gemini: Specialty wins over the
-  // text-LLM tiers because image/audio/customtools modes share Gemini Pro
-  // naming (e.g. gemini-3-pro-image-preview). Flash-Lite before Flash.
-  // OtherGemini catches anything I missed so the operator always sees the
-  // full Google catalog and can spot mis-classified entries.
+  // Tier classification — finance-model grouping for an investor-facing tab.
+  // Display order: Frontier/Pro first, then Fast tiers, then Specialty, then
+  // open-weights and other families. Each Gemini sub-tier matcher explicitly
+  // excludes specialty markers so the display order can be customer-facing
+  // without breaking classification (e.g. gemini-3-pro-image-preview must
+  // land in Specialty, not Pro, even though Pro is checked first).
   const SPECIALTY_RE = /image|audio|tts|transcribe|computeruse|embedding|customtools|nativeaudio/;
   const TIERS = [
-    {id:"gemma",       label:"Gemma (Open Weights)",     match: n => /^gemma/.test(n) },
-    {id:"lyria",       label:"Lyria (Audio Generation)", match: n => /^lyria/.test(n) },
-    {id:"specialty",   label:"Gemini Specialty / Modal", match: n => /^gemini/.test(n) && SPECIALTY_RE.test(n) },
-    {id:"flashlite",   label:"Gemini Flash-Lite",        match: n => /^gemini/.test(n) && /flash/.test(n) && /lite/.test(n) },
-    {id:"flash",       label:"Gemini Flash",             match: n => /^gemini/.test(n) && /flash/.test(n) },
-    {id:"pro",         label:"Gemini Pro",               match: n => /^gemini/.test(n) && /pro/.test(n) },
-    {id:"otherGemini", label:"Other Gemini",             match: n => /^gemini/.test(n) },
-    {id:"other",       label:"Other",                    match: () => true },
+    {id:"pro",         label:"Gemini Pro / Frontier",     match: n => /^gemini/.test(n) && /pro/.test(n)   && !SPECIALTY_RE.test(n) },
+    {id:"flash",       label:"Gemini Flash",              match: n => /^gemini/.test(n) && /flash/.test(n) && !/lite/.test(n) && !SPECIALTY_RE.test(n) },
+    {id:"flashlite",   label:"Gemini Flash-Lite",         match: n => /^gemini/.test(n) && /flash/.test(n) &&  /lite/.test(n) && !SPECIALTY_RE.test(n) },
+    {id:"specialty",   label:"Gemini Specialty / Modal",  match: n => /^gemini/.test(n) && SPECIALTY_RE.test(n) },
+    {id:"gemma",       label:"Gemma (Open Weights)",      match: n => /^gemma/.test(n) },
+    {id:"lyria",       label:"Lyria (Audio Generation)",  match: n => /^lyria/.test(n) },
+    {id:"otherGemini", label:"Other Gemini",              match: n => /^gemini/.test(n) },
+    {id:"other",       label:"Other",                     match: () => true },
   ];
 
   const classify = m => {
