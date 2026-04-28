@@ -316,6 +316,39 @@ function currentQuarterKey() {
   return d.getUTCFullYear() + '-Q' + (Math.floor(d.getUTCMonth() / 3) + 1);
 }
 
+// Monthly counterparts. Same key shape as the rest of the dashboard:
+//   '2026-04', '2025-12', etc.  Calendar months, UTC.
+function monthOf(dateStr) {
+  return dateStr.slice(0, 7);
+}
+
+function priorMonth(key) {
+  const m = key.match(/^(\d{4})-(\d{2})$/);
+  if (!m) return null;
+  const y = +m[1], mo = +m[2];
+  if (mo === 1) return (y - 1) + '-12';
+  return y + '-' + String(mo - 1).padStart(2, '0');
+}
+
+function yearAgoMonth(key) {
+  const m = key.match(/^(\d{4})-(\d{2})$/);
+  if (!m) return null;
+  return (+m[1] - 1) + '-' + m[2];
+}
+
+function monthRange(key) {
+  const m = key.match(/^(\d{4})-(\d{2})$/);
+  const y = +m[1], mo = +m[2];
+  const start = new Date(Date.UTC(y, mo - 1, 1)).toISOString().slice(0, 10);
+  const end   = new Date(Date.UTC(y, mo, 0)).toISOString().slice(0, 10);
+  return { start, end };
+}
+
+function currentMonthKey() {
+  const d = new Date();
+  return d.getUTCFullYear() + '-' + String(d.getUTCMonth() + 1).padStart(2, '0');
+}
+
 function round3(n) { return Math.round(n * 1000) / 1000; }
 
 async function fetchProvider(slug) {
@@ -607,6 +640,7 @@ export async function onRequestGet({ request, env }) {
   }
 
   const allQuarters = new Set();
+  const allMonths = new Set();
   let earliestDate = null;
 
   // For each rep model, walk its candidate list and pick the FIRST candidate
@@ -614,6 +648,8 @@ export async function onRequestGet({ request, env }) {
   // SET of norms (`norms: [...]`) — when a flagship transitions across
   // closely-related sub-versions (e.g. Gemini 3 Pro → 3.1 Pro), all matching
   // rows from the set are aggregated into one continuous series.
+  // Buckets are accumulated at BOTH quarter and month granularity so the
+  // client can render either view without a second round-trip.
   const reps = PEER_MODELS.map(rep => {
     const provider = byProvider.get(rep.providerSlug);
     let chosen = null;
@@ -632,18 +668,23 @@ export async function onRequestGet({ request, env }) {
 
     const matchedModelSet = new Set();
     const buckets = new Map();
+    const monthBuckets = new Map();
     for (const row of matched) {
       const dateStr = row?.date;
       if (typeof dateStr !== 'string' || dateStr.length < 10) continue;
       if (!earliestDate || dateStr < earliestDate) earliestDate = dateStr;
       const qid = quarterOf(dateStr);
+      const mid = monthOf(dateStr);
       allQuarters.add(qid);
+      allMonths.add(mid);
       if (!buckets.has(qid)) buckets.set(qid, { sumIn: 0, nIn: 0, sumOut: 0, nOut: 0 });
+      if (!monthBuckets.has(mid)) monthBuckets.set(mid, { sumIn: 0, nIn: 0, sumOut: 0, nOut: 0 });
       const b = buckets.get(qid);
+      const mb = monthBuckets.get(mid);
       const inP  = row?.pricing_prompt;
       const outP = row?.pricing_completion;
-      if (typeof inP  === 'number' && isFinite(inP)  && inP  >= 0) { b.sumIn  += inP;  b.nIn  += 1; }
-      if (typeof outP === 'number' && isFinite(outP) && outP >= 0) { b.sumOut += outP; b.nOut += 1; }
+      if (typeof inP  === 'number' && isFinite(inP)  && inP  >= 0) { b.sumIn  += inP;  b.nIn  += 1; mb.sumIn  += inP;  mb.nIn  += 1; }
+      if (typeof outP === 'number' && isFinite(outP) && outP >= 0) { b.sumOut += outP; b.nOut += 1; mb.sumOut += outP; mb.nOut += 1; }
       if (row.model) matchedModelSet.add(row.model);
     }
 
@@ -654,6 +695,13 @@ export async function onRequestGet({ request, env }) {
       input[qid]  = b.nIn  ? round3((b.sumIn  / b.nIn)  * 1_000_000) : null;
       output[qid] = b.nOut ? round3((b.sumOut / b.nOut) * 1_000_000) : null;
       obsCount[qid] = b.nIn || b.nOut;
+    }
+
+    const inputMonthly = {}, outputMonthly = {}, monthObsCount = {};
+    for (const [mid, mb] of monthBuckets) {
+      inputMonthly[mid]  = mb.nIn  ? round3((mb.sumIn  / mb.nIn)  * 1_000_000) : null;
+      outputMonthly[mid] = mb.nOut ? round3((mb.sumOut / mb.nOut) * 1_000_000) : null;
+      monthObsCount[mid] = mb.nIn || mb.nOut;
     }
 
     return {
@@ -668,15 +716,26 @@ export async function onRequestGet({ request, env }) {
       input,
       output,
       obsCount,
+      // Monthly counterparts — same shape, keyed by 'YYYY-MM'. Quarter
+      // semantics still drive the default Model Pricing matrix view; these
+      // fields exist so consumers (e.g. Google subset table) can render a
+      // monthly cut without a second fetch.
+      inputMonthly,
+      outputMonthly,
+      monthObsCount,
       matchedModels: Array.from(matchedModelSet).sort(),
       _buckets: buckets,
     };
   });
 
   const todayQ = currentQuarterKey();
+  const todayM = currentMonthKey();
 
   // Compute QoQ / YoY for input + output. Suppress for the QTD quarter so
   // partial-quarter averages don't get compared against full quarters.
+  // Same logic mirrored at month granularity into momInput/momOutput/
+  // yoyInputMonthly/yoyOutputMonthly so consumers can pick the granularity
+  // they want without a second round-trip.
   for (const rep of reps) {
     rep.qoqInput = {};
     rep.qoqOutput = {};
@@ -694,6 +753,23 @@ export async function onRequestGet({ request, env }) {
       if (outCur != null && outPri != null && outPri > 0) rep.qoqOutput[qid] = round3((outCur - outPri) / outPri);
       if (outCur != null && outYa  != null && outYa  > 0) rep.yoyOutput[qid] = round3((outCur - outYa)  / outYa);
     }
+
+    rep.momInput = {};
+    rep.momOutput = {};
+    rep.yoyInputMonthly = {};
+    rep.yoyOutputMonthly = {};
+    for (const mid of Object.keys(rep.inputMonthly)) {
+      if (mid === todayM) continue; // suppress MTD vs full-month comparisons
+      const pm = priorMonth(mid);
+      const ym = yearAgoMonth(mid);
+      const inCur = rep.inputMonthly[mid],  outCur = rep.outputMonthly[mid];
+      const inPri = rep.inputMonthly[pm],   outPri = rep.outputMonthly[pm];
+      const inYa  = rep.inputMonthly[ym],   outYa  = rep.outputMonthly[ym];
+      if (inCur  != null && inPri  != null && inPri  > 0) rep.momInput[mid]         = round3((inCur  - inPri)  / inPri);
+      if (inCur  != null && inYa   != null && inYa   > 0) rep.yoyInputMonthly[mid]  = round3((inCur  - inYa)   / inYa);
+      if (outCur != null && outPri != null && outPri > 0) rep.momOutput[mid]        = round3((outCur - outPri) / outPri);
+      if (outCur != null && outYa  != null && outYa  > 0) rep.yoyOutputMonthly[mid] = round3((outCur - outYa)  / outYa);
+    }
     delete rep._buckets;
   }
 
@@ -701,6 +777,13 @@ export async function onRequestGet({ request, env }) {
   const quarters = Array.from(allQuarters).sort().map(qid => {
     const range = quarterRange(qid);
     return { id: qid, start: range.start, end: range.end, partial: qid === todayQ };
+  });
+
+  // Months chronological — same convention as quarters; partial flag flipped
+  // for the current calendar month so the renderer can label it MTD.
+  const months = Array.from(allMonths).sort().map(mid => {
+    const range = monthRange(mid);
+    return { id: mid, start: range.start, end: range.end, partial: mid === todayM };
   });
 
   // Frontier Reference by Period — informational only. Per provider, per
@@ -796,6 +879,7 @@ export async function onRequestGet({ request, env }) {
       'documents, used purely as a freshness audit signal — pricing math never reads it.',
     earliestDateObserved: earliestDate ? earliestDate.slice(0, 10) : null,
     quarters,
+    months,
     reps,
     frontierReference,
     providerCatalog,

@@ -3229,6 +3229,440 @@ function OpenRouterTokenDemandTable(){
 }
 
 /* ═══════════════════════════════════════════════════════
+   GOOGLE / GEMINI ADOPTION (subset of AI Adoption table)
+   First detailed section in the Google Cloud / Model API Usage tab.
+   Reuses the SAME data source and period builder as the AI Adoption
+   OpenRouter Token Demand table — just slices the Google bucket out.
+   No new fetch, no new aggregation logic; only a render that focuses
+   on Google / Gemini tokens, share of OR total, QoQ, YoY.
+
+   Reused from AI Adoption / OpenRouterTokenDemandTable:
+     - GET /api/openrouter-chart-weekly?full=1
+     - bucketProviderFromSlug (transitively, via _bucketWeekProviderSums)
+     - buildQuarterlyPeriods(weeks) — returns periods with .google + .total
+     - quarter-end label convention (Mar/Jun/Sep/Dec)
+     - QTD detection + growth suppression for partial periods
+═══════════════════════════════════════════════════════ */
+function GoogleGeminiAdoptionTable(){
+  const[mode,setMode]=useState("quarter"); // "quarter" (default) | "month"
+  const[state,setState]=useState({phase:"loading",data:null,error:null});
+  useEffect(()=>{
+    let cancelled=false;
+    fetch("/api/openrouter-chart-weekly?full=1")
+      .then(r=>r.ok?r.json():Promise.reject(new Error("HTTP "+r.status)))
+      .then(d=>{
+        if(cancelled)return;
+        if(!d||d.success===false){setState({phase:"error",data:null,error:d?.error||"Unknown error"});return;}
+        setState({phase:"ready",data:d,error:null});
+      })
+      .catch(e=>{if(!cancelled)setState({phase:"error",data:null,error:e.message||"Fetch failed"});});
+    return()=>{cancelled=true;};
+  },[]);
+
+  const subtitle=mode==="month"
+    ? "Google-specific cut of OpenRouter token demand by month — real historical chart data only."
+    : "Google-specific cut of OpenRouter token demand — real historical chart data only.";
+
+  const ModeToggle=(
+    <div style={{display:"inline-flex",border:"0.5px solid #e5e7eb",borderRadius:6,overflow:"hidden",background:"#fff",flexShrink:0}}>
+      {["quarter","month"].map(v=>{
+        const active=mode===v;
+        return(
+          <button key={v} onClick={()=>setMode(v)}
+            style={{fontSize:11,padding:"4px 12px",border:"none",background:active?"#111827":"#fff",color:active?"#fff":"#6b7280",cursor:"pointer",fontFamily:"inherit",fontWeight:500,textTransform:"capitalize"}}>
+            {v==="quarter"?"Quarter":"Month"}
+          </button>
+        );
+      })}
+    </div>
+  );
+
+  const header=(
+    <>
+      <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:4}}>
+        <span style={{width:7,height:7,borderRadius:"50%",background:"#6366f1",display:"inline-block"}}/>
+        <span style={{fontSize:10,textTransform:"uppercase",letterSpacing:".09em",fontWeight:700,color:"#6366f1"}}>Google / Gemini · OpenRouter subset</span>
+      </div>
+      <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:12,marginBottom:10,flexWrap:"wrap"}}>
+        <div style={{flex:"1 1 auto",minWidth:0}}>
+          <div style={{fontSize:16,fontWeight:700,color:"#111827",lineHeight:1.3}}>Google / Gemini AI Adoption</div>
+          <div style={{fontSize:11,color:"#9ca3af",marginTop:3}}>{subtitle}</div>
+        </div>
+        {ModeToggle}
+      </div>
+    </>
+  );
+
+  if(state.phase==="loading"){
+    return(<div style={{marginBottom:16}}>{header}<div style={{...S.card}}><Shimmer rows={4}/></div></div>);
+  }
+  if(state.phase==="error"){
+    return(
+      <div style={{marginBottom:16}}>{header}
+        <div style={{background:"#fff",border:"0.5px dashed #fca5a5",borderRadius:10,padding:"14px 16px"}}>
+          <div style={{fontSize:12,color:"#991b1b",fontWeight:500}}>Google / Gemini adoption subset temporarily unavailable</div>
+          <div style={{fontSize:11,color:"#6b7280",marginTop:2}}>{state.error||"/api/openrouter-chart-weekly did not return success"}</div>
+        </div>
+      </div>
+    );
+  }
+
+  const weeks=state.data?.weeks||[];
+  if(!weeks.length){
+    return(
+      <div style={{marginBottom:16}}>{header}
+        <div style={{background:"#fff",border:"0.5px solid #e5e7eb",borderRadius:10,padding:"14px 16px"}}>
+          <div style={{fontSize:12,color:"#111827",fontWeight:500}}>Subset populates as real OpenRouter weeks accumulate</div>
+        </div>
+      </div>
+    );
+  }
+
+  // Period builder reused from the AI Adoption table: same data, same
+  // bucketing, same shape. Quarter view → buildQuarterlyPeriods; Month
+  // view → buildMonthlyPeriods (which day-fraction-splits ISO weeks that
+  // straddle a month boundary so Σ months = Σ weeks exactly).
+  const periods=mode==="month"?buildMonthlyPeriods(weeks):buildQuarterlyPeriods(weeks);
+  const byId=Object.fromEntries(periods.map(p=>[p.id,p]));
+
+  const priorIdFn=mode==="month"
+    ? (p)=>p.month===1?(p.year-1)+"-12":p.year+"-"+String(p.month-1).padStart(2,"0")
+    : (p)=>p.quarter===1?(p.year-1)+"-Q4":p.year+"-Q"+(p.quarter-1);
+  const yoyIdFn=mode==="month"
+    ? (p)=>(p.year-1)+"-"+String(p.month).padStart(2,"0")
+    : (p)=>(p.year-1)+"-Q"+p.quarter;
+
+  // Per-period growth on the Google bucket only. Same suppression rule as
+  // the AI Adoption table: skip the QTD/MTD period; require a non-partial
+  // comparator with non-zero google value.
+  const growth={primary:{},yoy:{}};
+  for(const p of periods){
+    growth.primary[p.id]=null;
+    growth.yoy[p.id]=null;
+    if(p.partial)continue;
+    const prior=byId[priorIdFn(p)];
+    const yoy  =byId[yoyIdFn(p)];
+    if(prior&&!prior.partial&&prior.google>0){
+      growth.primary[p.id]=((p.google-prior.google)/prior.google)*100;
+    }
+    if(yoy&&!yoy.partial&&yoy.google>0){
+      growth.yoy[p.id]=((p.google-yoy.google)/yoy.google)*100;
+    }
+  }
+
+  const partialBadge=mode==="month"?"MTD":"QTD";
+  const primaryGrowthLabel=mode==="month"?"MoM Growth":"QoQ Growth";
+
+  // Format helpers — same display rules as AI Adoption (genuine 0 → "0",
+  // missing → "—", positive growth = green, negative = red).
+  const fmtTok=v=>{
+    if(v==null||!isFinite(v))return"—";
+    if(v===0)return"0";
+    if(v<0)return"—";
+    if(v>=1e12)return(v/1e12).toFixed(2).replace(/\.?0+$/,"")+"T";
+    if(v>=1e9) return(v/1e9) .toFixed(1).replace(/\.0$/,"")    +"B";
+    if(v>=1e6) return(v/1e6) .toFixed(1).replace(/\.0$/,"")    +"M";
+    return Math.round(v).toString();
+  };
+  const fmtShare=(num,den)=>{
+    if(num==null||!isFinite(num))return"—";
+    if(den==null||!isFinite(den)||den<=0)return"—";
+    return (num/den*100).toFixed(1)+"%";
+  };
+  const fmtG=v=>{
+    if(v==null||!isFinite(v))return<span style={{color:"#d1d5db"}}>—</span>;
+    const str=v<0?"("+Math.abs(v).toFixed(1)+"%)":(v>0?"+":"")+v.toFixed(1)+"%";
+    const color=v>0?"#059669":v<0?"#dc2626":"#6b7280";
+    return <span style={{color}}>{str}</span>;
+  };
+
+  const STICKY_BG="#f3f4f6";
+  const STICKY_SHADOW="2px 0 0 #e5e7eb, 6px 0 6px -4px rgba(17,24,39,0.08)";
+  const FIRST_COL_W=260;
+  const COL_W=110;
+  const stickyFirstBase={position:"sticky",left:0,background:STICKY_BG,boxShadow:STICKY_SHADOW,minWidth:FIRST_COL_W,maxWidth:FIRST_COL_W,width:FIRST_COL_W};
+  const thMain={textAlign:"right",padding:"5px 10px",fontSize:10,color:"#6b7280",fontWeight:600,whiteSpace:"nowrap",minWidth:COL_W};
+  const thFirst={...stickyFirstBase,textAlign:"left",padding:"5px 10px",fontSize:10,color:"#6b7280",fontWeight:600,whiteSpace:"nowrap",zIndex:3};
+  const tdMain={textAlign:"right",padding:"4px 10px",fontSize:12,color:"#111827",fontFamily:"ui-monospace,SFMono-Regular,Menlo,monospace",whiteSpace:"nowrap",minWidth:COL_W};
+  const tdDim ={textAlign:"right",padding:"4px 10px",fontSize:12,color:"#6b7280",fontFamily:"ui-monospace,SFMono-Regular,Menlo,monospace",whiteSpace:"nowrap",minWidth:COL_W};
+  const tdFirst={...stickyFirstBase,textAlign:"left",padding:"6px 10px 6px 18px",fontSize:11,color:"#111827",fontWeight:600,whiteSpace:"nowrap",zIndex:2};
+
+  const rows=[
+    {key:"tokens",  label:"Google / Gemini Tokens",                   render:p=>(<td key={p.id} style={tdMain}>{fmtTok(p.google)}</td>)},
+    {key:"share",   label:"Google / Gemini Share of OpenRouter Tokens",render:p=>(<td key={p.id} style={tdDim}>{fmtShare(p.google,p.total)}</td>)},
+    {key:"primary", label:"Google / Gemini "+primaryGrowthLabel,       render:p=>(<td key={p.id} style={tdDim}>{fmtG(growth.primary[p.id])}</td>)},
+    {key:"yoy",     label:"Google / Gemini YoY Growth",               render:p=>(<td key={p.id} style={tdDim}>{fmtG(growth.yoy[p.id])}</td>)},
+  ];
+
+  return(
+    <div style={{marginBottom:16}}>
+      {header}
+      <div style={{border:"0.5px solid #e5e7eb",borderRadius:8,overflow:"hidden",background:"#f9fafb"}}>
+        <div style={{overflowX:"auto"}}>
+          <table style={{width:"100%",borderCollapse:"separate",borderSpacing:0,background:"#f3f4f6",minWidth:FIRST_COL_W+COL_W*periods.length}}>
+            <thead>
+              <tr>
+                <th style={thFirst}></th>
+                {periods.map(p=>(
+                  <th key={p.id} style={thMain}>
+                    {p.label}
+                    {p.partial&&<span style={{marginLeft:3,fontSize:8,color:"#b45309",fontWeight:500}}>{partialBadge}</span>}
+                    {p.shortCoverage&&<span style={{marginLeft:3,fontSize:8,color:"#b45309",fontWeight:500}}>{p.coverageObserved}{p.coverageUnit}</span>}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map(r=>(
+                <tr key={r.key}>
+                  <td style={tdFirst}>{r.label}</td>
+                  {periods.map(p=>r.render(p))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div style={{fontSize:10,color:"#9ca3af",lineHeight:1.5,marginTop:6}}>
+        OpenRouter is a third-party developer/router usage proxy. This is not total Gemini consumer usage or total Google Cloud API usage.
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════
+   GOOGLE / GEMINI MODEL PRICING (subset of Model Pricing tab)
+   Second detailed section in the Google Cloud / Model API Usage tab.
+   Reuses /api/model-pricing-peer-matrix (the same endpoint that drives
+   the full Model Pricing tab) and slices to the google-frontier and
+   google-fast reps. No new fetch logic, no new pricing math, no new
+   model-class definitions — the endpoint already maps these slots
+   server-side via PEER_MODELS.
+═══════════════════════════════════════════════════════ */
+function GoogleGeminiPricingTable(){
+  const[mode,setMode]=useState("quarter"); // "quarter" (default) | "month"
+  const[state,setState]=useState({phase:"loading",data:null,error:null});
+  useEffect(()=>{
+    let cancelled=false;
+    // Same 5-min cache-bust window the Model Pricing matrix uses; share
+    // the edge-cache entry across both consumers.
+    fetch("/api/model-pricing-peer-matrix?v="+Math.floor(Date.now()/3e5))
+      .then(r=>r.ok?r.json():Promise.reject(new Error("HTTP "+r.status)))
+      .then(d=>{
+        if(cancelled)return;
+        if(!d||d.success===false){setState({phase:"error",data:null,error:d?.error||"Unknown error"});return;}
+        setState({phase:"ready",data:d,error:null});
+      })
+      .catch(e=>{if(!cancelled)setState({phase:"error",data:null,error:e.message||"Fetch failed"});});
+    return()=>{cancelled=true;};
+  },[]);
+
+  const subtitle = mode==="month"
+    ? "Google-specific price-per-token view from the existing model pricing matrix, by month."
+    : "Google-specific price-per-token view from the existing model pricing matrix.";
+
+  const ModeToggle=(
+    <div style={{display:"inline-flex",border:"0.5px solid #e5e7eb",borderRadius:6,overflow:"hidden",background:"#fff",flexShrink:0}}>
+      {["quarter","month"].map(v=>{
+        const active=mode===v;
+        return(
+          <button key={v} onClick={()=>setMode(v)}
+            style={{fontSize:11,padding:"4px 12px",border:"none",background:active?"#111827":"#fff",color:active?"#fff":"#6b7280",cursor:"pointer",fontFamily:"inherit",fontWeight:500,textTransform:"capitalize"}}>
+            {v==="quarter"?"Quarter":"Month"}
+          </button>
+        );
+      })}
+    </div>
+  );
+
+  const header=(
+    <>
+      <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:4}}>
+        <span style={{width:7,height:7,borderRadius:"50%",background:"#0e7490",display:"inline-block"}}/>
+        <span style={{fontSize:10,textTransform:"uppercase",letterSpacing:".09em",fontWeight:700,color:"#0e7490"}}>Google / Gemini · Model Pricing subset</span>
+      </div>
+      <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:12,marginBottom:10,flexWrap:"wrap"}}>
+        <div style={{flex:"1 1 auto",minWidth:0}}>
+          <div style={{fontSize:16,fontWeight:700,color:"#111827",lineHeight:1.3}}>Google / Gemini Model Pricing</div>
+          <div style={{fontSize:11,color:"#9ca3af",marginTop:3}}>{subtitle}</div>
+        </div>
+        {ModeToggle}
+      </div>
+    </>
+  );
+
+  if(state.phase==="loading"){
+    return(<div style={{marginBottom:16}}>{header}<div style={{...S.card}}><Shimmer rows={5}/></div></div>);
+  }
+  if(state.phase==="error"){
+    return(
+      <div style={{marginBottom:16}}>{header}
+        <div style={{background:"#fff",border:"0.5px dashed #fca5a5",borderRadius:10,padding:"14px 16px"}}>
+          <div style={{fontSize:12,color:"#991b1b",fontWeight:500}}>Google / Gemini pricing subset temporarily unavailable</div>
+          <div style={{fontSize:11,color:"#6b7280",marginTop:2}}>{state.error||"/api/model-pricing-peer-matrix did not return success"}</div>
+        </div>
+      </div>
+    );
+  }
+
+  const data=state.data;
+  // Periods come from the endpoint as either `quarters[]` or `months[]`
+  // (both chronological; `partial` flag set on QTD / MTD respectively).
+  // The endpoint emits both — toggling here just picks which array to read.
+  const periods = mode==="month" ? (data?.months||[]) : (data?.quarters||[]);
+  const reps=data?.reps||[];
+  const frontier=reps.find(r=>r.key==="google-frontier"&&r.hasData!==false);
+  const fast    =reps.find(r=>r.key==="google-fast"    &&r.hasData!==false);
+
+  if(!periods.length||(!frontier&&!fast)){
+    return(
+      <div style={{marginBottom:16}}>{header}
+        <div style={{background:"#fff",border:"0.5px solid #e5e7eb",borderRadius:10,padding:"14px 16px"}}>
+          <div style={{fontSize:12,color:"#111827",fontWeight:500}}>Subset populates as upstream Google pricing history accumulates</div>
+        </div>
+      </div>
+    );
+  }
+
+  // Same display rules as the full Model Pricing matrix: 0 → "0", missing → "—".
+  // Color convention is INVERTED from growth tables — for pricing, a drop is
+  // favorable (green) and an increase is cost pressure (red).
+  const fmtPrice=v=>{
+    if(v==null||!isFinite(v))return"—";
+    if(v>=10)return"$"+v.toFixed(2);
+    if(v>=1) return"$"+v.toFixed(2);
+    return "$"+v.toFixed(3);
+  };
+  const fmtChange=v=>{
+    if(v==null||!isFinite(v))return<span style={{color:"#d1d5db"}}>—</span>;
+    const pct=v*100;
+    const str=pct<0?"("+Math.abs(pct).toFixed(1)+"%)":(pct>0?"+":"")+pct.toFixed(1)+"%";
+    const color=pct>0?"#dc2626":pct<0?"#059669":"#6b7280";
+    return <span style={{color}}>{str}</span>;
+  };
+
+  // Period label — quarter-end month (Mar/Jun/Sep/Dec-YY) for quarters,
+  // month-name (e.g. "Aug-25") for months. Same conventions as the rest
+  // of the dashboard.
+  const MONTH_NAMES=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  const labelOf = pid => {
+    if (mode==="month") {
+      const m=pid.match(/^(\d{4})-(\d{2})$/);
+      if(!m) return pid;
+      return MONTH_NAMES[parseInt(m[2],10)-1]+"-"+String(parseInt(m[1],10)).slice(2);
+    }
+    const m=pid.match(/^(\d{4})-Q(\d)$/);
+    if(!m) return pid;
+    return ["Mar","Jun","Sep","Dec"][parseInt(m[2],10)-1]+"-"+String(parseInt(m[1],10)).slice(2);
+  };
+  const partialBadge = mode==="month" ? "MTD" : "QTD";
+  const primaryGrowthLabel = mode==="month" ? "MoM" : "QoQ";
+
+  // Field-name keys on the rep — input/output for prices, qoq*/mom* for the
+  // primary growth metric, yoy* / yoy*Monthly for year-over-year.
+  const inputKey       = mode==="month" ? "inputMonthly"        : "input";
+  const outputKey      = mode==="month" ? "outputMonthly"       : "output";
+  const primaryInKey   = mode==="month" ? "momInput"            : "qoqInput";
+  const primaryOutKey  = mode==="month" ? "momOutput"           : "qoqOutput";
+  const yoyInKey       = mode==="month" ? "yoyInputMonthly"     : "yoyInput";
+  const yoyOutKey      = mode==="month" ? "yoyOutputMonthly"    : "yoyOutput";
+
+  const STICKY_BG="#f3f4f6";
+  const STICKY_SHADOW="2px 0 0 #e5e7eb, 6px 0 6px -4px rgba(17,24,39,0.08)";
+  const FIRST_COL_W=320;
+  const COL_W=110;
+  const stickyFirstBase={position:"sticky",left:0,background:STICKY_BG,boxShadow:STICKY_SHADOW,minWidth:FIRST_COL_W,maxWidth:FIRST_COL_W,width:FIRST_COL_W};
+  const thMain={textAlign:"right",padding:"5px 10px",fontSize:10,color:"#6b7280",fontWeight:600,whiteSpace:"nowrap",minWidth:COL_W};
+  const thFirst={...stickyFirstBase,textAlign:"left",padding:"5px 10px",fontSize:10,color:"#6b7280",fontWeight:600,whiteSpace:"nowrap",zIndex:3};
+  const tdMain={textAlign:"right",padding:"4px 10px",fontSize:12,color:"#111827",fontFamily:"ui-monospace,SFMono-Regular,Menlo,monospace",whiteSpace:"nowrap",minWidth:COL_W};
+  const tdDim ={textAlign:"right",padding:"4px 10px",fontSize:12,color:"#6b7280",fontFamily:"ui-monospace,SFMono-Regular,Menlo,monospace",whiteSpace:"nowrap",minWidth:COL_W};
+  const tdFirst={...stickyFirstBase,textAlign:"left",padding:"6px 10px 6px 18px",fontSize:11,whiteSpace:"nowrap",zIndex:2};
+
+  // Row spec mirrors the customer's exact ordering. Each entry knows which
+  // rep it reads from and which key on that rep (input/output/qoq*/yoy*).
+  // Frontier and Fast are tied to the same rep's modelDisplay so the
+  // sub-label always tracks whichever Gemini variant the endpoint chose
+  // (e.g. Gemini 3 Pro Preview when gen-3 has upstream rows; otherwise
+  // the Gemini 2.5 Pro fallback).
+  const tierLabel=rep=>{
+    const matchedSummary=(rep?.matchedModels||[]).length
+      ? rep.matchedModels.length+" upstream variant"+(rep.matchedModels.length===1?"":"s")+" matched: "+rep.matchedModels.join(", ")
+      : null;
+    return {modelDisplay:rep?.modelDisplay||"—", title:matchedSummary};
+  };
+  const fLabel=tierLabel(frontier);
+  const sLabel=tierLabel(fast);
+
+  const rowsSpec=[
+    // Pricing
+    {label:"Gemini Frontier — Input Price / 1M Tokens",                 sub:fLabel.modelDisplay, title:fLabel.title, rep:frontier, style:tdMain, value:(rep,pid)=>fmtPrice(rep?.[inputKey]?.[pid])},
+    {label:"Gemini Frontier — Output Price / 1M Tokens",                sub:fLabel.modelDisplay, title:fLabel.title, rep:frontier, style:tdMain, value:(rep,pid)=>fmtPrice(rep?.[outputKey]?.[pid])},
+    {label:"Gemini Fast / Cost-efficient — Input Price / 1M Tokens",    sub:sLabel.modelDisplay, title:sLabel.title, rep:fast,     style:tdMain, value:(rep,pid)=>fmtPrice(rep?.[inputKey]?.[pid])},
+    {label:"Gemini Fast / Cost-efficient — Output Price / 1M Tokens",   sub:sLabel.modelDisplay, title:sLabel.title, rep:fast,     style:tdMain, value:(rep,pid)=>fmtPrice(rep?.[outputKey]?.[pid])},
+    // Primary growth (QoQ in quarter view, MoM in month view)
+    {label:"Gemini Frontier — "+primaryGrowthLabel+" Price Change, input",                 sub:fLabel.modelDisplay, title:fLabel.title, rep:frontier, style:tdDim,  value:(rep,pid)=>fmtChange(rep?.[primaryInKey]?.[pid])},
+    {label:"Gemini Frontier — "+primaryGrowthLabel+" Price Change, output",                sub:fLabel.modelDisplay, title:fLabel.title, rep:frontier, style:tdDim,  value:(rep,pid)=>fmtChange(rep?.[primaryOutKey]?.[pid])},
+    {label:"Gemini Fast / Cost-efficient — "+primaryGrowthLabel+" Price Change, input",    sub:sLabel.modelDisplay, title:sLabel.title, rep:fast,     style:tdDim,  value:(rep,pid)=>fmtChange(rep?.[primaryInKey]?.[pid])},
+    {label:"Gemini Fast / Cost-efficient — "+primaryGrowthLabel+" Price Change, output",   sub:sLabel.modelDisplay, title:sLabel.title, rep:fast,     style:tdDim,  value:(rep,pid)=>fmtChange(rep?.[primaryOutKey]?.[pid])},
+  ];
+
+  // YoY rows are appended only if the endpoint surfaces any non-null YoY
+  // values for either rep — keeps the table compact when full-year history
+  // doesn't exist yet (current state) and grows it naturally once it does.
+  const anyYoy=(rep,key)=>rep&&Object.values(rep?.[key]||{}).some(v=>v!=null&&isFinite(v));
+  const yoyAvailable=anyYoy(frontier,yoyInKey)||anyYoy(frontier,yoyOutKey)||anyYoy(fast,yoyInKey)||anyYoy(fast,yoyOutKey);
+  if(yoyAvailable){
+    rowsSpec.push(
+      {label:"Gemini Frontier — YoY Price Change, input",               sub:fLabel.modelDisplay, title:fLabel.title, rep:frontier, style:tdDim, value:(rep,pid)=>fmtChange(rep?.[yoyInKey]?.[pid])},
+      {label:"Gemini Frontier — YoY Price Change, output",              sub:fLabel.modelDisplay, title:fLabel.title, rep:frontier, style:tdDim, value:(rep,pid)=>fmtChange(rep?.[yoyOutKey]?.[pid])},
+      {label:"Gemini Fast / Cost-efficient — YoY Price Change, input",  sub:sLabel.modelDisplay, title:sLabel.title, rep:fast,     style:tdDim, value:(rep,pid)=>fmtChange(rep?.[yoyInKey]?.[pid])},
+      {label:"Gemini Fast / Cost-efficient — YoY Price Change, output", sub:sLabel.modelDisplay, title:sLabel.title, rep:fast,     style:tdDim, value:(rep,pid)=>fmtChange(rep?.[yoyOutKey]?.[pid])},
+    );
+  }
+
+  return(
+    <div style={{marginBottom:16}}>
+      {header}
+      <div style={{border:"0.5px solid #e5e7eb",borderRadius:8,overflow:"hidden",background:"#f9fafb"}}>
+        <div style={{overflowX:"auto"}}>
+          <table style={{width:"100%",borderCollapse:"separate",borderSpacing:0,background:"#f3f4f6",minWidth:FIRST_COL_W+COL_W*periods.length}}>
+            <thead>
+              <tr>
+                <th style={thFirst}></th>
+                {periods.map(p=>(
+                  <th key={p.id} style={thMain}>
+                    {labelOf(p.id)}
+                    {p.partial&&<span style={{marginLeft:3,fontSize:8,color:"#b45309",fontWeight:500}}>{partialBadge}</span>}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {rowsSpec.map((r,i)=>(
+                <tr key={i}>
+                  <td style={tdFirst} title={r.title||undefined}>
+                    <div style={{lineHeight:1.25}}>
+                      <div style={{fontWeight:600,color:"#111827"}}>{r.label}</div>
+                      <div style={{fontSize:10,color:"#9ca3af",fontFamily:"ui-monospace,SFMono-Regular,Menlo,monospace"}}>{r.sub}</div>
+                    </div>
+                  </td>
+                  {periods.map(p=>(
+                    <td key={p.id} style={r.style}>{r.value(r.rep,p.id)}</td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div style={{fontSize:10,color:"#9ca3af",lineHeight:1.5,marginTop:6}}>
+        Pricing uses pricepertoken historical model-level rows. This is a Google/Gemini subset of the full Model Pricing tab.
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════
    TAB: OpenRouter
 ═══════════════════════════════════════════════════════ */
 function PPTHistoryIframe(){
@@ -4248,12 +4682,16 @@ export default function App(){
         {tab==="pricing"&&<ModelPricingTab/>}
         {tab==="gpu"&&<GPUHardwarePricingTab/>}
         {tab==="gcloud"&&(
-          <div style={{padding:"32px 16px",textAlign:"center"}}>
-            <div style={{...S.lbl,color:"#6366f1",marginBottom:8}}>Google Cloud / Model API Usage</div>
-            <div style={{fontSize:13,color:"#6b7280",maxWidth:480,margin:"0 auto",lineHeight:1.6}}>
-              Google / Gemini API usage proxy section — to be populated in the next step. Do not interpret this as consumer chatbot/search usage.
-            </div>
-          </div>
+          <>
+            {/* First section — Google / Gemini cut of the OpenRouter chart-native
+               token-demand data. Reuses the same data and period builder as
+               the AI Adoption table; just renders the Google bucket. */}
+            <GoogleGeminiAdoptionTable/>
+            {/* Second section — Google / Gemini slice of the Model Pricing
+               peer matrix. Reuses /api/model-pricing-peer-matrix; just
+               renders the google-frontier and google-fast reps. */}
+            <GoogleGeminiPricingTable/>
+          </>
         )}
         {tab==="appendix"&&(
           <>
