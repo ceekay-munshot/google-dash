@@ -1281,30 +1281,55 @@ function ModelPricingMatrixTable(){
 }
 
 /* ═══════════════════════════════════════════════════════
-   TAB: Model Pricing (pricepertoken.com reverse-proxy embed)
+   TAB: Model Pricing
+   Two internal subtabs (matches GPU Hardware Pricing's pill bar):
+     1) Pricing Matrix          — existing matrix + signal + history + ppt embed
+     2) Quality / Value Scatter — live reverse-proxy of sanand0.github.io/llmpricing
 ═══════════════════════════════════════════════════════ */
 function ModelPricingTab(){
-  const[err,setErr]=useState(false);
+  const[subtab,setSubtab]=useState("matrix");
   return(
     <>
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
         <div style={{display:"flex",alignItems:"center",gap:8}}>
-          <Pill text="Model Pricing · pricepertoken.com" bg="#ecfeff" color="#0e7490"/>
+          <Pill text="Model Pricing · pricepertoken.com + LLM Pricing scatter" bg="#ecfeff" color="#0e7490"/>
         </div>
       </div>
 
-      {/* First detailed section — finance-model price matrix by class & period.
-         Sits above the existing analytical read-through and quarterly trend
-         chart so the reader gets the comparable peer-pair view first. */}
+      {/* Subtab switcher — same pattern + visual weight as GPU Hardware Pricing */}
+      <div style={{display:"flex",gap:4,marginBottom:14,borderBottom:"0.5px solid #e5e7eb",paddingBottom:0}}>
+        {[
+          {id:"matrix", label:"Pricing Matrix",          sub:"peer-pair table · signal · history · live ppt embed"},
+          {id:"scatter",label:"Quality / Value Scatter", sub:"ELO × input-token cost · live · sanand0 llmpricing"},
+        ].map(t=>{
+          const active=subtab===t.id;
+          return(
+            <button key={t.id} onClick={()=>setSubtab(t.id)}
+              style={{fontSize:12,padding:"8px 16px",border:"none",borderBottom:active?"2px solid #111827":"2px solid transparent",marginBottom:-1,background:"transparent",color:active?"#111827":"#6b7280",cursor:"pointer",fontFamily:"inherit",fontWeight:active?600:500,display:"flex",flexDirection:"column",alignItems:"flex-start",gap:1}}>
+              <span>{t.label}</span>
+              <span style={{fontSize:9,fontWeight:400,color:active?"#6b7280":"#9ca3af",textTransform:"lowercase"}}>{t.sub}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      {subtab==="matrix"
+        ? <ModelPricingMatrixSubtab/>
+        : <LLMPricingScatterSubtab/>
+      }
+    </>
+  );
+}
+
+/* Pricing Matrix subtab — preserves the existing Model Pricing layout
+   one-for-one (matrix → signal → quarterly history → live ppt embed). */
+function ModelPricingMatrixSubtab(){
+  const[err,setErr]=useState(false);
+  return(
+    <>
       <ModelPricingMatrixTable/>
-
-      {/* Analytical read-through (callouts + signal table + quadrant) */}
       <PricingShareSignalBlock/>
-
-      {/* Quarterly trend chart + matrix */}
       <ModelPricingHistoryBlock/>
-
-      {/* Live embed */}
       {err?(
         <div style={{background:"#f9fafb",border:"1px dashed #d1d5db",borderRadius:8,padding:"32px 16px",textAlign:"center"}}>
           <div style={{fontSize:13,color:"#6b7280",fontWeight:500}}>Model pricing embed temporarily unavailable</div>
@@ -1326,6 +1351,54 @@ function ModelPricingTab(){
       )}
       <div style={{fontSize:10,color:"#9ca3af",marginTop:6}}>
         Source: pricepertoken.com · per-token LLM API pricing across 300+ models · updated daily
+      </div>
+    </>
+  );
+}
+
+/* Quality / Value Scatter subtab — live clipped iframe over the sanand0
+   llmpricing scatter (?quality=overall by default). The reverse-proxy at
+   /api/llmpricing-proxy/[[path]] handles the HTML shell and all asset/data
+   relative URLs (script.js, README.md, elo.csv, narrative.json) so the chart
+   renders entirely through our origin. Trailing slash on the iframe src is
+   intentional: it makes every relative URL the page emits land back on the
+   same proxy. */
+function LLMPricingScatterSubtab(){
+  const[err,setErr]=useState(false);
+  return(
+    <>
+      <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:4}}>
+        <span style={{width:7,height:7,borderRadius:"50%",background:"#0e7490",display:"inline-block"}}/>
+        <span style={{fontSize:10,textTransform:"uppercase",letterSpacing:".09em",fontWeight:700,color:"#0e7490"}}>Model Pricing · live quality/value scatter</span>
+      </div>
+      <div style={{marginBottom:10}}>
+        <div style={{fontSize:16,fontWeight:700,color:"#111827",lineHeight:1.3}}>LLM Pricing Quality / Value Scatter</div>
+        <div style={{fontSize:11,color:"#6b7280",marginTop:3}}>
+          Live model quality vs pricing comparison using ELO score and input-token cost.
+        </div>
+      </div>
+
+      {err?(
+        <div style={{background:"#f9fafb",border:"1px dashed #d1d5db",borderRadius:8,padding:"32px 16px",textAlign:"center"}}>
+          <div style={{fontSize:13,color:"#6b7280",fontWeight:500}}>LLM pricing scatter temporarily unavailable.</div>
+          <button onClick={()=>setErr(false)}
+            style={{marginTop:10,fontSize:11,padding:"5px 14px",border:"0.5px solid #d1d5db",borderRadius:6,background:"#fff",color:"#374151",cursor:"pointer",fontFamily:"inherit"}}>
+            Retry
+          </button>
+        </div>
+      ):(
+        <div style={{borderRadius:8,overflow:"hidden",border:"0.5px solid #e5e7eb",background:"#fff"}}>
+          <iframe
+            src={"/api/llmpricing-proxy/?quality=overall&v="+Math.floor(Date.now()/3e5)}
+            title="LLM Pricing — Quality / Value Scatter"
+            loading="lazy"
+            onError={()=>setErr(true)}
+            style={{border:0,display:"block",width:"100%",height:"calc(100vh - 280px)",minHeight:640}}
+          />
+        </div>
+      )}
+      <div style={{fontSize:10,color:"#9ca3af",marginTop:6}}>
+        External live proxy · source: sanand0.github.io/llmpricing · directional quality/value comparison, not a filed financial metric.
       </div>
     </>
   );
