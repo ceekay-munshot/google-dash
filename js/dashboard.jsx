@@ -3441,11 +3441,10 @@ function GoogleGeminiAdoptionTable(){
 ═══════════════════════════════════════════════════════ */
 function GoogleGeminiPricingTable(){
   const[mode,setMode]=useState("quarter"); // "quarter" (default) | "month"
+  const[metric,setMetric]=useState("input"); // "input" | "output"
   const[state,setState]=useState({phase:"loading",data:null,error:null});
   useEffect(()=>{
     let cancelled=false;
-    // Same 5-min cache-bust window the Model Pricing matrix uses; share
-    // the edge-cache entry across both consumers.
     fetch("/api/model-pricing-peer-matrix?v="+Math.floor(Date.now()/3e5))
       .then(r=>r.ok?r.json():Promise.reject(new Error("HTTP "+r.status)))
       .then(d=>{
@@ -3458,17 +3457,17 @@ function GoogleGeminiPricingTable(){
   },[]);
 
   const subtitle = mode==="month"
-    ? "Google-specific price-per-token view from the existing model pricing matrix, by month."
-    : "Google-specific price-per-token view from the existing model pricing matrix.";
+    ? "Every Google/Gemini model in pricepertoken's history, by month."
+    : "Every Google/Gemini model in pricepertoken's history, by quarter.";
 
-  const ModeToggle=(
+  const SegToggle=({value,onChange,options})=>(
     <div style={{display:"inline-flex",border:"0.5px solid #e5e7eb",borderRadius:6,overflow:"hidden",background:"#fff",flexShrink:0}}>
-      {["quarter","month"].map(v=>{
-        const active=mode===v;
+      {options.map(o=>{
+        const active=value===o.v;
         return(
-          <button key={v} onClick={()=>setMode(v)}
-            style={{fontSize:11,padding:"4px 12px",border:"none",background:active?"#111827":"#fff",color:active?"#fff":"#6b7280",cursor:"pointer",fontFamily:"inherit",fontWeight:500,textTransform:"capitalize"}}>
-            {v==="quarter"?"Quarter":"Month"}
+          <button key={o.v} onClick={()=>onChange(o.v)}
+            style={{fontSize:11,padding:"4px 12px",border:"none",background:active?"#111827":"#fff",color:active?"#fff":"#6b7280",cursor:"pointer",fontFamily:"inherit",fontWeight:500}}>
+            {o.label}
           </button>
         );
       })}
@@ -3479,26 +3478,29 @@ function GoogleGeminiPricingTable(){
     <>
       <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:4}}>
         <span style={{width:7,height:7,borderRadius:"50%",background:"#0e7490",display:"inline-block"}}/>
-        <span style={{fontSize:10,textTransform:"uppercase",letterSpacing:".09em",fontWeight:700,color:"#0e7490"}}>Google / Gemini · Model Pricing subset</span>
+        <span style={{fontSize:10,textTransform:"uppercase",letterSpacing:".09em",fontWeight:700,color:"#0e7490"}}>Google / Gemini · All Models · Pricing</span>
       </div>
       <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:12,marginBottom:10,flexWrap:"wrap"}}>
         <div style={{flex:"1 1 auto",minWidth:0}}>
-          <div style={{fontSize:16,fontWeight:700,color:"#111827",lineHeight:1.3}}>Google / Gemini Model Pricing</div>
+          <div style={{fontSize:16,fontWeight:700,color:"#111827",lineHeight:1.3}}>Google / Gemini — All Model Pricing</div>
           <div style={{fontSize:11,color:"#9ca3af",marginTop:3}}>{subtitle}</div>
         </div>
-        {ModeToggle}
+        <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+          <SegToggle value={metric} onChange={setMetric} options={[{v:"input",label:"Input"},{v:"output",label:"Output"}]}/>
+          <SegToggle value={mode}   onChange={setMode}   options={[{v:"quarter",label:"Quarter"},{v:"month",label:"Month"}]}/>
+        </div>
       </div>
     </>
   );
 
   if(state.phase==="loading"){
-    return(<div style={{marginBottom:16}}>{header}<div style={{...S.card}}><Shimmer rows={5}/></div></div>);
+    return(<div style={{marginBottom:16}}>{header}<div style={{...S.card}}><Shimmer rows={8}/></div></div>);
   }
   if(state.phase==="error"){
     return(
       <div style={{marginBottom:16}}>{header}
         <div style={{background:"#fff",border:"0.5px dashed #fca5a5",borderRadius:10,padding:"14px 16px"}}>
-          <div style={{fontSize:12,color:"#991b1b",fontWeight:500}}>Google / Gemini pricing subset temporarily unavailable</div>
+          <div style={{fontSize:12,color:"#991b1b",fontWeight:500}}>Google / Gemini pricing temporarily unavailable</div>
           <div style={{fontSize:11,color:"#6b7280",marginTop:2}}>{state.error||"/api/model-pricing-peer-matrix did not return success"}</div>
         </div>
       </div>
@@ -3506,27 +3508,46 @@ function GoogleGeminiPricingTable(){
   }
 
   const data=state.data;
-  // Periods come from the endpoint as either `quarters[]` or `months[]`
-  // (both chronological; `partial` flag set on QTD / MTD respectively).
-  // The endpoint emits both — toggling here just picks which array to read.
   const periods = mode==="month" ? (data?.months||[]) : (data?.quarters||[]);
-  const reps=data?.reps||[];
-  const frontier=reps.find(r=>r.key==="google-frontier"&&r.hasData!==false);
-  const fast    =reps.find(r=>r.key==="google-fast"    &&r.hasData!==false);
+  const models  = data?.googleModels || [];
 
-  if(!periods.length||(!frontier&&!fast)){
+  if(!periods.length||!models.length){
     return(
       <div style={{marginBottom:16}}>{header}
         <div style={{background:"#fff",border:"0.5px solid #e5e7eb",borderRadius:10,padding:"14px 16px"}}>
-          <div style={{fontSize:12,color:"#111827",fontWeight:500}}>Subset populates as upstream Google pricing history accumulates</div>
+          <div style={{fontSize:12,color:"#111827",fontWeight:500}}>Populates as upstream Google pricing history accumulates</div>
         </div>
       </div>
     );
   }
 
-  // Same display rules as the full Model Pricing matrix: 0 → "0", missing → "—".
-  // Color convention is INVERTED from growth tables — for pricing, a drop is
-  // favorable (green) and an increase is cost pressure (red).
+  // Tier classification — finance-model grouping. Order matters: each
+  // model lands in the FIRST matching tier, so brand checks (Gemma, Lyria)
+  // run before sub-tier checks. Inside Gemini: Specialty wins over the
+  // text-LLM tiers because image/audio/customtools modes share Gemini Pro
+  // naming (e.g. gemini-3-pro-image-preview). Flash-Lite before Flash.
+  // OtherGemini catches anything I missed so the operator always sees the
+  // full Google catalog and can spot mis-classified entries.
+  const SPECIALTY_RE = /image|audio|tts|transcribe|computeruse|embedding|customtools|nativeaudio/;
+  const TIERS = [
+    {id:"gemma",       label:"Gemma (Open Weights)",     match: n => /^gemma/.test(n) },
+    {id:"lyria",       label:"Lyria (Audio Generation)", match: n => /^lyria/.test(n) },
+    {id:"specialty",   label:"Gemini Specialty / Modal", match: n => /^gemini/.test(n) && SPECIALTY_RE.test(n) },
+    {id:"flashlite",   label:"Gemini Flash-Lite",        match: n => /^gemini/.test(n) && /flash/.test(n) && /lite/.test(n) },
+    {id:"flash",       label:"Gemini Flash",             match: n => /^gemini/.test(n) && /flash/.test(n) },
+    {id:"pro",         label:"Gemini Pro",               match: n => /^gemini/.test(n) && /pro/.test(n) },
+    {id:"otherGemini", label:"Other Gemini",             match: n => /^gemini/.test(n) },
+    {id:"other",       label:"Other",                    match: () => true },
+  ];
+
+  const classify = m => {
+    for (const t of TIERS) if (t.match(m.norm)) return t.id;
+    return "other";
+  };
+  const grouped = new Map(TIERS.map(t => [t.id, []]));
+  for (const m of models) grouped.get(classify(m)).push(m);
+  // Already pre-sorted by lastDate desc on the server; preserve.
+
   const fmtPrice=v=>{
     if(v==null||!isFinite(v))return"—";
     if(v>=10)return"$"+v.toFixed(2);
@@ -3541,9 +3562,6 @@ function GoogleGeminiPricingTable(){
     return <span style={{color}}>{str}</span>;
   };
 
-  // Period label — quarter-end month (Mar/Jun/Sep/Dec-YY) for quarters,
-  // month-name (e.g. "Aug-25") for months. Same conventions as the rest
-  // of the dashboard.
   const MONTH_NAMES=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
   const labelOf = pid => {
     if (mode==="month") {
@@ -3556,79 +3574,64 @@ function GoogleGeminiPricingTable(){
     return ["Mar","Jun","Sep","Dec"][parseInt(m[2],10)-1]+"-"+String(parseInt(m[1],10)).slice(2);
   };
   const partialBadge = mode==="month" ? "MTD" : "QTD";
-  const primaryGrowthLabel = mode==="month" ? "MoM" : "QoQ";
 
-  // Field-name keys on the rep — input/output for prices, qoq*/mom* for the
-  // primary growth metric, yoy* / yoy*Monthly for year-over-year.
-  const inputKey       = mode==="month" ? "inputMonthly"        : "input";
-  const outputKey      = mode==="month" ? "outputMonthly"       : "output";
-  const primaryInKey   = mode==="month" ? "momInput"            : "qoqInput";
-  const primaryOutKey  = mode==="month" ? "momOutput"           : "qoqOutput";
-  const yoyInKey       = mode==="month" ? "yoyInputMonthly"     : "yoyInput";
-  const yoyOutKey      = mode==="month" ? "yoyOutputMonthly"    : "yoyOutput";
+  // Field-name keys read off the per-model entry: input/output for prices,
+  // qoq*/mom* for primary growth, yoy* for year-over-year (monthly variant
+  // pulls inputMonthly etc.).
+  const priceKey   = mode==="month"
+    ? (metric==="input" ? "inputMonthly" : "outputMonthly")
+    : (metric==="input" ? "input"        : "output");
+  const growthKey  = mode==="month"
+    ? (metric==="input" ? "momInput"     : "momOutput")
+    : (metric==="input" ? "qoqInput"     : "qoqOutput");
+  const yoyKey     = mode==="month"
+    ? (metric==="input" ? "yoyInputMonthly" : "yoyOutputMonthly")
+    : (metric==="input" ? "yoyInput"        : "yoyOutput");
+
+  // Display name — turn 'gemini-3-pro-preview' into 'Gemini 3 Pro Preview'
+  const displayName = raw => raw
+    .split(/[-_]/)
+    .filter(Boolean)
+    .map(w => w.length<=2 && /^\d/.test(w) ? w : w[0].toUpperCase()+w.slice(1))
+    .join(" ");
 
   const STICKY_BG="#f3f4f6";
   const STICKY_SHADOW="2px 0 0 #e5e7eb, 6px 0 6px -4px rgba(17,24,39,0.08)";
-  const FIRST_COL_W=320;
-  const COL_W=110;
+  const FIRST_COL_W=300;
+  const COL_W=98;
   const stickyFirstBase={position:"sticky",left:0,background:STICKY_BG,boxShadow:STICKY_SHADOW,minWidth:FIRST_COL_W,maxWidth:FIRST_COL_W,width:FIRST_COL_W};
   const thMain={textAlign:"right",padding:"5px 10px",fontSize:10,color:"#6b7280",fontWeight:600,whiteSpace:"nowrap",minWidth:COL_W};
   const thFirst={...stickyFirstBase,textAlign:"left",padding:"5px 10px",fontSize:10,color:"#6b7280",fontWeight:600,whiteSpace:"nowrap",zIndex:3};
   const tdMain={textAlign:"right",padding:"4px 10px",fontSize:12,color:"#111827",fontFamily:"ui-monospace,SFMono-Regular,Menlo,monospace",whiteSpace:"nowrap",minWidth:COL_W};
-  const tdDim ={textAlign:"right",padding:"4px 10px",fontSize:12,color:"#6b7280",fontFamily:"ui-monospace,SFMono-Regular,Menlo,monospace",whiteSpace:"nowrap",minWidth:COL_W};
   const tdFirst={...stickyFirstBase,textAlign:"left",padding:"6px 10px 6px 18px",fontSize:11,whiteSpace:"nowrap",zIndex:2};
+  const tierHeaderTd={...stickyFirstBase,textAlign:"left",padding:"7px 10px 5px 12px",fontSize:10,color:"#0e7490",fontWeight:700,letterSpacing:".05em",textTransform:"uppercase",zIndex:2,background:"#e0f2fe"};
+  const tierHeaderMain={textAlign:"right",padding:"7px 10px 5px 10px",fontSize:10,color:"#0e7490",fontWeight:600,whiteSpace:"nowrap",background:"#e0f2fe",minWidth:COL_W};
 
-  // Row spec mirrors the customer's exact ordering. Each entry knows which
-  // rep it reads from and which key on that rep (input/output/qoq*/yoy*).
-  // Frontier and Fast are tied to the same rep's modelDisplay so the
-  // sub-label always tracks whichever Gemini variant the endpoint chose
-  // (e.g. Gemini 3 Pro Preview when gen-3 has upstream rows; otherwise
-  // the Gemini 2.5 Pro fallback).
-  const tierLabel=rep=>{
-    const matchedSummary=(rep?.matchedModels||[]).length
-      ? rep.matchedModels.length+" upstream variant"+(rep.matchedModels.length===1?"":"s")+" matched: "+rep.matchedModels.join(", ")
-      : null;
-    return {modelDisplay:rep?.modelDisplay||"—", title:matchedSummary};
-  };
-  const fLabel=tierLabel(frontier);
-  const sLabel=tierLabel(fast);
-
-  const rowsSpec=[
-    // Pricing
-    {label:"Gemini Frontier — Input Price / 1M Tokens",                 sub:fLabel.modelDisplay, title:fLabel.title, rep:frontier, style:tdMain, value:(rep,pid)=>fmtPrice(rep?.[inputKey]?.[pid])},
-    {label:"Gemini Frontier — Output Price / 1M Tokens",                sub:fLabel.modelDisplay, title:fLabel.title, rep:frontier, style:tdMain, value:(rep,pid)=>fmtPrice(rep?.[outputKey]?.[pid])},
-    {label:"Gemini Fast / Cost-efficient — Input Price / 1M Tokens",    sub:sLabel.modelDisplay, title:sLabel.title, rep:fast,     style:tdMain, value:(rep,pid)=>fmtPrice(rep?.[inputKey]?.[pid])},
-    {label:"Gemini Fast / Cost-efficient — Output Price / 1M Tokens",   sub:sLabel.modelDisplay, title:sLabel.title, rep:fast,     style:tdMain, value:(rep,pid)=>fmtPrice(rep?.[outputKey]?.[pid])},
-    // Primary growth (QoQ in quarter view, MoM in month view)
-    {label:"Gemini Frontier — "+primaryGrowthLabel+" Price Change, input",                 sub:fLabel.modelDisplay, title:fLabel.title, rep:frontier, style:tdDim,  value:(rep,pid)=>fmtChange(rep?.[primaryInKey]?.[pid])},
-    {label:"Gemini Frontier — "+primaryGrowthLabel+" Price Change, output",                sub:fLabel.modelDisplay, title:fLabel.title, rep:frontier, style:tdDim,  value:(rep,pid)=>fmtChange(rep?.[primaryOutKey]?.[pid])},
-    {label:"Gemini Fast / Cost-efficient — "+primaryGrowthLabel+" Price Change, input",    sub:sLabel.modelDisplay, title:sLabel.title, rep:fast,     style:tdDim,  value:(rep,pid)=>fmtChange(rep?.[primaryInKey]?.[pid])},
-    {label:"Gemini Fast / Cost-efficient — "+primaryGrowthLabel+" Price Change, output",   sub:sLabel.modelDisplay, title:sLabel.title, rep:fast,     style:tdDim,  value:(rep,pid)=>fmtChange(rep?.[primaryOutKey]?.[pid])},
-  ];
-
-  // YoY rows are appended only if the endpoint surfaces any non-null YoY
-  // values for either rep — keeps the table compact when full-year history
-  // doesn't exist yet (current state) and grows it naturally once it does.
-  const anyYoy=(rep,key)=>rep&&Object.values(rep?.[key]||{}).some(v=>v!=null&&isFinite(v));
-  const yoyAvailable=anyYoy(frontier,yoyInKey)||anyYoy(frontier,yoyOutKey)||anyYoy(fast,yoyInKey)||anyYoy(fast,yoyOutKey);
-  if(yoyAvailable){
-    rowsSpec.push(
-      {label:"Gemini Frontier — YoY Price Change, input",               sub:fLabel.modelDisplay, title:fLabel.title, rep:frontier, style:tdDim, value:(rep,pid)=>fmtChange(rep?.[yoyInKey]?.[pid])},
-      {label:"Gemini Frontier — YoY Price Change, output",              sub:fLabel.modelDisplay, title:fLabel.title, rep:frontier, style:tdDim, value:(rep,pid)=>fmtChange(rep?.[yoyOutKey]?.[pid])},
-      {label:"Gemini Fast / Cost-efficient — YoY Price Change, input",  sub:sLabel.modelDisplay, title:sLabel.title, rep:fast,     style:tdDim, value:(rep,pid)=>fmtChange(rep?.[yoyInKey]?.[pid])},
-      {label:"Gemini Fast / Cost-efficient — YoY Price Change, output", sub:sLabel.modelDisplay, title:sLabel.title, rep:fast,     style:tdDim, value:(rep,pid)=>fmtChange(rep?.[yoyOutKey]?.[pid])},
-    );
+  // Compose final body rows: a tier-header row followed by per-model rows
+  // (price + growth) within each non-empty tier. Models within a tier are
+  // already lastDate-desc on the server.
+  const bodyRows = [];
+  for (const t of TIERS) {
+    const list = grouped.get(t.id) || [];
+    if (!list.length) continue;
+    bodyRows.push({type:"tierHeader", id:t.id, label:t.label, count:list.length});
+    for (const m of list) {
+      bodyRows.push({type:"price",    model:m, label:displayName(m.model), sub:m.model});
+      bodyRows.push({type:"growth",   model:m, label:" — "+(mode==="month"?"MoM":"QoQ")+" change", sub:m.model});
+    }
   }
+
+  const totalCols = FIRST_COL_W + COL_W * periods.length;
 
   return(
     <div style={{marginBottom:16}}>
       {header}
       <div style={{border:"0.5px solid #e5e7eb",borderRadius:8,overflow:"hidden",background:"#f9fafb"}}>
         <div style={{overflowX:"auto"}}>
-          <table style={{width:"100%",borderCollapse:"separate",borderSpacing:0,background:"#f3f4f6",minWidth:FIRST_COL_W+COL_W*periods.length}}>
+          <table style={{width:"100%",borderCollapse:"separate",borderSpacing:0,background:"#f3f4f6",minWidth:totalCols}}>
             <thead>
               <tr>
-                <th style={thFirst}></th>
+                <th style={thFirst}>{metric==="input"?"Input price / 1M tokens":"Output price / 1M tokens"}</th>
                 {periods.map(p=>(
                   <th key={p.id} style={thMain}>
                     {labelOf(p.id)}
@@ -3638,25 +3641,45 @@ function GoogleGeminiPricingTable(){
               </tr>
             </thead>
             <tbody>
-              {rowsSpec.map((r,i)=>(
-                <tr key={i}>
-                  <td style={tdFirst} title={r.title||undefined}>
-                    <div style={{lineHeight:1.25}}>
-                      <div style={{fontWeight:600,color:"#111827"}}>{r.label}</div>
-                      <div style={{fontSize:10,color:"#9ca3af",fontFamily:"ui-monospace,SFMono-Regular,Menlo,monospace"}}>{r.sub}</div>
-                    </div>
-                  </td>
-                  {periods.map(p=>(
-                    <td key={p.id} style={r.style}>{r.value(r.rep,p.id)}</td>
-                  ))}
-                </tr>
-              ))}
+              {bodyRows.map((r,i)=>{
+                if (r.type==="tierHeader") {
+                  return(
+                    <tr key={i}>
+                      <td style={tierHeaderTd}>{r.label} <span style={{color:"#0891b2",fontWeight:500}}>· {r.count}</span></td>
+                      {periods.map(p=>(<td key={p.id} style={tierHeaderMain}>{labelOf(p.id)}</td>))}
+                    </tr>
+                  );
+                }
+                if (r.type==="price") {
+                  return(
+                    <tr key={i}>
+                      <td style={tdFirst} title={"First seen "+r.model.firstDate+" · last "+r.model.lastDate+" · "+r.model.obsCount+" obs"}>
+                        <div style={{lineHeight:1.25}}>
+                          <div style={{fontWeight:600,color:"#111827"}}>{r.label}</div>
+                          <div style={{fontSize:10,color:"#9ca3af",fontFamily:"ui-monospace,SFMono-Regular,Menlo,monospace"}}>{r.sub}</div>
+                        </div>
+                      </td>
+                      {periods.map(p=>(<td key={p.id} style={tdMain}>{fmtPrice(r.model[priceKey]?.[p.id])}</td>))}
+                    </tr>
+                  );
+                }
+                if (r.type==="growth") {
+                  const tdDim ={textAlign:"right",padding:"4px 10px",fontSize:12,color:"#6b7280",fontFamily:"ui-monospace,SFMono-Regular,Menlo,monospace",whiteSpace:"nowrap",minWidth:COL_W};
+                  return(
+                    <tr key={i}>
+                      <td style={{...tdFirst,padding:"4px 10px 6px 30px",color:"#6b7280",fontSize:10}}>{r.label}</td>
+                      {periods.map(p=>(<td key={p.id} style={tdDim}>{fmtChange(r.model[growthKey]?.[p.id])}</td>))}
+                    </tr>
+                  );
+                }
+                return null;
+              })}
             </tbody>
           </table>
         </div>
       </div>
       <div style={{fontSize:10,color:"#9ca3af",lineHeight:1.5,marginTop:6}}>
-        Pricing uses pricepertoken historical model-level rows. This is a Google/Gemini subset of the full Model Pricing tab.
+        {models.length} Google/Gemini models from pricepertoken historical rows. Models sorted by most-recent observation per tier. Specialty includes image, audio, TTS, embedding, computer-use modes.
       </div>
     </div>
   );

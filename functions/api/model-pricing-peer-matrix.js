@@ -351,6 +351,113 @@ function currentMonthKey() {
 
 function round3(n) { return Math.round(n * 1000) / 1000; }
 
+/* Per-model history aggregation — used for the Google all-models view.
+   Reads a provider fetch result and returns one entry per distinct upstream
+   model name with quarterly + monthly input/output averages and QoQ/MoM/YoY
+   change ratios. Matches the same scaling, partial-period suppression, and
+   field-name conventions used by the rep-level math above so the client
+   renderer can reuse its formatters. */
+function buildPerModelHistory(providerData, todayQ, todayM) {
+  if (!providerData || !Array.isArray(providerData.rows) || !providerData.rows.length) return [];
+
+  const byModel = new Map();
+  for (const row of providerData.rows) {
+    if (typeof row?.model !== 'string') continue;
+    if (typeof row?.date !== 'string' || row.date.length < 10) continue;
+    const key = row.model;
+    let entry = byModel.get(key);
+    if (!entry) {
+      entry = {
+        model: row.model,
+        norm: normalizeModel(row.model),
+        firstDate: row.date,
+        lastDate: row.date,
+        obsCount: 0,
+        qBuckets: new Map(),
+        mBuckets: new Map(),
+      };
+      byModel.set(key, entry);
+    }
+    if (row.date < entry.firstDate) entry.firstDate = row.date;
+    if (row.date > entry.lastDate)  entry.lastDate  = row.date;
+    entry.obsCount += 1;
+
+    const qid = quarterOf(row.date);
+    const mid = monthOf(row.date);
+    if (!entry.qBuckets.has(qid)) entry.qBuckets.set(qid, { sumIn:0, nIn:0, sumOut:0, nOut:0 });
+    if (!entry.mBuckets.has(mid)) entry.mBuckets.set(mid, { sumIn:0, nIn:0, sumOut:0, nOut:0 });
+    const qb = entry.qBuckets.get(qid);
+    const mb = entry.mBuckets.get(mid);
+    const inP  = row?.pricing_prompt;
+    const outP = row?.pricing_completion;
+    if (typeof inP  === 'number' && isFinite(inP)  && inP  >= 0) { qb.sumIn  += inP;  qb.nIn  += 1; mb.sumIn  += inP;  mb.nIn  += 1; }
+    if (typeof outP === 'number' && isFinite(outP) && outP >= 0) { qb.sumOut += outP; qb.nOut += 1; mb.sumOut += outP; mb.nOut += 1; }
+  }
+
+  const out = [];
+  for (const e of byModel.values()) {
+    const input = {}, output = {};
+    for (const [qid, b] of e.qBuckets) {
+      input[qid]  = b.nIn  ? round3((b.sumIn  / b.nIn)  * 1_000_000) : null;
+      output[qid] = b.nOut ? round3((b.sumOut / b.nOut) * 1_000_000) : null;
+    }
+    const inputMonthly = {}, outputMonthly = {};
+    for (const [mid, b] of e.mBuckets) {
+      inputMonthly[mid]  = b.nIn  ? round3((b.sumIn  / b.nIn)  * 1_000_000) : null;
+      outputMonthly[mid] = b.nOut ? round3((b.sumOut / b.nOut) * 1_000_000) : null;
+    }
+
+    // Per-quarter QoQ/YoY (same partial-period suppression as the rep math)
+    const qoqInput = {}, qoqOutput = {}, yoyInput = {}, yoyOutput = {};
+    for (const qid of Object.keys(input)) {
+      if (qid === todayQ) continue;
+      const pq = priorQuarter(qid), yq = yearAgoQuarter(qid);
+      const inCur = input[qid], outCur = output[qid];
+      const inPri = input[pq],  outPri = output[pq];
+      const inYa  = input[yq],  outYa  = output[yq];
+      if (inCur  != null && inPri  != null && inPri  > 0) qoqInput[qid]  = round3((inCur  - inPri)  / inPri);
+      if (inCur  != null && inYa   != null && inYa   > 0) yoyInput[qid]  = round3((inCur  - inYa)   / inYa);
+      if (outCur != null && outPri != null && outPri > 0) qoqOutput[qid] = round3((outCur - outPri) / outPri);
+      if (outCur != null && outYa  != null && outYa  > 0) yoyOutput[qid] = round3((outCur - outYa)  / outYa);
+    }
+
+    const momInput = {}, momOutput = {}, yoyInputMonthly = {}, yoyOutputMonthly = {};
+    for (const mid of Object.keys(inputMonthly)) {
+      if (mid === todayM) continue;
+      const pm = priorMonth(mid), ym = yearAgoMonth(mid);
+      const inCur = inputMonthly[mid], outCur = outputMonthly[mid];
+      const inPri = inputMonthly[pm],  outPri = outputMonthly[pm];
+      const inYa  = inputMonthly[ym], outYa  = outputMonthly[ym];
+      if (inCur  != null && inPri  != null && inPri  > 0) momInput[mid]         = round3((inCur  - inPri)  / inPri);
+      if (inCur  != null && inYa   != null && inYa   > 0) yoyInputMonthly[mid]  = round3((inCur  - inYa)   / inYa);
+      if (outCur != null && outPri != null && outPri > 0) momOutput[mid]        = round3((outCur - outPri) / outPri);
+      if (outCur != null && outYa  != null && outYa  > 0) yoyOutputMonthly[mid] = round3((outCur - outYa)  / outYa);
+    }
+
+    out.push({
+      model: e.model,
+      norm: e.norm,
+      firstDate: e.firstDate.slice(0, 10),
+      lastDate: e.lastDate.slice(0, 10),
+      obsCount: e.obsCount,
+      input, output,
+      inputMonthly, outputMonthly,
+      qoqInput, qoqOutput,
+      momInput, momOutput,
+      yoyInput, yoyOutput,
+      yoyInputMonthly, yoyOutputMonthly,
+    });
+  }
+
+  // Newest model first (by lastDate desc, tie-break firstDate desc)
+  out.sort((a, b) => {
+    if (a.lastDate !== b.lastDate)   return a.lastDate < b.lastDate ? 1 : -1;
+    if (a.firstDate !== b.firstDate) return a.firstDate < b.firstDate ? 1 : -1;
+    return a.model < b.model ? -1 : 1;
+  });
+  return out;
+}
+
 async function fetchProvider(slug) {
   const url = UPSTREAM_BASE + '?provider=' + encodeURIComponent(slug);
   try {
@@ -842,6 +949,18 @@ export async function onRequestGet({ request, env }) {
     return { providerSlug: f.slug, modelCount: models.length, models };
   });
 
+  // Google all-models history — for the Google Cloud / Model API Usage tab.
+  // Same upstream rows the rep math reads, but bucketed per *individual* model
+  // (no peer-pair filtering) so the Google-focused tab can show every model
+  // Google has shipped in the upstream window. Quarter + month granularity
+  // emitted in parallel so the client picks the view via toggle without a
+  // second round-trip. Models are tier-classified on the client (Pro / Flash /
+  // Flash-Lite / Specialty) — we leave the raw norm + display name here and
+  // let the renderer decide how to group, so the classifier stays close to
+  // the visual logic.
+  const googleProvider = byProvider.get('google');
+  const googleModels = buildPerModelHistory(googleProvider, todayQ, todayM);
+
   // External catalog is OPTIONAL — used only for discovery/freshness drift.
   // Pricing math (avg, QoQ, YoY) above is fully sourced from pricepertoken
   // and independent of this block. If FIRECRAWL_API_KEY is missing or the
@@ -883,6 +1002,7 @@ export async function onRequestGet({ request, env }) {
     reps,
     frontierReference,
     providerCatalog,
+    googleModels,
     externalCatalog,
     providerErrors,
   });
