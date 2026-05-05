@@ -7,10 +7,13 @@ name: History Freshness Check
 
 on:
   schedule:
-    # 13:23 UTC daily — well after the 09:07 UTC capture workflow's worst-case
-    # finish time (capture cron drift up to 30 min + retries up to ~6 min).
-    # Off-minute (:23) avoids the heavily-queued :00 / :30 hot slots.
-    - cron: '23 13 * * *'
+    # 22:47 UTC daily — runs AFTER the last of three capture slots
+    # (09:07, 15:13, 21:31 UTC) plus their worst-case GitHub scheduler drift
+    # (~30 min) and the workflow's retry budget (~6 min). This is the
+    # final-line-of-defense check: if it sees stale state, ALL THREE capture
+    # slots failed for today UTC, which is the only scenario worth alerting on.
+    # Off-minute (:47) avoids the heavily-queued :00 / :30 hot slots.
+    - cron: '47 22 * * *'
 
   workflow_dispatch:
     inputs:
@@ -126,10 +129,11 @@ jobs:
 
           # ── FRESHNESS RULE ──
           # The latest canonical snapshot date must equal today UTC.
-          # By the time this workflow runs (13:23 UTC), the daily capture at
-          # 09:07 UTC should have written today's entry — even with worst-case
-          # GitHub cron drift (30 min) + retry budget (~6 min). Any other state
-          # means today's capture didn't happen.
+          # By the time this workflow runs (22:47 UTC), the LAST of three
+          # daily capture slots (09:07, 15:13, 21:31 UTC) should have written
+          # today's entry — even with worst-case GitHub cron drift (30 min)
+          # + retry budget (~6 min). The endpoint also auto-fills gap days,
+          # so seeing stale at 22:47 means literally every redundancy failed.
           if [ "$LATEST" = "$TODAY" ]; then
             echo "::notice::Freshness OK — latest=$LATEST matches today UTC ($COUNT snapshots total)"
             echo "stale=false"               >> "$GITHUB_OUTPUT"

@@ -15,10 +15,14 @@ name: History Gap Audit
 
 on:
   schedule:
-    # 13:47 UTC daily — ~24 minutes after the freshness check at 13:23 UTC.
-    # Runs second so the freshness alert (today missing) fires before this
-    # one (general gap detected). Off-minute (:47) keeps it out of the hot slot.
-    - cron: '47 13 * * *'
+    # 23:11 UTC daily — ~24 minutes after the freshness check at 22:47 UTC,
+    # which itself runs after the last capture slot (21:31 UTC). Runs second
+    # so the freshness alert (today missing) fires before this one (general
+    # gap detected). Off-minute (:11) keeps it out of the hot slot. The
+    # endpoint's self-healing gap fill should normally repair gaps before
+    # this audit runs; the audit fires as a final sanity check that the
+    # self-healing actually happened.
+    - cron: '11 23 * * *'
 
   workflow_dispatch:
     inputs:

@@ -1,14 +1,25 @@
 name: Daily History Capture
 
-# Triggers canonical history capture once per day.
-# The endpoint is idempotent (same-day, same-hash = skip) so accidental
-# double-runs are safe.
+# Triggers canonical history capture multiple times per day for redundancy.
+# The endpoint is idempotent (same-day, same-hash = skip) AND self-healing
+# (auto-fills any gap days between latest stored snapshot and today on every
+# run), so accidental double-runs are safe and any single missed slot is
+# patched on the next successful run.
+#
+# Why multiple slots: GitHub's scheduled-workflow service silently drops or
+# queues runs under load — single-slot crons have lost runs in production.
+# Three off-minute slots spread ~6 hours apart means it's vanishingly unlikely
+# that all three would fail on the same day. The dedup path makes the extra
+# runs a no-op (HTTP 200, action: "skipped") on days when the first slot wins.
 
 on:
   schedule:
-    # 09:07 UTC daily. Off-minute (not :00 or :30) to avoid the hot slot
-    # where GitHub's scheduler is heavily queued and can run 30-60 min late.
+    # Three slots, all off-minute, spread across the day to dodge GitHub's
+    # heavily-queued :00/:30 hot slots and to make full-day cron outages
+    # extremely unlikely. Order: 09:07 → 15:13 → 21:31 UTC.
     - cron: '7 9 * * *'
+    - cron: '13 15 * * *'
+    - cron: '31 21 * * *'
 
   # Manual trigger from the GitHub UI → Actions tab → "Daily History Capture" → Run workflow
   workflow_dispatch:

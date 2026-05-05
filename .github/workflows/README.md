@@ -1,10 +1,26 @@
 # GitHub Actions — Google Dash
 
+## Workflow overview
+
+| Workflow | Schedule (UTC) | Purpose |
+|---|---|---|
+| `history-capture.yml` | 09:07, 15:13, 21:31 | Three redundant slots that POST to `/api/history-capture` so daily snapshots accumulate even if individual slots are dropped by GitHub's scheduler |
+| `history-freshness-check.yml` | 22:47 | Final-line-of-defense check that today's snapshot exists; alerts only if all three capture slots failed |
+| `history-gap-audit.yml` | 23:11 | Audits the recent rolling window for any missing UTC dates that even the endpoint's self-healing gap fill failed to patch |
+| `keepalive.yml` | every 25 days | Pushes a tiny heartbeat commit so GitHub doesn't auto-disable scheduled workflows after 60 days of repo inactivity |
+
+### Why this many layers?
+
+The April → May 2026 outage taught the lesson: a single-slot cron + a freshness alert is *not* a self-healing system — it just tells you faster that the system is broken. The redesign has four independent reliability layers stacked so any one failure is recoverable without human intervention:
+
+1. **Multi-slot cron** (3× daily) — any single slot succeeds and today is captured
+2. **Endpoint-side self-healing** — `/api/history-capture` auto-fills gap days between latest stored and today on every successful run, so one good run after a multi-day outage repairs the whole gap
+3. **Freshness watchdog** — alerts only on the (now very rare) all-redundancy-failed scenario
+4. **Keepalive** — prevents the entire scheduled-workflow system from being auto-disabled
+
 ## `history-capture.yml` — Daily Canonical History Capture
 
-Automatically triggers the production `/api/history-capture` endpoint once per
-day so the History tab accumulates canonical daily snapshots without anyone
-needing to open the dashboard.
+Automatically triggers the production `/api/history-capture` endpoint multiple times per day so the History tab accumulates canonical daily snapshots without anyone needing to open the dashboard.
 
 ### Required GitHub Secrets
 
@@ -29,9 +45,22 @@ Also confirm the KV binding exists:
 
 ### Schedule
 
-- Runs daily at **09:07 UTC** (approximately — GitHub cron can drift 5–30 minutes under load)
-- Uses an off-minute (`:07` rather than `:00`) to avoid the heavily-queued hot slot
+Three slots per day, all off-minute and spread ~6 hours apart:
+
+| Slot | UTC time | Purpose |
+|---|---|---|
+| Primary | `09:07` | First daily attempt |
+| Secondary | `15:13` | Cover for a missed/queued primary |
+| Tertiary | `21:31` | Last-line attempt before the daily freshness check |
+
+- All three off-minute to dodge GitHub's heavily-queued `:00` / `:30` slots
+- Endpoint is **idempotent** (same-content → `action: "skipped"`) so multiple slots succeeding is safe — only one canonical entry per date ever exists
+- Endpoint is **self-healing** (auto-fills any gap days between latest stored snapshot and today) so a single slot succeeding repairs everything
 - Also triggers on manual dispatch via **Actions tab → "Daily History Capture" → Run workflow**
+
+### Why three slots
+
+GitHub's scheduled-workflow service has documented cases of dropping or queueing scheduled runs under load. Single-slot crons have produced multi-day gaps in production (see April → May 2026 gap that triggered this redesign). Three off-minute slots make all-day-skipped vanishingly unlikely; combined with the endpoint's self-healing gap-fill, even an outage that takes out all three slots for a day is patched on the next successful run within ~24 hours.
 
 ### Behavior
 
@@ -50,6 +79,17 @@ The capture endpoint is **content-hash deduplicated**:
 - New day → returns `{action: "created"}`
 
 Multiple daily runs are safe; only one canonical entry per date ever exists.
+
+### Self-healing gap fill
+
+When called without a `?date` parameter, the endpoint also **auto-fills any gap days** between the latest stored snapshot and today UTC. Each gap day is written with `source: "autofill-gap"` using the freshly-fetched payload (same caveat as explicit backfill: values reflect capture-time state, not the original missed day).
+
+The response includes:
+- `autofilled: ["2026-05-01", "2026-05-02", ...]` — list of gap dates filled in this run
+- `autofillTruncated: true|false` — whether the fill was capped at `MAX_AUTOFILL_DAYS` (90)
+- `results: [...]` — per-date breakdown (action, hash, dedup, source) for every date written
+
+This means **any single successful capture run after a multi-day cron outage patches every missed day in one shot**. The only operator-visible cost is that the gap days share the run's hash (so they appear `dedup: true` against each other in the chain) — that's correct behavior, since we have no way to recover the actual upstream values for those past dates.
 
 ### Manual Trigger
 
@@ -129,9 +169,9 @@ After a run (scheduled or manual):
 
 ### Limitations / Known caveats
 
-- **GitHub Actions cron is best-effort**, not guaranteed. If the scheduled slot is contended, runs can be delayed or (rarely) skipped entirely. For a daily snapshot this is acceptable; the `concurrency` guard plus content-hash dedup means late runs still produce the correct canonical state.
-- **Timezone**: the cron schedule is UTC. `09:07 UTC` is 02:07 PT / 05:07 ET / 14:37 IST. Adjust if you want the capture to align with a specific business day boundary.
-- **GitHub auto-disables workflows after 60 days of repo inactivity**. If the repo goes dormant, the cron will stop. Any manual run or commit re-enables it.
+- **GitHub Actions cron is best-effort**, not guaranteed. If a scheduled slot is contended, runs can be delayed or (rarely) skipped entirely. The three-slot redundancy + self-healing gap fill is specifically designed to make this irrelevant for the daily snapshot — the only way to lose a day permanently is for all three slots to fail AND the next day's slots to also fail, which is vanishingly unlikely.
+- **Timezone**: the cron schedule is UTC. `09:07 / 15:13 / 21:31 UTC` covers the 24-hour day across the major business timezones.
+- **GitHub auto-disables workflows after 60 days of repo inactivity.** A separate `keepalive.yml` workflow pushes a tiny heartbeat commit every 25 days specifically to prevent this. Even if `keepalive` itself is disabled or removed, any manual commit re-enables scheduled workflows.
 
 ---
 
@@ -160,10 +200,14 @@ so a regression in one cannot mask the other.
 
 ### Schedule
 
-- Runs daily at **13:23 UTC** (~4 hours after the 09:07 UTC capture
-  workflow). Buffer accommodates worst-case GitHub cron drift (30 min)
-  plus the capture's retry budget (~6 min).
-- Off-minute (`:23`) avoids the heavily-queued `:00` / `:30` slots.
+- Runs daily at **22:47 UTC** — after the *last* of the three capture
+  slots (09:07, 15:13, 21:31) plus their worst-case GitHub cron drift
+  (~30 min) and the capture workflow's retry budget (~6 min). This is
+  the final-line-of-defense check: if it sees stale state, **all three
+  capture slots failed for today UTC**, which is the only scenario worth
+  alerting on (single-slot misses are routine and patched by the next
+  slot's self-healing run).
+- Off-minute (`:47`) avoids the heavily-queued `:00` / `:30` slots.
 - Also triggers on **`workflow_dispatch`** (manual run) for testing.
 
 ### Freshness rule (exact)
@@ -178,10 +222,10 @@ The workflow fails (and alerts) if **any** of the following is true:
 When `latest === today UTC`, the check passes silently with no
 side effects.
 
-**No tolerance window.** If `latest` is yesterday at 13:23 UTC, that's
-explicitly stale — today's capture didn't happen and an alert fires. The
-goal is fast, unambiguous detection; ambiguity is what we're trying to
-avoid.
+**No tolerance window.** If `latest` is yesterday at 22:47 UTC, that's
+explicitly stale — *every* redundancy (three capture slots + endpoint
+auto-fill) failed for today, and an alert fires. The goal is fast,
+unambiguous detection; ambiguity is what we're trying to avoid.
 
 ### Stale alerting behavior
 
@@ -234,9 +278,9 @@ To verify alerting actually opens issues without breaking production:
 ### Caveats
 
 - **GitHub Actions cron is best-effort** (5–30 min drift typical, longer
-  in rare incidents). The 13:23 UTC slot is chosen well after the 09:07
-  UTC capture so even worst-case drift on both sides leaves an hour of
-  buffer.
+  in rare incidents). The 22:47 UTC slot is chosen well after the last
+  capture slot (21:31 UTC) so even worst-case drift on both sides leaves
+  ~30 min of buffer.
 - **UTC only.** "Today" is `date -u +%Y-%m-%d`. If you want a different
   timezone basis (e.g., US business day), edit the bash that produces
   `TODAY` in the workflow.
@@ -282,9 +326,12 @@ as a shell variable that the operator exports locally before pasting.
 
 ### Schedule
 
-- Runs daily at **13:47 UTC** — ~24 minutes after the freshness check at
-  13:23 UTC. Sequencing matters so the freshness alert (today missing)
-  fires before the gap alert (general gaps including today).
+- Runs daily at **23:11 UTC** — ~24 minutes after the freshness check at
+  22:47 UTC (which itself runs after the last capture slot at 21:31 UTC).
+  Sequencing matters so the freshness alert (today missing) fires before
+  the gap alert (general gaps including today). The endpoint's self-healing
+  gap fill normally repairs gaps before this audit runs; the audit serves
+  as a final sanity check that the self-healing actually happened.
 - Off-minute (`:47`) avoids the heavily-queued `:00` / `:30` slots.
 - Also triggers on **`workflow_dispatch`** with two inputs:
   - `window_days` — override the audit window (default 14, range 2–365)

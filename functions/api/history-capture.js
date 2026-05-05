@@ -19,6 +19,16 @@
  *                      a scheduled run was missed. Strict validation: must be
  *                      YYYY-MM-DD, a real calendar date, and not in the future.
  *
+ * Auto-fill behavior (no ?date param):
+ *   In addition to writing today's snapshot, the endpoint reads index:days,
+ *   finds the latest stored date, and if there's a gap between that date and
+ *   today UTC, writes one snapshot per missing day in between (capped at
+ *   MAX_AUTOFILL_DAYS). These gap fills are tagged source="autofill-gap" and
+ *   reuse the freshly-fetched payload (so values reflect capture-time state,
+ *   not the original missed day — same caveat as explicit backfill). This
+ *   makes the system self-healing: ANY successful run after a cron outage
+ *   patches every missed day in one shot.
+ *
  * Canonical rules:
  *   - One entry per calendar day (UTC): key = "day:YYYY-MM-DD"
  *   - Content-hash dedup: if the target day's data matches the day-before's
@@ -26,8 +36,9 @@
  *   - If called twice for the same date with different data, last write wins
  *     (supersession for that date)
  *   - Only this endpoint writes canonical history — browser refresh does NOT
- *   - Backfilled entries are tagged source="backfill" and carry a note that
- *     the data was captured later than the target date represents
+ *   - Backfilled entries are tagged source="backfill" (explicit) or
+ *     "autofill-gap" (auto), and carry a note that the data was captured
+ *     later than the target date represents
  */
 
 import { PRICING_BASKET, BASKET_BY_SLUG, BASKET_SIZE } from './_pricing-basket.js';
@@ -66,6 +77,17 @@ function dayBeforeUTC(dateStr) {
   const t = Date.parse(dateStr + 'T00:00:00Z');
   return new Date(t - 86400000).toISOString().slice(0, 10);
 }
+
+/** Day after the given YYYY-MM-DD UTC date, as YYYY-MM-DD */
+function dayAfterUTC(dateStr) {
+  const t = Date.parse(dateStr + 'T00:00:00Z');
+  return new Date(t + 86400000).toISOString().slice(0, 10);
+}
+
+/** Cap how many gap days a single auto-fill run will write — guards against
+ *  index corruption / accidental long backfills. 90 is comfortably more than
+ *  any realistic cron-outage window (typical: hours to a few days). */
+const MAX_AUTOFILL_DAYS = 90;
 
 /**
  * Strictly validate a YYYY-MM-DD date string for backfill use.
@@ -352,11 +374,22 @@ export async function onRequestGet({ request, env }) {
     }, 500);
   }
 
-  // ── Resolve target date (backfill vs today) ──
+  // ── Resolve target date(s) ──
+  // Two modes:
+  //   A) ?date=YYYY-MM-DD  → single explicit-date backfill (existing semantics)
+  //   B) no ?date          → today + auto-fill any gap days between the latest
+  //                          stored snapshot and today. This makes the system
+  //                          self-healing: one successful run after an outage
+  //                          patches every missed day. Without this, a 5-day
+  //                          GitHub-Actions cron skip would leave 5 permanent
+  //                          holes in the daily diagnostics history.
   const today = todayUTC();
   const dateParam = url.searchParams.get('date');
-  let targetDate = today;
-  let isBackfill = false;
+
+  // Each entry: { date, isBackfill, isAutofill }
+  let datesToProcess = [];
+  let autofillTruncated = false;
+
   if (dateParam !== null) {
     const v = validateBackfillDate(dateParam);
     if (!v.ok) {
@@ -366,11 +399,29 @@ export async function onRequestGet({ request, env }) {
         hint: 'Use ?date=YYYY-MM-DD with a real past or current UTC date',
       }, 400);
     }
-    targetDate = v.date;
-    isBackfill = targetDate !== today;
+    datesToProcess = [{
+      date: v.date,
+      isBackfill: v.date !== today,
+      isAutofill: false,
+    }];
+  } else {
+    // Auto-fill mode: read index, find any gap between latest and today.
+    const idxBefore = (await kv.get('index:days', 'json')) || [];
+    const latest = idxBefore.length ? idxBefore[0] : null; // index is desc
+    if (latest && latest < today) {
+      let cursor = dayAfterUTC(latest);
+      while (cursor < today && datesToProcess.length < MAX_AUTOFILL_DAYS) {
+        datesToProcess.push({ date: cursor, isBackfill: true, isAutofill: true });
+        cursor = dayAfterUTC(cursor);
+      }
+      // If we hit the cap before reaching today, flag it. Today still gets
+      // appended below — we always want the freshest possible snapshot.
+      if (cursor < today) autofillTruncated = true;
+    }
+    datesToProcess.push({ date: today, isBackfill: false, isAutofill: false });
   }
 
-  // ── Fetch all data sources in parallel ──
+  // ── Fetch all data sources in parallel (once, reused across all dates) ──
   const [orRaw, botsRaw, trendsRaw, filingRaw, pricingRaw, gpuRaw] = await Promise.all([
     localFetch(request, '/api/openrouter?view=week&top=30'),
     localFetch(request, '/api/radar/ai/bots/summary/user_agent?dateRange=28d'),
@@ -413,77 +464,128 @@ export async function onRequestGet({ request, env }) {
   const canonicalPayload = { or, bots, trends, filing, openrouterSummary, pricing, gpu };
   const hash = await contentHash(canonicalPayload);
 
-  const dayKey = 'day:' + targetDate;
-  const capturedAt = new Date().toISOString();
+  // ── Process each target date ──
+  // In-run cache of what we just wrote, keyed by 'day:YYYY-MM-DD' → hash.
+  // Cloudflare KV is eventually consistent, so a freshly-written value may
+  // not be readable for several seconds. When autofill writes May 1, 2, 3
+  // back-to-back, the dedup check on May 2 needs to know May 1's hash NOW,
+  // not after KV propagates. Reading our cache first guarantees correctness.
+  const writtenThisRun = new Map();
+  const results = [];
+  for (const { date: targetDate, isBackfill, isAutofill } of datesToProcess) {
+    const dayKey = 'day:' + targetDate;
+    const capturedAt = new Date().toISOString();
 
-  // Check if the target day already has a snapshot with the same hash
-  const existing = await kv.get(dayKey, 'json');
-  if (existing && existing.hash === hash) {
-    return jsonResp({
-      success: true,
-      action: 'skipped',
-      reason: 'Target day already has a snapshot with identical content',
+    // Same-content skip
+    const existing = await kv.get(dayKey, 'json');
+    if (existing && existing.hash === hash) {
+      results.push({
+        date: targetDate,
+        action: 'skipped',
+        reason: 'Identical content already stored',
+        hash,
+        isAutofill,
+        isBackfill,
+      });
+      continue;
+    }
+
+    // Cross-day dedup against the day BEFORE the target. Note that when
+    // autofill writes consecutive days with identical hash, each one will
+    // dedup against the previous freshly-written entry — so the chain shows
+    // continuity rather than orphaning the run.
+    const priorDate = dayBeforeUTC(targetDate);
+    const priorKey = 'day:' + priorDate;
+    let priorHash = writtenThisRun.get(priorKey);
+    if (priorHash === undefined) {
+      const prevSnap = await kv.get(priorKey, 'json');
+      priorHash = prevSnap?.hash ?? null;
+    }
+    const dedup = priorHash === hash;
+
+    const source = isAutofill
+      ? 'autofill-gap'
+      : isBackfill
+        ? 'backfill'
+        : (authMethod === 'none' ? 'manual' : 'cron');
+
+    const snapshot = {
+      ts: capturedAt,
       date: targetDate,
+      capturedAt,
       hash,
+      version: 4,
+      source,
+      authMethod,
+      dedup,
+      sameAs: dedup ? ('day:' + priorDate) : null,
       backfill: isBackfill,
+      backfillNote: isBackfill
+        ? 'Captured ' + capturedAt + ' and stored under target date ' + targetDate +
+          '. Upstream values reflect their state at capture time, not necessarily the original missed day.' +
+          (isAutofill ? ' Filled automatically by gap-detection on a later cron run.' : '')
+        : null,
+      or,
+      bots,
+      trends,
+      filing,
+      openrouterSummary,
+      pricing,
+      gpu,
+    };
+
+    await kv.put(dayKey, JSON.stringify(snapshot));
+    writtenThisRun.set(dayKey, hash);
+    results.push({
+      date: targetDate,
+      action: existing ? 'superseded' : 'created',
+      hash,
+      dedup,
+      isAutofill,
+      isBackfill,
+      source,
     });
   }
 
-  // Cross-day dedup against the day BEFORE the target (relative, not "yesterday")
-  const priorDate = dayBeforeUTC(targetDate);
-  const prevSnap = await kv.get('day:' + priorDate, 'json');
-  const dedup = !!(prevSnap && prevSnap.hash === hash);
-
-  // ── Build snapshot ──
-  const snapshot = {
-    ts: capturedAt,
-    date: targetDate,
-    capturedAt,
-    hash,
-    version: 4, // bumped: now stores gpu (strategic SKUs) alongside pricing + openrouterSummary
-    source: isBackfill ? 'backfill' : (authMethod === 'none' ? 'manual' : 'cron'),
-    authMethod,
-    dedup,
-    sameAs: dedup ? ('day:' + priorDate) : null,
-    backfill: isBackfill,
-    backfillNote: isBackfill
-      ? 'Captured ' + capturedAt + ' and stored under target date ' + targetDate +
-        '. Upstream values reflect their state at capture time, not necessarily the original missed day.'
-      : null,
-    or,
-    bots,
-    trends,
-    filing,
-    openrouterSummary,
-    pricing,
-    gpu,
-  };
-
-  // ── Write to KV ──
-  await kv.put(dayKey, JSON.stringify(snapshot));
-
   // ── Update days index ──
-  // Existing today-only path: unshift. Backfill path: insert+sort+cap.
-  let index = await kv.get('index:days', 'json') || [];
-  if (!index.includes(targetDate)) {
-    if (isBackfill) {
-      index.push(targetDate);
+  // Single read+sort+write covering all newly-added dates at once.
+  const newlyAdded = results.filter(r => r.action === 'created').map(r => r.date);
+  if (newlyAdded.length > 0) {
+    let index = (await kv.get('index:days', 'json')) || [];
+    let mutated = false;
+    for (const d of newlyAdded) {
+      if (!index.includes(d)) {
+        index.push(d);
+        mutated = true;
+      }
+    }
+    if (mutated) {
       index.sort((a, b) => (a < b ? 1 : a > b ? -1 : 0)); // desc
       index = index.slice(0, 400);
-    } else {
-      index.unshift(targetDate);
-      index = index.slice(0, 400);
+      await kv.put('index:days', JSON.stringify(index));
     }
-    await kv.put('index:days', JSON.stringify(index));
   }
+
+  // ── Build response ──
+  // Backward-compatible shape for the GitHub Actions workflow's success
+  // predicate (HTTP 200 + JSON + success:true). Top-level `action`/`date`/
+  // `hash` describe today's outcome; `autofilled` lists any gap days that
+  // were filled in this same run.
+  const todayResult = results.find(r => r.date === today);
+  const autofilledDates = results
+    .filter(r => r.isAutofill && r.action !== 'skipped')
+    .map(r => r.date);
 
   return jsonResp({
     success: true,
-    action: existing ? 'superseded' : 'created',
-    date: targetDate,
-    hash,
-    dedup,
-    backfill: isBackfill,
+    action: todayResult ? todayResult.action : (results[0] ? results[0].action : 'unknown'),
+    date: todayResult ? todayResult.date : (results[0] ? results[0].date : today),
+    hash: todayResult ? todayResult.hash : (results[0] ? results[0].hash : hash),
+    dedup: todayResult ? todayResult.dedup : (results[0] ? results[0].dedup : false),
+    backfill: dateParam !== null && dateParam !== today,
+    autofilled: autofilledDates,
+    autofillTruncated,
+    results,
     sources: {
       or: or.length + ' models',
       bots: bots.length + ' crawlers',
