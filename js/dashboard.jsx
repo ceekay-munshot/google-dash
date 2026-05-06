@@ -4742,7 +4742,10 @@ function AmazonTab(){
         })}
       </div>
 
-      {awsSubtab==="aws"&&<AwsUsageTrendsSection/>}
+      {awsSubtab==="aws"&&<>
+        <AwsUsageTrendsSection/>
+        <AwsCapacityProxySection/>
+      </>}
     </>
   );
 }
@@ -4816,6 +4819,189 @@ function AwsUsageTrendsSection(){
         <div style={{fontSize:11.5,color:"#4b5563",lineHeight:1.55}}>
           This section separates direct usage data from proxy signals. The first version will not claim exact AWS usage. It will frame AWS activity through observable public indicators such as pricing, spot-market movement, regional spreads, and capacity-footprint expansion.
         </div>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════
+   AWS Public Network Capacity Proxy
+   First real AWS usage-trend data module.
+   Source: https://ip-ranges.amazonaws.com/ip-ranges.json
+   Computes IPv4 address capacity from CIDR prefix lengths and
+   surfaces the "absolute" public network footprint as a CAPACITY
+   proxy — not a direct AWS-usage measurement. Wording rules
+   enforced by the spec: never call this AWS usage / traffic /
+   demand / revenue. It is "AWS Public Network Capacity Proxy",
+   "public IP footprint", "capacity-footprint signal".
+═══════════════════════════════════════════════════════ */
+function AwsCapacityProxySection(){
+  const[state,setState]=useState({phase:"loading",snap:null,servedFrom:null,error:null});
+  useEffect(()=>{
+    let cancelled=false;
+    fetch("/api/aws/ip-ranges/latest?v="+Math.floor(Date.now()/3e5))
+      .then(r=>r.ok?r.json():Promise.reject(new Error("HTTP "+r.status)))
+      .then(d=>{
+        if(cancelled)return;
+        if(!d||d.success===false||!d.snapshot){
+          setState({phase:"error",snap:null,servedFrom:null,error:d?.error||"Empty response"});
+          return;
+        }
+        setState({phase:"ready",snap:d.snapshot,servedFrom:d.served_from||null,error:null});
+      })
+      .catch(e=>{if(!cancelled)setState({phase:"error",snap:null,servedFrom:null,error:e.message||"Fetch failed"});});
+    return()=>{cancelled=true;};
+  },[]);
+
+  // Compact + comma formatters. Comma form is primary because investor
+  // wording in the spec is "absolute IPv4 address capacity" — exactness
+  // beats truncation. Compact form is the small subtitle/secondary.
+  const fmtN=n=>(typeof n==="number"&&isFinite(n))?n.toLocaleString("en-US"):"—";
+  const fmtCompact=n=>{
+    if(typeof n!=="number"||!isFinite(n))return "—";
+    if(n>=1e9)return (n/1e9).toFixed(2).replace(/\.?0+$/,"")+"B";
+    if(n>=1e6)return (n/1e6).toFixed(2).replace(/\.?0+$/,"")+"M";
+    if(n>=1e3)return (n/1e3).toFixed(1).replace(/\.0$/,"")+"K";
+    return String(n);
+  };
+
+  const header=(
+    <div style={{marginBottom:12}}>
+      <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:4}}>
+        <span style={{width:7,height:7,borderRadius:"50%",background:"#0e7490",display:"inline-block"}}/>
+        <span style={{fontSize:10,textTransform:"uppercase",letterSpacing:".09em",fontWeight:700,color:"#0e7490"}}>AWS · capacity-footprint signal</span>
+      </div>
+      <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:12,flexWrap:"wrap"}}>
+        <div style={{minWidth:0,flex:"1 1 320px"}}>
+          <div style={{fontSize:18,fontWeight:700,color:"#111827",lineHeight:1.3}}>AWS Public Network Capacity Proxy</div>
+          <div style={{fontSize:12,color:"#6b7280",marginTop:4,lineHeight:1.5,maxWidth:760}}>
+            Absolute IPv4 address capacity computed from AWS-published public IP ranges.
+          </div>
+        </div>
+        <div style={{display:"flex",alignItems:"center",gap:6,flexShrink:0}}>
+          <span style={{width:6,height:6,borderRadius:"50%",background:"#10b981",display:"inline-block"}}/>
+          <span style={{fontSize:10,padding:"3px 9px",borderRadius:999,fontWeight:600,background:"#ecfdf5",color:"#065f46",border:"0.5px solid #a7f3d0",whiteSpace:"nowrap"}}>Live source · AWS ip-ranges.json</span>
+        </div>
+      </div>
+    </div>
+  );
+
+  const sectionWrap=(inner)=>(
+    <div style={{marginTop:18}}>
+      {header}
+      {inner}
+    </div>
+  );
+
+  if(state.phase==="loading"){
+    return sectionWrap(
+      <div style={{background:"#fff",border:"0.5px solid #e5e7eb",borderRadius:12,padding:"18px 20px"}}>
+        <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10,fontSize:12,color:"#6b7280"}}>
+          <Spin size={11} color="#0e7490"/> Loading AWS public network capacity…
+        </div>
+        <Shimmer rows={5}/>
+      </div>
+    );
+  }
+
+  if(state.phase==="error"){
+    return sectionWrap(
+      <div style={{background:"#fff",border:"0.5px dashed #fca5a5",borderRadius:10,padding:"14px 16px"}}>
+        <div style={{fontSize:12,color:"#991b1b",fontWeight:600}}>AWS IP range data unavailable</div>
+        <div style={{fontSize:11,color:"#6b7280",marginTop:3}}>{state.error||"/api/aws/ip-ranges/latest did not return a snapshot"}</div>
+      </div>
+    );
+  }
+
+  const s=state.snap;
+
+  const kpis=[
+    {label:"Total public IPv4 addresses", value:fmtN(s.total_ipv4_addresses), sub:"Computed from AWS IPv4 CIDR ranges",       hint:fmtCompact(s.total_ipv4_addresses)+" addresses"},
+    {label:"IPv4 prefixes",               value:fmtN(s.total_ipv4_prefixes),  sub:"Published AWS IPv4 ranges",                hint:null},
+    {label:"IPv6 prefixes",               value:fmtN(s.total_ipv6_prefixes),  sub:"Count only; IPv6 address totals are not shown", hint:null},
+    {label:"Regions covered",             value:fmtN(s.total_regions),        sub:"AWS regions represented in the public file",hint:null},
+    {label:"Services covered",            value:fmtN(s.total_services),       sub:"AWS service labels in the public file",     hint:null},
+  ];
+
+  const topServices=(s.by_service||[]).slice(0,8);
+  const topRegions =(s.by_region ||[]).slice(0,8);
+
+  return sectionWrap(
+    <>
+      {/* KPI cards */}
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit, minmax(190px, 1fr))",gap:10,marginBottom:14}}>
+        {kpis.map((k,i)=>(
+          <div key={i} style={{background:"#fff",border:"0.5px solid #e5e7eb",borderRadius:12,padding:"14px 16px"}}>
+            <div style={{...S.lbl,color:"#6b7280"}}>{k.label}</div>
+            <div style={{fontSize:20,fontWeight:700,color:"#111827",marginTop:4,fontFamily:"monospace",letterSpacing:"-.01em",lineHeight:1.1,wordBreak:"break-all"}}>{k.value}</div>
+            {k.hint&&<div style={{fontSize:10,color:"#9ca3af",marginTop:2,fontFamily:"monospace"}}>{k.hint}</div>}
+            <div style={{fontSize:10.5,color:"#6b7280",marginTop:6,lineHeight:1.45}}>{k.sub}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Latest-snapshot meta strip */}
+      <div style={{background:"#f9fafb",border:"0.5px solid #e5e7eb",borderRadius:8,padding:"10px 14px",marginBottom:14,display:"flex",flexWrap:"wrap",gap:"4px 18px",fontSize:11,color:"#6b7280",lineHeight:1.6}}>
+        <span><b style={{color:"#374151",fontWeight:600}}>Latest AWS file date:</b> <span style={{fontFamily:"monospace",color:"#111827"}}>{s.aws_create_date||"—"}</span></span>
+        <span><b style={{color:"#374151",fontWeight:600}}>Captured:</b> <span style={{fontFamily:"monospace",color:"#111827"}}>{s.captured_at||"—"}</span></span>
+        <span><b style={{color:"#374151",fontWeight:600}}>Sync token:</b> <span style={{fontFamily:"monospace",color:"#111827"}}>{s.sync_token||"—"}</span></span>
+        {state.servedFrom&&(
+          <span><b style={{color:"#374151",fontWeight:600}}>Source:</b> <span style={{fontFamily:"monospace",color:"#111827"}}>{state.servedFrom}</span></span>
+        )}
+      </div>
+
+      {/* Two side-by-side top-8 tables (stack on mobile) */}
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit, minmax(340px, 1fr))",gap:10,marginBottom:14}}>
+        <CapacityTable title="Top AWS services by public IPv4 capacity" firstColLabel="Service" firstColKey="service" rows={topServices} fmtN={fmtN}/>
+        <CapacityTable title="Top AWS regions by public IPv4 capacity"  firstColLabel="Region"  firstColKey="region"  rows={topRegions}  fmtN={fmtN}/>
+      </div>
+
+      {/* Methodology note */}
+      <div style={{background:"#f9fafb",border:"0.5px dashed #d1d5db",borderRadius:8,padding:"12px 14px"}}>
+        <div style={{...S.lbl,color:"#6b7280",marginBottom:5}}>Methodology</div>
+        <div style={{fontSize:11.5,color:"#4b5563",lineHeight:1.55}}>
+          Amazon publishes current AWS public IP ranges in <span style={{fontFamily:"monospace",color:"#111827"}}>ip-ranges.json</span>. This module computes IPv4 address capacity from CIDR prefix lengths and saves snapshots over time. It is a public network capacity proxy, not a direct measure of AWS customer usage. The file does not represent every possible AWS workload or private/customer-owned address range.
+        </div>
+        <div style={{fontSize:10.5,color:"#9ca3af",marginTop:6,lineHeight:1.5}}>
+          Historical trend begins from the first captured snapshot.
+        </div>
+      </div>
+    </>
+  );
+}
+
+/* Compact 4-column table used by the capacity-proxy section. Keeps the
+   table style aligned with the rest of the dashboard (left-aligned head,
+   monospace numerics, top-N rows only). */
+function CapacityTable({title,firstColLabel,firstColKey,rows,fmtN}){
+  return(
+    <div style={{background:"#fff",border:"0.5px solid #e5e7eb",borderRadius:12,padding:0,overflow:"hidden"}}>
+      <div style={{padding:"12px 14px",borderBottom:"1px solid #f3f4f6"}}>
+        <div style={{fontSize:13,fontWeight:600,color:"#111827",lineHeight:1.3}}>{title}</div>
+        <div style={{fontSize:10.5,color:"#9ca3af",marginTop:2}}>Sorted desc by IPv4 addresses · top 8</div>
+      </div>
+      <div style={{overflowX:"auto"}}>
+        <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
+          <thead>
+            <tr>
+              {[firstColLabel,"IPv4 addresses","IPv4 prefixes","IPv6 prefixes"].map((h,i)=>(
+                <th key={h} style={{...S.lbl,textAlign:i===0?"left":"right",padding:"8px 12px",borderBottom:"1px solid #f3f4f6",background:"#fafafa",whiteSpace:"nowrap"}}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.length===0?(
+              <tr><td colSpan={4} style={{padding:"14px 12px",fontSize:11,color:"#9ca3af",textAlign:"center"}}>No rows</td></tr>
+            ):rows.map((r,i)=>(
+              <tr key={i}>
+                <td style={{padding:"8px 12px",borderBottom:"1px solid #f9fafb",fontWeight:600,color:"#111827",whiteSpace:"nowrap"}}>{r[firstColKey]}</td>
+                <td style={{padding:"8px 12px",borderBottom:"1px solid #f9fafb",fontFamily:"monospace",color:"#111827",textAlign:"right",whiteSpace:"nowrap"}}>{fmtN(r.ipv4_addresses)}</td>
+                <td style={{padding:"8px 12px",borderBottom:"1px solid #f9fafb",fontFamily:"monospace",color:"#111827",textAlign:"right",whiteSpace:"nowrap"}}>{fmtN(r.ipv4_prefixes)}</td>
+                <td style={{padding:"8px 12px",borderBottom:"1px solid #f9fafb",fontFamily:"monospace",color:"#111827",textAlign:"right",whiteSpace:"nowrap"}}>{fmtN(r.ipv6_prefixes)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     </div>
   );
