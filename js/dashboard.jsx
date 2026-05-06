@@ -4874,8 +4874,6 @@ function AwsCapacityProxySection(){
   }
 
   const s=state.snap;
-  const topServices=(s.by_service||[]).slice(0,8);
-  const topRegions =(s.by_region ||[]).slice(0,8);
 
   return sectionWrap(
     <>
@@ -4886,8 +4884,8 @@ function AwsCapacityProxySection(){
       {/* Service-Level Public IPv4 Capacity Trend — main analytical module */}
       <ServiceCapacityTrend ts={ts} fmtN={fmtN} fmtCompact={fmtCompact}/>
 
-      {/* Current Breakdown — tabbed Services / Regions */}
-      <CurrentBreakdown topServices={topServices} topRegions={topRegions} fmtN={fmtN}/>
+      {/* Current Breakdown — OpenRouter-style period matrix */}
+      <CurrentBreakdown/>
 
       {/* Single methodology card with two collapsed disclosures. Native
          <details> keeps the bundle small, the default-collapsed state
@@ -4898,42 +4896,10 @@ function AwsCapacityProxySection(){
   );
 }
 
-/* Compact 4-column table used by the capacity-proxy section. Keeps the
-   table style aligned with the rest of the dashboard (left-aligned head,
-   monospace numerics, top-N rows only). */
-function CapacityTable({title,firstColLabel,firstColKey,rows,fmtN}){
-  return(
-    <div style={{background:"#fff",border:"0.5px solid #e5e7eb",borderRadius:12,padding:0,overflow:"hidden"}}>
-      <div style={{padding:"12px 14px",borderBottom:"1px solid #f3f4f6"}}>
-        <div style={{fontSize:13,fontWeight:600,color:"#111827",lineHeight:1.3}}>{title}</div>
-        <div style={{fontSize:10.5,color:"#9ca3af",marginTop:2}}>Sorted desc by IPv4 addresses · top 8</div>
-      </div>
-      <div style={{overflowX:"auto"}}>
-        <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
-          <thead>
-            <tr>
-              {[firstColLabel,"IPv4 addresses","IPv4 prefixes","IPv6 prefixes"].map((h,i)=>(
-                <th key={h} style={{...S.lbl,textAlign:i===0?"left":"right",padding:"8px 12px",borderBottom:"1px solid #f3f4f6",background:"#fafafa",whiteSpace:"nowrap"}}>{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {rows.length===0?(
-              <tr><td colSpan={4} style={{padding:"14px 12px",fontSize:11,color:"#9ca3af",textAlign:"center"}}>No rows</td></tr>
-            ):rows.map((r,i)=>(
-              <tr key={i}>
-                <td style={{padding:"8px 12px",borderBottom:"1px solid #f9fafb",fontWeight:600,color:"#111827",whiteSpace:"nowrap"}}>{r[firstColKey]}</td>
-                <td style={{padding:"8px 12px",borderBottom:"1px solid #f9fafb",fontFamily:"monospace",color:"#111827",textAlign:"right",whiteSpace:"nowrap"}}>{fmtN(r.ipv4_addresses)}</td>
-                <td style={{padding:"8px 12px",borderBottom:"1px solid #f9fafb",fontFamily:"monospace",color:"#111827",textAlign:"right",whiteSpace:"nowrap"}}>{fmtN(r.ipv4_prefixes)}</td>
-                <td style={{padding:"8px 12px",borderBottom:"1px solid #f9fafb",fontFamily:"monospace",color:"#111827",textAlign:"right",whiteSpace:"nowrap"}}>{fmtN(r.ipv6_prefixes)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-}
+/* No CapacityTable — Current Breakdown was upgraded to the matrix
+   table below. The latest snapshot's static counts now live in the
+   slim Data Feed Status strip; period-by-period IPv4 capacity lives
+   in the matrix component. */
 
 /* Trend-driven KPI hero row. Five cards driven by /api/aws/ip-ranges/summary:
      1. Latest Public IPv4 Capacity   (anchor — always available once
@@ -5223,41 +5189,246 @@ function ServiceCapacityTrend({ts,fmtN,fmtCompact}){
   );
 }
 
-/* Current Breakdown — small Services / Regions tab switcher wrapping the
-   existing CapacityTable. Avoids the old side-by-side duplicate-feel by
-   showing one table at a time. Tab styling matches the rest of the
-   dashboard's pill-bar pattern. */
-function CurrentBreakdown({topServices,topRegions,fmtN}){
-  const[which,setWhich]=useState("services");
-  return(
-    <div style={{marginBottom:0}}>
-      <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:8,flexWrap:"wrap",marginBottom:8}}>
-        <div style={{minWidth:0,flex:"1 1 280px"}}>
-          <div style={{fontSize:14,fontWeight:700,color:"#111827",lineHeight:1.3}}>Current Breakdown</div>
-          <div style={{fontSize:11,color:"#6b7280",marginTop:2,lineHeight:1.45}}>
-            Latest captured AWS public IPv4 capacity by service and region.
-          </div>
-        </div>
-        <div style={{display:"flex",gap:4,alignItems:"center"}}>
-          {[
-            {id:"services",label:"Services"},
-            {id:"regions", label:"Regions"},
-          ].map(t=>{
-            const active=which===t.id;
-            return(
-              <button key={t.id} onClick={()=>setWhich(t.id)}
-                style={{fontSize:11,padding:"5px 12px",border:"0.5px solid "+(active?"#111827":"#e5e7eb"),borderRadius:999,background:active?"#111827":"#fff",color:active?"#fff":"#374151",cursor:"pointer",fontFamily:"inherit",fontWeight:active?600:500}}>
-                {t.label}
-              </button>
-            );
-          })}
+/* Current Breakdown — OpenRouter-style period matrix.
+   Two pill toggles: Services/Regions and Quarter/Month. Fetches
+   /api/aws/ip-ranges/matrix on toggle change and renders three
+   row sections (Public IPv4 Capacity / QoQ-or-MoM Growth / YoY
+   Growth) with periods as columns. Mirrors the visual style of
+   the existing model-pricing matrix (sticky first column, gray
+   section labels with underline, monospace right-aligned cells).
+   Missing comparison periods always render "—" — never a fake 0%. */
+function CurrentBreakdown(){
+  const[dimension,setDimension]=useState("service");
+  const[period,setPeriod]=useState("quarter");
+  const[state,setState]=useState({phase:"loading",data:null,error:null});
+
+  useEffect(()=>{
+    let cancelled=false;
+    setState(prev=>({phase:"loading",data:prev.data,error:null}));
+    const v=Math.floor(Date.now()/3e5);
+    fetch(`/api/aws/ip-ranges/matrix?dimension=${dimension}&period=${period}&metric=ipv4_addresses&limit=8&v=${v}`)
+      .then(r=>r.ok?r.json():Promise.reject(new Error("HTTP "+r.status)))
+      .then(d=>{
+        if(cancelled)return;
+        if(!d||d.success===false){setState({phase:"error",data:null,error:d?.error||"Empty response"});return;}
+        setState({phase:"ready",data:d,error:null});
+      })
+      .catch(e=>{if(!cancelled)setState({phase:"error",data:null,error:e.message||"Fetch failed"});});
+    return()=>{cancelled=true;};
+  },[dimension,period]);
+
+  // Pills row: dimension on the left, period on the right. Same styling
+  // pattern as the AWS-subtab pill in the page header.
+  const pillBtn=(active,onClick,label)=>(
+    <button key={label} onClick={onClick}
+      style={{fontSize:11,padding:"5px 12px",border:"0.5px solid "+(active?"#111827":"#e5e7eb"),borderRadius:999,background:active?"#111827":"#fff",color:active?"#fff":"#374151",cursor:"pointer",fontFamily:"inherit",fontWeight:active?600:500}}>
+      {label}
+    </button>
+  );
+
+  const pillsRow=(
+    <div style={{display:"flex",gap:10,alignItems:"center",flexWrap:"wrap"}}>
+      <div style={{display:"flex",gap:4,alignItems:"center"}}>
+        {pillBtn(dimension==="service",()=>setDimension("service"),"Services")}
+        {pillBtn(dimension==="region", ()=>setDimension("region"), "Regions")}
+      </div>
+      <span style={{color:"#d1d5db",fontSize:11}}>·</span>
+      <div style={{display:"flex",gap:4,alignItems:"center"}}>
+        {pillBtn(period==="quarter",()=>setPeriod("quarter"),"Quarter")}
+        {pillBtn(period==="month",  ()=>setPeriod("month"),  "Month")}
+      </div>
+    </div>
+  );
+
+  const header=(
+    <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:8,flexWrap:"wrap",marginBottom:8}}>
+      <div style={{minWidth:0,flex:"1 1 280px"}}>
+        <div style={{fontSize:14,fontWeight:700,color:"#111827",lineHeight:1.3}}>Current Breakdown</div>
+        <div style={{fontSize:11,color:"#6b7280",marginTop:2,lineHeight:1.45}}>
+          Quarterly and monthly AWS public IPv4 capacity by service and region.
         </div>
       </div>
+      {pillsRow}
+    </div>
+  );
 
-      {which==="services"
-        ? <CapacityTable title="Top AWS services by public IPv4 capacity" firstColLabel="Service" firstColKey="service" rows={topServices} fmtN={fmtN}/>
-        : <CapacityTable title="Top AWS regions by public IPv4 capacity"  firstColLabel="Region"  firstColKey="region"  rows={topRegions}  fmtN={fmtN}/>
-      }
+  if(state.phase==="loading"&&!state.data){
+    return(
+      <div style={{marginBottom:0}}>
+        {header}
+        <div style={{background:"#fff",border:"0.5px solid #e5e7eb",borderRadius:12,padding:"18px 20px"}}>
+          <Shimmer rows={5}/>
+        </div>
+      </div>
+    );
+  }
+  if(state.phase==="error"){
+    return(
+      <div style={{marginBottom:0}}>
+        {header}
+        <div style={{background:"#fff",border:"0.5px dashed #fca5a5",borderRadius:10,padding:"14px 16px"}}>
+          <div style={{fontSize:12,color:"#991b1b",fontWeight:600}}>Capacity matrix unavailable</div>
+          <div style={{fontSize:11,color:"#6b7280",marginTop:3}}>{state.error||"/api/aws/ip-ranges/matrix did not return data"}</div>
+        </div>
+      </div>
+    );
+  }
+
+  const data=state.data||{periods:[],items:[]};
+  const periods=data.periods||[];
+  const items=data.items||[];
+
+  // Single-period young-history note. Spec: render the table anyway, with
+  // QoQ/MoM/YoY rows showing "—". Just add a small note above.
+  const youngHistory=periods.length<=1;
+  const titleSuffix=period==="quarter"?"by quarter":"by month";
+  const tableTitle=dimension==="service"
+    ? `Top AWS services by public IPv4 capacity ${titleSuffix}`
+    : `Top AWS regions by public IPv4 capacity ${titleSuffix}`;
+
+  // ── Style constants match the existing model-pricing matrix verbatim
+  //    so the table reads as part of the same visual family. ──
+  const STICKY_BG="#f3f4f6";
+  const STICKY_SHADOW="2px 0 0 #e5e7eb, 6px 0 6px -4px rgba(17,24,39,0.08)";
+  const FIRST_COL_W=180;
+  const COL_W=110;
+  const stickyFirstBase={position:"sticky",left:0,background:STICKY_BG,boxShadow:STICKY_SHADOW,minWidth:FIRST_COL_W,maxWidth:FIRST_COL_W,width:FIRST_COL_W};
+  const stickySectionBase={position:"sticky",left:0,background:STICKY_BG};
+  const thMain={textAlign:"right",padding:"5px 10px",fontSize:10,color:"#6b7280",fontWeight:600,whiteSpace:"nowrap",minWidth:COL_W};
+  const thFirst={...stickyFirstBase,textAlign:"left",padding:"5px 10px",fontSize:10,color:"#6b7280",fontWeight:600,whiteSpace:"nowrap",zIndex:3};
+  const tdMain={textAlign:"right",padding:"4px 10px",fontSize:12,color:"#111827",fontFamily:"ui-monospace,SFMono-Regular,Menlo,monospace",whiteSpace:"nowrap",minWidth:COL_W};
+  const tdMissing={textAlign:"right",padding:"4px 10px",fontSize:12,color:"#d1d5db",fontFamily:"ui-monospace,SFMono-Regular,Menlo,monospace",whiteSpace:"nowrap",minWidth:COL_W};
+  const tdFirst={...stickyFirstBase,textAlign:"left",padding:"6px 10px 6px 18px",fontSize:11,whiteSpace:"nowrap",zIndex:2};
+  const sectionTh={...stickySectionBase,textAlign:"left",padding:"10px 10px 4px",fontSize:11,color:"#111827",fontWeight:700,textDecoration:"underline",textUnderlineOffset:"3px",zIndex:1};
+
+  // ── Format helpers. Capacity uses compact form (101.76M / 659.39K) so
+  //    every period column fits without horizontal compression; growth
+  //    uses pct + tiny abs subtext like the existing OR matrix. ──
+  const fmtCompactCap=v=>{
+    if(typeof v!=="number"||!isFinite(v))return null;
+    if(v>=1e9)return (v/1e9).toFixed(2).replace(/\.?0+$/,"")+"B";
+    if(v>=1e6)return (v/1e6).toFixed(2).replace(/\.?0+$/,"")+"M";
+    if(v>=1e3)return (v/1e3).toFixed(2).replace(/\.?0+$/,"")+"K";
+    return String(v);
+  };
+  const fmtPct=p=>{
+    if(typeof p!=="number"||!isFinite(p))return "—";
+    const sign=p>0?"+":p<0?"−":"";
+    return sign+(Math.abs(p)*100).toFixed(2)+"%";
+  };
+  const fmtAbsSigned=n=>{
+    if(typeof n!=="number"||!isFinite(n)||n===0)return "";
+    const sign=n>0?"+":"−";
+    const a=Math.abs(n);
+    let s;
+    if(a>=1e6)s=(a/1e6).toFixed(2).replace(/\.?0+$/,"")+"M";
+    else if(a>=1e3)s=(a/1e3).toFixed(1).replace(/\.0$/,"")+"K";
+    else s=String(a);
+    return sign+s+" addrs";
+  };
+  const growthColor=(p)=>(typeof p!=="number"||!isFinite(p))?"#d1d5db":(p>0?"#059669":p<0?"#dc2626":"#6b7280");
+
+  // Section row — section-label cell sticky on the left, blank cells fill
+  // the rest so the underline reads as part of the heading band.
+  const renderSectionRow=label=>(
+    <tr key={"sec-"+label}>
+      <td style={sectionTh}>{label}</td>
+      {periods.map(p=>(<td key={p.key} style={{padding:"10px 10px 4px",background:STICKY_BG,minWidth:COL_W}}/>))}
+    </tr>
+  );
+
+  // Item label cell.
+  const renderItemFirstCol=name=>(
+    <td style={tdFirst}>
+      <div style={{lineHeight:1.25}}>
+        <div style={{fontWeight:600,color:"#111827"}}>{name}</div>
+      </div>
+    </td>
+  );
+
+  // Capacity row — absolute IPv4 capacity per period (compact).
+  const renderCapacityRow=(item)=>(
+    <tr key={"cap-"+item.name}>
+      {renderItemFirstCol(item.name)}
+      {periods.map(p=>{
+        const v=item.values?.[p.key];
+        const display=fmtCompactCap(v);
+        return(<td key={p.key} style={display==null?tdMissing:tdMain}>{display==null?"—":display}</td>);
+      })}
+    </tr>
+  );
+
+  // Growth row — pct on top line, signed abs in tiny muted line below.
+  const renderGrowthRow=(item, growthKey, absKey)=>(
+    <tr key={growthKey+"-"+item.name}>
+      {renderItemFirstCol(item.name)}
+      {periods.map(p=>{
+        const pct=item.growth?.[growthKey]?.[p.key];
+        const abs=item.absolute_change?.[absKey]?.[p.key];
+        const main=fmtPct(pct);
+        const sub=fmtAbsSigned(abs);
+        const color=growthColor(pct);
+        return(
+          <td key={p.key} style={{textAlign:"right",padding:"4px 10px",minWidth:COL_W,whiteSpace:"nowrap"}}>
+            <div style={{fontSize:12,color,fontFamily:"ui-monospace,SFMono-Regular,Menlo,monospace"}}>{main}</div>
+            {sub&&<div style={{fontSize:9.5,color:"#9ca3af",fontFamily:"ui-monospace,SFMono-Regular,Menlo,monospace",marginTop:1}}>{sub}</div>}
+          </td>
+        );
+      })}
+    </tr>
+  );
+
+  // Period-prior section label — adapts to the selected period mode.
+  const periodPriorLabel = period==="quarter" ? "QoQ Growth" : "MoM Growth";
+  const periodPriorGrowthKey = period==="quarter" ? "qoq" : "mom";
+  const periodPriorAbsKey = periodPriorGrowthKey;
+
+  return(
+    <div style={{marginBottom:0}}>
+      {header}
+
+      {youngHistory&&(
+        <div style={{fontSize:10.5,color:"#9ca3af",lineHeight:1.5,marginBottom:6}}>
+          Growth rows will populate as monthly and quarterly history builds.
+        </div>
+      )}
+
+      <div style={{border:"0.5px solid #e5e7eb",borderRadius:8,overflow:"hidden",background:"#f9fafb"}}>
+        {/* Compact title strip mirrors the existing matrix tables. */}
+        <div style={{padding:"10px 12px",borderBottom:"1px solid #e5e7eb",background:"#fff"}}>
+          <div style={{fontSize:13,fontWeight:600,color:"#111827",lineHeight:1.3}}>{tableTitle}</div>
+          <div style={{fontSize:10.5,color:"#9ca3af",marginTop:2}}>
+            Latest captured snapshot per period · top 8 by latest IPv4 capacity
+          </div>
+        </div>
+        <div style={{overflowX:"auto"}}>
+          <table style={{width:"100%",borderCollapse:"separate",borderSpacing:0,background:STICKY_BG,minWidth:FIRST_COL_W+COL_W*Math.max(periods.length,1)}}>
+            <thead>
+              <tr>
+                <th style={thFirst}></th>
+                {periods.map(p=>(
+                  <th key={p.key} style={thMain}>{p.label}</th>
+                ))}
+                {periods.length===0&&<th style={thMain}>—</th>}
+              </tr>
+            </thead>
+            <tbody>
+              {renderSectionRow("Public IPv4 Capacity")}
+              {items.map(renderCapacityRow)}
+
+              <tr><td colSpan={periods.length+1} style={{height:8,background:"#f9fafb"}}></td></tr>
+
+              {renderSectionRow(periodPriorLabel)}
+              {items.map(it=>renderGrowthRow(it, periodPriorGrowthKey, periodPriorAbsKey))}
+
+              <tr><td colSpan={periods.length+1} style={{height:8,background:"#f9fafb"}}></td></tr>
+
+              {renderSectionRow("YoY Growth")}
+              {items.map(it=>renderGrowthRow(it,"yoy","yoy"))}
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
   );
 }
@@ -5306,7 +5477,7 @@ function CapacityMethodologyCard(){
       <style>{chevronCss}</style>
       <div style={{...S.lbl,color:"#6b7280",marginBottom:6}}>Methodology</div>
       <div style={{fontSize:11.5,color:"#4b5563",lineHeight:1.55,marginBottom:8}}>
-        AWS publishes current public IP ranges in {code("ip-ranges.json")}. We compute IPv4 address capacity from CIDR ranges and save daily snapshots to build history. Hero cards show latest public IPv4 capacity plus period changes from captured daily snapshots; change metrics remain pending until enough history exists.
+        AWS publishes current public IP ranges in {code("ip-ranges.json")}. We compute IPv4 address capacity from CIDR ranges and save daily snapshots to build history. Hero cards show latest public IPv4 capacity plus period changes from captured daily snapshots; change metrics remain pending until enough history exists. Quarterly and monthly breakdowns use the latest captured snapshot in each period; growth rows compare against the prior period or same period last year when available.
       </div>
 
       <details className="ipr-meth-row" style={{borderTop:"0.5px solid #e5e7eb"}}>
