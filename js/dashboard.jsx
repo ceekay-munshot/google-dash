@@ -5063,12 +5063,7 @@ function ServiceCapacityTrend({ts,fmtN,fmtCompact}){
           Daily captured AWS public IPv4 capacity by service from AWS ip-ranges.json.
         </div>
       </div>
-      <div style={{display:"flex",alignItems:"center",gap:6,flexShrink:0,flexWrap:"wrap",justifyContent:"flex-end"}}>
-        {isDemo&&(
-          <span style={{fontSize:10,padding:"3px 9px",borderRadius:999,fontWeight:700,background:"#fffbeb",color:"#92400e",border:"0.5px solid #fde68a",whiteSpace:"nowrap",letterSpacing:".04em"}}>PREVIEW</span>
-        )}
-        <span style={{fontSize:10,padding:"3px 9px",borderRadius:999,fontWeight:600,background:"#ecfeff",color:"#0e7490",border:"0.5px solid #a5f3fc",whiteSpace:"nowrap"}}>Daily snapshots · service footprint</span>
-      </div>
+      <span style={{fontSize:10,padding:"3px 9px",borderRadius:999,fontWeight:600,background:"#ecfeff",color:"#0e7490",border:"0.5px solid #a5f3fc",whiteSpace:"nowrap"}}>Daily snapshots · service footprint</span>
     </div>
   );
 
@@ -5135,14 +5130,6 @@ function ServiceCapacityTrend({ts,fmtN,fmtCompact}){
 
   return card(
     <>
-      {isDemo&&(
-        <div style={{background:"#fffbeb",border:"0.5px solid #fde68a",borderRadius:8,padding:"8px 12px",marginBottom:10,fontSize:11,color:"#78350f",lineHeight:1.5}}>
-          <b style={{fontWeight:700}}>Preview mode.</b>{" "}
-          {ts.data.demo_note || (
-            "Earliest point per series is a synthetic preview ~1.5% below the real latest. It will be replaced automatically once a second real snapshot is captured."
-          )}
-        </div>
-      )}
       <div style={{width:"100%",height:320}}>
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={chartData} margin={{top:8,right:16,bottom:0,left:0}}>
