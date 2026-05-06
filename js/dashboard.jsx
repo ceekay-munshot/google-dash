@@ -4889,13 +4889,11 @@ function AwsCapacityProxySection(){
       {/* Current Breakdown — tabbed Services / Regions */}
       <CurrentBreakdown topServices={topServices} topRegions={topRegions} fmtN={fmtN}/>
 
-      {/* Single methodology note */}
-      <div style={{background:"#f9fafb",border:"0.5px dashed #d1d5db",borderRadius:8,padding:"12px 14px",marginTop:14}}>
-        <div style={{...S.lbl,color:"#6b7280",marginBottom:5}}>Methodology</div>
-        <div style={{fontSize:11.5,color:"#4b5563",lineHeight:1.55}}>
-          AWS publishes current public IP ranges in <span style={{fontFamily:"monospace",color:"#111827"}}>ip-ranges.json</span>. We compute IPv4 address capacity from CIDR prefix lengths and save daily snapshots to build history. This is a public network capacity signal, not a measure of actual AWS customer usage or traffic.
-        </div>
-      </div>
+      {/* Single methodology card with two collapsed disclosures. Native
+         <details> keeps the bundle small, the default-collapsed state
+         keeps the section short, and the chevron rotation makes the
+         affordance obvious without icons. */}
+      <CapacityMethodologyCard/>
     </>
   );
 }
@@ -5102,6 +5100,109 @@ function CurrentBreakdown({topServices,topRegions,fmtN}){
         ? <CapacityTable title="Top AWS services by public IPv4 capacity" firstColLabel="Service" firstColKey="service" rows={topServices} fmtN={fmtN}/>
         : <CapacityTable title="Top AWS regions by public IPv4 capacity"  firstColLabel="Region"  firstColKey="region"  rows={topRegions}  fmtN={fmtN}/>
       }
+    </div>
+  );
+}
+
+/* Compact methodology card with two collapsed disclosure rows. Default
+   layout is just a label, one-line summary, and two chevron-style
+   summary rows — opens to ~150 words each. Native <details> keeps the
+   markup small and accessible; CSS-only chevron rotation gives the
+   affordance without bringing in an icon library. */
+function CapacityMethodologyCard(){
+  const summaryStyle={
+    fontSize:12,
+    fontWeight:600,
+    color:"#374151",
+    cursor:"pointer",
+    listStyle:"none",
+    padding:"8px 10px",
+    borderRadius:6,
+    display:"flex",
+    alignItems:"center",
+    gap:8,
+    userSelect:"none",
+  };
+  const bodyStyle={fontSize:11.5,color:"#4b5563",lineHeight:1.6,padding:"4px 10px 10px 26px"};
+  const liStyle={marginTop:3};
+  const code=(s)=><span style={{fontFamily:"monospace",color:"#111827"}}>{s}</span>;
+
+  // Hide the default disclosure triangle and inject a small CSS-only
+  // chevron that rotates 90° on [open]. Scoped via a unique class so
+  // we don't bleed into other native <details> on the page.
+  const chevronCss=`
+    .ipr-meth-row > summary{ list-style:none; }
+    .ipr-meth-row > summary::-webkit-details-marker{ display:none; }
+    .ipr-meth-row > summary::before{
+      content:""; display:inline-block; width:6px; height:6px;
+      border-right:1.5px solid #6b7280; border-bottom:1.5px solid #6b7280;
+      transform:rotate(-45deg); transition:transform .15s ease;
+      margin-right:2px;
+    }
+    .ipr-meth-row[open] > summary::before{ transform:rotate(45deg); }
+    .ipr-meth-row > summary:hover{ background:#f3f4f6; }
+  `;
+
+  return(
+    <div style={{background:"#f9fafb",border:"0.5px dashed #d1d5db",borderRadius:8,padding:"12px 14px",marginTop:14}}>
+      <style>{chevronCss}</style>
+      <div style={{...S.lbl,color:"#6b7280",marginBottom:6}}>Methodology</div>
+      <div style={{fontSize:11.5,color:"#4b5563",lineHeight:1.55,marginBottom:8}}>
+        AWS publishes current public IP ranges in {code("ip-ranges.json")}. We compute IPv4 address capacity from CIDR ranges and save daily snapshots to build history.
+      </div>
+
+      <details className="ipr-meth-row" style={{borderTop:"0.5px solid #e5e7eb"}}>
+        <summary style={summaryStyle}>How to read the service trend chart</summary>
+        <div style={bodyStyle}>
+          Each line represents one AWS service from the public AWS IP-range file.
+          <ul style={{margin:"6px 0 0 18px",padding:0}}>
+            <li style={liStyle}>{code("AMAZON")}: broad AWS-owned public IP ranges that are not always tied to one specific product.</li>
+            <li style={liStyle}>{code("EC2")}: public IPv4 capacity associated with Elastic Compute Cloud.</li>
+            <li style={liStyle}>{code("CLOUDFRONT")}: public IPv4 capacity associated with AWS CloudFront edge delivery.</li>
+            <li style={liStyle}>{code("S3")}: public IPv4 capacity associated with Amazon S3.</li>
+            <li style={liStyle}>{code("GLOBALACCELERATOR")}: public IPv4 capacity associated with AWS Global Accelerator.</li>
+            <li style={liStyle}>{code("CLOUDFRONT_ORIGIN_FACING")}: CloudFront ranges used for origin-facing connections.</li>
+            <li style={liStyle}>{code("API_GATEWAY")}: public IPv4 capacity associated with API Gateway.</li>
+            <li style={liStyle}>{code("IVS_REALTIME")}: public IPv4 capacity associated with Interactive Video Service real-time infrastructure.</li>
+          </ul>
+          <div style={{marginTop:8}}>Axes:</div>
+          <ul style={{margin:"4px 0 0 18px",padding:0}}>
+            <li style={liStyle}>X-axis: capture date.</li>
+            <li style={liStyle}>Y-axis: public IPv4 address capacity.</li>
+            <li style={liStyle}>Each point: the calculated IPv4 address count for that service on that captured date.</li>
+            <li style={liStyle}>Flat line: no change in that service's published public IPv4 capacity during the captured period.</li>
+            <li style={liStyle}>Upward line: AWS added public IPv4 capacity for that service.</li>
+            <li style={liStyle}>Downward line: AWS removed or reclassified public IPv4 capacity for that service.</li>
+          </ul>
+          <div style={{marginTop:8,color:"#6b7280"}}>
+            The chart uses a log scale because {code("AMAZON")} and {code("EC2")} are much larger than smaller services. Log scale makes smaller services visible instead of flattening them near zero.
+          </div>
+        </div>
+      </details>
+
+      <details className="ipr-meth-row" style={{borderTop:"0.5px solid #e5e7eb"}}>
+        <summary style={summaryStyle}>What this signal means</summary>
+        <div style={bodyStyle}>
+          This is a public network capacity signal, not exact AWS usage.
+          <div style={{marginTop:6}}>It can help answer:</div>
+          <ul style={{margin:"4px 0 0 18px",padding:0}}>
+            <li style={liStyle}>Is AWS's published public network footprint expanding?</li>
+            <li style={liStyle}>Which services have the largest public IPv4 footprint?</li>
+            <li style={liStyle}>Which services or regions are seeing capacity additions over time?</li>
+          </ul>
+          <div style={{marginTop:8}}>It cannot directly answer:</div>
+          <ul style={{margin:"4px 0 0 18px",padding:0}}>
+            <li style={liStyle}>Actual AWS customer usage.</li>
+            <li style={liStyle}>Compute hours consumed.</li>
+            <li style={liStyle}>Revenue.</li>
+            <li style={liStyle}>Private/internal AWS capacity.</li>
+            <li style={liStyle}>Customer workload growth.</li>
+          </ul>
+          <div style={{marginTop:8,color:"#374151",fontWeight:500}}>
+            Best interpretation: this is an infrastructure-footprint proxy. It becomes more useful when combined with AWS pricing, spot-market, and financial data.
+          </div>
+        </div>
+      </details>
     </div>
   );
 }
