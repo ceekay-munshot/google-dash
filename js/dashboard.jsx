@@ -4760,9 +4760,6 @@ function AmazonTab(){
 ═══════════════════════════════════════════════════════ */
 function AwsCapacityProxySection(){
   const[state,setState]=useState({phase:"loading",snap:null,servedFrom:null,error:null});
-  // Independent fetches — a history or time-series outage must not blank
-  // the KPIs / Current Breakdown that come from /latest.
-  const[hist,setHist]=useState({phase:"loading",daily:null,quarterly:null,error:null});
   const[ts,setTs]=useState({phase:"loading",data:null,error:null});
 
   useEffect(()=>{
@@ -4778,27 +4775,6 @@ function AwsCapacityProxySection(){
         setState({phase:"ready",snap:d.snapshot,servedFrom:d.served_from||null,error:null});
       })
       .catch(e=>{if(!cancelled)setState({phase:"error",snap:null,servedFrom:null,error:e.message||"Fetch failed"});});
-    return()=>{cancelled=true;};
-  },[]);
-
-  useEffect(()=>{
-    let cancelled=false;
-    const v=Math.floor(Date.now()/3e5);
-    Promise.all([
-      fetch("/api/aws/ip-ranges/history?grain=daily&v="+v).then(r=>r.ok?r.json():Promise.reject(new Error("HTTP "+r.status))),
-      fetch("/api/aws/ip-ranges/history?grain=quarterly&v="+v).then(r=>r.ok?r.json():Promise.reject(new Error("HTTP "+r.status))),
-    ])
-      .then(([daily,quarterly])=>{
-        if(cancelled)return;
-        const dOK = daily && daily.success !== false;
-        const qOK = quarterly && quarterly.success !== false;
-        if(!dOK && !qOK){
-          setHist({phase:"error",daily:null,quarterly:null,error:daily?.error||quarterly?.error||"history unavailable"});
-          return;
-        }
-        setHist({phase:"ready", daily: dOK?daily:null, quarterly: qOK?quarterly:null, error:null});
-      })
-      .catch(e=>{if(!cancelled)setHist({phase:"error",daily:null,quarterly:null,error:e.message||"Fetch failed"});});
     return()=>{cancelled=true;};
   },[]);
 
@@ -4907,10 +4883,6 @@ function AwsCapacityProxySection(){
         ))}
       </div>
 
-      {/* Slim Data feed status strip — replaces the old meta + history-status
-         + recent-snapshots stack. One row on desktop, wraps cleanly on mobile. */}
-      <CapacityFeedStatusStrip latest={s} servedFrom={state.servedFrom} hist={hist}/>
-
       {/* Service-Level Public IPv4 Capacity Trend — main analytical module */}
       <ServiceCapacityTrend ts={ts} fmtN={fmtN} fmtCompact={fmtCompact}/>
 
@@ -4965,72 +4937,6 @@ function CapacityTable({title,firstColLabel,firstColKey,rows,fmtN}){
   );
 }
 
-/* Slim Data feed status strip — single horizontal row that absorbs the
-   old meta strip + history-status card + recent-snapshots table. Reads
-   /history?grain=daily for snapshot count + dates and ?grain=quarterly
-   for QoQ availability; nothing else. Never fakes deltas. */
-function CapacityFeedStatusStrip({latest,servedFrom,hist}){
-  // The strip is a fixed one-line layout with consistent typography on
-  // every state — even loading and error variants stay this height so the
-  // section's visual rhythm doesn't jump as fetches resolve.
-  const wrap=(inner)=>(
-    <div style={{background:"#f9fafb",border:"0.5px solid #e5e7eb",borderRadius:8,padding:"8px 14px",marginBottom:14,display:"flex",flexWrap:"wrap",alignItems:"center",gap:"4px 16px",fontSize:11,color:"#6b7280",lineHeight:1.6}}>
-      <span style={{...S.lbl,color:"#374151"}}>Data feed status</span>
-      {inner}
-    </div>
-  );
-
-  const sep=<span style={{color:"#d1d5db"}}>·</span>;
-
-  if(hist.phase==="loading"){
-    return wrap(<><span>{sep}</span><span>Loading capture history…</span></>);
-  }
-
-  // Pull derived fields out of the daily history when we have it. Even on
-  // history error we keep the strip visible so the user can still see the
-  // /latest meta — the history bits become "—" instead of disappearing.
-  const snaps=(hist.daily?.snapshots)||[];
-  const count=snaps.length;
-  const latestSnapDate=snaps[0]?.snapshot_date||null;
-
-  const qSnap=hist.quarterly?.snapshots?.[0];
-  const hasPriorQuarter=qSnap && qSnap.qoq_ipv4_addresses_abs!==null && qSnap.qoq_ipv4_addresses_abs!==undefined;
-  const qoqLabel = hist.phase==="error" ? "—" : (hasPriorQuarter ? "Available" : "Pending");
-
-  // Compact ISO time (HH:MM UTC) for the captured-at field — full ISO is
-  // available in the meta if needed, but the strip should read tightly.
-  const compactCapturedAt=(iso)=>{
-    if(!iso)return "—";
-    try{
-      const d=new Date(iso);
-      const day=d.toISOString().slice(0,10);
-      const hh=String(d.getUTCHours()).padStart(2,"0");
-      const mm=String(d.getUTCMinutes()).padStart(2,"0");
-      return day+" "+hh+":"+mm+" UTC";
-    }catch(_){return iso;}
-  };
-
-  return wrap(
-    <>
-      {sep}
-      <span><b style={{color:"#374151",fontWeight:600}}>Daily capture:</b> <span style={{color:"#065f46",fontWeight:600}}>Active</span></span>
-      {sep}
-      <span><b style={{color:"#374151",fontWeight:600}}>Snapshots:</b> <span style={{fontFamily:"monospace",color:"#111827"}}>{hist.phase==="error"?"—":(count||0)}</span></span>
-      {sep}
-      <span><b style={{color:"#374151",fontWeight:600}}>Latest:</b> <span style={{fontFamily:"monospace",color:"#111827"}}>{latestSnapDate||latest?.snapshot_date||"—"}</span></span>
-      {sep}
-      <span><b style={{color:"#374151",fontWeight:600}}>AWS file:</b> <span style={{fontFamily:"monospace",color:"#111827"}}>{latest?.aws_create_date||"—"}</span></span>
-      {sep}
-      <span><b style={{color:"#374151",fontWeight:600}}>Captured:</b> <span style={{fontFamily:"monospace",color:"#111827"}}>{compactCapturedAt(latest?.captured_at)}</span></span>
-      {sep}
-      <span><b style={{color:"#374151",fontWeight:600}}>QoQ:</b> <span style={{fontFamily:"monospace",color:hasPriorQuarter?"#065f46":"#6b7280"}}>{qoqLabel}</span></span>
-      {sep}
-      <span><b style={{color:"#374151",fontWeight:600}}>Source:</b> <span style={{fontFamily:"monospace",color:"#111827"}}>AWS ip-ranges.json</span></span>
-      {servedFrom&&(<>{sep}<span style={{color:"#9ca3af"}}>served from <span style={{fontFamily:"monospace"}}>{servedFrom}</span></span></>)}
-    </>
-  );
-}
-
 /* Service-Level Public IPv4 Capacity Trend — main analytical module.
    With ≥2 snapshots, renders a multi-line recharts chart on a log
    Y-axis (AMAZON / EC2 dwarf the rest by orders of magnitude). With
@@ -5053,8 +4959,6 @@ function ServiceCapacityTrend({ts,fmtN,fmtCompact}){
       return next;
     });
   };
-  const showAll=()=>setHidden(new Set());
-  const hideAll=(allNames)=>setHidden(new Set(allNames));
   const header=(
     <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:12,flexWrap:"wrap",marginBottom:10}}>
       <div style={{minWidth:0,flex:"1 1 320px"}}>
@@ -5158,31 +5062,6 @@ function ServiceCapacityTrend({ts,fmtN,fmtCompact}){
             ))}
           </LineChart>
         </ResponsiveContainer>
-      </div>
-      <div style={{display:"flex",flexWrap:"wrap",alignItems:"center",gap:"4px 14px",fontSize:10.5,color:"#9ca3af",marginTop:6,lineHeight:1.5}}>
-        <span>Click a legend entry to toggle that line. Log scale used because service capacities differ by orders of magnitude.</span>
-        <span>·</span>
-        <span>Top {series.length} services by latest IPv4 capacity · {count} captured day{count===1?"":"s"}{isDemo?" (incl. 1 synthetic preview point)":""}</span>
-        <span>·</span>
-        <span>Gaps indicate days where the service was absent from the AWS file.</span>
-        {hidden.size>0&&(
-          <>
-            <span>·</span>
-            <button onClick={showAll}
-              style={{fontSize:10.5,padding:"2px 9px",border:"0.5px solid #d1d5db",borderRadius:999,background:"#fff",color:"#374151",cursor:"pointer",fontFamily:"inherit",fontWeight:500}}>
-              Show all ({hidden.size} hidden)
-            </button>
-          </>
-        )}
-        {series.length>1&&hidden.size===0&&(
-          <>
-            <span>·</span>
-            <button onClick={()=>hideAll(series.slice(1).map(s=>s.name))}
-              style={{fontSize:10.5,padding:"2px 9px",border:"0.5px solid #e5e7eb",borderRadius:999,background:"#fff",color:"#6b7280",cursor:"pointer",fontFamily:"inherit",fontWeight:500}}>
-              Solo top series
-            </button>
-          </>
-        )}
       </div>
     </>
   );
