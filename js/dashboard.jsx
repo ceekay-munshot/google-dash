@@ -4760,6 +4760,10 @@ function AmazonTab(){
 ═══════════════════════════════════════════════════════ */
 function AwsCapacityProxySection(){
   const[state,setState]=useState({phase:"loading",snap:null,servedFrom:null,error:null});
+  // /summary powers the trend-driven KPI row + the slim feed-status strip.
+  // Independent of /latest so a summary outage cannot blank Current
+  // Breakdown (which still reads from /latest's by_service / by_region).
+  const[summary,setSummary]=useState({phase:"loading",data:null,error:null});
   const[ts,setTs]=useState({phase:"loading",data:null,error:null});
 
   useEffect(()=>{
@@ -4775,6 +4779,19 @@ function AwsCapacityProxySection(){
         setState({phase:"ready",snap:d.snapshot,servedFrom:d.served_from||null,error:null});
       })
       .catch(e=>{if(!cancelled)setState({phase:"error",snap:null,servedFrom:null,error:e.message||"Fetch failed"});});
+    return()=>{cancelled=true;};
+  },[]);
+
+  useEffect(()=>{
+    let cancelled=false;
+    fetch("/api/aws/ip-ranges/summary?v="+Math.floor(Date.now()/3e5))
+      .then(r=>r.ok?r.json():Promise.reject(new Error("HTTP "+r.status)))
+      .then(d=>{
+        if(cancelled)return;
+        if(!d||d.success===false){setSummary({phase:"error",data:null,error:d?.error||"Empty response"});return;}
+        setSummary({phase:"ready",data:d,error:null});
+      })
+      .catch(e=>{if(!cancelled)setSummary({phase:"error",data:null,error:e.message||"Fetch failed"});});
     return()=>{cancelled=true;};
   },[]);
 
@@ -4857,31 +4874,14 @@ function AwsCapacityProxySection(){
   }
 
   const s=state.snap;
-
-  const kpis=[
-    {label:"Total public IPv4 addresses", value:fmtN(s.total_ipv4_addresses), sub:"Computed from AWS IPv4 CIDR ranges",       hint:fmtCompact(s.total_ipv4_addresses)+" addresses"},
-    {label:"IPv4 prefixes",               value:fmtN(s.total_ipv4_prefixes),  sub:"Published AWS IPv4 ranges",                hint:null},
-    {label:"IPv6 prefixes",               value:fmtN(s.total_ipv6_prefixes),  sub:"Count only; IPv6 address totals are not shown", hint:null},
-    {label:"Regions covered",             value:fmtN(s.total_regions),        sub:"AWS regions represented in the public file",hint:null},
-    {label:"Services covered",            value:fmtN(s.total_services),       sub:"AWS service labels in the public file",     hint:null},
-  ];
-
   const topServices=(s.by_service||[]).slice(0,8);
   const topRegions =(s.by_region ||[]).slice(0,8);
 
   return sectionWrap(
     <>
-      {/* KPI cards */}
-      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit, minmax(190px, 1fr))",gap:10,marginBottom:10}}>
-        {kpis.map((k,i)=>(
-          <div key={i} style={{background:"#fff",border:"0.5px solid #e5e7eb",borderRadius:12,padding:"14px 16px"}}>
-            <div style={{...S.lbl,color:"#6b7280"}}>{k.label}</div>
-            <div style={{fontSize:20,fontWeight:700,color:"#111827",marginTop:4,fontFamily:"monospace",letterSpacing:"-.01em",lineHeight:1.1,wordBreak:"break-all"}}>{k.value}</div>
-            {k.hint&&<div style={{fontSize:10,color:"#9ca3af",marginTop:2,fontFamily:"monospace"}}>{k.hint}</div>}
-            <div style={{fontSize:10.5,color:"#6b7280",marginTop:6,lineHeight:1.45}}>{k.sub}</div>
-          </div>
-        ))}
-      </div>
+      {/* Trend-driven hero KPI row + slim feed-status strip below */}
+      <CapacityKpiRow latest={s} summary={summary} fmtN={fmtN} fmtCompact={fmtCompact}/>
+      <CapacityFeedStatusStrip latest={s} summary={summary} servedFrom={state.servedFrom} fmtN={fmtN}/>
 
       {/* Service-Level Public IPv4 Capacity Trend — main analytical module */}
       <ServiceCapacityTrend ts={ts} fmtN={fmtN} fmtCompact={fmtCompact}/>
@@ -4931,6 +4931,164 @@ function CapacityTable({title,firstColLabel,firstColKey,rows,fmtN}){
           </tbody>
         </table>
       </div>
+    </div>
+  );
+}
+
+/* Trend-driven KPI hero row. Five cards driven by /api/aws/ip-ranges/summary:
+     1. Latest Public IPv4 Capacity   (anchor — always available once
+                                       /latest resolves)
+     2. QTD Capacity Change           (Pending until ≥2 same-quarter snapshots)
+     3. 30D Capacity Change           (or "since first snapshot" fallback when
+                                       the captured window is shorter than 30
+                                       days; Pending with only 1 snapshot)
+     4. Services Expanding            (count / total tracked, same period as 30D)
+     5. Regions Expanding             (count / total tracked, same period as 30D)
+
+   No card ever fakes a 0 for a missing change — when data is insufficient
+   the value reads "Pending" and the subtitle explains why.
+
+   The row stays visible even when /summary is still loading or has
+   errored — the latest-value anchor card always shows, and the change
+   cards render Pending so the layout doesn't jump as fetches resolve. */
+function CapacityKpiRow({latest,summary,fmtN,fmtCompact}){
+  const sumPhase=summary?.phase||"loading";
+  const sum=summary?.data||null;
+
+  const fmtSigned=n=>{
+    if(typeof n!=="number"||!isFinite(n))return "—";
+    const sign=n>0?"+":n<0?"−":"";
+    return sign+Math.abs(n).toLocaleString("en-US");
+  };
+  const fmtPct=p=>{
+    if(typeof p!=="number"||!isFinite(p))return "—";
+    const sign=p>0?"+":p<0?"−":"";
+    return sign+(Math.abs(p)*100).toFixed(2)+"%";
+  };
+  const changeColor=n=>(typeof n==="number"&&n!==0)?(n>0?"#059669":"#dc2626"):"#6b7280";
+
+  // Card 1 — Latest Public IPv4 Capacity (the scale anchor).
+  const latestCap=latest?.total_ipv4_addresses;
+  const card1={
+    label:"Latest Public IPv4 Capacity",
+    value: fmtN(latestCap),
+    valueColor:"#111827",
+    hint: typeof latestCap==="number"?(fmtCompact(latestCap)+" addresses"):null,
+    sub:"Latest AWS-published public IPv4 address pool",
+  };
+
+  // Helper: build a Pending or change-block card. periodLabel becomes the
+  // suffix on the percentage line (e.g. "+0.27% QTD") and on the subtitle
+  // when present.
+  function changeCard({label, block, pendingSub, periodSuffix}){
+    if(!block||!block.available){
+      return {
+        label,
+        value:"Pending",
+        valueColor:"#6b7280",
+        hint:null,
+        sub:pendingSub,
+      };
+    }
+    const abs=block.absolute_change;
+    const pct=block.pct_change;
+    return {
+      label,
+      value: fmtSigned(abs),
+      valueColor: changeColor(abs),
+      hint: typeof abs==="number" ? (fmtSigned(abs)+" addresses") : null,
+      // Override hint with absolute formatted phrase; primary value already shows the signed integer.
+      // Use it as a tighter restatement: the primary is the same number — keep this slot for context.
+      sub: (typeof pct==="number" ? (fmtPct(pct)+ (periodSuffix?(" "+periodSuffix):"")) : "") +
+           (block.baseline_date?(" · baseline "+block.baseline_date):""),
+    };
+  }
+
+  // Card 2 — QTD.
+  const card2 = changeCard({
+    label:"QTD Capacity Change",
+    block: sum?.qtd,
+    pendingSub:"Appears once quarter baseline is available",
+    periodSuffix:"QTD",
+  });
+
+  // Card 3 — 30D (or since-first fallback).
+  const td = sum?.thirty_day;
+  const tdLabel = td?.period_label === "30D" ? "30D" : (td?.period_label==="since first snapshot" ? "since first" : "");
+  const card3 = changeCard({
+    label: td?.period_label==="since first snapshot" ? "Capacity Change · Since First" : "30D Capacity Change",
+    block: td,
+    pendingSub:"Appears after more daily snapshots",
+    periodSuffix: tdLabel,
+  });
+
+  // Cards 4 & 5 — breadth counts. Display "k / N" only when available.
+  function breadthCard(label, expandingCount, totalTracked, periodLabel){
+    if(typeof expandingCount!=="number"||typeof totalTracked!=="number"){
+      return {label,value:"Pending",valueColor:"#6b7280",hint:null,sub:"Needs at least 2 daily snapshots"};
+    }
+    const periodNote = periodLabel==="30D" ? "Period: 30D" : (periodLabel==="since first snapshot" ? "Period: since first snapshot" : "Period: captured window");
+    return {
+      label,
+      value: expandingCount + " / " + totalTracked,
+      valueColor: expandingCount>0 ? "#059669" : "#6b7280",
+      hint: null,
+      sub: periodNote,
+    };
+  }
+  const card4 = breadthCard("Services Expanding", sum?.breadth?.services_expanding, sum?.breadth?.total_services_tracked, sum?.breadth?.period_label);
+  const card5 = breadthCard("Regions Expanding",  sum?.breadth?.regions_expanding,  sum?.breadth?.total_regions_tracked,  sum?.breadth?.period_label);
+
+  // Render. Five cards with a consistent layout — same height regardless
+  // of Pending vs change vs anchor — so the row reads cleanly.
+  const cards=[card1,card2,card3,card4,card5];
+  return(
+    <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit, minmax(180px, 1fr))",gap:10,marginBottom:10}}>
+      {cards.map((k,i)=>(
+        <div key={i} style={{background:"#fff",border:"0.5px solid #e5e7eb",borderRadius:12,padding:"14px 16px"}}>
+          <div style={{...S.lbl,color:"#6b7280"}}>{k.label}</div>
+          <div style={{fontSize:20,fontWeight:700,color:k.valueColor,marginTop:4,fontFamily:"monospace",letterSpacing:"-.01em",lineHeight:1.1,wordBreak:"break-all"}}>{k.value}</div>
+          {k.hint&&<div style={{fontSize:10,color:"#9ca3af",marginTop:2,fontFamily:"monospace"}}>{k.hint}</div>}
+          <div style={{fontSize:10.5,color:"#6b7280",marginTop:6,lineHeight:1.45}}>{k.sub}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* Slim Data Feed Status strip — single horizontal row that holds the
+   capture metadata plus the static counts that used to be hero KPIs
+   (IPv4 prefixes, IPv6 prefixes, regions count, services count). The
+   strip wraps cleanly on mobile. Stays visible even when /summary
+   errors (it falls back to /latest values for the static counts and
+   shows "—" for snapshot count). */
+function CapacityFeedStatusStrip({latest,summary,servedFrom,fmtN}){
+  const sum=summary?.data;
+  const snapshotCount = (summary?.phase==="ready" && typeof sum?.snapshot_count==="number") ? sum.snapshot_count : null;
+  const latestSnapDate = sum?.latest_snapshot_date || latest?.snapshot_date || null;
+  const sep=<span style={{color:"#d1d5db"}}>·</span>;
+  return(
+    <div style={{background:"#f9fafb",border:"0.5px solid #e5e7eb",borderRadius:8,padding:"8px 14px",marginBottom:14,display:"flex",flexWrap:"wrap",alignItems:"center",gap:"4px 14px",fontSize:11,color:"#6b7280",lineHeight:1.6}}>
+      <span style={{...S.lbl,color:"#374151"}}>Data feed status</span>
+      {sep}
+      <span><b style={{color:"#374151",fontWeight:600}}>Daily capture:</b> <span style={{color:"#065f46",fontWeight:600}}>Active</span></span>
+      {sep}
+      <span><b style={{color:"#374151",fontWeight:600}}>Snapshots:</b> <span style={{fontFamily:"monospace",color:"#111827"}}>{snapshotCount==null?"—":snapshotCount}</span></span>
+      {sep}
+      <span><b style={{color:"#374151",fontWeight:600}}>Latest:</b> <span style={{fontFamily:"monospace",color:"#111827"}}>{latestSnapDate||"—"}</span></span>
+      {sep}
+      <span><b style={{color:"#374151",fontWeight:600}}>AWS file:</b> <span style={{fontFamily:"monospace",color:"#111827"}}>{latest?.aws_create_date||"—"}</span></span>
+      {sep}
+      <span><b style={{color:"#374151",fontWeight:600}}>Source:</b> <span style={{fontFamily:"monospace",color:"#111827"}}>AWS ip-ranges.json</span></span>
+      {sep}
+      <span><b style={{color:"#374151",fontWeight:600}}>IPv4 prefixes:</b> <span style={{fontFamily:"monospace",color:"#111827"}}>{fmtN(latest?.total_ipv4_prefixes)}</span></span>
+      {sep}
+      <span><b style={{color:"#374151",fontWeight:600}}>IPv6 prefixes:</b> <span style={{fontFamily:"monospace",color:"#111827"}}>{fmtN(latest?.total_ipv6_prefixes)}</span></span>
+      {sep}
+      <span><b style={{color:"#374151",fontWeight:600}}>Regions:</b> <span style={{fontFamily:"monospace",color:"#111827"}}>{fmtN(latest?.total_regions)}</span></span>
+      {sep}
+      <span><b style={{color:"#374151",fontWeight:600}}>Services:</b> <span style={{fontFamily:"monospace",color:"#111827"}}>{fmtN(latest?.total_services)}</span></span>
+      {servedFrom&&(<>{sep}<span style={{color:"#9ca3af"}}>served from <span style={{fontFamily:"monospace"}}>{servedFrom}</span></span></>)}
     </div>
   );
 }
@@ -5148,7 +5306,7 @@ function CapacityMethodologyCard(){
       <style>{chevronCss}</style>
       <div style={{...S.lbl,color:"#6b7280",marginBottom:6}}>Methodology</div>
       <div style={{fontSize:11.5,color:"#4b5563",lineHeight:1.55,marginBottom:8}}>
-        AWS publishes current public IP ranges in {code("ip-ranges.json")}. We compute IPv4 address capacity from CIDR ranges and save daily snapshots to build history.
+        AWS publishes current public IP ranges in {code("ip-ranges.json")}. We compute IPv4 address capacity from CIDR ranges and save daily snapshots to build history. Hero cards show latest public IPv4 capacity plus period changes from captured daily snapshots; change metrics remain pending until enough history exists.
       </div>
 
       <details className="ipr-meth-row" style={{borderTop:"0.5px solid #e5e7eb"}}>
