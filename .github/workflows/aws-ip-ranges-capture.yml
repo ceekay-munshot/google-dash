@@ -1,0 +1,248 @@
+name: AWS IP Ranges Daily Capture
+
+# Triggers a daily snapshot of the AWS Public Network Capacity Proxy by
+# calling /api/aws/ip-ranges/capture. The endpoint is idempotent — if the
+# upstream syncToken has not changed since the last successful capture,
+# the call returns action: "skipped" — so accidental double-runs (manual
+# trigger overlapping a scheduled run, or two slots winning) are safe.
+#
+# A single off-minute slot is enough here:
+#   - the capacity-footprint signal only needs daily granularity, and
+#   - the canonical history-capture workflow already proves that one
+#     off-minute slot is reliable in practice; redundancy isn't worth a
+#     KV write storm for a once-a-day signal.
+#
+# Slot choice (04:15 UTC) deliberately avoids the heavily-queued :00/:30
+# hot slots and runs early UTC so a fresh AWS createDate (typically refreshed
+# 02:00–04:00 UTC) is captured the same calendar day.
+
+on:
+  schedule:
+    - cron: '15 4 * * *'
+
+  # Manual trigger from the GitHub UI → Actions tab → "AWS IP Ranges Daily Capture" → Run workflow
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: 'Optional note (for audit log)'
+        required: false
+        default: 'manual run'
+
+# Prevent overlapping runs — if a scheduled run is still going and someone
+# triggers a manual one, queue the manual one instead of clobbering.
+concurrency:
+  group: aws-ip-ranges-capture
+  cancel-in-progress: false
+
+jobs:
+  capture:
+    name: Capture AWS IP-ranges snapshot
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    permissions:
+      contents: read
+      issues: write
+
+    steps:
+      - name: Validate required secrets
+        env:
+          DASHBOARD_URL: ${{ secrets.HISTORY_CAPTURE_URL }}
+          CAPTURE_SECRET: ${{ secrets.HISTORY_CAPTURE_SECRET }}
+        run: |
+          # Reuses the same secrets as the canonical history-capture workflow:
+          # HISTORY_CAPTURE_URL is the base dashboard URL (e.g. https://google-dash-git.pages.dev/api/history-capture),
+          # HISTORY_CAPTURE_SECRET is the bearer token recognized by /api/history-capture
+          # AND now by /api/aws/ip-ranges/capture (when configured) — same secret,
+          # so no new GH Actions secret to provision.
+          if [ -z "$DASHBOARD_URL" ]; then
+            echo "::error::HISTORY_CAPTURE_URL secret is not set"
+            exit 1
+          fi
+          if [ -z "$CAPTURE_SECRET" ]; then
+            echo "::error::HISTORY_CAPTURE_SECRET secret is not set"
+            exit 1
+          fi
+          echo "Both required secrets are configured."
+
+      - name: Derive AWS capture endpoint URL
+        id: target
+        env:
+          DASHBOARD_URL: ${{ secrets.HISTORY_CAPTURE_URL }}
+        run: |
+          # HISTORY_CAPTURE_URL points at /api/history-capture. Swap the path
+          # to /api/aws/ip-ranges/capture while preserving scheme + host so we
+          # don't need a second secret. If the host has been overridden
+          # (preview deploy, custom domain, etc.) we follow that override.
+          AWS_URL=$(node -e "
+            const u = new URL(process.env.DASHBOARD_URL);
+            u.pathname = '/api/aws/ip-ranges/capture';
+            u.search = '';
+            console.log(u.toString());
+          ")
+          echo "Resolved AWS capture URL: $AWS_URL"
+          echo "url=$AWS_URL" >> "$GITHUB_OUTPUT"
+
+      - name: Call AWS capture endpoint (with up to 3 attempts)
+        id: capture
+        env:
+          AWS_URL: ${{ steps.target.outputs.url }}
+          CAPTURE_SECRET: ${{ secrets.HISTORY_CAPTURE_SECRET }}
+          TRIGGER_REASON: ${{ github.event.inputs.reason || 'scheduled' }}
+        run: |
+          set -u
+          ATTEMPTS=3
+          RESPONSE_FILE="${RUNNER_TEMP}/aws-capture-response.txt"
+          EXIT_CODE=1
+          LAST_CODE="000"
+
+          for i in $(seq 1 $ATTEMPTS); do
+            echo "── Attempt $i of $ATTEMPTS (reason: $TRIGGER_REASON) ──"
+
+            HTTP_CODE=$(curl \
+              --show-error \
+              --silent \
+              --max-time 120 \
+              --retry 0 \
+              --output "$RESPONSE_FILE" \
+              --write-out "%{http_code}" \
+              -H "Authorization: Bearer $CAPTURE_SECRET" \
+              -H "User-Agent: gdash-aws-ipr-cron/1.0" \
+              "$AWS_URL" || echo "000")
+
+            LAST_CODE="$HTTP_CODE"
+            RESP_CT=$(curl -sI \
+              --max-time 30 \
+              -H "Authorization: Bearer $CAPTURE_SECRET" \
+              -H "User-Agent: gdash-aws-ipr-cron/1.0" \
+              "$AWS_URL" | awk 'BEGIN{IGNORECASE=1}/^content-type:/{print $2; exit}' | tr -d '\r' || echo "unknown")
+
+            echo "HTTP $HTTP_CODE · content-type: ${RESP_CT:-unknown}"
+            echo "── Response body ──"
+            JSON_OK=false
+            SUCCESS_FLAG="unknown"
+            ACTION_VAL="unknown"
+            if command -v jq >/dev/null && jq . "$RESPONSE_FILE" >/dev/null 2>&1; then
+              jq . "$RESPONSE_FILE"
+              JSON_OK=true
+              SUCCESS_FLAG=$(jq -r '.success // empty' "$RESPONSE_FILE" 2>/dev/null)
+              [ -z "$SUCCESS_FLAG" ] && SUCCESS_FLAG="(missing)"
+              ACTION_VAL=$(jq -r '.action // empty' "$RESPONSE_FILE" 2>/dev/null)
+              [ -z "$ACTION_VAL" ] && ACTION_VAL="(missing)"
+            else
+              cat "$RESPONSE_FILE"
+              echo ""
+            fi
+            echo "── Smoke check: json_ok=$JSON_OK · success=$SUCCESS_FLAG · action=$ACTION_VAL ──"
+
+            # Strict success predicate: HTTP 200 AND JSON-parsable AND success:true.
+            if [ "$HTTP_CODE" = "200" ] && [ "$JSON_OK" = "true" ] && [ "$SUCCESS_FLAG" = "true" ]; then
+              EXIT_CODE=0
+              break
+            fi
+
+            if [ "$i" -lt "$ATTEMPTS" ]; then
+              SLEEP=$((i * 15))
+              echo "Retrying in ${SLEEP}s…"
+              sleep $SLEEP
+            fi
+          done
+
+          echo "http_code=$LAST_CODE"     >> "$GITHUB_OUTPUT"
+          echo "attempts=$ATTEMPTS"        >> "$GITHUB_OUTPUT"
+          echo "response_file=$RESPONSE_FILE" >> "$GITHUB_OUTPUT"
+          echo "resp_ct=${RESP_CT:-unknown}" >> "$GITHUB_OUTPUT"
+          echo "json_ok=$JSON_OK"          >> "$GITHUB_OUTPUT"
+          echo "success_flag=$SUCCESS_FLAG" >> "$GITHUB_OUTPUT"
+          echo "action_val=$ACTION_VAL"    >> "$GITHUB_OUTPUT"
+
+          if [ "$EXIT_CODE" -ne 0 ]; then
+            echo "::error::AWS IP-ranges capture failed after $ATTEMPTS attempts (last HTTP $LAST_CODE)"
+            exit 1
+          fi
+          echo "AWS IP-ranges capture succeeded — action=$ACTION_VAL"
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "### AWS IP Ranges Daily Capture" >> $GITHUB_STEP_SUMMARY
+          echo "- Trigger: ${{ github.event_name }}"           >> $GITHUB_STEP_SUMMARY
+          echo "- Reason: ${{ github.event.inputs.reason || 'scheduled' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Time (UTC): $(date -u '+%Y-%m-%d %H:%M:%S')" >> $GITHUB_STEP_SUMMARY
+          echo "- Status: ${{ job.status }}"                    >> $GITHUB_STEP_SUMMARY
+          echo "- Last HTTP: ${{ steps.capture.outputs.http_code || 'n/a' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Content-Type: ${{ steps.capture.outputs.resp_ct || 'n/a' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- JSON parsed: ${{ steps.capture.outputs.json_ok || 'n/a' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- success field: ${{ steps.capture.outputs.success_flag || 'n/a' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- action: ${{ steps.capture.outputs.action_val || 'n/a' }}" >> $GITHUB_STEP_SUMMARY
+
+      # ── Failure alerting ──
+      # Mirrors history-capture.yml — opens a single rolling issue and
+      # comments on every subsequent failure. Uses the auto-provided
+      # GITHUB_TOKEN, no extra secrets.
+      - name: Open or update failure issue
+        if: failure()
+        uses: actions/github-script@v7
+        env:
+          HTTP_CODE: ${{ steps.capture.outputs.http_code }}
+          ATTEMPTS:  ${{ steps.capture.outputs.attempts }}
+          RUN_URL:   ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          TRIGGER:   ${{ github.event_name }}
+          REASON:    ${{ github.event.inputs.reason || 'scheduled' }}
+        with:
+          script: |
+            const fs = require('fs');
+            const TITLE = '🔴 AWS IP-ranges capture failing';
+            const responseFile = '${{ steps.capture.outputs.response_file }}';
+            let body = '';
+            try { body = fs.readFileSync(responseFile, 'utf8').slice(0, 4000); } catch (_) { body = '(no response body captured)'; }
+
+            const nowUTC = new Date().toISOString().replace('T', ' ').slice(0, 19) + ' UTC';
+            const summary = [
+              '**Run:** ' + process.env.RUN_URL,
+              '**When:** ' + nowUTC,
+              '**Trigger:** ' + process.env.TRIGGER + ' (' + process.env.REASON + ')',
+              '**Last HTTP:** ' + (process.env.HTTP_CODE || 'n/a'),
+              '**Attempts:** ' + (process.env.ATTEMPTS || 'n/a'),
+              '',
+              '<details><summary>Response body</summary>',
+              '',
+              '```',
+              body,
+              '```',
+              '',
+              '</details>',
+              '',
+              '---',
+              'This issue auto-opens when the daily AWS IP-ranges capture fails ' +
+              'and auto-comments on each subsequent failure. Close it once the ' +
+              'underlying issue is fixed; the next failure will open a fresh one.',
+            ].join('\n');
+
+            const { data: openIssues } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo:  context.repo.repo,
+              state: 'open',
+              labels: 'aws-ip-ranges-capture-failure',
+              per_page: 50,
+            });
+            const existing = openIssues.find(i => i.title === TITLE);
+
+            if (existing) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo:  context.repo.repo,
+                issue_number: existing.number,
+                body: '### New failure\n\n' + summary,
+              });
+              core.notice('Posted comment on existing issue #' + existing.number);
+            } else {
+              const { data: created } = await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo:  context.repo.repo,
+                title: TITLE,
+                body:  '### Initial failure\n\n' + summary,
+                labels: ['aws-ip-ranges-capture-failure'],
+              });
+              core.notice('Opened new issue #' + created.number);
+            }

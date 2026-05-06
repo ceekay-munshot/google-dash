@@ -10,6 +10,15 @@
  *     the row is REPLACED with the fresher rollup (action="superseded").
  *   - If no row exists for today, the new rollup is written (action="created").
  *
+ * Auth (optional, reuses the existing HISTORY_CAPTURE_SECRET pattern from
+ * /api/history-capture so the same GitHub Actions secret can drive both
+ * crons without a second secret to provision):
+ *   - If HISTORY_CAPTURE_SECRET is set in the environment, the request must
+ *     present it via Authorization: Bearer <secret> (preferred),
+ *     x-history-capture-secret header, or ?key=<secret>.
+ *   - If the secret is NOT set (e.g. local dev), the endpoint stays open so
+ *     curl/preview testing remains friction-free.
+ *
  * GET is allowed too so a simple cron caller (cron-job.org, GitHub Actions
  * with curl, etc.) can trigger captures without juggling POST. Behavior is
  * identical for both verbs.
@@ -25,7 +34,25 @@ import {
   bumpIndex,
 } from '../_ipr-utils.js';
 
-async function handle({ env }) {
+async function handle({ request, env }) {
+  // ── Auth (only enforced when a secret is configured) ──
+  const url = new URL(request.url);
+  const secret = env?.HISTORY_CAPTURE_SECRET;
+  if (secret) {
+    const authHeader = request.headers.get('authorization') || '';
+    const bearerToken = authHeader.replace(/^Bearer\s+/i, '').trim();
+    const headerSecret = request.headers.get('x-history-capture-secret') || '';
+    const querySecret = url.searchParams.get('key') || '';
+    const provided = bearerToken || headerSecret || querySecret;
+    if (provided !== secret) {
+      return jsonResp({
+        success: false,
+        error: 'Unauthorized',
+        hint: 'Send Authorization: Bearer <HISTORY_CAPTURE_SECRET>, x-history-capture-secret header, or ?key=<SECRET>',
+      }, 403);
+    }
+  }
+
   const kv = env?.HISTORY_KV;
   if (!kv) {
     return jsonResp({

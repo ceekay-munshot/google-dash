@@ -4837,6 +4837,10 @@ function AwsUsageTrendsSection(){
 ═══════════════════════════════════════════════════════ */
 function AwsCapacityProxySection(){
   const[state,setState]=useState({phase:"loading",snap:null,servedFrom:null,error:null});
+  // History fetch is independent — if it fails, the section still renders
+  // the latest KPIs and shows a small "history unavailable" warning.
+  const[hist,setHist]=useState({phase:"loading",daily:null,quarterly:null,error:null});
+
   useEffect(()=>{
     let cancelled=false;
     fetch("/api/aws/ip-ranges/latest?v="+Math.floor(Date.now()/3e5))
@@ -4850,6 +4854,27 @@ function AwsCapacityProxySection(){
         setState({phase:"ready",snap:d.snapshot,servedFrom:d.served_from||null,error:null});
       })
       .catch(e=>{if(!cancelled)setState({phase:"error",snap:null,servedFrom:null,error:e.message||"Fetch failed"});});
+    return()=>{cancelled=true;};
+  },[]);
+
+  useEffect(()=>{
+    let cancelled=false;
+    const v="?v="+Math.floor(Date.now()/3e5);
+    Promise.all([
+      fetch("/api/aws/ip-ranges/history?grain=daily&"+v.slice(1)).then(r=>r.ok?r.json():Promise.reject(new Error("HTTP "+r.status))),
+      fetch("/api/aws/ip-ranges/history?grain=quarterly&"+v.slice(1)).then(r=>r.ok?r.json():Promise.reject(new Error("HTTP "+r.status))),
+    ])
+      .then(([daily,quarterly])=>{
+        if(cancelled)return;
+        const dOK = daily && daily.success !== false;
+        const qOK = quarterly && quarterly.success !== false;
+        if(!dOK && !qOK){
+          setHist({phase:"error",daily:null,quarterly:null,error:daily?.error||quarterly?.error||"history unavailable"});
+          return;
+        }
+        setHist({phase:"ready", daily: dOK?daily:null, quarterly: qOK?quarterly:null, error:null});
+      })
+      .catch(e=>{if(!cancelled)setHist({phase:"error",daily:null,quarterly:null,error:e.message||"Fetch failed"});});
     return()=>{cancelled=true;};
   },[]);
 
@@ -4950,6 +4975,9 @@ function AwsCapacityProxySection(){
         )}
       </div>
 
+      {/* History status + recent snapshots — separate fetch, degrades gracefully */}
+      <CapacityHistoryStatus hist={hist} fmtN={fmtN}/>
+
       {/* Two side-by-side top-8 tables (stack on mobile) */}
       <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit, minmax(340px, 1fr))",gap:10,marginBottom:14}}>
         <CapacityTable title="Top AWS services by public IPv4 capacity" firstColLabel="Service" firstColKey="service" rows={topServices} fmtN={fmtN}/>
@@ -5004,6 +5032,162 @@ function CapacityTable({title,firstColLabel,firstColKey,rows,fmtN}){
         </table>
       </div>
     </div>
+  );
+}
+
+/* History status + recent-snapshots panel for the AWS Public Network
+   Capacity Proxy. Reads /api/aws/ip-ranges/history?grain=daily and
+   ?grain=quarterly, then derives the trend-readiness fields the spec
+   asks for (history_days_count, first/latest snapshot dates,
+   absolute / pct change since first snapshot, QoQ delta) without
+   inventing any number that isn't in the captured data. If only one
+   snapshot exists, the change fields are intentionally NOT shown — we
+   never fake a delta against a single data point. */
+function CapacityHistoryStatus({hist,fmtN}){
+  const wrap=(inner)=>(
+    <div style={{marginBottom:14}}>{inner}</div>
+  );
+
+  if(hist.phase==="loading"){
+    return wrap(
+      <div style={{background:"#fff",border:"0.5px solid #e5e7eb",borderRadius:12,padding:"14px 16px"}}>
+        <div style={{...S.lbl,color:"#6b7280",marginBottom:6}}>History status</div>
+        <Shimmer rows={3}/>
+      </div>
+    );
+  }
+
+  if(hist.phase==="error"){
+    return wrap(
+      <div style={{background:"#fffbeb",border:"0.5px solid #fde68a",borderRadius:8,padding:"10px 14px",fontSize:11.5,color:"#78350f",lineHeight:1.55}}>
+        History unavailable. Latest AWS snapshot is still shown.
+      </div>
+    );
+  }
+
+  const daily=hist.daily;
+  const quarterly=hist.quarterly;
+  const snaps=(daily?.snapshots||[]);
+  const count=snaps.length;
+
+  if(count===0){
+    return wrap(
+      <div style={{background:"#fff",border:"0.5px solid #e5e7eb",borderRadius:12,padding:"14px 16px"}}>
+        <div style={{...S.lbl,color:"#6b7280",marginBottom:6}}>History status</div>
+        <div style={{fontSize:12,color:"#374151",lineHeight:1.55}}>
+          Historical trend begins from the first captured snapshot.
+        </div>
+      </div>
+    );
+  }
+
+  // Snapshots come back date-desc from the API.
+  const latest=snaps[0];
+  const first =snaps[count-1];
+
+  const has_quarterly_comparison=
+    !!(quarterly?.snapshots?.length && quarterly.snapshots.length > 1) ||
+    !!(quarterly?.snapshots?.[0] && quarterly.snapshots[0].qoq_ipv4_addresses_abs !== null);
+
+  // Format helpers — sign-prefixed for change rows so "+" reads as growth.
+  const fmtSigned=n=>{
+    if(typeof n!=="number"||!isFinite(n))return "—";
+    const sign=n>0?"+":n<0?"−":"";
+    return sign+Math.abs(n).toLocaleString("en-US");
+  };
+  const fmtPct=p=>{
+    if(typeof p!=="number"||!isFinite(p))return "—";
+    const sign=p>0?"+":p<0?"−":"";
+    return sign+(Math.abs(p)*100).toFixed(2)+"%";
+  };
+  const changeColor=n=>(typeof n==="number"&&n!==0)?(n>0?"#059669":"#dc2626"):"#6b7280";
+
+  // Derived fields (computed only when count>1 so single-snapshot wording
+  // never carries a fake delta).
+  let absChange=null, pctChange=null;
+  if(count>1){
+    absChange = latest.total_ipv4_addresses - first.total_ipv4_addresses;
+    if(first.total_ipv4_addresses>0) pctChange = absChange / first.total_ipv4_addresses;
+  }
+
+  // Quarterly QoQ from the most-recent quarter (the API computes this for us
+  // and emits null for both fields when there's no prior quarter — UI shows "—").
+  const qLatest=quarterly?.snapshots?.[0]||null;
+  const qoqAbs=qLatest?.qoq_ipv4_addresses_abs;
+  const qoqPct=qLatest?.qoq_ipv4_addresses_pct;
+  const hasPriorQuarter=qoqAbs!==null && qoqAbs!==undefined;
+
+  // Recent snapshots — top 7 newest.
+  const recent=snaps.slice(0,7);
+
+  return wrap(
+    <>
+      {/* Header card */}
+      <div style={{background:"#fff",border:"0.5px solid #e5e7eb",borderRadius:12,padding:"14px 16px",marginBottom:10}}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,marginBottom:8,flexWrap:"wrap"}}>
+          <div style={{...S.lbl,color:"#6b7280"}}>History status</div>
+          <span style={{fontSize:10,padding:"2px 8px",borderRadius:4,fontWeight:600,background:"#ecfeff",color:"#0e7490",whiteSpace:"nowrap"}}>capacity-footprint trend</span>
+        </div>
+
+        {count===1?(
+          <div style={{display:"flex",flexDirection:"column",gap:4,fontSize:12,color:"#374151",lineHeight:1.55}}>
+            <div style={{fontWeight:600,color:"#111827"}}>Trend history started</div>
+            <div>1 daily snapshot captured.</div>
+            <div style={{color:"#6b7280"}}>Quarterly comparison will appear after more snapshots are collected.</div>
+          </div>
+        ):(
+          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit, minmax(200px, 1fr))",gap:"6px 18px",fontSize:12,color:"#374151",lineHeight:1.55}}>
+            <div><span style={{color:"#6b7280"}}>Daily snapshots captured:</span> <span style={{fontFamily:"monospace",color:"#111827",fontWeight:600}}>{fmtN(count)}</span></div>
+            <div><span style={{color:"#6b7280"}}>First snapshot:</span> <span style={{fontFamily:"monospace",color:"#111827"}}>{first.snapshot_date}</span></div>
+            <div><span style={{color:"#6b7280"}}>Latest snapshot:</span> <span style={{fontFamily:"monospace",color:"#111827"}}>{latest.snapshot_date}</span></div>
+            <div><span style={{color:"#6b7280"}}>Change since first snapshot:</span> <span style={{fontFamily:"monospace",fontWeight:600,color:changeColor(absChange)}}>{fmtSigned(absChange)}</span> <span style={{color:"#6b7280"}}>IPv4 addresses</span></div>
+            <div><span style={{color:"#6b7280"}}>Percentage change:</span> <span style={{fontFamily:"monospace",fontWeight:600,color:changeColor(absChange)}}>{fmtPct(pctChange)}</span></div>
+          </div>
+        )}
+
+        {/* Quarterly comparison line */}
+        <div style={{marginTop:10,paddingTop:8,borderTop:"1px solid #f3f4f6",fontSize:11.5,color:"#374151",lineHeight:1.55,display:"flex",flexWrap:"wrap",gap:"4px 14px"}}>
+          {!hasPriorQuarter?(
+            <span><span style={{color:"#6b7280"}}>QoQ comparison:</span> <span style={{fontFamily:"monospace",color:"#111827"}}>—</span> <span style={{color:"#9ca3af",fontSize:10.5}}>quarterly comparison will appear once enough history exists</span></span>
+          ):(
+            <>
+              <span><span style={{color:"#6b7280"}}>QoQ change:</span> <span style={{fontFamily:"monospace",fontWeight:600,color:changeColor(qoqAbs)}}>{fmtSigned(qoqAbs)}</span> <span style={{color:"#6b7280"}}>IPv4 addresses</span></span>
+              <span><span style={{color:"#6b7280"}}>QoQ %:</span> <span style={{fontFamily:"monospace",fontWeight:600,color:changeColor(qoqAbs)}}>{fmtPct(qoqPct)}</span></span>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Recent snapshots — compact 5-column table, latest 7 rows. */}
+      <div style={{background:"#fff",border:"0.5px solid #e5e7eb",borderRadius:12,padding:0,overflow:"hidden"}}>
+        <div style={{padding:"12px 14px",borderBottom:"1px solid #f3f4f6"}}>
+          <div style={{fontSize:13,fontWeight:600,color:"#111827",lineHeight:1.3}}>Recent snapshots</div>
+          <div style={{fontSize:10.5,color:"#9ca3af",marginTop:2}}>Latest {recent.length} captured day{recent.length===1?"":"s"} · newest first</div>
+        </div>
+        <div style={{overflowX:"auto"}}>
+          <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
+            <thead>
+              <tr>
+                {["Date","IPv4 addresses","IPv4 prefixes","IPv6 prefixes","AWS file date"].map((h,i)=>(
+                  <th key={h} style={{...S.lbl,textAlign:i===0?"left":(i===4?"left":"right"),padding:"8px 12px",borderBottom:"1px solid #f3f4f6",background:"#fafafa",whiteSpace:"nowrap"}}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {recent.map((r,i)=>(
+                <tr key={r.snapshot_date+"-"+i}>
+                  <td style={{padding:"8px 12px",borderBottom:"1px solid #f9fafb",fontFamily:"monospace",fontWeight:600,color:"#111827",whiteSpace:"nowrap"}}>{r.snapshot_date}</td>
+                  <td style={{padding:"8px 12px",borderBottom:"1px solid #f9fafb",fontFamily:"monospace",color:"#111827",textAlign:"right",whiteSpace:"nowrap"}}>{fmtN(r.total_ipv4_addresses)}</td>
+                  <td style={{padding:"8px 12px",borderBottom:"1px solid #f9fafb",fontFamily:"monospace",color:"#111827",textAlign:"right",whiteSpace:"nowrap"}}>{fmtN(r.total_ipv4_prefixes)}</td>
+                  <td style={{padding:"8px 12px",borderBottom:"1px solid #f9fafb",fontFamily:"monospace",color:"#111827",textAlign:"right",whiteSpace:"nowrap"}}>{fmtN(r.total_ipv6_prefixes)}</td>
+                  <td style={{padding:"8px 12px",borderBottom:"1px solid #f9fafb",fontFamily:"monospace",color:"#6b7280",whiteSpace:"nowrap"}}>{r.aws_create_date||"—"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </>
   );
 }
 
