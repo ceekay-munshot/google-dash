@@ -4695,6 +4695,134 @@ function HistoryTabCanonical(){
     </div>
   );
 }
+
+/* ═══════════════════════════════════════════════════════
+   TAB: Amazon (design-preview only — no live data yet)
+   First section answers a single customer question:
+     "Is there a way to track AWS usage trends?"
+   No backend, no fetches, no charts. Empty-state copy
+   only. Inner tab bar reuses the same pill styling as
+   Model Pricing / GPU Hardware Pricing subtabs.
+═══════════════════════════════════════════════════════ */
+function AmazonTab(){
+  const[awsSubtab,setAwsSubtab]=useState("aws");
+  return(
+    <>
+      {/* Hero */}
+      <div style={{background:"#fff",border:"0.5px solid #e5e7eb",borderRadius:12,padding:"18px 20px",marginBottom:14,display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:16,flexWrap:"wrap"}}>
+        <div style={{minWidth:0,flex:"1 1 320px"}}>
+          <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:6}}>
+            <span style={{width:7,height:7,borderRadius:"50%",background:"#92400e",display:"inline-block"}}/>
+            <span style={{fontSize:10,textTransform:"uppercase",letterSpacing:".09em",fontWeight:700,color:"#92400e"}}>Amazon</span>
+          </div>
+          <div style={{fontSize:22,fontWeight:700,color:"#111827",lineHeight:1.2}}>Amazon</div>
+          <div style={{fontSize:12,color:"#6b7280",marginTop:5,lineHeight:1.45,maxWidth:640}}>
+            AWS usage, pricing, and capacity signals — built from public market proxies.
+          </div>
+        </div>
+        <div style={{display:"flex",alignItems:"center",gap:6,flexShrink:0}}>
+          <span style={{width:6,height:6,borderRadius:"50%",background:"#9ca3af",display:"inline-block"}}/>
+          <span style={{fontSize:10,padding:"3px 9px",borderRadius:999,fontWeight:600,background:"#f3f4f6",color:"#4b5563",border:"0.5px solid #e5e7eb"}}>Design preview · no live data yet</span>
+        </div>
+      </div>
+
+      {/* Inner tab bar — same pill pattern as Model Pricing / GPU Hardware Pricing */}
+      <div style={{display:"flex",gap:4,marginBottom:14,borderBottom:"0.5px solid #e5e7eb"}}>
+        {[
+          {id:"aws",label:"AWS",sub:"usage trends · pricing · capacity"},
+        ].map(t=>{
+          const active=awsSubtab===t.id;
+          return(
+            <button key={t.id} onClick={()=>setAwsSubtab(t.id)}
+              style={{fontSize:12,padding:"8px 16px",border:"none",borderBottom:active?"2px solid #111827":"2px solid transparent",marginBottom:-1,background:"transparent",color:active?"#111827":"#6b7280",cursor:"pointer",fontFamily:"inherit",fontWeight:active?600:500,display:"flex",flexDirection:"column",alignItems:"flex-start",gap:1}}>
+              <span>{t.label}</span>
+              <span style={{fontSize:9,fontWeight:400,color:active?"#6b7280":"#9ca3af",textTransform:"lowercase"}}>{t.sub}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      {awsSubtab==="aws"&&<AwsUsageTrendsSection/>}
+    </>
+  );
+}
+
+/* AWS — first section: "Can we track AWS usage trends?"
+   Pure copy; no charts, no fetches. Three explanation
+   cards + a "signals we can track later" preview strip
+   + a "how to read this" note. Every future signal value
+   is rendered as "Coming soon" — no fake numbers. */
+function AwsUsageTrendsSection(){
+  const cards=[
+    {title:"Direct AWS usage",     status:"Not public", statusBg:"#fef2f2",statusFg:"#991b1b",
+     body:"AWS does not provide a public feed showing actual usage volume, compute hours, storage consumed, or workload growth."},
+    {title:"Best public proxies",  status:"Usable",     statusBg:"#ecfdf5",statusFg:"#065f46",
+     body:"Spot prices, official pricing files, regional spreads, and AWS IP range expansion can help infer demand pressure and capacity footprint."},
+    {title:"Correct investor wording", status:"Important", statusBg:"#fffbeb",statusFg:"#92400e",
+     body:"The dashboard should say “AWS demand-pressure indicators,” not “AWS usage is up,” unless the data directly proves usage."},
+  ];
+
+  const signals=[
+    "EC2 spot-market tightness",
+    "AWS public price basket",
+    "Regional pricing spreads",
+    "AWS IP range expansion",
+  ];
+
+  return(
+    <div>
+      {/* Section header + short answer */}
+      <div style={{background:"#fff",border:"0.5px solid #e5e7eb",borderRadius:12,padding:"18px 20px",marginBottom:14}}>
+        <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:6}}>
+          <span style={{width:7,height:7,borderRadius:"50%",background:"#0e7490",display:"inline-block"}}/>
+          <span style={{fontSize:10,textTransform:"uppercase",letterSpacing:".09em",fontWeight:700,color:"#0e7490"}}>AWS · framing</span>
+        </div>
+        <div style={{fontSize:18,fontWeight:700,color:"#111827",lineHeight:1.3}}>Can we track AWS usage trends?</div>
+        <div style={{fontSize:12.5,color:"#374151",marginTop:8,lineHeight:1.55,maxWidth:820}}>
+          <span style={{fontWeight:600,color:"#111827"}}>Short answer:</span> not directly. AWS does not publish real-time usage volumes by service, region, or customer workload. But we can track public proxy signals that may indicate AWS demand pressure, pricing tightness, and capacity expansion.
+        </div>
+      </div>
+
+      {/* 3-card explanation row */}
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit, minmax(240px, 1fr))",gap:10,marginBottom:14}}>
+        {cards.map((c,i)=>(
+          <div key={i} style={{background:"#fff",border:"0.5px solid #e5e7eb",borderRadius:12,padding:"14px 16px",display:"flex",flexDirection:"column",gap:8}}>
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8}}>
+              <div style={{fontSize:13,fontWeight:600,color:"#111827"}}>{c.title}</div>
+              <span style={{fontSize:10,padding:"2px 8px",borderRadius:4,fontWeight:600,background:c.statusBg,color:c.statusFg,whiteSpace:"nowrap"}}>{c.status}</span>
+            </div>
+            <div style={{fontSize:11.5,color:"#4b5563",lineHeight:1.5}}>{c.body}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Signals we can track later — slim preview strip, all "Coming soon" */}
+      <div style={{background:"#fff",border:"0.5px solid #e5e7eb",borderRadius:12,padding:"14px 16px",marginBottom:14}}>
+        <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:10}}>
+          <span style={{width:6,height:6,borderRadius:"50%",background:"#9ca3af",display:"inline-block"}}/>
+          <span style={{fontSize:10,textTransform:"uppercase",letterSpacing:".09em",fontWeight:700,color:"#6b7280"}}>Signals we can track later</span>
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit, minmax(220px, 1fr))",gap:8}}>
+          {signals.map((s,i)=>(
+            <div key={i} style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,background:"#f9fafb",border:"0.5px solid #e5e7eb",borderRadius:8,padding:"9px 12px"}}>
+              <span style={{fontSize:12,color:"#374151",fontWeight:500}}>{s}</span>
+              <span style={{fontSize:10,padding:"2px 8px",borderRadius:4,fontWeight:600,background:"#f3f4f6",color:"#6b7280",whiteSpace:"nowrap"}}>Coming soon</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* How to read this */}
+      <div style={{background:"#f9fafb",border:"0.5px dashed #d1d5db",borderRadius:8,padding:"12px 14px"}}>
+        <div style={{...S.lbl,color:"#6b7280",marginBottom:5}}>How to read this</div>
+        <div style={{fontSize:11.5,color:"#4b5563",lineHeight:1.55}}>
+          This section separates direct usage data from proxy signals. The first version will not claim exact AWS usage. It will frame AWS activity through observable public indicators such as pricing, spot-market movement, regional spreads, and capacity-footprint expansion.
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ═══════════════════════════════════════════════════════
    ROOT
 ═══════════════════════════════════════════════════════ */
@@ -4727,6 +4855,7 @@ export default function App(){
     {id:"pricing", label:"Model Pricing"},
     {id:"gpu",     label:"GPU Hardware Pricing"},
     {id:"gcloud",  label:"Google Cloud / Model API Usage"},
+    {id:"amazon",  label:"Amazon"},
     {id:"appendix",label:"Appendix"},
     {id:"history", label:"History"},
   ];
@@ -4788,6 +4917,7 @@ export default function App(){
             <GoogleGeminiPricingTable/>
           </>
         )}
+        {tab==="amazon"&&<AmazonTab/>}
         {tab==="appendix"&&(
           <>
             <div style={{marginBottom:24}}>
