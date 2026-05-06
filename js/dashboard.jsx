@@ -4760,9 +4760,10 @@ function AmazonTab(){
 ═══════════════════════════════════════════════════════ */
 function AwsCapacityProxySection(){
   const[state,setState]=useState({phase:"loading",snap:null,servedFrom:null,error:null});
-  // History fetch is independent — if it fails, the section still renders
-  // the latest KPIs and shows a small "history unavailable" warning.
+  // Independent fetches — a history or time-series outage must not blank
+  // the KPIs / Current Breakdown that come from /latest.
   const[hist,setHist]=useState({phase:"loading",daily:null,quarterly:null,error:null});
+  const[ts,setTs]=useState({phase:"loading",data:null,error:null});
 
   useEffect(()=>{
     let cancelled=false;
@@ -4782,10 +4783,10 @@ function AwsCapacityProxySection(){
 
   useEffect(()=>{
     let cancelled=false;
-    const v="?v="+Math.floor(Date.now()/3e5);
+    const v=Math.floor(Date.now()/3e5);
     Promise.all([
-      fetch("/api/aws/ip-ranges/history?grain=daily&"+v.slice(1)).then(r=>r.ok?r.json():Promise.reject(new Error("HTTP "+r.status))),
-      fetch("/api/aws/ip-ranges/history?grain=quarterly&"+v.slice(1)).then(r=>r.ok?r.json():Promise.reject(new Error("HTTP "+r.status))),
+      fetch("/api/aws/ip-ranges/history?grain=daily&v="+v).then(r=>r.ok?r.json():Promise.reject(new Error("HTTP "+r.status))),
+      fetch("/api/aws/ip-ranges/history?grain=quarterly&v="+v).then(r=>r.ok?r.json():Promise.reject(new Error("HTTP "+r.status))),
     ])
       .then(([daily,quarterly])=>{
         if(cancelled)return;
@@ -4801,9 +4802,22 @@ function AwsCapacityProxySection(){
     return()=>{cancelled=true;};
   },[]);
 
-  // Compact + comma formatters. Comma form is primary because investor
-  // wording in the spec is "absolute IPv4 address capacity" — exactness
-  // beats truncation. Compact form is the small subtitle/secondary.
+  useEffect(()=>{
+    let cancelled=false;
+    const v=Math.floor(Date.now()/3e5);
+    fetch("/api/aws/ip-ranges/timeseries?dimension=service&metric=ipv4_addresses&grain=daily&limit=8&v="+v)
+      .then(r=>r.ok?r.json():Promise.reject(new Error("HTTP "+r.status)))
+      .then(d=>{
+        if(cancelled)return;
+        if(!d||d.success===false){setTs({phase:"error",data:null,error:d?.error||"Empty response"});return;}
+        setTs({phase:"ready",data:d,error:null});
+      })
+      .catch(e=>{if(!cancelled)setTs({phase:"error",data:null,error:e.message||"Fetch failed"});});
+    return()=>{cancelled=true;};
+  },[]);
+
+  // Comma form for absolute precision (investor-grade), compact form for
+  // the secondary hint and chart Y-axis ticks.
   const fmtN=n=>(typeof n==="number"&&isFinite(n))?n.toLocaleString("en-US"):"—";
   const fmtCompact=n=>{
     if(typeof n!=="number"||!isFinite(n))return "—";
@@ -4877,7 +4891,7 @@ function AwsCapacityProxySection(){
   return sectionWrap(
     <>
       {/* KPI cards */}
-      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit, minmax(190px, 1fr))",gap:10,marginBottom:14}}>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit, minmax(190px, 1fr))",gap:10,marginBottom:10}}>
         {kpis.map((k,i)=>(
           <div key={i} style={{background:"#fff",border:"0.5px solid #e5e7eb",borderRadius:12,padding:"14px 16px"}}>
             <div style={{...S.lbl,color:"#6b7280"}}>{k.label}</div>
@@ -4888,33 +4902,21 @@ function AwsCapacityProxySection(){
         ))}
       </div>
 
-      {/* Latest-snapshot meta strip */}
-      <div style={{background:"#f9fafb",border:"0.5px solid #e5e7eb",borderRadius:8,padding:"10px 14px",marginBottom:14,display:"flex",flexWrap:"wrap",gap:"4px 18px",fontSize:11,color:"#6b7280",lineHeight:1.6}}>
-        <span><b style={{color:"#374151",fontWeight:600}}>Latest AWS file date:</b> <span style={{fontFamily:"monospace",color:"#111827"}}>{s.aws_create_date||"—"}</span></span>
-        <span><b style={{color:"#374151",fontWeight:600}}>Captured:</b> <span style={{fontFamily:"monospace",color:"#111827"}}>{s.captured_at||"—"}</span></span>
-        <span><b style={{color:"#374151",fontWeight:600}}>Sync token:</b> <span style={{fontFamily:"monospace",color:"#111827"}}>{s.sync_token||"—"}</span></span>
-        {state.servedFrom&&(
-          <span><b style={{color:"#374151",fontWeight:600}}>Source:</b> <span style={{fontFamily:"monospace",color:"#111827"}}>{state.servedFrom}</span></span>
-        )}
-      </div>
+      {/* Slim Data feed status strip — replaces the old meta + history-status
+         + recent-snapshots stack. One row on desktop, wraps cleanly on mobile. */}
+      <CapacityFeedStatusStrip latest={s} servedFrom={state.servedFrom} hist={hist}/>
 
-      {/* History status + recent snapshots — separate fetch, degrades gracefully */}
-      <CapacityHistoryStatus hist={hist} fmtN={fmtN}/>
+      {/* Service-Level Public IPv4 Capacity Trend — main analytical module */}
+      <ServiceCapacityTrend ts={ts} fmtN={fmtN} fmtCompact={fmtCompact}/>
 
-      {/* Two side-by-side top-8 tables (stack on mobile) */}
-      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit, minmax(340px, 1fr))",gap:10,marginBottom:14}}>
-        <CapacityTable title="Top AWS services by public IPv4 capacity" firstColLabel="Service" firstColKey="service" rows={topServices} fmtN={fmtN}/>
-        <CapacityTable title="Top AWS regions by public IPv4 capacity"  firstColLabel="Region"  firstColKey="region"  rows={topRegions}  fmtN={fmtN}/>
-      </div>
+      {/* Current Breakdown — tabbed Services / Regions */}
+      <CurrentBreakdown topServices={topServices} topRegions={topRegions} fmtN={fmtN}/>
 
-      {/* Methodology note */}
-      <div style={{background:"#f9fafb",border:"0.5px dashed #d1d5db",borderRadius:8,padding:"12px 14px"}}>
+      {/* Single methodology note */}
+      <div style={{background:"#f9fafb",border:"0.5px dashed #d1d5db",borderRadius:8,padding:"12px 14px",marginTop:14}}>
         <div style={{...S.lbl,color:"#6b7280",marginBottom:5}}>Methodology</div>
         <div style={{fontSize:11.5,color:"#4b5563",lineHeight:1.55}}>
-          Amazon publishes current AWS public IP ranges in <span style={{fontFamily:"monospace",color:"#111827"}}>ip-ranges.json</span>. This module computes IPv4 address capacity from CIDR prefix lengths and saves snapshots over time. It is a public network capacity proxy, not a direct measure of AWS customer usage. The file does not represent every possible AWS workload or private/customer-owned address range.
-        </div>
-        <div style={{fontSize:10.5,color:"#9ca3af",marginTop:6,lineHeight:1.5}}>
-          Historical trend begins from the first captured snapshot.
+          AWS publishes current public IP ranges in <span style={{fontFamily:"monospace",color:"#111827"}}>ip-ranges.json</span>. We compute IPv4 address capacity from CIDR prefix lengths and save daily snapshots to build history. This is a public network capacity signal, not a measure of actual AWS customer usage or traffic.
         </div>
       </div>
     </>
@@ -4958,159 +4960,217 @@ function CapacityTable({title,firstColLabel,firstColKey,rows,fmtN}){
   );
 }
 
-/* History status + recent-snapshots panel for the AWS Public Network
-   Capacity Proxy. Reads /api/aws/ip-ranges/history?grain=daily and
-   ?grain=quarterly, then derives the trend-readiness fields the spec
-   asks for (history_days_count, first/latest snapshot dates,
-   absolute / pct change since first snapshot, QoQ delta) without
-   inventing any number that isn't in the captured data. If only one
-   snapshot exists, the change fields are intentionally NOT shown — we
-   never fake a delta against a single data point. */
-function CapacityHistoryStatus({hist,fmtN}){
+/* Slim Data feed status strip — single horizontal row that absorbs the
+   old meta strip + history-status card + recent-snapshots table. Reads
+   /history?grain=daily for snapshot count + dates and ?grain=quarterly
+   for QoQ availability; nothing else. Never fakes deltas. */
+function CapacityFeedStatusStrip({latest,servedFrom,hist}){
+  // The strip is a fixed one-line layout with consistent typography on
+  // every state — even loading and error variants stay this height so the
+  // section's visual rhythm doesn't jump as fetches resolve.
   const wrap=(inner)=>(
-    <div style={{marginBottom:14}}>{inner}</div>
+    <div style={{background:"#f9fafb",border:"0.5px solid #e5e7eb",borderRadius:8,padding:"8px 14px",marginBottom:14,display:"flex",flexWrap:"wrap",alignItems:"center",gap:"4px 16px",fontSize:11,color:"#6b7280",lineHeight:1.6}}>
+      <span style={{...S.lbl,color:"#374151"}}>Data feed status</span>
+      {inner}
+    </div>
   );
 
+  const sep=<span style={{color:"#d1d5db"}}>·</span>;
+
   if(hist.phase==="loading"){
-    return wrap(
-      <div style={{background:"#fff",border:"0.5px solid #e5e7eb",borderRadius:12,padding:"14px 16px"}}>
-        <div style={{...S.lbl,color:"#6b7280",marginBottom:6}}>History status</div>
-        <Shimmer rows={3}/>
-      </div>
-    );
+    return wrap(<><span>{sep}</span><span>Loading capture history…</span></>);
   }
 
-  if(hist.phase==="error"){
-    return wrap(
-      <div style={{background:"#fffbeb",border:"0.5px solid #fde68a",borderRadius:8,padding:"10px 14px",fontSize:11.5,color:"#78350f",lineHeight:1.55}}>
-        History unavailable. Latest AWS snapshot is still shown.
-      </div>
-    );
-  }
-
-  const daily=hist.daily;
-  const quarterly=hist.quarterly;
-  const snaps=(daily?.snapshots||[]);
+  // Pull derived fields out of the daily history when we have it. Even on
+  // history error we keep the strip visible so the user can still see the
+  // /latest meta — the history bits become "—" instead of disappearing.
+  const snaps=(hist.daily?.snapshots)||[];
   const count=snaps.length;
+  const latestSnapDate=snaps[0]?.snapshot_date||null;
 
-  if(count===0){
-    return wrap(
-      <div style={{background:"#fff",border:"0.5px solid #e5e7eb",borderRadius:12,padding:"14px 16px"}}>
-        <div style={{...S.lbl,color:"#6b7280",marginBottom:6}}>History status</div>
-        <div style={{fontSize:12,color:"#374151",lineHeight:1.55}}>
-          Historical trend begins from the first captured snapshot.
-        </div>
-      </div>
-    );
-  }
+  const qSnap=hist.quarterly?.snapshots?.[0];
+  const hasPriorQuarter=qSnap && qSnap.qoq_ipv4_addresses_abs!==null && qSnap.qoq_ipv4_addresses_abs!==undefined;
+  const qoqLabel = hist.phase==="error" ? "—" : (hasPriorQuarter ? "Available" : "Pending");
 
-  // Snapshots come back date-desc from the API.
-  const latest=snaps[0];
-  const first =snaps[count-1];
-
-  const has_quarterly_comparison=
-    !!(quarterly?.snapshots?.length && quarterly.snapshots.length > 1) ||
-    !!(quarterly?.snapshots?.[0] && quarterly.snapshots[0].qoq_ipv4_addresses_abs !== null);
-
-  // Format helpers — sign-prefixed for change rows so "+" reads as growth.
-  const fmtSigned=n=>{
-    if(typeof n!=="number"||!isFinite(n))return "—";
-    const sign=n>0?"+":n<0?"−":"";
-    return sign+Math.abs(n).toLocaleString("en-US");
+  // Compact ISO time (HH:MM UTC) for the captured-at field — full ISO is
+  // available in the meta if needed, but the strip should read tightly.
+  const compactCapturedAt=(iso)=>{
+    if(!iso)return "—";
+    try{
+      const d=new Date(iso);
+      const day=d.toISOString().slice(0,10);
+      const hh=String(d.getUTCHours()).padStart(2,"0");
+      const mm=String(d.getUTCMinutes()).padStart(2,"0");
+      return day+" "+hh+":"+mm+" UTC";
+    }catch(_){return iso;}
   };
-  const fmtPct=p=>{
-    if(typeof p!=="number"||!isFinite(p))return "—";
-    const sign=p>0?"+":p<0?"−":"";
-    return sign+(Math.abs(p)*100).toFixed(2)+"%";
-  };
-  const changeColor=n=>(typeof n==="number"&&n!==0)?(n>0?"#059669":"#dc2626"):"#6b7280";
-
-  // Derived fields (computed only when count>1 so single-snapshot wording
-  // never carries a fake delta).
-  let absChange=null, pctChange=null;
-  if(count>1){
-    absChange = latest.total_ipv4_addresses - first.total_ipv4_addresses;
-    if(first.total_ipv4_addresses>0) pctChange = absChange / first.total_ipv4_addresses;
-  }
-
-  // Quarterly QoQ from the most-recent quarter (the API computes this for us
-  // and emits null for both fields when there's no prior quarter — UI shows "—").
-  const qLatest=quarterly?.snapshots?.[0]||null;
-  const qoqAbs=qLatest?.qoq_ipv4_addresses_abs;
-  const qoqPct=qLatest?.qoq_ipv4_addresses_pct;
-  const hasPriorQuarter=qoqAbs!==null && qoqAbs!==undefined;
-
-  // Recent snapshots — top 7 newest.
-  const recent=snaps.slice(0,7);
 
   return wrap(
     <>
-      {/* Header card */}
-      <div style={{background:"#fff",border:"0.5px solid #e5e7eb",borderRadius:12,padding:"14px 16px",marginBottom:10}}>
-        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,marginBottom:8,flexWrap:"wrap"}}>
-          <div style={{...S.lbl,color:"#6b7280"}}>History status</div>
-          <span style={{fontSize:10,padding:"2px 8px",borderRadius:4,fontWeight:600,background:"#ecfeff",color:"#0e7490",whiteSpace:"nowrap"}}>capacity-footprint trend</span>
-        </div>
+      {sep}
+      <span><b style={{color:"#374151",fontWeight:600}}>Daily capture:</b> <span style={{color:"#065f46",fontWeight:600}}>Active</span></span>
+      {sep}
+      <span><b style={{color:"#374151",fontWeight:600}}>Snapshots:</b> <span style={{fontFamily:"monospace",color:"#111827"}}>{hist.phase==="error"?"—":(count||0)}</span></span>
+      {sep}
+      <span><b style={{color:"#374151",fontWeight:600}}>Latest:</b> <span style={{fontFamily:"monospace",color:"#111827"}}>{latestSnapDate||latest?.snapshot_date||"—"}</span></span>
+      {sep}
+      <span><b style={{color:"#374151",fontWeight:600}}>AWS file:</b> <span style={{fontFamily:"monospace",color:"#111827"}}>{latest?.aws_create_date||"—"}</span></span>
+      {sep}
+      <span><b style={{color:"#374151",fontWeight:600}}>Captured:</b> <span style={{fontFamily:"monospace",color:"#111827"}}>{compactCapturedAt(latest?.captured_at)}</span></span>
+      {sep}
+      <span><b style={{color:"#374151",fontWeight:600}}>QoQ:</b> <span style={{fontFamily:"monospace",color:hasPriorQuarter?"#065f46":"#6b7280"}}>{qoqLabel}</span></span>
+      {sep}
+      <span><b style={{color:"#374151",fontWeight:600}}>Source:</b> <span style={{fontFamily:"monospace",color:"#111827"}}>AWS ip-ranges.json</span></span>
+      {servedFrom&&(<>{sep}<span style={{color:"#9ca3af"}}>served from <span style={{fontFamily:"monospace"}}>{servedFrom}</span></span></>)}
+    </>
+  );
+}
 
-        {count===1?(
-          <div style={{display:"flex",flexDirection:"column",gap:4,fontSize:12,color:"#374151",lineHeight:1.55}}>
-            <div style={{fontWeight:600,color:"#111827"}}>Trend history started</div>
-            <div>1 daily snapshot captured.</div>
-            <div style={{color:"#6b7280"}}>Quarterly comparison will appear after more snapshots are collected.</div>
-          </div>
-        ):(
-          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit, minmax(200px, 1fr))",gap:"6px 18px",fontSize:12,color:"#374151",lineHeight:1.55}}>
-            <div><span style={{color:"#6b7280"}}>Daily snapshots captured:</span> <span style={{fontFamily:"monospace",color:"#111827",fontWeight:600}}>{fmtN(count)}</span></div>
-            <div><span style={{color:"#6b7280"}}>First snapshot:</span> <span style={{fontFamily:"monospace",color:"#111827"}}>{first.snapshot_date}</span></div>
-            <div><span style={{color:"#6b7280"}}>Latest snapshot:</span> <span style={{fontFamily:"monospace",color:"#111827"}}>{latest.snapshot_date}</span></div>
-            <div><span style={{color:"#6b7280"}}>Change since first snapshot:</span> <span style={{fontFamily:"monospace",fontWeight:600,color:changeColor(absChange)}}>{fmtSigned(absChange)}</span> <span style={{color:"#6b7280"}}>IPv4 addresses</span></div>
-            <div><span style={{color:"#6b7280"}}>Percentage change:</span> <span style={{fontFamily:"monospace",fontWeight:600,color:changeColor(absChange)}}>{fmtPct(pctChange)}</span></div>
-          </div>
-        )}
+/* Service-Level Public IPv4 Capacity Trend — main analytical module.
+   With ≥2 snapshots, renders a multi-line recharts chart on a log
+   Y-axis (AMAZON / EC2 dwarf the rest by orders of magnitude). With
+   one snapshot, renders an empty-state card; never a fake chart.
+   On time-series fetch failure, shows a small inline warning and
+   leaves the rest of the section intact. */
+const SERVICE_TREND_PALETTE=["#0e7490","#059669","#2563eb","#7c3aed","#d97706","#dc2626","#0891b2","#6b7280"];
 
-        {/* Quarterly comparison line */}
-        <div style={{marginTop:10,paddingTop:8,borderTop:"1px solid #f3f4f6",fontSize:11.5,color:"#374151",lineHeight:1.55,display:"flex",flexWrap:"wrap",gap:"4px 14px"}}>
-          {!hasPriorQuarter?(
-            <span><span style={{color:"#6b7280"}}>QoQ comparison:</span> <span style={{fontFamily:"monospace",color:"#111827"}}>—</span> <span style={{color:"#9ca3af",fontSize:10.5}}>quarterly comparison will appear once enough history exists</span></span>
-          ):(
-            <>
-              <span><span style={{color:"#6b7280"}}>QoQ change:</span> <span style={{fontFamily:"monospace",fontWeight:600,color:changeColor(qoqAbs)}}>{fmtSigned(qoqAbs)}</span> <span style={{color:"#6b7280"}}>IPv4 addresses</span></span>
-              <span><span style={{color:"#6b7280"}}>QoQ %:</span> <span style={{fontFamily:"monospace",fontWeight:600,color:changeColor(qoqAbs)}}>{fmtPct(qoqPct)}</span></span>
-            </>
-          )}
+function ServiceCapacityTrend({ts,fmtN,fmtCompact}){
+  const header=(
+    <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:12,flexWrap:"wrap",marginBottom:10}}>
+      <div style={{minWidth:0,flex:"1 1 320px"}}>
+        <div style={{fontSize:15,fontWeight:700,color:"#111827",lineHeight:1.3}}>Service-Level Public IPv4 Capacity Trend</div>
+        <div style={{fontSize:11.5,color:"#6b7280",marginTop:3,lineHeight:1.5,maxWidth:760}}>
+          Daily captured AWS public IPv4 capacity by service from AWS ip-ranges.json.
         </div>
       </div>
+      <span style={{fontSize:10,padding:"3px 9px",borderRadius:999,fontWeight:600,background:"#ecfeff",color:"#0e7490",border:"0.5px solid #a5f3fc",whiteSpace:"nowrap"}}>Daily snapshots · service footprint</span>
+    </div>
+  );
 
-      {/* Recent snapshots — compact 5-column table, latest 7 rows. */}
-      <div style={{background:"#fff",border:"0.5px solid #e5e7eb",borderRadius:12,padding:0,overflow:"hidden"}}>
-        <div style={{padding:"12px 14px",borderBottom:"1px solid #f3f4f6"}}>
-          <div style={{fontSize:13,fontWeight:600,color:"#111827",lineHeight:1.3}}>Recent snapshots</div>
-          <div style={{fontSize:10.5,color:"#9ca3af",marginTop:2}}>Latest {recent.length} captured day{recent.length===1?"":"s"} · newest first</div>
+  const card=(inner)=>(
+    <div style={{background:"#fff",border:"0.5px solid #e5e7eb",borderRadius:12,padding:"14px 16px",marginBottom:14}}>
+      {header}
+      {inner}
+    </div>
+  );
+
+  if(ts.phase==="loading"){
+    return card(<Shimmer rows={4}/>);
+  }
+
+  if(ts.phase==="error"){
+    return card(
+      <div style={{background:"#fffbeb",border:"0.5px solid #fde68a",borderRadius:8,padding:"10px 14px",fontSize:11.5,color:"#78350f",lineHeight:1.55}}>
+        Service-level capacity trend unavailable. Latest snapshot is still shown.
+      </div>
+    );
+  }
+
+  const d=ts.data||{};
+  const series=Array.isArray(d.series)?d.series:[];
+  const count=d.snapshot_count||0;
+
+  // Empty-state: one snapshot — no fake chart, just the readiness copy.
+  if(count<2){
+    return card(
+      <div style={{padding:"6px 0"}}>
+        <div style={{fontSize:13,fontWeight:600,color:"#111827",lineHeight:1.3}}>Trend has started</div>
+        <div style={{fontSize:12,color:"#374151",marginTop:6,lineHeight:1.55,maxWidth:680}}>
+          One daily snapshot has been captured. The service-level line chart will appear once at least two daily snapshots are available.
         </div>
-        <div style={{overflowX:"auto"}}>
-          <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
-            <thead>
-              <tr>
-                {["Date","IPv4 addresses","IPv4 prefixes","IPv6 prefixes","AWS file date"].map((h,i)=>(
-                  <th key={h} style={{...S.lbl,textAlign:i===0?"left":(i===4?"left":"right"),padding:"8px 12px",borderBottom:"1px solid #f3f4f6",background:"#fafafa",whiteSpace:"nowrap"}}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {recent.map((r,i)=>(
-                <tr key={r.snapshot_date+"-"+i}>
-                  <td style={{padding:"8px 12px",borderBottom:"1px solid #f9fafb",fontFamily:"monospace",fontWeight:600,color:"#111827",whiteSpace:"nowrap"}}>{r.snapshot_date}</td>
-                  <td style={{padding:"8px 12px",borderBottom:"1px solid #f9fafb",fontFamily:"monospace",color:"#111827",textAlign:"right",whiteSpace:"nowrap"}}>{fmtN(r.total_ipv4_addresses)}</td>
-                  <td style={{padding:"8px 12px",borderBottom:"1px solid #f9fafb",fontFamily:"monospace",color:"#111827",textAlign:"right",whiteSpace:"nowrap"}}>{fmtN(r.total_ipv4_prefixes)}</td>
-                  <td style={{padding:"8px 12px",borderBottom:"1px solid #f9fafb",fontFamily:"monospace",color:"#111827",textAlign:"right",whiteSpace:"nowrap"}}>{fmtN(r.total_ipv6_prefixes)}</td>
-                  <td style={{padding:"8px 12px",borderBottom:"1px solid #f9fafb",fontFamily:"monospace",color:"#6b7280",whiteSpace:"nowrap"}}>{r.aws_create_date||"—"}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div style={{fontSize:10.5,color:"#9ca3af",marginTop:6}}>
+          Current service ranking is shown below in Current Breakdown.
         </div>
+      </div>
+    );
+  }
+
+  // ── Multi-snapshot: pivot series → recharts data, render log-scale chart.
+  // Build a date axis from all distinct dates across all series. Each row
+  // carries one column per service; missing values are intentionally null
+  // so the line breaks rather than reads as a fake zero.
+  const dateSet=new Set();
+  for(const s of series) for(const p of (s.points||[])) dateSet.add(p.date);
+  const dates=Array.from(dateSet).sort();
+  const chartData=dates.map(date=>{
+    const row={date};
+    for(const s of series){
+      const pt=(s.points||[]).find(p=>p.date===date);
+      row[s.name] = pt && typeof pt.value==="number" ? pt.value : null;
+    }
+    return row;
+  });
+
+  // Tooltip — formatted via recharts' Tooltip formatter prop. Tighter and
+  // monospace-aligned so multi-line readings stay readable.
+  const tooltipFmt=(value,name)=>{
+    if(value==null)return [<span style={{fontFamily:"monospace",color:"#9ca3af"}}>—</span>,name];
+    return [<span style={{fontFamily:"monospace"}}>{fmtN(value)}</span>,name];
+  };
+
+  return card(
+    <>
+      <div style={{width:"100%",height:320}}>
+        <ResponsiveContainer width="100%" height="100%">
+          <LineChart data={chartData} margin={{top:8,right:16,bottom:0,left:0}}>
+            <CartesianGrid stroke="#f3f4f6" strokeDasharray="3 3"/>
+            <XAxis dataKey="date" tick={{fontSize:10,fill:"#6b7280"}} stroke="#e5e7eb"/>
+            <YAxis scale="log" domain={["auto","auto"]} tick={{fontSize:10,fill:"#6b7280"}} tickFormatter={fmtCompact} stroke="#e5e7eb" width={48}/>
+            <Tooltip formatter={tooltipFmt} labelStyle={{fontSize:11,fontWeight:600,color:"#111827"}} contentStyle={{fontSize:11,borderRadius:8,border:"0.5px solid #e5e7eb"}}/>
+            <Legend wrapperStyle={{fontSize:10,paddingTop:6}}/>
+            {series.map((s,i)=>(
+              <Line key={s.name} type="monotone" dataKey={s.name} stroke={SERVICE_TREND_PALETTE[i%SERVICE_TREND_PALETTE.length]} strokeWidth={1.5} dot={{r:2}} activeDot={{r:4}} connectNulls={false} isAnimationActive={false}/>
+            ))}
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
+      <div style={{display:"flex",flexWrap:"wrap",gap:"4px 14px",fontSize:10.5,color:"#9ca3af",marginTop:6,lineHeight:1.5}}>
+        <span>Log scale used because service capacities differ by orders of magnitude.</span>
+        <span>·</span>
+        <span>Top {series.length} services by latest IPv4 capacity · {count} captured day{count===1?"":"s"}</span>
+        <span>·</span>
+        <span>Gaps indicate days where the service was absent from the AWS file.</span>
       </div>
     </>
+  );
+}
+
+/* Current Breakdown — small Services / Regions tab switcher wrapping the
+   existing CapacityTable. Avoids the old side-by-side duplicate-feel by
+   showing one table at a time. Tab styling matches the rest of the
+   dashboard's pill-bar pattern. */
+function CurrentBreakdown({topServices,topRegions,fmtN}){
+  const[which,setWhich]=useState("services");
+  return(
+    <div style={{marginBottom:0}}>
+      <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:8,flexWrap:"wrap",marginBottom:8}}>
+        <div style={{minWidth:0,flex:"1 1 280px"}}>
+          <div style={{fontSize:14,fontWeight:700,color:"#111827",lineHeight:1.3}}>Current Breakdown</div>
+          <div style={{fontSize:11,color:"#6b7280",marginTop:2,lineHeight:1.45}}>
+            Latest captured AWS public IPv4 capacity by service and region.
+          </div>
+        </div>
+        <div style={{display:"flex",gap:4,alignItems:"center"}}>
+          {[
+            {id:"services",label:"Services"},
+            {id:"regions", label:"Regions"},
+          ].map(t=>{
+            const active=which===t.id;
+            return(
+              <button key={t.id} onClick={()=>setWhich(t.id)}
+                style={{fontSize:11,padding:"5px 12px",border:"0.5px solid "+(active?"#111827":"#e5e7eb"),borderRadius:999,background:active?"#111827":"#fff",color:active?"#fff":"#374151",cursor:"pointer",fontFamily:"inherit",fontWeight:active?600:500}}>
+                {t.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {which==="services"
+        ? <CapacityTable title="Top AWS services by public IPv4 capacity" firstColLabel="Service" firstColKey="service" rows={topServices} fmtN={fmtN}/>
+        : <CapacityTable title="Top AWS regions by public IPv4 capacity"  firstColLabel="Region"  firstColKey="region"  rows={topRegions}  fmtN={fmtN}/>
+      }
+    </div>
   );
 }
 
