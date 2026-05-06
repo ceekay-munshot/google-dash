@@ -4758,8 +4758,6 @@ function AwsUsageTrendsSection(){
      body:"AWS does not provide a public feed showing actual usage volume, compute hours, storage consumed, or workload growth."},
     {title:"Best public proxies",  status:"Usable",     statusBg:"#ecfdf5",statusFg:"#065f46",
      body:"Spot prices, official pricing files, regional spreads, and AWS IP range expansion can help infer demand pressure and capacity footprint."},
-    {title:"Correct investor wording", status:"Important", statusBg:"#fffbeb",statusFg:"#92400e",
-     body:"The dashboard should say “AWS demand-pressure indicators,” not “AWS usage is up,” unless the data directly proves usage."},
   ];
 
   const signals=[
