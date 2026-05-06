@@ -5041,6 +5041,20 @@ const SERVICE_TREND_PALETTE=["#0e7490","#059669","#2563eb","#7c3aed","#d97706","
 
 function ServiceCapacityTrend({ts,fmtN,fmtCompact}){
   const isDemo = ts?.data?.demo === true;
+  // Series-visibility state. Click a legend entry to toggle that service's
+  // line on the chart; the entry keeps its slot in the legend (just dimmed
+  // and strike-through) so the layout doesn't reflow as you toggle.
+  const[hidden,setHidden]=useState(()=>new Set());
+  const toggleSeries=name=>{
+    if(!name)return;
+    setHidden(prev=>{
+      const next=new Set(prev);
+      if(next.has(name))next.delete(name);else next.add(name);
+      return next;
+    });
+  };
+  const showAll=()=>setHidden(new Set());
+  const hideAll=(allNames)=>setHidden(new Set(allNames));
   const header=(
     <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:12,flexWrap:"wrap",marginBottom:10}}>
       <div style={{minWidth:0,flex:"1 1 320px"}}>
@@ -5136,19 +5150,52 @@ function ServiceCapacityTrend({ts,fmtN,fmtCompact}){
             <XAxis dataKey="date" tick={{fontSize:10,fill:"#6b7280"}} stroke="#e5e7eb"/>
             <YAxis scale="log" domain={["auto","auto"]} tick={{fontSize:10,fill:"#6b7280"}} tickFormatter={fmtCompact} stroke="#e5e7eb" width={48}/>
             <Tooltip formatter={tooltipFmt} labelStyle={{fontSize:11,fontWeight:600,color:"#111827"}} contentStyle={{fontSize:11,borderRadius:8,border:"0.5px solid #e5e7eb"}}/>
-            <Legend wrapperStyle={{fontSize:10,paddingTop:6}}/>
+            <Legend
+              wrapperStyle={{fontSize:10,paddingTop:6,cursor:"pointer",userSelect:"none"}}
+              onClick={(entry)=>toggleSeries(entry?.dataKey||entry?.value)}
+              formatter={(value)=>{
+                const off=hidden.has(value);
+                return(
+                  <span style={{
+                    cursor:"pointer",
+                    color: off ? "#9ca3af" : "#374151",
+                    textDecoration: off ? "line-through" : "none",
+                    fontWeight: off ? 400 : 500,
+                    userSelect:"none",
+                  }}>{value}</span>
+                );
+              }}
+            />
             {series.map((s,i)=>(
-              <Line key={s.name} type="monotone" dataKey={s.name} stroke={SERVICE_TREND_PALETTE[i%SERVICE_TREND_PALETTE.length]} strokeWidth={1.5} dot={{r:2}} activeDot={{r:4}} connectNulls={false} isAnimationActive={false}/>
+              <Line key={s.name} type="monotone" dataKey={s.name} stroke={SERVICE_TREND_PALETTE[i%SERVICE_TREND_PALETTE.length]} strokeWidth={1.5} dot={{r:2}} activeDot={{r:4}} connectNulls={false} isAnimationActive={false} hide={hidden.has(s.name)}/>
             ))}
           </LineChart>
         </ResponsiveContainer>
       </div>
-      <div style={{display:"flex",flexWrap:"wrap",gap:"4px 14px",fontSize:10.5,color:"#9ca3af",marginTop:6,lineHeight:1.5}}>
-        <span>Log scale used because service capacities differ by orders of magnitude.</span>
+      <div style={{display:"flex",flexWrap:"wrap",alignItems:"center",gap:"4px 14px",fontSize:10.5,color:"#9ca3af",marginTop:6,lineHeight:1.5}}>
+        <span>Click a legend entry to toggle that line. Log scale used because service capacities differ by orders of magnitude.</span>
         <span>·</span>
         <span>Top {series.length} services by latest IPv4 capacity · {count} captured day{count===1?"":"s"}{isDemo?" (incl. 1 synthetic preview point)":""}</span>
         <span>·</span>
         <span>Gaps indicate days where the service was absent from the AWS file.</span>
+        {hidden.size>0&&(
+          <>
+            <span>·</span>
+            <button onClick={showAll}
+              style={{fontSize:10.5,padding:"2px 9px",border:"0.5px solid #d1d5db",borderRadius:999,background:"#fff",color:"#374151",cursor:"pointer",fontFamily:"inherit",fontWeight:500}}>
+              Show all ({hidden.size} hidden)
+            </button>
+          </>
+        )}
+        {series.length>1&&hidden.size===0&&(
+          <>
+            <span>·</span>
+            <button onClick={()=>hideAll(series.slice(1).map(s=>s.name))}
+              style={{fontSize:10.5,padding:"2px 9px",border:"0.5px solid #e5e7eb",borderRadius:999,background:"#fff",color:"#6b7280",cursor:"pointer",fontFamily:"inherit",fontWeight:500}}>
+              Solo top series
+            </button>
+          </>
+        )}
       </div>
     </>
   );
