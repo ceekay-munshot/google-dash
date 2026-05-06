@@ -4805,7 +4805,12 @@ function AwsCapacityProxySection(){
   useEffect(()=>{
     let cancelled=false;
     const v=Math.floor(Date.now()/3e5);
-    fetch("/api/aws/ip-ranges/timeseries?dimension=service&metric=ipv4_addresses&grain=daily&limit=8&v="+v)
+    // demo=1 lets the chart render before real history accumulates by
+    // synthesizing one prior point at -1.5% from the real latest. The
+    // server treats demo as a no-op once 2+ real snapshots exist, so this
+    // self-retires automatically — no UI change needed when real data
+    // takes over.
+    fetch("/api/aws/ip-ranges/timeseries?dimension=service&metric=ipv4_addresses&grain=daily&limit=8&demo=1&v="+v)
       .then(r=>r.ok?r.json():Promise.reject(new Error("HTTP "+r.status)))
       .then(d=>{
         if(cancelled)return;
@@ -5035,6 +5040,7 @@ function CapacityFeedStatusStrip({latest,servedFrom,hist}){
 const SERVICE_TREND_PALETTE=["#0e7490","#059669","#2563eb","#7c3aed","#d97706","#dc2626","#0891b2","#6b7280"];
 
 function ServiceCapacityTrend({ts,fmtN,fmtCompact}){
+  const isDemo = ts?.data?.demo === true;
   const header=(
     <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:12,flexWrap:"wrap",marginBottom:10}}>
       <div style={{minWidth:0,flex:"1 1 320px"}}>
@@ -5043,7 +5049,12 @@ function ServiceCapacityTrend({ts,fmtN,fmtCompact}){
           Daily captured AWS public IPv4 capacity by service from AWS ip-ranges.json.
         </div>
       </div>
-      <span style={{fontSize:10,padding:"3px 9px",borderRadius:999,fontWeight:600,background:"#ecfeff",color:"#0e7490",border:"0.5px solid #a5f3fc",whiteSpace:"nowrap"}}>Daily snapshots · service footprint</span>
+      <div style={{display:"flex",alignItems:"center",gap:6,flexShrink:0,flexWrap:"wrap",justifyContent:"flex-end"}}>
+        {isDemo&&(
+          <span style={{fontSize:10,padding:"3px 9px",borderRadius:999,fontWeight:700,background:"#fffbeb",color:"#92400e",border:"0.5px solid #fde68a",whiteSpace:"nowrap",letterSpacing:".04em"}}>PREVIEW</span>
+        )}
+        <span style={{fontSize:10,padding:"3px 9px",borderRadius:999,fontWeight:600,background:"#ecfeff",color:"#0e7490",border:"0.5px solid #a5f3fc",whiteSpace:"nowrap"}}>Daily snapshots · service footprint</span>
+      </div>
     </div>
   );
 
@@ -5110,6 +5121,14 @@ function ServiceCapacityTrend({ts,fmtN,fmtCompact}){
 
   return card(
     <>
+      {isDemo&&(
+        <div style={{background:"#fffbeb",border:"0.5px solid #fde68a",borderRadius:8,padding:"8px 12px",marginBottom:10,fontSize:11,color:"#78350f",lineHeight:1.5}}>
+          <b style={{fontWeight:700}}>Preview mode.</b>{" "}
+          {ts.data.demo_note || (
+            "Earliest point per series is a synthetic preview ~1.5% below the real latest. It will be replaced automatically once a second real snapshot is captured."
+          )}
+        </div>
+      )}
       <div style={{width:"100%",height:320}}>
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={chartData} margin={{top:8,right:16,bottom:0,left:0}}>
@@ -5127,7 +5146,7 @@ function ServiceCapacityTrend({ts,fmtN,fmtCompact}){
       <div style={{display:"flex",flexWrap:"wrap",gap:"4px 14px",fontSize:10.5,color:"#9ca3af",marginTop:6,lineHeight:1.5}}>
         <span>Log scale used because service capacities differ by orders of magnitude.</span>
         <span>·</span>
-        <span>Top {series.length} services by latest IPv4 capacity · {count} captured day{count===1?"":"s"}</span>
+        <span>Top {series.length} services by latest IPv4 capacity · {count} captured day{count===1?"":"s"}{isDemo?" (incl. 1 synthetic preview point)":""}</span>
         <span>·</span>
         <span>Gaps indicate days where the service was absent from the AWS file.</span>
       </div>
