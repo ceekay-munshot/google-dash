@@ -4742,85 +4742,8 @@ function AmazonTab(){
         })}
       </div>
 
-      {awsSubtab==="aws"&&<>
-        <AwsUsageTrendsSection/>
-        <AwsCapacityProxySection/>
-      </>}
+      {awsSubtab==="aws"&&<AwsCapacityProxySection/>}
     </>
-  );
-}
-
-/* AWS — first section: "Can we track AWS usage trends?"
-   Pure copy; no charts, no fetches. Three explanation
-   cards + a "signals we can track later" preview strip
-   + a "how to read this" note. Every future signal value
-   is rendered as "Coming soon" — no fake numbers. */
-function AwsUsageTrendsSection(){
-  const cards=[
-    {title:"Direct AWS usage",     status:"Not public", statusBg:"#fef2f2",statusFg:"#991b1b",
-     body:"AWS does not provide a public feed showing actual usage volume, compute hours, storage consumed, or workload growth."},
-    {title:"Best public proxies",  status:"Usable",     statusBg:"#ecfdf5",statusFg:"#065f46",
-     body:"Spot prices, official pricing files, regional spreads, and AWS IP range expansion can help infer demand pressure and capacity footprint."},
-  ];
-
-  const signals=[
-    "EC2 spot-market tightness",
-    "AWS public price basket",
-    "Regional pricing spreads",
-    "AWS IP range expansion",
-  ];
-
-  return(
-    <div>
-      {/* Section header + short answer */}
-      <div style={{background:"#fff",border:"0.5px solid #e5e7eb",borderRadius:12,padding:"18px 20px",marginBottom:14}}>
-        <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:6}}>
-          <span style={{width:7,height:7,borderRadius:"50%",background:"#0e7490",display:"inline-block"}}/>
-          <span style={{fontSize:10,textTransform:"uppercase",letterSpacing:".09em",fontWeight:700,color:"#0e7490"}}>AWS · framing</span>
-        </div>
-        <div style={{fontSize:18,fontWeight:700,color:"#111827",lineHeight:1.3}}>Can we track AWS usage trends?</div>
-        <div style={{fontSize:12.5,color:"#374151",marginTop:8,lineHeight:1.55,maxWidth:820}}>
-          <span style={{fontWeight:600,color:"#111827"}}>Short answer:</span> not directly. AWS does not publish real-time usage volumes by service, region, or customer workload. But we can track public proxy signals that may indicate AWS demand pressure, pricing tightness, and capacity expansion.
-        </div>
-      </div>
-
-      {/* 3-card explanation row */}
-      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit, minmax(240px, 1fr))",gap:10,marginBottom:14}}>
-        {cards.map((c,i)=>(
-          <div key={i} style={{background:"#fff",border:"0.5px solid #e5e7eb",borderRadius:12,padding:"14px 16px",display:"flex",flexDirection:"column",gap:8}}>
-            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8}}>
-              <div style={{fontSize:13,fontWeight:600,color:"#111827"}}>{c.title}</div>
-              <span style={{fontSize:10,padding:"2px 8px",borderRadius:4,fontWeight:600,background:c.statusBg,color:c.statusFg,whiteSpace:"nowrap"}}>{c.status}</span>
-            </div>
-            <div style={{fontSize:11.5,color:"#4b5563",lineHeight:1.5}}>{c.body}</div>
-          </div>
-        ))}
-      </div>
-
-      {/* Signals we can track later — slim preview strip, all "Coming soon" */}
-      <div style={{background:"#fff",border:"0.5px solid #e5e7eb",borderRadius:12,padding:"14px 16px",marginBottom:14}}>
-        <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:10}}>
-          <span style={{width:6,height:6,borderRadius:"50%",background:"#9ca3af",display:"inline-block"}}/>
-          <span style={{fontSize:10,textTransform:"uppercase",letterSpacing:".09em",fontWeight:700,color:"#6b7280"}}>Signals we can track later</span>
-        </div>
-        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit, minmax(220px, 1fr))",gap:8}}>
-          {signals.map((s,i)=>(
-            <div key={i} style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,background:"#f9fafb",border:"0.5px solid #e5e7eb",borderRadius:8,padding:"9px 12px"}}>
-              <span style={{fontSize:12,color:"#374151",fontWeight:500}}>{s}</span>
-              <span style={{fontSize:10,padding:"2px 8px",borderRadius:4,fontWeight:600,background:"#f3f4f6",color:"#6b7280",whiteSpace:"nowrap"}}>Coming soon</span>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* How to read this */}
-      <div style={{background:"#f9fafb",border:"0.5px dashed #d1d5db",borderRadius:8,padding:"12px 14px"}}>
-        <div style={{...S.lbl,color:"#6b7280",marginBottom:5}}>How to read this</div>
-        <div style={{fontSize:11.5,color:"#4b5563",lineHeight:1.55}}>
-          This section separates direct usage data from proxy signals. The first version will not claim exact AWS usage. It will frame AWS activity through observable public indicators such as pricing, spot-market movement, regional spreads, and capacity-footprint expansion.
-        </div>
-      </div>
-    </div>
   );
 }
 
