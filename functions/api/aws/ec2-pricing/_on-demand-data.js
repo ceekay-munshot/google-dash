@@ -1,0 +1,11363 @@
+// AUTO-GENERATED — do not edit by hand.
+// Source: AWS Price List bulk CSV — https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/AmazonEC2/current/us-east-1/index.csv
+// Generated: 2026-05-07T06:11:36.190Z
+// Filters applied: TermType=OnDemand, OS=Linux, Tenancy=Shared, PreInstalled_SW=NA,
+//                  CapacityStatus=Used, License=No License required, Location=US East (N. Virginia)
+// Regenerate with: node scripts/fetch-aws-ec2-pricing.mjs
+export const generatedAt = "2026-05-07T06:11:36.190Z";
+export const region = "us-east-1";
+export const regionLabel = "US East (N. Virginia)";
+export const operatingSystem = "Linux";
+export const tenancy = "Shared";
+export const onDemandRows = [
+  {
+    "instance_type": "t4g.nano",
+    "price_per_hour_usd": 0.0042,
+    "vcpu": 2,
+    "memory": "0.5 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 5 Gigabit",
+    "processor_architecture": "AWS Graviton2 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "t3a.nano",
+    "price_per_hour_usd": 0.0047,
+    "vcpu": 2,
+    "memory": "0.5 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 5 Gigabit",
+    "processor_architecture": "AMD EPYC 7571",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "t3.nano",
+    "price_per_hour_usd": 0.0052,
+    "vcpu": 2,
+    "memory": "0.5 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 5 Gigabit",
+    "processor_architecture": "Intel Skylake E5 2686 v5",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "t2.nano",
+    "price_per_hour_usd": 0.0058,
+    "vcpu": 1,
+    "memory": "0.5 GiB",
+    "storage": "EBS only",
+    "network_performance": "Low",
+    "processor_architecture": "Intel Xeon Family",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "t4g.micro",
+    "price_per_hour_usd": 0.0084,
+    "vcpu": 2,
+    "memory": "1 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 5 Gigabit",
+    "processor_architecture": "AWS Graviton2 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "t3a.micro",
+    "price_per_hour_usd": 0.0094,
+    "vcpu": 2,
+    "memory": "1 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 5 Gigabit",
+    "processor_architecture": "AMD EPYC 7571",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "t3.micro",
+    "price_per_hour_usd": 0.0104,
+    "vcpu": 2,
+    "memory": "1 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 5 Gigabit",
+    "processor_architecture": "Intel Skylake E5 2686 v5",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "t2.micro",
+    "price_per_hour_usd": 0.0116,
+    "vcpu": 1,
+    "memory": "1 GiB",
+    "storage": "EBS only",
+    "network_performance": "Low to Moderate",
+    "processor_architecture": "Intel Xeon Family",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "t4g.small",
+    "price_per_hour_usd": 0.0168,
+    "vcpu": 2,
+    "memory": "2 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 5 Gigabit",
+    "processor_architecture": "AWS Graviton2 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "t3a.small",
+    "price_per_hour_usd": 0.0188,
+    "vcpu": 2,
+    "memory": "2 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 5 Gigabit",
+    "processor_architecture": "AMD EPYC 7571",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "t1.micro",
+    "price_per_hour_usd": 0.02,
+    "vcpu": 1,
+    "memory": "0.613 GiB",
+    "storage": "EBS only",
+    "network_performance": "Very Low",
+    "processor_architecture": "Variable",
+    "current_generation": "No"
+  },
+  {
+    "instance_type": "t3.small",
+    "price_per_hour_usd": 0.0208,
+    "vcpu": 2,
+    "memory": "2 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 5 Gigabit",
+    "processor_architecture": "Intel Skylake E5 2686 v5",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "t2.small",
+    "price_per_hour_usd": 0.023,
+    "vcpu": 1,
+    "memory": "2 GiB",
+    "storage": "EBS only",
+    "network_performance": "Low to Moderate",
+    "processor_architecture": "Intel Xeon Family",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "a1.medium",
+    "price_per_hour_usd": 0.0255,
+    "vcpu": 1,
+    "memory": "2 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "AWS Graviton Processor",
+    "current_generation": "No"
+  },
+  {
+    "instance_type": "t4g.medium",
+    "price_per_hour_usd": 0.0336,
+    "vcpu": 2,
+    "memory": "4 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 5 Gigabit",
+    "processor_architecture": "AWS Graviton2 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c6g.medium",
+    "price_per_hour_usd": 0.034,
+    "vcpu": 1,
+    "memory": "2 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "AWS Graviton2 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c7g.medium",
+    "price_per_hour_usd": 0.0363,
+    "vcpu": 1,
+    "memory": "2 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 12500 Megabit",
+    "processor_architecture": "AWS Graviton3 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "t3a.medium",
+    "price_per_hour_usd": 0.0376,
+    "vcpu": 2,
+    "memory": "4 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 5 Gigabit",
+    "processor_architecture": "AMD EPYC 7571",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c6gd.medium",
+    "price_per_hour_usd": 0.0384,
+    "vcpu": 1,
+    "memory": "2 GiB",
+    "storage": "1 x 59 NVMe SSD",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "AWS Graviton2 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m6g.medium",
+    "price_per_hour_usd": 0.0385,
+    "vcpu": 1,
+    "memory": "4 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "AWS Graviton2 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c8g.medium",
+    "price_per_hour_usd": 0.03988,
+    "vcpu": 1,
+    "memory": "2 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 12.5 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m7g.medium",
+    "price_per_hour_usd": 0.0408,
+    "vcpu": 1,
+    "memory": "4 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 12500 Megabit",
+    "processor_architecture": "AWS Graviton3 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "t3.medium",
+    "price_per_hour_usd": 0.0416,
+    "vcpu": 2,
+    "memory": "4 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 5 Gigabit",
+    "processor_architecture": "Intel Skylake E5 2686 v5",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c6gn.medium",
+    "price_per_hour_usd": 0.0432,
+    "vcpu": 1,
+    "memory": "2 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 25 Gigabit",
+    "processor_architecture": "AWS Graviton2 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m1.small",
+    "price_per_hour_usd": 0.044,
+    "vcpu": 1,
+    "memory": "1.7 GiB",
+    "storage": "1 x 160 SSD",
+    "network_performance": "Low",
+    "processor_architecture": "Intel Xeon Family",
+    "current_generation": "No"
+  },
+  {
+    "instance_type": "m8g.medium",
+    "price_per_hour_usd": 0.04488,
+    "vcpu": 1,
+    "memory": "4 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 12.5 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m6gd.medium",
+    "price_per_hour_usd": 0.0452,
+    "vcpu": 1,
+    "memory": "4 GiB",
+    "storage": "1 x 59 NVMe SSD",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "AWS Graviton2 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c7gd.medium",
+    "price_per_hour_usd": 0.0454,
+    "vcpu": 1,
+    "memory": "2 GiB",
+    "storage": "1 x 59 NVMe SSD",
+    "network_performance": "Up to 12500 Megabit",
+    "processor_architecture": "AWS Graviton3 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "t2.medium",
+    "price_per_hour_usd": 0.0464,
+    "vcpu": 2,
+    "memory": "4 GiB",
+    "storage": "EBS only",
+    "network_performance": "Low to Moderate",
+    "processor_architecture": "Intel Xeon Family",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c8gd.medium",
+    "price_per_hour_usd": 0.04899,
+    "vcpu": 1,
+    "memory": "2 GiB",
+    "storage": "1 x 59 NVMe SSD",
+    "network_performance": "Up to 12500 Megabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r6g.medium",
+    "price_per_hour_usd": 0.0504,
+    "vcpu": 1,
+    "memory": "8 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "AWS Graviton2 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "a1.large",
+    "price_per_hour_usd": 0.051,
+    "vcpu": 2,
+    "memory": "4 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "AWS Graviton Processor",
+    "current_generation": "No"
+  },
+  {
+    "instance_type": "c7a.medium",
+    "price_per_hour_usd": 0.05132,
+    "vcpu": 1,
+    "memory": "2 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 12500 Megabit",
+    "processor_architecture": "AMD EPYC 9R14 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m7gd.medium",
+    "price_per_hour_usd": 0.0534,
+    "vcpu": 1,
+    "memory": "4 GiB",
+    "storage": "1 x 59 NVMe SSD",
+    "network_performance": "Up to 12500 Megabit",
+    "processor_architecture": "AWS Graviton3 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r7g.medium",
+    "price_per_hour_usd": 0.0536,
+    "vcpu": 1,
+    "memory": "8 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 12500 Megabit",
+    "processor_architecture": "AWS Graviton3 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c8a.medium",
+    "price_per_hour_usd": 0.05389,
+    "vcpu": 1,
+    "memory": "2 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 15000 Megabit",
+    "processor_architecture": "AMD EPYC 9R45 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r6gd.medium",
+    "price_per_hour_usd": 0.0576,
+    "vcpu": 1,
+    "memory": "8 GiB",
+    "storage": "1 x 59 NVMe SSD",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "AWS Graviton2 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m8gd.medium",
+    "price_per_hour_usd": 0.05766,
+    "vcpu": 1,
+    "memory": "4 GiB",
+    "storage": "1 x 59 NVMe SSD",
+    "network_performance": "Up to 12500 Megabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m7a.medium",
+    "price_per_hour_usd": 0.05796,
+    "vcpu": 1,
+    "memory": "4 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 12500 Megabit",
+    "processor_architecture": "AMD EPYC 9R14 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r8g.medium",
+    "price_per_hour_usd": 0.05891,
+    "vcpu": 1,
+    "memory": "8 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 12.5 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c8gb.medium",
+    "price_per_hour_usd": 0.05925,
+    "vcpu": 1,
+    "memory": "2 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 16.667 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c8gn.medium",
+    "price_per_hour_usd": 0.0593,
+    "vcpu": 1,
+    "memory": "2 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 25 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m8a.medium",
+    "price_per_hour_usd": 0.06086,
+    "vcpu": 1,
+    "memory": "4 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 15000 Megabit",
+    "processor_architecture": "AMD EPYC 9R45 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c7gn.medium",
+    "price_per_hour_usd": 0.0624,
+    "vcpu": 1,
+    "memory": "2 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 25 Gigabit",
+    "processor_architecture": "AWS Graviton3 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m3.medium",
+    "price_per_hour_usd": 0.067,
+    "vcpu": 1,
+    "memory": "3.75 GiB",
+    "storage": "1 x 4 SSD",
+    "network_performance": "Moderate",
+    "processor_architecture": "Intel Xeon E5-2670 v2 (Ivy Bridge/Sandy Bridge)",
+    "current_generation": "No"
+  },
+  {
+    "instance_type": "t4g.large",
+    "price_per_hour_usd": 0.0672,
+    "vcpu": 2,
+    "memory": "8 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 5 Gigabit",
+    "processor_architecture": "AWS Graviton2 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r7gd.medium",
+    "price_per_hour_usd": 0.068,
+    "vcpu": 1,
+    "memory": "8 GiB",
+    "storage": "1 x 59 NVMe SSD",
+    "network_performance": "Up to 12500 Megabit",
+    "processor_architecture": "AWS Graviton3 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c6g.large",
+    "price_per_hour_usd": 0.068,
+    "vcpu": 2,
+    "memory": "4 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "AWS Graviton2 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c7g.large",
+    "price_per_hour_usd": 0.0725,
+    "vcpu": 2,
+    "memory": "4 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 12500 Megabit",
+    "processor_architecture": "AWS Graviton3 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m8gb.medium",
+    "price_per_hour_usd": 0.07275,
+    "vcpu": 1,
+    "memory": "4 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 16.667 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m8gn.medium",
+    "price_per_hour_usd": 0.0728,
+    "vcpu": 1,
+    "memory": "4 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 25 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r8gd.medium",
+    "price_per_hour_usd": 0.07348,
+    "vcpu": 1,
+    "memory": "8 GiB",
+    "storage": "1 x 59 NVMe SSD",
+    "network_performance": "Up to 12500 Megabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "t3a.large",
+    "price_per_hour_usd": 0.0752,
+    "vcpu": 2,
+    "memory": "8 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 5 Gigabit",
+    "processor_architecture": "AMD EPYC 7571",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r7a.medium",
+    "price_per_hour_usd": 0.07608,
+    "vcpu": 1,
+    "memory": "8 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 12500 Megabit",
+    "processor_architecture": "AMD EPYC 9R14 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c6a.large",
+    "price_per_hour_usd": 0.0765,
+    "vcpu": 2,
+    "memory": "4 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 12500 Megabit",
+    "processor_architecture": "AMD EPYC 7R13 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c6gd.large",
+    "price_per_hour_usd": 0.0768,
+    "vcpu": 2,
+    "memory": "4 GiB",
+    "storage": "1 x 118 NVMe SSD",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "AWS Graviton2 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c5a.large",
+    "price_per_hour_usd": 0.077,
+    "vcpu": 2,
+    "memory": "4 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "AMD EPYC 7R32",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m6g.large",
+    "price_per_hour_usd": 0.077,
+    "vcpu": 2,
+    "memory": "8 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "AWS Graviton2 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c8g.large",
+    "price_per_hour_usd": 0.07976,
+    "vcpu": 2,
+    "memory": "4 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 12.5 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r8a.medium",
+    "price_per_hour_usd": 0.07988,
+    "vcpu": 1,
+    "memory": "8 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 15000 Megabit",
+    "processor_architecture": "AMD EPYC 9R45 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m7g.large",
+    "price_per_hour_usd": 0.0816,
+    "vcpu": 2,
+    "memory": "8 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 12500 Megabit",
+    "processor_architecture": "AWS Graviton3 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "t3.large",
+    "price_per_hour_usd": 0.0832,
+    "vcpu": 2,
+    "memory": "8 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 5 Gigabit",
+    "processor_architecture": "Intel Skylake E5 2686 v5",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "x2gd.medium",
+    "price_per_hour_usd": 0.0835,
+    "vcpu": 1,
+    "memory": "16 GiB",
+    "storage": "1 x 59 SSD",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "AWS Graviton2 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c7i-flex.large",
+    "price_per_hour_usd": 0.08479,
+    "vcpu": 2,
+    "memory": "4 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 12500 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Sapphire Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c5.large",
+    "price_per_hour_usd": 0.085,
+    "vcpu": 2,
+    "memory": "4 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8124M",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c6i.large",
+    "price_per_hour_usd": 0.085,
+    "vcpu": 2,
+    "memory": "4 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 12500 Megabit",
+    "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m5a.large",
+    "price_per_hour_usd": 0.086,
+    "vcpu": 2,
+    "memory": "8 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "AMD EPYC 7571",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c5ad.large",
+    "price_per_hour_usd": 0.086,
+    "vcpu": 2,
+    "memory": "4 GiB",
+    "storage": "1 x 75 NVMe SSD",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "AMD EPYC 7R32",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m6a.large",
+    "price_per_hour_usd": 0.0864,
+    "vcpu": 2,
+    "memory": "8 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 12500 Megabit",
+    "processor_architecture": "AMD EPYC 7R13 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c6gn.large",
+    "price_per_hour_usd": 0.0864,
+    "vcpu": 2,
+    "memory": "4 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 25 Gigabit",
+    "processor_architecture": "AWS Graviton2 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m1.medium",
+    "price_per_hour_usd": 0.087,
+    "vcpu": 1,
+    "memory": "3.75 GiB",
+    "storage": "1 x 410 SSD",
+    "network_performance": "Moderate",
+    "processor_architecture": "Intel Xeon Family",
+    "current_generation": "No"
+  },
+  {
+    "instance_type": "c8i-flex.large",
+    "price_per_hour_usd": 0.08902,
+    "vcpu": 2,
+    "memory": "4 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 12500 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c7i.large",
+    "price_per_hour_usd": 0.08925,
+    "vcpu": 2,
+    "memory": "4 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 12500 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Sapphire Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m8g.large",
+    "price_per_hour_usd": 0.08976,
+    "vcpu": 2,
+    "memory": "8 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 12.5 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m6gd.large",
+    "price_per_hour_usd": 0.0904,
+    "vcpu": 2,
+    "memory": "8 GiB",
+    "storage": "1 x 118 NVMe SSD",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "AWS Graviton2 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c7gd.large",
+    "price_per_hour_usd": 0.0907,
+    "vcpu": 2,
+    "memory": "4 GiB",
+    "storage": "1 x 118 NVMe SSD",
+    "network_performance": "Up to 12500 Megabit",
+    "processor_architecture": "AWS Graviton3 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r8gb.medium",
+    "price_per_hour_usd": 0.09109,
+    "vcpu": 1,
+    "memory": "8 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 16.667 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r8gn.medium",
+    "price_per_hour_usd": 0.0911,
+    "vcpu": 1,
+    "memory": "8 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 25 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "t2.large",
+    "price_per_hour_usd": 0.0928,
+    "vcpu": 2,
+    "memory": "8 GiB",
+    "storage": "EBS only",
+    "network_performance": "Low to Moderate",
+    "processor_architecture": "Intel Xeon Family",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c8i.large",
+    "price_per_hour_usd": 0.09371,
+    "vcpu": 2,
+    "memory": "4 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 12500 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m7i-flex.large",
+    "price_per_hour_usd": 0.09576,
+    "vcpu": 2,
+    "memory": "8 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 12500 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Sapphire Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m5.large",
+    "price_per_hour_usd": 0.096,
+    "vcpu": 2,
+    "memory": "8 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8175",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m6i.large",
+    "price_per_hour_usd": 0.096,
+    "vcpu": 2,
+    "memory": "8 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 12500 Megabit",
+    "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c5d.large",
+    "price_per_hour_usd": 0.096,
+    "vcpu": 2,
+    "memory": "4 GiB",
+    "storage": "1 x 50 NVMe SSD",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8124M",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "x8g.medium",
+    "price_per_hour_usd": 0.0977,
+    "vcpu": 1,
+    "memory": "16 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 12.5 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c8gd.large",
+    "price_per_hour_usd": 0.09798,
+    "vcpu": 2,
+    "memory": "4 GiB",
+    "storage": "1 x 118 NVMe SSD",
+    "network_performance": "Up to 12500 Megabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c4.large",
+    "price_per_hour_usd": 0.1,
+    "vcpu": 2,
+    "memory": "3.75 GiB",
+    "storage": "EBS only",
+    "network_performance": "Moderate",
+    "processor_architecture": "Intel Xeon E5-2666 v3 (Haswell)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m4.large",
+    "price_per_hour_usd": 0.1,
+    "vcpu": 2,
+    "memory": "8 GiB",
+    "storage": "EBS only",
+    "network_performance": "Moderate",
+    "processor_architecture": "Intel Xeon E5-2676 v3 (Haswell)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m8i-flex.large",
+    "price_per_hour_usd": 0.10055,
+    "vcpu": 2,
+    "memory": "8 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 12500 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c6id.large",
+    "price_per_hour_usd": 0.1008,
+    "vcpu": 2,
+    "memory": "4 GiB",
+    "storage": "1 x 118 NVMe SSD",
+    "network_performance": "Up to 12500 Megabit",
+    "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m7i.large",
+    "price_per_hour_usd": 0.1008,
+    "vcpu": 2,
+    "memory": "8 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 12500 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Sapphire Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r6g.large",
+    "price_per_hour_usd": 0.1008,
+    "vcpu": 2,
+    "memory": "16 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "AWS Graviton2 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "a1.xlarge",
+    "price_per_hour_usd": 0.102,
+    "vcpu": 4,
+    "memory": "8 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "AWS Graviton Processor",
+    "current_generation": "No"
+  },
+  {
+    "instance_type": "c7a.large",
+    "price_per_hour_usd": 0.10264,
+    "vcpu": 2,
+    "memory": "4 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 12500 Megabit",
+    "processor_architecture": "AMD EPYC 9R14 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m5ad.large",
+    "price_per_hour_usd": 0.103,
+    "vcpu": 2,
+    "memory": "8 GiB",
+    "storage": "1 x 75 NVMe SSD",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "AMD EPYC 7571",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m8azn.medium",
+    "price_per_hour_usd": 0.10323,
+    "vcpu": 1,
+    "memory": "4 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 25 Gigabit",
+    "processor_architecture": "AMD EPYC 9575F",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c3.large",
+    "price_per_hour_usd": 0.105,
+    "vcpu": 2,
+    "memory": "3.75 GiB",
+    "storage": "2 x 16 SSD",
+    "network_performance": "Moderate",
+    "processor_architecture": "Intel Xeon E5-2680 v2 (Ivy Bridge)",
+    "current_generation": "No"
+  },
+  {
+    "instance_type": "m8i.large",
+    "price_per_hour_usd": 0.10584,
+    "vcpu": 2,
+    "memory": "8 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 12500 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m7gd.large",
+    "price_per_hour_usd": 0.1068,
+    "vcpu": 2,
+    "memory": "8 GiB",
+    "storage": "1 x 118 NVMe SSD",
+    "network_performance": "Up to 12500 Megabit",
+    "processor_architecture": "AWS Graviton3 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r7g.large",
+    "price_per_hour_usd": 0.1071,
+    "vcpu": 2,
+    "memory": "16 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 12500 Megabit",
+    "processor_architecture": "AWS Graviton3 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c8a.large",
+    "price_per_hour_usd": 0.10777,
+    "vcpu": 2,
+    "memory": "4 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 15000 Megabit",
+    "processor_architecture": "AMD EPYC 9R45 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c5n.large",
+    "price_per_hour_usd": 0.108,
+    "vcpu": 2,
+    "memory": "5.25 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 25 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8124M",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c8id.large",
+    "price_per_hour_usd": 0.11088,
+    "vcpu": 2,
+    "memory": "4 GiB",
+    "storage": "1 x 118 NVMe SSD",
+    "network_performance": "Up to 12500 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m5d.large",
+    "price_per_hour_usd": 0.113,
+    "vcpu": 2,
+    "memory": "8 GiB",
+    "storage": "1 x 75 NVMe SSD",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8175",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r5a.large",
+    "price_per_hour_usd": 0.113,
+    "vcpu": 2,
+    "memory": "16 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "AMD EPYC 7571",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c6in.large",
+    "price_per_hour_usd": 0.1134,
+    "vcpu": 2,
+    "memory": "4 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 25000 Megabit",
+    "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r6a.large",
+    "price_per_hour_usd": 0.1134,
+    "vcpu": 2,
+    "memory": "16 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 12500 Megabit",
+    "processor_architecture": "AMD EPYC 7R13 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r6gd.large",
+    "price_per_hour_usd": 0.1152,
+    "vcpu": 2,
+    "memory": "16 GiB",
+    "storage": "1 x 118 NVMe SSD",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "AWS Graviton2 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m8gd.large",
+    "price_per_hour_usd": 0.11532,
+    "vcpu": 2,
+    "memory": "8 GiB",
+    "storage": "1 x 118 NVMe SSD",
+    "network_performance": "Up to 12500 Megabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m7a.large",
+    "price_per_hour_usd": 0.11592,
+    "vcpu": 2,
+    "memory": "8 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 12500 Megabit",
+    "processor_architecture": "AMD EPYC 9R14 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r8g.large",
+    "price_per_hour_usd": 0.11782,
+    "vcpu": 2,
+    "memory": "16 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 12.5 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c8gb.large",
+    "price_per_hour_usd": 0.1185,
+    "vcpu": 2,
+    "memory": "4 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 20 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c8gn.large",
+    "price_per_hour_usd": 0.1185,
+    "vcpu": 2,
+    "memory": "4 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 30 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m6id.large",
+    "price_per_hour_usd": 0.11865,
+    "vcpu": 2,
+    "memory": "8 GiB",
+    "storage": "1 x 118 NVMe SSD",
+    "network_performance": "Up to 12500 Megabit",
+    "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m5n.large",
+    "price_per_hour_usd": 0.119,
+    "vcpu": 2,
+    "memory": "8 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 25 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8259 (Cascade Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m8a.large",
+    "price_per_hour_usd": 0.12172,
+    "vcpu": 2,
+    "memory": "8 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 15000 Megabit",
+    "processor_architecture": "AMD EPYC 9R45 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c7gn.large",
+    "price_per_hour_usd": 0.1248,
+    "vcpu": 2,
+    "memory": "4 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 30 Gigabit",
+    "processor_architecture": "AWS Graviton3 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r6i.large",
+    "price_per_hour_usd": 0.126,
+    "vcpu": 2,
+    "memory": "16 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 12500 Megabit",
+    "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r5.large",
+    "price_per_hour_usd": 0.126,
+    "vcpu": 2,
+    "memory": "16 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8175",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c1.medium",
+    "price_per_hour_usd": 0.13,
+    "vcpu": 2,
+    "memory": "1.7 GiB",
+    "storage": "1 x 350 SSD",
+    "network_performance": "Moderate",
+    "processor_architecture": "Intel Xeon Family",
+    "current_generation": "No"
+  },
+  {
+    "instance_type": "m8id.large",
+    "price_per_hour_usd": 0.13052,
+    "vcpu": 2,
+    "memory": "8 GiB",
+    "storage": "1 x 118 NVMe SSD",
+    "network_performance": "Up to 12500 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r5ad.large",
+    "price_per_hour_usd": 0.131,
+    "vcpu": 2,
+    "memory": "16 GiB",
+    "storage": "1 x 75 NVMe SSD",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "AMD EPYC 7571",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r8i-flex.large",
+    "price_per_hour_usd": 0.13197,
+    "vcpu": 2,
+    "memory": "16 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 12500 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r7i.large",
+    "price_per_hour_usd": 0.1323,
+    "vcpu": 2,
+    "memory": "16 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 12500 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Sapphire Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r4.large",
+    "price_per_hour_usd": 0.133,
+    "vcpu": 2,
+    "memory": "15.25 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "Intel Xeon E5-2686 v4 (Broadwell)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m3.large",
+    "price_per_hour_usd": 0.133,
+    "vcpu": 2,
+    "memory": "7.5 GiB",
+    "storage": "1 x 32 SSD",
+    "network_performance": "Moderate",
+    "processor_architecture": "Intel Xeon E5-2670 v2 (Ivy Bridge/Sandy Bridge)",
+    "current_generation": "No"
+  },
+  {
+    "instance_type": "t4g.xlarge",
+    "price_per_hour_usd": 0.1344,
+    "vcpu": 4,
+    "memory": "16 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 5 Gigabit",
+    "processor_architecture": "AWS Graviton2 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m5dn.large",
+    "price_per_hour_usd": 0.136,
+    "vcpu": 2,
+    "memory": "8 GiB",
+    "storage": "1 x 75 NVMe SSD",
+    "network_performance": "Up to 25 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8259 (Cascade Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c6g.xlarge",
+    "price_per_hour_usd": 0.136,
+    "vcpu": 4,
+    "memory": "8 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "AWS Graviton2 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c8in.large",
+    "price_per_hour_usd": 0.13608,
+    "vcpu": 2,
+    "memory": "4 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 25 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c8ib.large",
+    "price_per_hour_usd": 0.13608,
+    "vcpu": 2,
+    "memory": "4 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 16.667 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r7gd.large",
+    "price_per_hour_usd": 0.1361,
+    "vcpu": 2,
+    "memory": "16 GiB",
+    "storage": "1 x 118 NVMe SSD",
+    "network_performance": "Up to 12500 Megabit",
+    "processor_architecture": "AWS Graviton3 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r8i.large",
+    "price_per_hour_usd": 0.13892,
+    "vcpu": 2,
+    "memory": "16 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 12500 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m6in.large",
+    "price_per_hour_usd": 0.13923,
+    "vcpu": 2,
+    "memory": "8 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 25000 Megabit",
+    "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r5d.large",
+    "price_per_hour_usd": 0.144,
+    "vcpu": 2,
+    "memory": "16 GiB",
+    "storage": "1 x 75 NVMe SSD",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8175",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "is4gen.medium",
+    "price_per_hour_usd": 0.14408,
+    "vcpu": 1,
+    "memory": "6 GiB",
+    "storage": "1 x 937 SSD",
+    "network_performance": "Up to 25 Gigabit",
+    "processor_architecture": "AWS Graviton2 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c7g.xlarge",
+    "price_per_hour_usd": 0.145,
+    "vcpu": 4,
+    "memory": "8 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 12500 Megabit",
+    "processor_architecture": "AWS Graviton3 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m8gn.large",
+    "price_per_hour_usd": 0.1455,
+    "vcpu": 2,
+    "memory": "8 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 30 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m8gb.large",
+    "price_per_hour_usd": 0.1455,
+    "vcpu": 2,
+    "memory": "8 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 20 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r8gd.large",
+    "price_per_hour_usd": 0.14696,
+    "vcpu": 2,
+    "memory": "16 GiB",
+    "storage": "1 x 118 NVMe SSD",
+    "network_performance": "Up to 12500 Megabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r5b.large",
+    "price_per_hour_usd": 0.149,
+    "vcpu": 2,
+    "memory": "16 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8259 (Cascade Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r5n.large",
+    "price_per_hour_usd": 0.149,
+    "vcpu": 2,
+    "memory": "16 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 25 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8259 (Cascade Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "t3a.xlarge",
+    "price_per_hour_usd": 0.1504,
+    "vcpu": 4,
+    "memory": "16 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 5 Gigabit",
+    "processor_architecture": "AMD EPYC 7571",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r6id.large",
+    "price_per_hour_usd": 0.1512,
+    "vcpu": 2,
+    "memory": "16 GiB",
+    "storage": "1 x 118 NVMe SSD",
+    "network_performance": "Up to 12500 Megabit",
+    "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r7a.large",
+    "price_per_hour_usd": 0.15215,
+    "vcpu": 2,
+    "memory": "16 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 12500 Megabit",
+    "processor_architecture": "AMD EPYC 9R14 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c6a.xlarge",
+    "price_per_hour_usd": 0.153,
+    "vcpu": 4,
+    "memory": "8 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 12500 Megabit",
+    "processor_architecture": "AMD EPYC 7R13 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c6gd.xlarge",
+    "price_per_hour_usd": 0.1536,
+    "vcpu": 4,
+    "memory": "8 GiB",
+    "storage": "1 x 237 NVMe SSD",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "AWS Graviton2 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c5a.xlarge",
+    "price_per_hour_usd": 0.154,
+    "vcpu": 4,
+    "memory": "8 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "AMD EPYC 7R32",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m6g.xlarge",
+    "price_per_hour_usd": 0.154,
+    "vcpu": 4,
+    "memory": "16 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "AWS Graviton2 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "i4g.large",
+    "price_per_hour_usd": 0.15444,
+    "vcpu": 2,
+    "memory": "16 GiB",
+    "storage": "1 x 468 SSD",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "AWS Graviton2 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "i3.large",
+    "price_per_hour_usd": 0.156,
+    "vcpu": 2,
+    "memory": "15.25 GiB",
+    "storage": "1 x 475 NVMe SSD",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "Intel Xeon E5-2686 v4 (Broadwell)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m6idn.large",
+    "price_per_hour_usd": 0.15912,
+    "vcpu": 2,
+    "memory": "8 GiB",
+    "storage": "1 x 118 NVMe SSD",
+    "network_performance": "Up to 25000 Megabit",
+    "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c8g.xlarge",
+    "price_per_hour_usd": 0.15952,
+    "vcpu": 4,
+    "memory": "8 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 12.5 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r8a.large",
+    "price_per_hour_usd": 0.15976,
+    "vcpu": 2,
+    "memory": "16 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 15000 Megabit",
+    "processor_architecture": "AMD EPYC 9R45 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m7g.xlarge",
+    "price_per_hour_usd": 0.1632,
+    "vcpu": 4,
+    "memory": "16 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 12500 Megabit",
+    "processor_architecture": "AWS Graviton3 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m5zn.large",
+    "price_per_hour_usd": 0.1652,
+    "vcpu": 2,
+    "memory": "8 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 25 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8252",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r3.large",
+    "price_per_hour_usd": 0.166,
+    "vcpu": 2,
+    "memory": "15.25 GiB",
+    "storage": "1 x 32 SSD",
+    "network_performance": "Moderate",
+    "processor_architecture": "Intel Xeon E5-2670 v2 (Ivy Bridge)",
+    "current_generation": "No"
+  },
+  {
+    "instance_type": "r8id.large",
+    "price_per_hour_usd": 0.16632,
+    "vcpu": 2,
+    "memory": "16 GiB",
+    "storage": "1 x 118 NVMe SSD",
+    "network_performance": "Up to 12500 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "t3.xlarge",
+    "price_per_hour_usd": 0.1664,
+    "vcpu": 4,
+    "memory": "16 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 5 Gigabit",
+    "processor_architecture": "Intel Skylake E5 2686 v5",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r5dn.large",
+    "price_per_hour_usd": 0.167,
+    "vcpu": 2,
+    "memory": "16 GiB",
+    "storage": "1 x 75 NVMe SSD",
+    "network_performance": "Up to 25 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8259 (Cascade Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "x2gd.large",
+    "price_per_hour_usd": 0.167,
+    "vcpu": 2,
+    "memory": "32 GiB",
+    "storage": "1 x 118 SSD",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "AWS Graviton2 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m8in.large",
+    "price_per_hour_usd": 0.16708,
+    "vcpu": 2,
+    "memory": "8.0 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 25 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m8ib.large",
+    "price_per_hour_usd": 0.16708,
+    "vcpu": 2,
+    "memory": "8.0 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 16.66 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c7i-flex.xlarge",
+    "price_per_hour_usd": 0.16958,
+    "vcpu": 4,
+    "memory": "8 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 12500 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Sapphire Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c5.xlarge",
+    "price_per_hour_usd": 0.17,
+    "vcpu": 4,
+    "memory": "8 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8124M",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c6i.xlarge",
+    "price_per_hour_usd": 0.17,
+    "vcpu": 4,
+    "memory": "8 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 12500 Megabit",
+    "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c8ine.large",
+    "price_per_hour_usd": 0.1701,
+    "vcpu": 2,
+    "memory": "4 GiB",
+    "storage": "EBS only",
+    "network_performance": "3.125 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "i8g.large",
+    "price_per_hour_usd": 0.1716,
+    "vcpu": 2,
+    "memory": "16 GiB",
+    "storage": "1 x 468GB",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m5a.xlarge",
+    "price_per_hour_usd": 0.172,
+    "vcpu": 4,
+    "memory": "16 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "AMD EPYC 7571",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "i4i.large",
+    "price_per_hour_usd": 0.172,
+    "vcpu": 2,
+    "memory": "16 GiB",
+    "storage": "1 x 468 NVMe SSD",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c5ad.xlarge",
+    "price_per_hour_usd": 0.172,
+    "vcpu": 4,
+    "memory": "8 GiB",
+    "storage": "1 x 150 NVMe SSD",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "AMD EPYC 7R32",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c6gn.xlarge",
+    "price_per_hour_usd": 0.1728,
+    "vcpu": 4,
+    "memory": "8 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 25 Gigabit",
+    "processor_architecture": "AWS Graviton2 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m6a.xlarge",
+    "price_per_hour_usd": 0.1728,
+    "vcpu": 4,
+    "memory": "16 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 12500 Megabit",
+    "processor_architecture": "AMD EPYC 7R13 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r6in.large",
+    "price_per_hour_usd": 0.17433,
+    "vcpu": 2,
+    "memory": "16 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 25000 Megabit",
+    "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m1.large",
+    "price_per_hour_usd": 0.175,
+    "vcpu": 2,
+    "memory": "7.5 GiB",
+    "storage": "2 x 420 SSD",
+    "network_performance": "Moderate",
+    "processor_architecture": "Intel Xeon Family",
+    "current_generation": "No"
+  },
+  {
+    "instance_type": "c8i-flex.xlarge",
+    "price_per_hour_usd": 0.17804,
+    "vcpu": 4,
+    "memory": "8 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 12500 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c7i.xlarge",
+    "price_per_hour_usd": 0.1785,
+    "vcpu": 4,
+    "memory": "8 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 12500 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Sapphire Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m8g.xlarge",
+    "price_per_hour_usd": 0.17952,
+    "vcpu": 4,
+    "memory": "16 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 12.5 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m6gd.xlarge",
+    "price_per_hour_usd": 0.1808,
+    "vcpu": 4,
+    "memory": "16 GiB",
+    "storage": "1 x 237 NVMe SSD",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "AWS Graviton2 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c7gd.xlarge",
+    "price_per_hour_usd": 0.1814,
+    "vcpu": 4,
+    "memory": "8 GiB",
+    "storage": "1 x 237 NVMe SSD",
+    "network_performance": "Up to 12500 Megabit",
+    "processor_architecture": "AWS Graviton3 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "im4gn.large",
+    "price_per_hour_usd": 0.1819,
+    "vcpu": 2,
+    "memory": "8 GiB",
+    "storage": "1 x 937 SSD",
+    "network_performance": "Up to 25 Gigabit",
+    "processor_architecture": "AWS Graviton2 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r8gb.large",
+    "price_per_hour_usd": 0.18218,
+    "vcpu": 2,
+    "memory": "16 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 20 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r8gn.large",
+    "price_per_hour_usd": 0.1822,
+    "vcpu": 2,
+    "memory": "16 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 30 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "t2.xlarge",
+    "price_per_hour_usd": 0.1856,
+    "vcpu": 4,
+    "memory": "16 GiB",
+    "storage": "EBS only",
+    "network_performance": "Moderate",
+    "processor_architecture": "Intel Xeon Family",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "z1d.large",
+    "price_per_hour_usd": 0.186,
+    "vcpu": 2,
+    "memory": "16 GiB",
+    "storage": "1 x 75 NVMe SSD",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8151",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r7iz.large",
+    "price_per_hour_usd": 0.186,
+    "vcpu": 2,
+    "memory": "16 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 12500 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Sapphire Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c8i.xlarge",
+    "price_per_hour_usd": 0.18742,
+    "vcpu": 4,
+    "memory": "8 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 12500 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "i7i.large",
+    "price_per_hour_usd": 0.1888,
+    "vcpu": 2,
+    "memory": "16 GiB",
+    "storage": "1 x 468 NVMe SSD",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Emerald Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m7i-flex.xlarge",
+    "price_per_hour_usd": 0.19152,
+    "vcpu": 4,
+    "memory": "16 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 12500 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Sapphire Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m6i.xlarge",
+    "price_per_hour_usd": 0.192,
+    "vcpu": 4,
+    "memory": "16 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 12500 Megabit",
+    "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m5.xlarge",
+    "price_per_hour_usd": 0.192,
+    "vcpu": 4,
+    "memory": "16 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8175",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c5d.xlarge",
+    "price_per_hour_usd": 0.192,
+    "vcpu": 4,
+    "memory": "8 GiB",
+    "storage": "1 x 100 NVMe SSD",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8124M",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r6idn.large",
+    "price_per_hour_usd": 0.19539,
+    "vcpu": 2,
+    "memory": "16 GiB",
+    "storage": "1 x 118 NVMe SSD",
+    "network_performance": "Up to 25000 Megabit",
+    "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "x8g.large",
+    "price_per_hour_usd": 0.1954,
+    "vcpu": 2,
+    "memory": "32 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 12.5 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c8gd.xlarge",
+    "price_per_hour_usd": 0.19596,
+    "vcpu": 4,
+    "memory": "8 GiB",
+    "storage": "1 x 237 NVMe SSD",
+    "network_performance": "Up to 12500 Megabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c4.xlarge",
+    "price_per_hour_usd": 0.199,
+    "vcpu": 4,
+    "memory": "7.5 GiB",
+    "storage": "EBS only",
+    "network_performance": "High",
+    "processor_architecture": "Intel Xeon E5-2666 v3 (Haswell)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m4.xlarge",
+    "price_per_hour_usd": 0.2,
+    "vcpu": 4,
+    "memory": "16 GiB",
+    "storage": "EBS only",
+    "network_performance": "High",
+    "processor_architecture": "Intel Xeon E5-2676 v3 (Haswell)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m8i-flex.xlarge",
+    "price_per_hour_usd": 0.2011,
+    "vcpu": 4,
+    "memory": "16 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 12500 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c6id.xlarge",
+    "price_per_hour_usd": 0.2016,
+    "vcpu": 4,
+    "memory": "8 GiB",
+    "storage": "1 x 237 NVMe SSD",
+    "network_performance": "Up to 12500 Megabit",
+    "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r6g.xlarge",
+    "price_per_hour_usd": 0.2016,
+    "vcpu": 4,
+    "memory": "32 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "AWS Graviton2 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m7i.xlarge",
+    "price_per_hour_usd": 0.2016,
+    "vcpu": 4,
+    "memory": "16 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 12500 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Sapphire Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "g6f.large",
+    "price_per_hour_usd": 0.202,
+    "vcpu": 2,
+    "memory": "8 GiB",
+    "storage": "1 x 100 NVMe SSD",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "AMD EPYC 7R13 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "a1.2xlarge",
+    "price_per_hour_usd": 0.204,
+    "vcpu": 8,
+    "memory": "16 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "AWS Graviton Processor",
+    "current_generation": "No"
+  },
+  {
+    "instance_type": "c7a.xlarge",
+    "price_per_hour_usd": 0.20528,
+    "vcpu": 4,
+    "memory": "8 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 12500 Megabit",
+    "processor_architecture": "AMD EPYC 9R14 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m5ad.xlarge",
+    "price_per_hour_usd": 0.206,
+    "vcpu": 4,
+    "memory": "16 GiB",
+    "storage": "1 x 150 NVMe SSD",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "AMD EPYC 7571",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m8azn.large",
+    "price_per_hour_usd": 0.20646,
+    "vcpu": 2,
+    "memory": "8 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 30 Gigabit",
+    "processor_architecture": "AMD EPYC 9575F",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m8ine.large",
+    "price_per_hour_usd": 0.20885,
+    "vcpu": 2,
+    "memory": "8.0 GiB",
+    "storage": "EBS only",
+    "network_performance": "3.125 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r8in.large",
+    "price_per_hour_usd": 0.2092,
+    "vcpu": 2,
+    "memory": "16.0 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 25 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r8ib.large",
+    "price_per_hour_usd": 0.2092,
+    "vcpu": 2,
+    "memory": "16.0 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 16.66 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c3.xlarge",
+    "price_per_hour_usd": 0.21,
+    "vcpu": 4,
+    "memory": "7.5 GiB",
+    "storage": "2 x 40 SSD",
+    "network_performance": "Moderate",
+    "processor_architecture": "Intel Xeon E5-2680 v2 (Ivy Bridge)",
+    "current_generation": "No"
+  },
+  {
+    "instance_type": "m8i.xlarge",
+    "price_per_hour_usd": 0.21168,
+    "vcpu": 4,
+    "memory": "16 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 12500 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m7gd.xlarge",
+    "price_per_hour_usd": 0.2136,
+    "vcpu": 4,
+    "memory": "16 GiB",
+    "storage": "1 x 237 NVMe SSD",
+    "network_performance": "Up to 12500 Megabit",
+    "processor_architecture": "AWS Graviton3 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r7g.xlarge",
+    "price_per_hour_usd": 0.2142,
+    "vcpu": 4,
+    "memory": "32 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 12500 Megabit",
+    "processor_architecture": "AWS Graviton3 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c8a.xlarge",
+    "price_per_hour_usd": 0.21554,
+    "vcpu": 4,
+    "memory": "8 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 15000 Megabit",
+    "processor_architecture": "AMD EPYC 9R45 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c5n.xlarge",
+    "price_per_hour_usd": 0.216,
+    "vcpu": 4,
+    "memory": "10.5 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 25 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8124M",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "x8i.large",
+    "price_per_hour_usd": 0.21883,
+    "vcpu": 2,
+    "memory": "32 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 12500 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c8id.xlarge",
+    "price_per_hour_usd": 0.22176,
+    "vcpu": 4,
+    "memory": "8 GiB",
+    "storage": "1 x 237 NVMe SSD",
+    "network_performance": "Up to 12500 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r5a.xlarge",
+    "price_per_hour_usd": 0.226,
+    "vcpu": 4,
+    "memory": "32 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "AMD EPYC 7571",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m5d.xlarge",
+    "price_per_hour_usd": 0.226,
+    "vcpu": 4,
+    "memory": "16 GiB",
+    "storage": "1 x 150 NVMe SSD",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8175",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "i3en.large",
+    "price_per_hour_usd": 0.226,
+    "vcpu": 2,
+    "memory": "16 GiB",
+    "storage": "1 x 1250 NVMe SSD",
+    "network_performance": "Up to 25 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8175",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c6in.xlarge",
+    "price_per_hour_usd": 0.2268,
+    "vcpu": 4,
+    "memory": "8 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 30000 Megabit",
+    "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r6a.xlarge",
+    "price_per_hour_usd": 0.2268,
+    "vcpu": 4,
+    "memory": "32 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 12500 Megabit",
+    "processor_architecture": "AMD EPYC 7R13 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "inf1.xlarge",
+    "price_per_hour_usd": 0.228,
+    "vcpu": 4,
+    "memory": "8 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 25 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8275CL (Cascade Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r6gd.xlarge",
+    "price_per_hour_usd": 0.2304,
+    "vcpu": 4,
+    "memory": "32 GiB",
+    "storage": "1 x 237 NVMe SSD",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "AWS Graviton2 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m8gd.xlarge",
+    "price_per_hour_usd": 0.23064,
+    "vcpu": 4,
+    "memory": "16 GiB",
+    "storage": "1 x 237 NVMe SSD",
+    "network_performance": "Up to 12500 Megabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m7a.xlarge",
+    "price_per_hour_usd": 0.23184,
+    "vcpu": 4,
+    "memory": "16 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 12500 Megabit",
+    "processor_architecture": "AMD EPYC 9R14 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r8g.xlarge",
+    "price_per_hour_usd": 0.23564,
+    "vcpu": 4,
+    "memory": "32 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 12.5 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c8gb.xlarge",
+    "price_per_hour_usd": 0.237,
+    "vcpu": 4,
+    "memory": "8 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 26.667 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c8gn.xlarge",
+    "price_per_hour_usd": 0.237,
+    "vcpu": 4,
+    "memory": "8 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 40 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "i8ge.large",
+    "price_per_hour_usd": 0.2373,
+    "vcpu": 2,
+    "memory": "16 GiB",
+    "storage": "1 x 1250 NVMe SSD",
+    "network_performance": "Up to 25 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m6id.xlarge",
+    "price_per_hour_usd": 0.2373,
+    "vcpu": 4,
+    "memory": "16 GiB",
+    "storage": "1 x 237 NVMe SSD",
+    "network_performance": "Up to 12500 Megabit",
+    "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "g6f.xlarge",
+    "price_per_hour_usd": 0.2375,
+    "vcpu": 4,
+    "memory": "16 GiB",
+    "storage": "1 x 100 NVMe SSD",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "AMD EPYC 7R13 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m5n.xlarge",
+    "price_per_hour_usd": 0.238,
+    "vcpu": 4,
+    "memory": "16 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 25 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8259 (Cascade Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m8a.xlarge",
+    "price_per_hour_usd": 0.24344,
+    "vcpu": 4,
+    "memory": "16 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 15000 Megabit",
+    "processor_architecture": "AMD EPYC 9R45 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m2.xlarge",
+    "price_per_hour_usd": 0.245,
+    "vcpu": 2,
+    "memory": "17.1 GiB",
+    "storage": "1 x 420 SSD",
+    "network_performance": "Moderate",
+    "processor_architecture": "Intel Xeon Family",
+    "current_generation": "No"
+  },
+  {
+    "instance_type": "c7gn.xlarge",
+    "price_per_hour_usd": 0.2496,
+    "vcpu": 4,
+    "memory": "8 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 40 Gigabit",
+    "processor_architecture": "AWS Graviton3 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r6i.xlarge",
+    "price_per_hour_usd": 0.252,
+    "vcpu": 4,
+    "memory": "32 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 12500 Megabit",
+    "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r5.xlarge",
+    "price_per_hour_usd": 0.252,
+    "vcpu": 4,
+    "memory": "32 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8175",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "i7ie.large",
+    "price_per_hour_usd": 0.2599,
+    "vcpu": 2,
+    "memory": "16 GiB",
+    "storage": "1 x 1250 NVMe SSD",
+    "network_performance": "Up to 25 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Emerald Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m8id.xlarge",
+    "price_per_hour_usd": 0.26104,
+    "vcpu": 4,
+    "memory": "16 GiB",
+    "storage": "1 x 237 NVMe SSD",
+    "network_performance": "Up to 12500 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r5ad.xlarge",
+    "price_per_hour_usd": 0.262,
+    "vcpu": 4,
+    "memory": "32 GiB",
+    "storage": "1 x 150 NVMe SSD",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "AMD EPYC 7571",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r8i-flex.xlarge",
+    "price_per_hour_usd": 0.26394,
+    "vcpu": 4,
+    "memory": "32 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 12500 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r7i.xlarge",
+    "price_per_hour_usd": 0.2646,
+    "vcpu": 4,
+    "memory": "32 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 12500 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Sapphire Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m3.xlarge",
+    "price_per_hour_usd": 0.266,
+    "vcpu": 4,
+    "memory": "15 GiB",
+    "storage": "2 x 40 SSD",
+    "network_performance": "High",
+    "processor_architecture": "Intel Xeon E5-2670 v2 (Ivy Bridge/Sandy Bridge)",
+    "current_generation": "No"
+  },
+  {
+    "instance_type": "r4.xlarge",
+    "price_per_hour_usd": 0.266,
+    "vcpu": 4,
+    "memory": "30.5 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "Intel Xeon E5-2686 v4 (Broadwell)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "t4g.2xlarge",
+    "price_per_hour_usd": 0.2688,
+    "vcpu": 8,
+    "memory": "32 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 5 Gigabit",
+    "processor_architecture": "AWS Graviton2 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c6g.2xlarge",
+    "price_per_hour_usd": 0.272,
+    "vcpu": 8,
+    "memory": "16 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "AWS Graviton2 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m5dn.xlarge",
+    "price_per_hour_usd": 0.272,
+    "vcpu": 4,
+    "memory": "16 GiB",
+    "storage": "1 x 150 NVMe SSD",
+    "network_performance": "Up to 25 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8259 (Cascade Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c8ib.xlarge",
+    "price_per_hour_usd": 0.27216,
+    "vcpu": 4,
+    "memory": "8 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 20 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c8in.xlarge",
+    "price_per_hour_usd": 0.27216,
+    "vcpu": 4,
+    "memory": "8 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 30 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r7gd.xlarge",
+    "price_per_hour_usd": 0.2722,
+    "vcpu": 4,
+    "memory": "32 GiB",
+    "storage": "1 x 237 NVMe SSD",
+    "network_performance": "Up to 12500 Megabit",
+    "processor_architecture": "AWS Graviton3 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r8i.xlarge",
+    "price_per_hour_usd": 0.27784,
+    "vcpu": 4,
+    "memory": "32 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 12500 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m6in.xlarge",
+    "price_per_hour_usd": 0.27846,
+    "vcpu": 4,
+    "memory": "16 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 30000 Megabit",
+    "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r5d.xlarge",
+    "price_per_hour_usd": 0.288,
+    "vcpu": 4,
+    "memory": "32 GiB",
+    "storage": "1 x 150 NVMe SSD",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8175",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "is4gen.large",
+    "price_per_hour_usd": 0.28815,
+    "vcpu": 2,
+    "memory": "12 GiB",
+    "storage": "1 x 1875 SSD",
+    "network_performance": "Up to 25 Gigabit",
+    "processor_architecture": "AWS Graviton2 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c7g.2xlarge",
+    "price_per_hour_usd": 0.29,
+    "vcpu": 8,
+    "memory": "16 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 15 Gigabit",
+    "processor_architecture": "AWS Graviton3 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m8gb.xlarge",
+    "price_per_hour_usd": 0.291,
+    "vcpu": 4,
+    "memory": "16 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 26.667 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m8gn.xlarge",
+    "price_per_hour_usd": 0.291,
+    "vcpu": 4,
+    "memory": "16 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 40 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r8gd.xlarge",
+    "price_per_hour_usd": 0.29392,
+    "vcpu": 4,
+    "memory": "32 GiB",
+    "storage": "1 x 237 NVMe SSD",
+    "network_performance": "Up to 12500 Megabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r5n.xlarge",
+    "price_per_hour_usd": 0.298,
+    "vcpu": 4,
+    "memory": "32 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 25 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8259 (Cascade Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r5b.xlarge",
+    "price_per_hour_usd": 0.298,
+    "vcpu": 4,
+    "memory": "32 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8259 (Cascade Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "t3a.2xlarge",
+    "price_per_hour_usd": 0.3008,
+    "vcpu": 8,
+    "memory": "32 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 5 Gigabit",
+    "processor_architecture": "AMD EPYC 7571",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r6id.xlarge",
+    "price_per_hour_usd": 0.3024,
+    "vcpu": 4,
+    "memory": "32 GiB",
+    "storage": "1 x 237 NVMe SSD",
+    "network_performance": "Up to 12500 Megabit",
+    "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r7a.xlarge",
+    "price_per_hour_usd": 0.3043,
+    "vcpu": 4,
+    "memory": "32 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 12500 Megabit",
+    "processor_architecture": "AMD EPYC 9R14 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c6a.2xlarge",
+    "price_per_hour_usd": 0.306,
+    "vcpu": 8,
+    "memory": "16 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 12500 Megabit",
+    "processor_architecture": "AMD EPYC 7R13 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c6gd.2xlarge",
+    "price_per_hour_usd": 0.3072,
+    "vcpu": 8,
+    "memory": "16 GiB",
+    "storage": "1 x 475 NVMe SSD",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "AWS Graviton2 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m6g.2xlarge",
+    "price_per_hour_usd": 0.308,
+    "vcpu": 8,
+    "memory": "32 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "AWS Graviton2 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c5a.2xlarge",
+    "price_per_hour_usd": 0.308,
+    "vcpu": 8,
+    "memory": "16 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "AMD EPYC 7R32",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "i4g.xlarge",
+    "price_per_hour_usd": 0.30888,
+    "vcpu": 4,
+    "memory": "32 GiB",
+    "storage": "1 x 937 SSD",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "AWS Graviton2 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "i3.xlarge",
+    "price_per_hour_usd": 0.312,
+    "vcpu": 4,
+    "memory": "30.5 GiB",
+    "storage": "1 x 950 NVMe SSD",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "Intel Xeon E5-2686 v4 (Broadwell)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m6idn.xlarge",
+    "price_per_hour_usd": 0.31824,
+    "vcpu": 4,
+    "memory": "16 GiB",
+    "storage": "1 x 237 NVMe SSD",
+    "network_performance": "Up to 30000 Megabit",
+    "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c8g.2xlarge",
+    "price_per_hour_usd": 0.31904,
+    "vcpu": 8,
+    "memory": "16 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 15 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r8a.xlarge",
+    "price_per_hour_usd": 0.31952,
+    "vcpu": 4,
+    "memory": "32 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 15000 Megabit",
+    "processor_architecture": "AMD EPYC 9R45 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m7g.2xlarge",
+    "price_per_hour_usd": 0.3264,
+    "vcpu": 8,
+    "memory": "32 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 15 Gigabit",
+    "processor_architecture": "AWS Graviton3 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m5zn.xlarge",
+    "price_per_hour_usd": 0.3303,
+    "vcpu": 4,
+    "memory": "16 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 25 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8252",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r8id.xlarge",
+    "price_per_hour_usd": 0.33264,
+    "vcpu": 4,
+    "memory": "32 GiB",
+    "storage": "1 x 237 NVMe SSD",
+    "network_performance": "Up to 12500 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "t3.2xlarge",
+    "price_per_hour_usd": 0.3328,
+    "vcpu": 8,
+    "memory": "32 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 5 Gigabit",
+    "processor_architecture": "Intel Skylake E5 2686 v5",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r3.xlarge",
+    "price_per_hour_usd": 0.333,
+    "vcpu": 4,
+    "memory": "30.5 GiB",
+    "storage": "1 x 80 SSD",
+    "network_performance": "Moderate",
+    "processor_architecture": "Intel Xeon E5-2670 v2 (Ivy Bridge)",
+    "current_generation": "No"
+  },
+  {
+    "instance_type": "r5dn.xlarge",
+    "price_per_hour_usd": 0.334,
+    "vcpu": 4,
+    "memory": "32 GiB",
+    "storage": "1 x 150 NVMe SSD",
+    "network_performance": "Up to 25 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8259 (Cascade Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "x2gd.xlarge",
+    "price_per_hour_usd": 0.334,
+    "vcpu": 4,
+    "memory": "64 GiB",
+    "storage": "1 x 237 SSD",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "AWS Graviton2 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m8in.xlarge",
+    "price_per_hour_usd": 0.33416,
+    "vcpu": 4,
+    "memory": "16.0 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 30 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m8ib.xlarge",
+    "price_per_hour_usd": 0.33416,
+    "vcpu": 4,
+    "memory": "16.0 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 20 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c7i-flex.2xlarge",
+    "price_per_hour_usd": 0.33915,
+    "vcpu": 8,
+    "memory": "16 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 12500 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Sapphire Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c5.2xlarge",
+    "price_per_hour_usd": 0.34,
+    "vcpu": 8,
+    "memory": "16 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8124M",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c6i.2xlarge",
+    "price_per_hour_usd": 0.34,
+    "vcpu": 8,
+    "memory": "16 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 12500 Megabit",
+    "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c8ine.xlarge",
+    "price_per_hour_usd": 0.3402,
+    "vcpu": 4,
+    "memory": "8 GiB",
+    "storage": "EBS only",
+    "network_performance": "6.25 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "i4i.xlarge",
+    "price_per_hour_usd": 0.343,
+    "vcpu": 4,
+    "memory": "32 GiB",
+    "storage": "1 x 937 NVMe SSD",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "i8g.xlarge",
+    "price_per_hour_usd": 0.3432,
+    "vcpu": 4,
+    "memory": "32 GiB",
+    "storage": "1 x 937GB",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c5ad.2xlarge",
+    "price_per_hour_usd": 0.344,
+    "vcpu": 8,
+    "memory": "16 GiB",
+    "storage": "1 x 300 NVMe SSD",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "AMD EPYC 7R32",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m5a.2xlarge",
+    "price_per_hour_usd": 0.344,
+    "vcpu": 8,
+    "memory": "32 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "AMD EPYC 7571",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m6a.2xlarge",
+    "price_per_hour_usd": 0.3456,
+    "vcpu": 8,
+    "memory": "32 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 12500 Megabit",
+    "processor_architecture": "AMD EPYC 7R13 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c6gn.2xlarge",
+    "price_per_hour_usd": 0.3456,
+    "vcpu": 8,
+    "memory": "16 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 25 Gigabit",
+    "processor_architecture": "AWS Graviton2 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r6in.xlarge",
+    "price_per_hour_usd": 0.34866,
+    "vcpu": 4,
+    "memory": "32 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 30000 Megabit",
+    "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m1.xlarge",
+    "price_per_hour_usd": 0.35,
+    "vcpu": 4,
+    "memory": "15 GiB",
+    "storage": "4 x 420 SSD",
+    "network_performance": "High",
+    "processor_architecture": "Intel Xeon Family",
+    "current_generation": "No"
+  },
+  {
+    "instance_type": "c8i-flex.2xlarge",
+    "price_per_hour_usd": 0.35608,
+    "vcpu": 8,
+    "memory": "16 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 15000 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c7i.2xlarge",
+    "price_per_hour_usd": 0.357,
+    "vcpu": 8,
+    "memory": "16 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 12500 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Sapphire Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m8g.2xlarge",
+    "price_per_hour_usd": 0.35904,
+    "vcpu": 8,
+    "memory": "32 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 15 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m6gd.2xlarge",
+    "price_per_hour_usd": 0.3616,
+    "vcpu": 8,
+    "memory": "32 GiB",
+    "storage": "1 x 475 NVMe SSD",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "AWS Graviton2 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "inf1.2xlarge",
+    "price_per_hour_usd": 0.362,
+    "vcpu": 8,
+    "memory": "16 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 25 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8275CL (Cascade Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c7gd.2xlarge",
+    "price_per_hour_usd": 0.3629,
+    "vcpu": 8,
+    "memory": "16 GiB",
+    "storage": "1 x 475 NVMe SSD",
+    "network_performance": "Up to 15 Gigabit",
+    "processor_architecture": "AWS Graviton3 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "im4gn.xlarge",
+    "price_per_hour_usd": 0.36379,
+    "vcpu": 4,
+    "memory": "16 GiB",
+    "storage": "1 x 1875 SSD",
+    "network_performance": "Up to 25 Gigabit",
+    "processor_architecture": "AWS Graviton2 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r8gb.xlarge",
+    "price_per_hour_usd": 0.36436,
+    "vcpu": 4,
+    "memory": "32 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 26.667 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r8gn.xlarge",
+    "price_per_hour_usd": 0.3644,
+    "vcpu": 4,
+    "memory": "32 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 40 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "t2.2xlarge",
+    "price_per_hour_usd": 0.3712,
+    "vcpu": 8,
+    "memory": "32 GiB",
+    "storage": "EBS only",
+    "network_performance": "Moderate",
+    "processor_architecture": "Intel Xeon Family",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r7iz.xlarge",
+    "price_per_hour_usd": 0.372,
+    "vcpu": 4,
+    "memory": "32 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 12500 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Sapphire Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "z1d.xlarge",
+    "price_per_hour_usd": 0.372,
+    "vcpu": 4,
+    "memory": "32 GiB",
+    "storage": "1 x 150 NVMe SSD",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8151",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c8i.2xlarge",
+    "price_per_hour_usd": 0.37484,
+    "vcpu": 8,
+    "memory": "16 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 15000 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "i7i.xlarge",
+    "price_per_hour_usd": 0.3775,
+    "vcpu": 4,
+    "memory": "32 GiB",
+    "storage": "1 x 937 NVMe SSD",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Emerald Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "g4ad.xlarge",
+    "price_per_hour_usd": 0.37853,
+    "vcpu": 4,
+    "memory": "16 GiB",
+    "storage": "150 GB NVMe SSD",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "AMD EPYC 7R32",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m7i-flex.2xlarge",
+    "price_per_hour_usd": 0.38304,
+    "vcpu": 8,
+    "memory": "32 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 12500 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Sapphire Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m6i.2xlarge",
+    "price_per_hour_usd": 0.384,
+    "vcpu": 8,
+    "memory": "32 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 12500 Megabit",
+    "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c5d.2xlarge",
+    "price_per_hour_usd": 0.384,
+    "vcpu": 8,
+    "memory": "16 GiB",
+    "storage": "1 x 200 NVMe SSD",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8124M",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m5.2xlarge",
+    "price_per_hour_usd": 0.384,
+    "vcpu": 8,
+    "memory": "32 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8175",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r6idn.xlarge",
+    "price_per_hour_usd": 0.39078,
+    "vcpu": 4,
+    "memory": "32 GiB",
+    "storage": "1 x 237 NVMe SSD",
+    "network_performance": "Up to 30000 Megabit",
+    "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "x8g.xlarge",
+    "price_per_hour_usd": 0.3908,
+    "vcpu": 4,
+    "memory": "64 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 12.5 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c8gd.2xlarge",
+    "price_per_hour_usd": 0.39192,
+    "vcpu": 8,
+    "memory": "16 GiB",
+    "storage": "1 x 475 NVMe SSD",
+    "network_performance": "Up to 15 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c4.2xlarge",
+    "price_per_hour_usd": 0.398,
+    "vcpu": 8,
+    "memory": "15 GiB",
+    "storage": "EBS only",
+    "network_performance": "High",
+    "processor_architecture": "Intel Xeon E5-2666 v3 (Haswell)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m4.2xlarge",
+    "price_per_hour_usd": 0.4,
+    "vcpu": 8,
+    "memory": "32 GiB",
+    "storage": "EBS only",
+    "network_performance": "High",
+    "processor_architecture": "Intel Xeon E5-2676 v3 (Haswell)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m8i-flex.2xlarge",
+    "price_per_hour_usd": 0.4022,
+    "vcpu": 8,
+    "memory": "32 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 15000 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m7i.2xlarge",
+    "price_per_hour_usd": 0.4032,
+    "vcpu": 8,
+    "memory": "32 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 12500 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Sapphire Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r6g.2xlarge",
+    "price_per_hour_usd": 0.4032,
+    "vcpu": 8,
+    "memory": "64 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "AWS Graviton2 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c6id.2xlarge",
+    "price_per_hour_usd": 0.4032,
+    "vcpu": 8,
+    "memory": "16 GiB",
+    "storage": "1 x 474 NVMe SSD",
+    "network_performance": "Up to 12500 Megabit",
+    "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "a1.4xlarge",
+    "price_per_hour_usd": 0.408,
+    "vcpu": 16,
+    "memory": "32 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "AWS Graviton Processor",
+    "current_generation": "No"
+  },
+  {
+    "instance_type": "c7a.2xlarge",
+    "price_per_hour_usd": 0.41056,
+    "vcpu": 8,
+    "memory": "16 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 12500 Megabit",
+    "processor_architecture": "AMD EPYC 9R14 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m5ad.2xlarge",
+    "price_per_hour_usd": 0.412,
+    "vcpu": 8,
+    "memory": "32 GiB",
+    "storage": "1 x 300 NVMe SSD",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "AMD EPYC 7571",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m8azn.xlarge",
+    "price_per_hour_usd": 0.41292,
+    "vcpu": 4,
+    "memory": "16 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 40 Gigabit",
+    "processor_architecture": "AMD EPYC 9575F",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m8ine.xlarge",
+    "price_per_hour_usd": 0.4177,
+    "vcpu": 4,
+    "memory": "16.0 GiB",
+    "storage": "EBS only",
+    "network_performance": "6.25 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r8in.xlarge",
+    "price_per_hour_usd": 0.4184,
+    "vcpu": 4,
+    "memory": "32.0 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 30 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r8ib.xlarge",
+    "price_per_hour_usd": 0.4184,
+    "vcpu": 4,
+    "memory": "32.0 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 20 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "g5g.xlarge",
+    "price_per_hour_usd": 0.42,
+    "vcpu": 4,
+    "memory": "8 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "AWS Graviton2 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c3.2xlarge",
+    "price_per_hour_usd": 0.42,
+    "vcpu": 8,
+    "memory": "15 GiB",
+    "storage": "2 x 80 SSD",
+    "network_performance": "High",
+    "processor_architecture": "Intel Xeon E5-2680 v2 (Ivy Bridge)",
+    "current_generation": "No"
+  },
+  {
+    "instance_type": "m8i.2xlarge",
+    "price_per_hour_usd": 0.42336,
+    "vcpu": 8,
+    "memory": "32 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 15000 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m7gd.2xlarge",
+    "price_per_hour_usd": 0.4271,
+    "vcpu": 8,
+    "memory": "32 GiB",
+    "storage": "1 x 475 NVMe SSD",
+    "network_performance": "Up to 15 Gigabit",
+    "processor_architecture": "AWS Graviton3 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r7g.2xlarge",
+    "price_per_hour_usd": 0.4284,
+    "vcpu": 8,
+    "memory": "64 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 15 Gigabit",
+    "processor_architecture": "AWS Graviton3 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c8a.2xlarge",
+    "price_per_hour_usd": 0.43108,
+    "vcpu": 8,
+    "memory": "16 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 15000 Megabit",
+    "processor_architecture": "AMD EPYC 9R45 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c5n.2xlarge",
+    "price_per_hour_usd": 0.432,
+    "vcpu": 8,
+    "memory": "21 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 25 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8124M",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "x8i.xlarge",
+    "price_per_hour_usd": 0.43766,
+    "vcpu": 4,
+    "memory": "64 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 12500 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c8id.2xlarge",
+    "price_per_hour_usd": 0.44352,
+    "vcpu": 8,
+    "memory": "16 GiB",
+    "storage": "1 x 474 NVMe SSD",
+    "network_performance": "Up to 15000 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r5a.2xlarge",
+    "price_per_hour_usd": 0.452,
+    "vcpu": 8,
+    "memory": "64 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "AMD EPYC 7571",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "i3en.xlarge",
+    "price_per_hour_usd": 0.452,
+    "vcpu": 4,
+    "memory": "32 GiB",
+    "storage": "1 x 2500 NVMe SSD",
+    "network_performance": "Up to 25 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8175",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m5d.2xlarge",
+    "price_per_hour_usd": 0.452,
+    "vcpu": 8,
+    "memory": "32 GiB",
+    "storage": "1 x 300 NVMe SSD",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8175",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c6in.2xlarge",
+    "price_per_hour_usd": 0.4536,
+    "vcpu": 8,
+    "memory": "16 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 40000 Megabit",
+    "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r6a.2xlarge",
+    "price_per_hour_usd": 0.4536,
+    "vcpu": 8,
+    "memory": "64 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 12500 Megabit",
+    "processor_architecture": "AMD EPYC 7R13 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r6gd.2xlarge",
+    "price_per_hour_usd": 0.4608,
+    "vcpu": 8,
+    "memory": "64 GiB",
+    "storage": "1 x 475 NVMe SSD",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "AWS Graviton2 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m8gd.2xlarge",
+    "price_per_hour_usd": 0.46128,
+    "vcpu": 8,
+    "memory": "32 GiB",
+    "storage": "1 x 475 NVMe SSD",
+    "network_performance": "Up to 15 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m7a.2xlarge",
+    "price_per_hour_usd": 0.46368,
+    "vcpu": 8,
+    "memory": "32 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 12500 Megabit",
+    "processor_architecture": "AMD EPYC 9R14 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "h1.2xlarge",
+    "price_per_hour_usd": 0.468,
+    "vcpu": 8,
+    "memory": "32 GiB",
+    "storage": "1 x 2000 HDD",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "Intel Xeon E5-2686 v4 (Broadwell)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r8g.2xlarge",
+    "price_per_hour_usd": 0.47128,
+    "vcpu": 8,
+    "memory": "64 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 15 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c8gn.2xlarge",
+    "price_per_hour_usd": 0.474,
+    "vcpu": 8,
+    "memory": "16 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 50 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c8gb.2xlarge",
+    "price_per_hour_usd": 0.474,
+    "vcpu": 8,
+    "memory": "16 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 33.333 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m6id.2xlarge",
+    "price_per_hour_usd": 0.4746,
+    "vcpu": 8,
+    "memory": "32 GiB",
+    "storage": "1 x 474 NVMe SSD",
+    "network_performance": "Up to 12500 Megabit",
+    "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "i8ge.xlarge",
+    "price_per_hour_usd": 0.4746,
+    "vcpu": 4,
+    "memory": "32 GiB",
+    "storage": "1 x 2500 NVMe SSD",
+    "network_performance": "Up to 25 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "g6f.2xlarge",
+    "price_per_hour_usd": 0.475,
+    "vcpu": 8,
+    "memory": "32 GiB",
+    "storage": "1 x 200 NVMe SSD",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "AMD EPYC 7R13 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m5n.2xlarge",
+    "price_per_hour_usd": 0.476,
+    "vcpu": 8,
+    "memory": "32 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 25 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8259 (Cascade Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m8a.2xlarge",
+    "price_per_hour_usd": 0.48688,
+    "vcpu": 8,
+    "memory": "32 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 15000 Megabit",
+    "processor_architecture": "AMD EPYC 9R45 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m2.2xlarge",
+    "price_per_hour_usd": 0.49,
+    "vcpu": 4,
+    "memory": "34.2 GiB",
+    "storage": "1 x 850 SSD",
+    "network_performance": "Moderate",
+    "processor_architecture": "Intel Xeon Family",
+    "current_generation": "No"
+  },
+  {
+    "instance_type": "d3.xlarge",
+    "price_per_hour_usd": 0.499,
+    "vcpu": 4,
+    "memory": "32 GiB",
+    "storage": "3 x 2000 HDD",
+    "network_performance": "Up to 15 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8259 (Cascade Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c7gn.2xlarge",
+    "price_per_hour_usd": 0.4992,
+    "vcpu": 8,
+    "memory": "16 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 50 Gigabit",
+    "processor_architecture": "AWS Graviton3 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r5.2xlarge",
+    "price_per_hour_usd": 0.504,
+    "vcpu": 8,
+    "memory": "64 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8175",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r6i.2xlarge",
+    "price_per_hour_usd": 0.504,
+    "vcpu": 8,
+    "memory": "64 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 12500 Megabit",
+    "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "i7ie.xlarge",
+    "price_per_hour_usd": 0.5198,
+    "vcpu": 4,
+    "memory": "32 GiB",
+    "storage": "1 x 2500 NVMe SSD",
+    "network_performance": "Up to 25 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Emerald Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c1.xlarge",
+    "price_per_hour_usd": 0.52,
+    "vcpu": 8,
+    "memory": "7 GiB",
+    "storage": "4 x 420 SSD",
+    "network_performance": "High",
+    "processor_architecture": "Intel Xeon Family",
+    "current_generation": "No"
+  },
+  {
+    "instance_type": "m8id.2xlarge",
+    "price_per_hour_usd": 0.52208,
+    "vcpu": 8,
+    "memory": "32 GiB",
+    "storage": "1 x 474 NVMe SSD",
+    "network_performance": "Up to 15000 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r5ad.2xlarge",
+    "price_per_hour_usd": 0.524,
+    "vcpu": 8,
+    "memory": "64 GiB",
+    "storage": "1 x 300 NVMe SSD",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "AMD EPYC 7571",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "g4dn.xlarge",
+    "price_per_hour_usd": 0.526,
+    "vcpu": 4,
+    "memory": "16 GiB",
+    "storage": "125 GB NVMe SSD",
+    "network_performance": "Up to 25 Gigabit",
+    "processor_architecture": "Intel Xeon Family",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "d3en.xlarge",
+    "price_per_hour_usd": 0.526,
+    "vcpu": 4,
+    "memory": "16 GiB",
+    "storage": "2 x 14000 HDD",
+    "network_performance": "Up to 25 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8259 (Cascade Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r8i-flex.2xlarge",
+    "price_per_hour_usd": 0.52788,
+    "vcpu": 8,
+    "memory": "64 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 15000 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r7i.2xlarge",
+    "price_per_hour_usd": 0.5292,
+    "vcpu": 8,
+    "memory": "64 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 12500 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Sapphire Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r4.2xlarge",
+    "price_per_hour_usd": 0.532,
+    "vcpu": 8,
+    "memory": "61 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "Intel Xeon E5-2686 v4 (Broadwell)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m3.2xlarge",
+    "price_per_hour_usd": 0.532,
+    "vcpu": 8,
+    "memory": "30 GiB",
+    "storage": "2 x 80 SSD",
+    "network_performance": "High",
+    "processor_architecture": "Intel Xeon E5-2670 v2 (Ivy Bridge/Sandy Bridge)",
+    "current_generation": "No"
+  },
+  {
+    "instance_type": "g4ad.2xlarge",
+    "price_per_hour_usd": 0.54117,
+    "vcpu": 8,
+    "memory": "32 GiB",
+    "storage": "300 GB NVMe SSD",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "AMD EPYC 7R32",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c6g.4xlarge",
+    "price_per_hour_usd": 0.544,
+    "vcpu": 16,
+    "memory": "32 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "AWS Graviton2 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m5dn.2xlarge",
+    "price_per_hour_usd": 0.544,
+    "vcpu": 8,
+    "memory": "32 GiB",
+    "storage": "1 x 300 NVMe SSD",
+    "network_performance": "Up to 25 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8259 (Cascade Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r7gd.2xlarge",
+    "price_per_hour_usd": 0.5443,
+    "vcpu": 8,
+    "memory": "64 GiB",
+    "storage": "1 x 475 NVMe SSD",
+    "network_performance": "Up to 15 Gigabit",
+    "processor_architecture": "AWS Graviton3 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c8in.2xlarge",
+    "price_per_hour_usd": 0.54432,
+    "vcpu": 8,
+    "memory": "16 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 40 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c8ib.2xlarge",
+    "price_per_hour_usd": 0.54432,
+    "vcpu": 8,
+    "memory": "16 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 26.667 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r8i.2xlarge",
+    "price_per_hour_usd": 0.55568,
+    "vcpu": 8,
+    "memory": "64 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 15000 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "g5g.2xlarge",
+    "price_per_hour_usd": 0.556,
+    "vcpu": 8,
+    "memory": "16 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "AWS Graviton2 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m6in.2xlarge",
+    "price_per_hour_usd": 0.55692,
+    "vcpu": 8,
+    "memory": "32 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 40000 Megabit",
+    "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r5d.2xlarge",
+    "price_per_hour_usd": 0.576,
+    "vcpu": 8,
+    "memory": "64 GiB",
+    "storage": "1 x 300 NVMe SSD",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8175",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "is4gen.xlarge",
+    "price_per_hour_usd": 0.5763,
+    "vcpu": 4,
+    "memory": "24 GiB",
+    "storage": "1 x 3750 SSD",
+    "network_performance": "Up to 25 Gigabit",
+    "processor_architecture": "AWS Graviton2 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c7g.4xlarge",
+    "price_per_hour_usd": 0.58,
+    "vcpu": 16,
+    "memory": "32 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 15 Gigabit",
+    "processor_architecture": "AWS Graviton3 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m8gn.2xlarge",
+    "price_per_hour_usd": 0.582,
+    "vcpu": 8,
+    "memory": "32 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 50 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m8gb.2xlarge",
+    "price_per_hour_usd": 0.582,
+    "vcpu": 8,
+    "memory": "32 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 33.333 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r8gd.2xlarge",
+    "price_per_hour_usd": 0.58784,
+    "vcpu": 8,
+    "memory": "64 GiB",
+    "storage": "1 x 475 NVMe SSD",
+    "network_performance": "Up to 15 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r5n.2xlarge",
+    "price_per_hour_usd": 0.596,
+    "vcpu": 8,
+    "memory": "64 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 25 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8259 (Cascade Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r5b.2xlarge",
+    "price_per_hour_usd": 0.596,
+    "vcpu": 8,
+    "memory": "64 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8259 (Cascade Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r6id.2xlarge",
+    "price_per_hour_usd": 0.6048,
+    "vcpu": 8,
+    "memory": "64 GiB",
+    "storage": "1 x 474 NVMe SSD",
+    "network_performance": "Up to 12500 Megabit",
+    "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r7a.2xlarge",
+    "price_per_hour_usd": 0.6086,
+    "vcpu": 8,
+    "memory": "64 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 12500 Megabit",
+    "processor_architecture": "AMD EPYC 9R14 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c6a.4xlarge",
+    "price_per_hour_usd": 0.612,
+    "vcpu": 16,
+    "memory": "32 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 12500 Megabit",
+    "processor_architecture": "AMD EPYC 7R13 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c6gd.4xlarge",
+    "price_per_hour_usd": 0.6144,
+    "vcpu": 16,
+    "memory": "32 GiB",
+    "storage": "1 x 950 NVMe SSD",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "AWS Graviton2 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c5a.4xlarge",
+    "price_per_hour_usd": 0.616,
+    "vcpu": 16,
+    "memory": "32 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "AMD EPYC 7R32",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m6g.4xlarge",
+    "price_per_hour_usd": 0.616,
+    "vcpu": 16,
+    "memory": "64 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "AWS Graviton2 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "i4g.2xlarge",
+    "price_per_hour_usd": 0.61776,
+    "vcpu": 8,
+    "memory": "64 GiB",
+    "storage": "1 x 1875 SSD",
+    "network_performance": "Up to 12 Gigabit",
+    "processor_architecture": "AWS Graviton2 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "i3.2xlarge",
+    "price_per_hour_usd": 0.624,
+    "vcpu": 8,
+    "memory": "61 GiB",
+    "storage": "1 x 1900 NVMe SSD",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "Intel Xeon E5-2686 v4 (Broadwell)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m6idn.2xlarge",
+    "price_per_hour_usd": 0.63648,
+    "vcpu": 8,
+    "memory": "32 GiB",
+    "storage": "1 x 474 NVMe SSD",
+    "network_performance": "Up to 40000 Megabit",
+    "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c8g.4xlarge",
+    "price_per_hour_usd": 0.63808,
+    "vcpu": 16,
+    "memory": "32 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 15 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r8a.2xlarge",
+    "price_per_hour_usd": 0.63904,
+    "vcpu": 8,
+    "memory": "64 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 15000 Megabit",
+    "processor_architecture": "AMD EPYC 9R45 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "g2.2xlarge",
+    "price_per_hour_usd": 0.65,
+    "vcpu": 8,
+    "memory": "15 GiB",
+    "storage": "1 x 60 SSD",
+    "network_performance": "Moderate",
+    "processor_architecture": "Intel Xeon E5-2670 (Sandy Bridge)",
+    "current_generation": "No"
+  },
+  {
+    "instance_type": "vt1.3xlarge",
+    "price_per_hour_usd": 0.65,
+    "vcpu": 12,
+    "memory": "24 GiB",
+    "storage": "EBS only",
+    "network_performance": "3125 Megabit",
+    "processor_architecture": "Intel Xeon Platinum 8259CL",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m7g.4xlarge",
+    "price_per_hour_usd": 0.6528,
+    "vcpu": 16,
+    "memory": "64 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 15 Gigabit",
+    "processor_architecture": "AWS Graviton3 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m5zn.2xlarge",
+    "price_per_hour_usd": 0.6607,
+    "vcpu": 8,
+    "memory": "32 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 25 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8252",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r3.2xlarge",
+    "price_per_hour_usd": 0.665,
+    "vcpu": 8,
+    "memory": "61 GiB",
+    "storage": "1 x 160 SSD",
+    "network_performance": "High",
+    "processor_architecture": "Intel Xeon E5-2670 v2 (Ivy Bridge)",
+    "current_generation": "No"
+  },
+  {
+    "instance_type": "r8id.2xlarge",
+    "price_per_hour_usd": 0.66528,
+    "vcpu": 8,
+    "memory": "64 GiB",
+    "storage": "1 x 474 NVMe SSD",
+    "network_performance": "Up to 15000 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "x2gd.2xlarge",
+    "price_per_hour_usd": 0.668,
+    "vcpu": 8,
+    "memory": "128 GiB",
+    "storage": "1 x 474 SSD",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "AWS Graviton2 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r5dn.2xlarge",
+    "price_per_hour_usd": 0.668,
+    "vcpu": 8,
+    "memory": "64 GiB",
+    "storage": "1 x 300 NVMe SSD",
+    "network_performance": "Up to 25 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8259 (Cascade Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m8in.2xlarge",
+    "price_per_hour_usd": 0.66832,
+    "vcpu": 8,
+    "memory": "32.0 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 40 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m8ib.2xlarge",
+    "price_per_hour_usd": 0.66832,
+    "vcpu": 8,
+    "memory": "32.0 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 26.66 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c7i-flex.4xlarge",
+    "price_per_hour_usd": 0.6783,
+    "vcpu": 16,
+    "memory": "32 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 12500 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Sapphire Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c6i.4xlarge",
+    "price_per_hour_usd": 0.68,
+    "vcpu": 16,
+    "memory": "32 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 12500 Megabit",
+    "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c5.4xlarge",
+    "price_per_hour_usd": 0.68,
+    "vcpu": 16,
+    "memory": "32 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8124M",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c8ine.2xlarge",
+    "price_per_hour_usd": 0.6804,
+    "vcpu": 8,
+    "memory": "16 GiB",
+    "storage": "EBS only",
+    "network_performance": "12.5 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "i4i.2xlarge",
+    "price_per_hour_usd": 0.686,
+    "vcpu": 8,
+    "memory": "64 GiB",
+    "storage": "1 x 1875 NVMe SSD",
+    "network_performance": "Up to 12 Gigabit",
+    "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "i8g.2xlarge",
+    "price_per_hour_usd": 0.6864,
+    "vcpu": 8,
+    "memory": "64 GiB",
+    "storage": "1 x 1875GB",
+    "network_performance": "Up to 12 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m5a.4xlarge",
+    "price_per_hour_usd": 0.688,
+    "vcpu": 16,
+    "memory": "64 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "AMD EPYC 7571",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c5ad.4xlarge",
+    "price_per_hour_usd": 0.688,
+    "vcpu": 16,
+    "memory": "32 GiB",
+    "storage": "2 x 300 NVMe SSD",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "AMD EPYC 7R32",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "d2.xlarge",
+    "price_per_hour_usd": 0.69,
+    "vcpu": 4,
+    "memory": "30.5 GiB",
+    "storage": "3 x 2000 HDD",
+    "network_performance": "Moderate",
+    "processor_architecture": "Intel Xeon E5-2676 v3 (Haswell)",
+    "current_generation": "No"
+  },
+  {
+    "instance_type": "c6gn.4xlarge",
+    "price_per_hour_usd": 0.6912,
+    "vcpu": 16,
+    "memory": "32 GiB",
+    "storage": "EBS only",
+    "network_performance": "25 Gigabit",
+    "processor_architecture": "AWS Graviton2 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m6a.4xlarge",
+    "price_per_hour_usd": 0.6912,
+    "vcpu": 16,
+    "memory": "64 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 12500 Megabit",
+    "processor_architecture": "AMD EPYC 7R13 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r6in.2xlarge",
+    "price_per_hour_usd": 0.69732,
+    "vcpu": 8,
+    "memory": "64 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 40000 Megabit",
+    "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c8i-flex.4xlarge",
+    "price_per_hour_usd": 0.71216,
+    "vcpu": 16,
+    "memory": "32 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 15000 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c7i.4xlarge",
+    "price_per_hour_usd": 0.714,
+    "vcpu": 16,
+    "memory": "32 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 12500 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Sapphire Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m8g.4xlarge",
+    "price_per_hour_usd": 0.71808,
+    "vcpu": 16,
+    "memory": "64 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 15 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m6gd.4xlarge",
+    "price_per_hour_usd": 0.7232,
+    "vcpu": 16,
+    "memory": "64 GiB",
+    "storage": "1 x 950 NVMe SSD",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "AWS Graviton2 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c7gd.4xlarge",
+    "price_per_hour_usd": 0.7258,
+    "vcpu": 16,
+    "memory": "32 GiB",
+    "storage": "1 x 950 NVMe SSD",
+    "network_performance": "Up to 15 Gigabit",
+    "processor_architecture": "AWS Graviton3 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "im4gn.2xlarge",
+    "price_per_hour_usd": 0.72758,
+    "vcpu": 8,
+    "memory": "32 GiB",
+    "storage": "1 x 3750 SSD",
+    "network_performance": "Up to 25 Gigabit",
+    "processor_architecture": "AWS Graviton2 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r8gn.2xlarge",
+    "price_per_hour_usd": 0.7287,
+    "vcpu": 8,
+    "memory": "64 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 50 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r8gb.2xlarge",
+    "price_per_hour_usd": 0.72872,
+    "vcpu": 8,
+    "memory": "64 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 33.333 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r7iz.2xlarge",
+    "price_per_hour_usd": 0.744,
+    "vcpu": 8,
+    "memory": "64 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 12500 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Sapphire Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "z1d.2xlarge",
+    "price_per_hour_usd": 0.744,
+    "vcpu": 8,
+    "memory": "64 GiB",
+    "storage": "1 x 300 NVMe SSD",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8151",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c8i.4xlarge",
+    "price_per_hour_usd": 0.74968,
+    "vcpu": 16,
+    "memory": "32 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 15000 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "g3s.xlarge",
+    "price_per_hour_usd": 0.75,
+    "vcpu": 4,
+    "memory": "30.5 GiB",
+    "storage": "EBS only",
+    "network_performance": "10 Gigabit",
+    "processor_architecture": "Intel Xeon E5-2686 v4 (Broadwell)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "g4dn.2xlarge",
+    "price_per_hour_usd": 0.752,
+    "vcpu": 8,
+    "memory": "32 GiB",
+    "storage": "225 GB NVMe SSD",
+    "network_performance": "Up to 25 Gigabit",
+    "processor_architecture": "Intel Xeon Family",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "i7i.2xlarge",
+    "price_per_hour_usd": 0.755,
+    "vcpu": 8,
+    "memory": "64 GiB",
+    "storage": "1 x 1875 NVMe SSD",
+    "network_performance": "Up to 12 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Emerald Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "inf2.xlarge",
+    "price_per_hour_usd": 0.7582,
+    "vcpu": 4,
+    "memory": "16 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 15 Gigabit",
+    "processor_architecture": "AMD EPYC 7R13 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m7i-flex.4xlarge",
+    "price_per_hour_usd": 0.76608,
+    "vcpu": 16,
+    "memory": "64 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 12500 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Sapphire Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m5.4xlarge",
+    "price_per_hour_usd": 0.768,
+    "vcpu": 16,
+    "memory": "64 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8175",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c5d.4xlarge",
+    "price_per_hour_usd": 0.768,
+    "vcpu": 16,
+    "memory": "32 GiB",
+    "storage": "1 x 400 NVMe SSD",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8124M",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m6i.4xlarge",
+    "price_per_hour_usd": 0.768,
+    "vcpu": 16,
+    "memory": "64 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 12500 Megabit",
+    "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r6idn.2xlarge",
+    "price_per_hour_usd": 0.78156,
+    "vcpu": 8,
+    "memory": "64 GiB",
+    "storage": "1 x 474 NVMe SSD",
+    "network_performance": "Up to 40000 Megabit",
+    "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "x8g.2xlarge",
+    "price_per_hour_usd": 0.7816,
+    "vcpu": 8,
+    "memory": "128 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 15 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c8gd.4xlarge",
+    "price_per_hour_usd": 0.78384,
+    "vcpu": 16,
+    "memory": "32 GiB",
+    "storage": "1 x 950 NVMe SSD",
+    "network_performance": "Up to 15 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c4.4xlarge",
+    "price_per_hour_usd": 0.796,
+    "vcpu": 16,
+    "memory": "30 GiB",
+    "storage": "EBS only",
+    "network_performance": "High",
+    "processor_architecture": "Intel Xeon E5-2666 v3 (Haswell)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m4.4xlarge",
+    "price_per_hour_usd": 0.8,
+    "vcpu": 16,
+    "memory": "64 GiB",
+    "storage": "EBS only",
+    "network_performance": "High",
+    "processor_architecture": "Intel Xeon E5-2676 v3 (Haswell)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m8i-flex.4xlarge",
+    "price_per_hour_usd": 0.8044,
+    "vcpu": 16,
+    "memory": "64 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 15000 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "g6.xlarge",
+    "price_per_hour_usd": 0.8048,
+    "vcpu": 4,
+    "memory": "16 GiB",
+    "storage": "1 x 250 GB NVMe SSD",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "AMD EPYC 7R13 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c6id.4xlarge",
+    "price_per_hour_usd": 0.8064,
+    "vcpu": 16,
+    "memory": "32 GiB",
+    "storage": "1 x 950 NVMe SSD",
+    "network_performance": "Up to 12500 Megabit",
+    "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m7i.4xlarge",
+    "price_per_hour_usd": 0.8064,
+    "vcpu": 16,
+    "memory": "64 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 12500 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Sapphire Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r6g.4xlarge",
+    "price_per_hour_usd": 0.8064,
+    "vcpu": 16,
+    "memory": "128 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "AWS Graviton2 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c7a.4xlarge",
+    "price_per_hour_usd": 0.82112,
+    "vcpu": 16,
+    "memory": "32 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 12500 Megabit",
+    "processor_architecture": "AMD EPYC 9R14 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m5ad.4xlarge",
+    "price_per_hour_usd": 0.824,
+    "vcpu": 16,
+    "memory": "64 GiB",
+    "storage": "2 x 300 NVMe SSD",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "AMD EPYC 7571",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "g5g.4xlarge",
+    "price_per_hour_usd": 0.828,
+    "vcpu": 16,
+    "memory": "32 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "AWS Graviton2 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "x2iedn.xlarge",
+    "price_per_hour_usd": 0.83363,
+    "vcpu": 4,
+    "memory": "128 GiB",
+    "storage": "1 x 118 NVMe SSD",
+    "network_performance": "Up to 25 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Icelake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "x1e.xlarge",
+    "price_per_hour_usd": 0.834,
+    "vcpu": 4,
+    "memory": "122 GiB",
+    "storage": "1 x 120 SSD",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "High Frequency Intel Xeon E7-8880 v3 (Haswell)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m8ine.2xlarge",
+    "price_per_hour_usd": 0.8354,
+    "vcpu": 8,
+    "memory": "32.0 GiB",
+    "storage": "EBS only",
+    "network_performance": "12.5 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r8in.2xlarge",
+    "price_per_hour_usd": 0.8368,
+    "vcpu": 8,
+    "memory": "64.0 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 40 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r8ib.2xlarge",
+    "price_per_hour_usd": 0.8368,
+    "vcpu": 8,
+    "memory": "64.0 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 26.66 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c3.4xlarge",
+    "price_per_hour_usd": 0.84,
+    "vcpu": 16,
+    "memory": "30 GiB",
+    "storage": "2 x 160 SSD",
+    "network_performance": "High",
+    "processor_architecture": "Intel Xeon E5-2680 v2 (Ivy Bridge)",
+    "current_generation": "No"
+  },
+  {
+    "instance_type": "m8i.4xlarge",
+    "price_per_hour_usd": 0.84672,
+    "vcpu": 16,
+    "memory": "64 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 15000 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "i2.xlarge",
+    "price_per_hour_usd": 0.853,
+    "vcpu": 4,
+    "memory": "30.5 GiB",
+    "storage": "1 x 800 SSD",
+    "network_performance": "Moderate",
+    "processor_architecture": "Intel Xeon E5-2670 v2 (Ivy Bridge)",
+    "current_generation": "No"
+  },
+  {
+    "instance_type": "m7gd.4xlarge",
+    "price_per_hour_usd": 0.8543,
+    "vcpu": 16,
+    "memory": "64 GiB",
+    "storage": "1 x 950 NVMe SSD",
+    "network_performance": "Up to 15 Gigabit",
+    "processor_architecture": "AWS Graviton3 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r7g.4xlarge",
+    "price_per_hour_usd": 0.8568,
+    "vcpu": 16,
+    "memory": "128 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 15 Gigabit",
+    "processor_architecture": "AWS Graviton3 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c8a.4xlarge",
+    "price_per_hour_usd": 0.86216,
+    "vcpu": 16,
+    "memory": "32 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 15000 Megabit",
+    "processor_architecture": "AMD EPYC 9R45 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c5n.4xlarge",
+    "price_per_hour_usd": 0.864,
+    "vcpu": 16,
+    "memory": "42 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 25 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8124M",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "g4ad.4xlarge",
+    "price_per_hour_usd": 0.867,
+    "vcpu": 16,
+    "memory": "64 GiB",
+    "storage": "600 GB NVMe SSD",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "AMD EPYC 7R32",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "x8i.2xlarge",
+    "price_per_hour_usd": 0.87532,
+    "vcpu": 8,
+    "memory": "128 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 15000 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c8id.4xlarge",
+    "price_per_hour_usd": 0.88704,
+    "vcpu": 16,
+    "memory": "32 GiB",
+    "storage": "1 x 950 NVMe SSD",
+    "network_performance": "Up to 15000 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "p2.xlarge",
+    "price_per_hour_usd": 0.9,
+    "vcpu": 4,
+    "memory": "61 GiB",
+    "storage": "EBS only",
+    "network_performance": "High",
+    "processor_architecture": "Intel Xeon E5-2686 v4 (Broadwell)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r5a.4xlarge",
+    "price_per_hour_usd": 0.904,
+    "vcpu": 16,
+    "memory": "128 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "AMD EPYC 7571",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "i3en.2xlarge",
+    "price_per_hour_usd": 0.904,
+    "vcpu": 8,
+    "memory": "64 GiB",
+    "storage": "2 x 2500 NVMe SSD",
+    "network_performance": "Up to 25 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8175",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m5d.4xlarge",
+    "price_per_hour_usd": 0.904,
+    "vcpu": 16,
+    "memory": "64 GiB",
+    "storage": "2 x 300 NVMe SSD",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8175",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r6a.4xlarge",
+    "price_per_hour_usd": 0.9072,
+    "vcpu": 16,
+    "memory": "128 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 12500 Megabit",
+    "processor_architecture": "AMD EPYC 7R13 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c6in.4xlarge",
+    "price_per_hour_usd": 0.9072,
+    "vcpu": 16,
+    "memory": "32 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 50000 Megabit",
+    "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r6gd.4xlarge",
+    "price_per_hour_usd": 0.9216,
+    "vcpu": 16,
+    "memory": "128 GiB",
+    "storage": "1 x 950 NVMe SSD",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "AWS Graviton2 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m8gd.4xlarge",
+    "price_per_hour_usd": 0.92256,
+    "vcpu": 16,
+    "memory": "64 GiB",
+    "storage": "1 x 950 NVMe SSD",
+    "network_performance": "Up to 15 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m7a.4xlarge",
+    "price_per_hour_usd": 0.92736,
+    "vcpu": 16,
+    "memory": "64 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 12500 Megabit",
+    "processor_architecture": "AMD EPYC 9R14 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "h1.4xlarge",
+    "price_per_hour_usd": 0.936,
+    "vcpu": 16,
+    "memory": "64 GiB",
+    "storage": "2 x 2000 HDD",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "Intel Xeon E5-2686 v4 (Broadwell)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r8g.4xlarge",
+    "price_per_hour_usd": 0.94256,
+    "vcpu": 16,
+    "memory": "128 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 15 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c8gn.4xlarge",
+    "price_per_hour_usd": 0.948,
+    "vcpu": 16,
+    "memory": "32 GiB",
+    "storage": "EBS only",
+    "network_performance": "50 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c8gb.4xlarge",
+    "price_per_hour_usd": 0.948,
+    "vcpu": 16,
+    "memory": "32 GiB",
+    "storage": "EBS only",
+    "network_performance": "33.333 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m6id.4xlarge",
+    "price_per_hour_usd": 0.9492,
+    "vcpu": 16,
+    "memory": "64 GiB",
+    "storage": "1 x 950 NVMe SSD",
+    "network_performance": "Up to 12500 Megabit",
+    "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "i8ge.2xlarge",
+    "price_per_hour_usd": 0.9492,
+    "vcpu": 8,
+    "memory": "64 GiB",
+    "storage": "2 x 2500 NVMe SSD",
+    "network_performance": "Up to 25 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "g6f.4xlarge",
+    "price_per_hour_usd": 0.95,
+    "vcpu": 16,
+    "memory": "64 GiB",
+    "storage": "1 x 450 NVMe SSD",
+    "network_performance": "Up to 25 Gigabit",
+    "processor_architecture": "AMD EPYC 7R13 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m5n.4xlarge",
+    "price_per_hour_usd": 0.952,
+    "vcpu": 16,
+    "memory": "64 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 25 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8259 (Cascade Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m8a.4xlarge",
+    "price_per_hour_usd": 0.97376,
+    "vcpu": 16,
+    "memory": "64 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 15000 Megabit",
+    "processor_architecture": "AMD EPYC 9R45 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "g6.2xlarge",
+    "price_per_hour_usd": 0.9776,
+    "vcpu": 8,
+    "memory": "32 GiB",
+    "storage": "1 x 450 GB NVMe SSD",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "AMD EPYC 7R13 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m2.4xlarge",
+    "price_per_hour_usd": 0.98,
+    "vcpu": 8,
+    "memory": "68.4 GiB",
+    "storage": "2 x 840 SSD",
+    "network_performance": "High",
+    "processor_architecture": "Intel Xeon Family",
+    "current_generation": "No"
+  },
+  {
+    "instance_type": "m5zn.3xlarge",
+    "price_per_hour_usd": 0.991,
+    "vcpu": 12,
+    "memory": "48 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 25 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8252",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c7gn.4xlarge",
+    "price_per_hour_usd": 0.9984,
+    "vcpu": 16,
+    "memory": "32 GiB",
+    "storage": "EBS only",
+    "network_performance": "50 Gigabit",
+    "processor_architecture": "AWS Graviton3 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "d3.2xlarge",
+    "price_per_hour_usd": 0.999,
+    "vcpu": 8,
+    "memory": "64 GiB",
+    "storage": "6 x 2000 HDD",
+    "network_performance": "Up to 15 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8259 (Cascade Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "g5.xlarge",
+    "price_per_hour_usd": 1.006,
+    "vcpu": 4,
+    "memory": "16 GiB",
+    "storage": "1 x 250 GB NVMe SSD",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "AMD EPYC 7R32",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r6i.4xlarge",
+    "price_per_hour_usd": 1.008,
+    "vcpu": 16,
+    "memory": "128 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 12500 Megabit",
+    "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r5.4xlarge",
+    "price_per_hour_usd": 1.008,
+    "vcpu": 16,
+    "memory": "128 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8175",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "i7ie.2xlarge",
+    "price_per_hour_usd": 1.0396,
+    "vcpu": 8,
+    "memory": "64 GiB",
+    "storage": "2 x 2500 NVMe SSD",
+    "network_performance": "Up to 25 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Emerald Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m8id.4xlarge",
+    "price_per_hour_usd": 1.04416,
+    "vcpu": 16,
+    "memory": "64 GiB",
+    "storage": "1 x 950 NVMe SSD",
+    "network_performance": "Up to 15000 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r5ad.4xlarge",
+    "price_per_hour_usd": 1.048,
+    "vcpu": 16,
+    "memory": "128 GiB",
+    "storage": "2 x 300 NVMe SSD",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "AMD EPYC 7571",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "d3en.2xlarge",
+    "price_per_hour_usd": 1.051,
+    "vcpu": 8,
+    "memory": "32 GiB",
+    "storage": "4 x 14000 HDD",
+    "network_performance": "Up to 25 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8259 (Cascade Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r8i-flex.4xlarge",
+    "price_per_hour_usd": 1.05576,
+    "vcpu": 16,
+    "memory": "128 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 15000 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r7i.4xlarge",
+    "price_per_hour_usd": 1.0584,
+    "vcpu": 16,
+    "memory": "128 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 12500 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Sapphire Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r4.4xlarge",
+    "price_per_hour_usd": 1.064,
+    "vcpu": 16,
+    "memory": "122 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "Intel Xeon E5-2686 v4 (Broadwell)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "gr6f.4xlarge",
+    "price_per_hour_usd": 1.066,
+    "vcpu": 16,
+    "memory": "128 GiB",
+    "storage": "1 x 450 NVMe SSD",
+    "network_performance": "Up to 25 Gigabit",
+    "processor_architecture": "AMD EPYC 7R13 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m5dn.4xlarge",
+    "price_per_hour_usd": 1.088,
+    "vcpu": 16,
+    "memory": "64 GiB",
+    "storage": "2 x 300 NVMe SSD",
+    "network_performance": "Up to 25 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8259 (Cascade Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c6g.8xlarge",
+    "price_per_hour_usd": 1.088,
+    "vcpu": 32,
+    "memory": "64 GiB",
+    "storage": "EBS only",
+    "network_performance": "12 Gigabit",
+    "processor_architecture": "AWS Graviton2 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r7gd.4xlarge",
+    "price_per_hour_usd": 1.0886,
+    "vcpu": 16,
+    "memory": "128 GiB",
+    "storage": "1 x 950 NVMe SSD",
+    "network_performance": "Up to 15 Gigabit",
+    "processor_architecture": "AWS Graviton3 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c8in.4xlarge",
+    "price_per_hour_usd": 1.08864,
+    "vcpu": 16,
+    "memory": "32 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 50 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c8ib.4xlarge",
+    "price_per_hour_usd": 1.08864,
+    "vcpu": 16,
+    "memory": "32 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 33.333 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r8i.4xlarge",
+    "price_per_hour_usd": 1.11136,
+    "vcpu": 16,
+    "memory": "128 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 15000 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m6in.4xlarge",
+    "price_per_hour_usd": 1.11384,
+    "vcpu": 16,
+    "memory": "64 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 50000 Megabit",
+    "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "z1d.3xlarge",
+    "price_per_hour_usd": 1.116,
+    "vcpu": 12,
+    "memory": "96 GiB",
+    "storage": "1 x 450 NVMe SSD",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8151",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "g3.4xlarge",
+    "price_per_hour_usd": 1.14,
+    "vcpu": 16,
+    "memory": "122 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "Intel Xeon E5-2686 v4 (Broadwell)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r5d.4xlarge",
+    "price_per_hour_usd": 1.152,
+    "vcpu": 16,
+    "memory": "128 GiB",
+    "storage": "2 x 300 NVMe SSD",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8175",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "is4gen.2xlarge",
+    "price_per_hour_usd": 1.1526,
+    "vcpu": 8,
+    "memory": "48 GiB",
+    "storage": "1 x 7500 SSD",
+    "network_performance": "Up to 25 Gigabit",
+    "processor_architecture": "AWS Graviton2 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c7g.8xlarge",
+    "price_per_hour_usd": 1.16,
+    "vcpu": 32,
+    "memory": "64 GiB",
+    "storage": "EBS only",
+    "network_performance": "15 Gigabit",
+    "processor_architecture": "AWS Graviton3 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m8gb.4xlarge",
+    "price_per_hour_usd": 1.164,
+    "vcpu": 16,
+    "memory": "64 GiB",
+    "storage": "EBS only",
+    "network_performance": "33.333 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m8gn.4xlarge",
+    "price_per_hour_usd": 1.164,
+    "vcpu": 16,
+    "memory": "64 GiB",
+    "storage": "EBS only",
+    "network_performance": "50 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r8gd.4xlarge",
+    "price_per_hour_usd": 1.17568,
+    "vcpu": 16,
+    "memory": "128 GiB",
+    "storage": "1 x 950 NVMe SSD",
+    "network_performance": "Up to 15 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "inf1.6xlarge",
+    "price_per_hour_usd": 1.18,
+    "vcpu": 24,
+    "memory": "48 GiB",
+    "storage": "EBS only",
+    "network_performance": "25 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8275CL (Cascade Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r5b.4xlarge",
+    "price_per_hour_usd": 1.192,
+    "vcpu": 16,
+    "memory": "128 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8259 (Cascade Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r5n.4xlarge",
+    "price_per_hour_usd": 1.192,
+    "vcpu": 16,
+    "memory": "128 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 25 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8259 (Cascade Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "g4dn.4xlarge",
+    "price_per_hour_usd": 1.204,
+    "vcpu": 16,
+    "memory": "64 GiB",
+    "storage": "225 GB NVMe SSD",
+    "network_performance": "Up to 25 Gigabit",
+    "processor_architecture": "Intel Xeon Family",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r6id.4xlarge",
+    "price_per_hour_usd": 1.2096,
+    "vcpu": 16,
+    "memory": "128 GiB",
+    "storage": "1 x 950 NVMe SSD",
+    "network_performance": "Up to 12500 Megabit",
+    "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "g5.2xlarge",
+    "price_per_hour_usd": 1.212,
+    "vcpu": 8,
+    "memory": "32 GiB",
+    "storage": "1 x 450 GB NVMe SSD",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "AMD EPYC 7R32",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r7a.4xlarge",
+    "price_per_hour_usd": 1.2172,
+    "vcpu": 16,
+    "memory": "128 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 12500 Megabit",
+    "processor_architecture": "AMD EPYC 9R14 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c6a.8xlarge",
+    "price_per_hour_usd": 1.224,
+    "vcpu": 32,
+    "memory": "64 GiB",
+    "storage": "EBS only",
+    "network_performance": "12500 Megabit",
+    "processor_architecture": "AMD EPYC 7R13 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c6gd.8xlarge",
+    "price_per_hour_usd": 1.2288,
+    "vcpu": 32,
+    "memory": "64 GiB",
+    "storage": "1 x 1900 NVMe SSD",
+    "network_performance": "12 Gigabit",
+    "processor_architecture": "AWS Graviton2 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c5a.8xlarge",
+    "price_per_hour_usd": 1.232,
+    "vcpu": 32,
+    "memory": "64 GiB",
+    "storage": "EBS only",
+    "network_performance": "10 Gigabit",
+    "processor_architecture": "AMD EPYC 7R32",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m6g.8xlarge",
+    "price_per_hour_usd": 1.232,
+    "vcpu": 32,
+    "memory": "128 GiB",
+    "storage": "EBS only",
+    "network_performance": "12 Gigabit",
+    "processor_architecture": "AWS Graviton2 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "i4g.4xlarge",
+    "price_per_hour_usd": 1.23552,
+    "vcpu": 16,
+    "memory": "128 GiB",
+    "storage": "1 x 3750 SSD",
+    "network_performance": "Up to 25 Gigabit",
+    "processor_architecture": "AWS Graviton2 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m8azn.3xlarge",
+    "price_per_hour_usd": 1.23876,
+    "vcpu": 12,
+    "memory": "48 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 50 Gigabit",
+    "processor_architecture": "AMD EPYC 9575F",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "i3.4xlarge",
+    "price_per_hour_usd": 1.248,
+    "vcpu": 16,
+    "memory": "122 GiB",
+    "storage": "2 x 1900 NVMe SSD",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "Intel Xeon E5-2686 v4 (Broadwell)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m6idn.4xlarge",
+    "price_per_hour_usd": 1.27296,
+    "vcpu": 16,
+    "memory": "64 GiB",
+    "storage": "1 x 950 NVMe SSD",
+    "network_performance": "Up to 50000 Megabit",
+    "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c8g.8xlarge",
+    "price_per_hour_usd": 1.27616,
+    "vcpu": 32,
+    "memory": "64 GiB",
+    "storage": "EBS only",
+    "network_performance": "15 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r8a.4xlarge",
+    "price_per_hour_usd": 1.27808,
+    "vcpu": 16,
+    "memory": "128 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 15000 Megabit",
+    "processor_architecture": "AMD EPYC 9R45 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "vt1.6xlarge",
+    "price_per_hour_usd": 1.3,
+    "vcpu": 24,
+    "memory": "48 GiB",
+    "storage": "EBS only",
+    "network_performance": "6250 Megabit",
+    "processor_architecture": "Intel Xeon Platinum 8259CL",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m7g.8xlarge",
+    "price_per_hour_usd": 1.3056,
+    "vcpu": 32,
+    "memory": "128 GiB",
+    "storage": "EBS only",
+    "network_performance": "15 Gigabit",
+    "processor_architecture": "AWS Graviton3 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "g6.4xlarge",
+    "price_per_hour_usd": 1.3232,
+    "vcpu": 16,
+    "memory": "64 GiB",
+    "storage": "1 x 600 GB NVMe SSD",
+    "network_performance": "Up to 25 Gigabit",
+    "processor_architecture": "AMD EPYC 7R13 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r3.4xlarge",
+    "price_per_hour_usd": 1.33,
+    "vcpu": 16,
+    "memory": "122 GiB",
+    "storage": "1 x 320 SSD",
+    "network_performance": "High",
+    "processor_architecture": "Intel Xeon E5-2670 v2 (Ivy Bridge)",
+    "current_generation": "No"
+  },
+  {
+    "instance_type": "r8id.4xlarge",
+    "price_per_hour_usd": 1.33056,
+    "vcpu": 16,
+    "memory": "128 GiB",
+    "storage": "1 x 950 NVMe SSD",
+    "network_performance": "Up to 15000 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "x2gd.4xlarge",
+    "price_per_hour_usd": 1.336,
+    "vcpu": 16,
+    "memory": "256 GiB",
+    "storage": "1 x 950 SSD",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "AWS Graviton2 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r5dn.4xlarge",
+    "price_per_hour_usd": 1.336,
+    "vcpu": 16,
+    "memory": "128 GiB",
+    "storage": "2 x 300 NVMe SSD",
+    "network_performance": "Up to 25 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8259 (Cascade Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m8ib.4xlarge",
+    "price_per_hour_usd": 1.33664,
+    "vcpu": 16,
+    "memory": "64.0 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 33.33 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m8in.4xlarge",
+    "price_per_hour_usd": 1.33664,
+    "vcpu": 16,
+    "memory": "64.0 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 50 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "trn1.2xlarge",
+    "price_per_hour_usd": 1.34375,
+    "vcpu": 8,
+    "memory": "32 GiB",
+    "storage": "1 x 475 NVMe SSD",
+    "network_performance": "12500 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Icelake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "i3en.3xlarge",
+    "price_per_hour_usd": 1.356,
+    "vcpu": 12,
+    "memory": "96 GiB",
+    "storage": "1 x 7500 NVMe SSD",
+    "network_performance": "Up to 25 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8175",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c7i-flex.8xlarge",
+    "price_per_hour_usd": 1.3566,
+    "vcpu": 32,
+    "memory": "64 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 12500 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Sapphire Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c6i.8xlarge",
+    "price_per_hour_usd": 1.36,
+    "vcpu": 32,
+    "memory": "64 GiB",
+    "storage": "EBS only",
+    "network_performance": "12500 Megabit",
+    "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c8ine.4xlarge",
+    "price_per_hour_usd": 1.3608,
+    "vcpu": 16,
+    "memory": "32 GiB",
+    "storage": "EBS only",
+    "network_performance": "25 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "g5g.8xlarge",
+    "price_per_hour_usd": 1.372,
+    "vcpu": 32,
+    "memory": "64 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 12 Gigabit",
+    "processor_architecture": "AWS Graviton2 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "i8g.4xlarge",
+    "price_per_hour_usd": 1.3728,
+    "vcpu": 16,
+    "memory": "128 GiB",
+    "storage": "1 x 3750GB",
+    "network_performance": "Up to 25 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "i4i.4xlarge",
+    "price_per_hour_usd": 1.373,
+    "vcpu": 16,
+    "memory": "128 GiB",
+    "storage": "1 x 3750 NVMe SSD",
+    "network_performance": "Up to 25 Gigabit",
+    "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m5a.8xlarge",
+    "price_per_hour_usd": 1.376,
+    "vcpu": 32,
+    "memory": "128 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "AMD EPYC 7571",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c5ad.8xlarge",
+    "price_per_hour_usd": 1.376,
+    "vcpu": 32,
+    "memory": "64 GiB",
+    "storage": "2 x 600 NVMe SSD",
+    "network_performance": "10 Gigabit",
+    "processor_architecture": "AMD EPYC 7R32",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "d2.2xlarge",
+    "price_per_hour_usd": 1.38,
+    "vcpu": 8,
+    "memory": "61 GiB",
+    "storage": "6 x 2000 HDD",
+    "network_performance": "High",
+    "processor_architecture": "Intel Xeon E5-2676 v3 (Haswell)",
+    "current_generation": "No"
+  },
+  {
+    "instance_type": "m6a.8xlarge",
+    "price_per_hour_usd": 1.3824,
+    "vcpu": 32,
+    "memory": "128 GiB",
+    "storage": "EBS only",
+    "network_performance": "12500 Megabit",
+    "processor_architecture": "AMD EPYC 7R13 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c6gn.8xlarge",
+    "price_per_hour_usd": 1.3824,
+    "vcpu": 32,
+    "memory": "64 GiB",
+    "storage": "EBS only",
+    "network_performance": "50 Gigabit",
+    "processor_architecture": "AWS Graviton2 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r6in.4xlarge",
+    "price_per_hour_usd": 1.39464,
+    "vcpu": 16,
+    "memory": "128 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 50000 Megabit",
+    "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "i8ge.3xlarge",
+    "price_per_hour_usd": 1.4238,
+    "vcpu": 12,
+    "memory": "96 GiB",
+    "storage": "1 x 7500 NVMe SSD",
+    "network_performance": "Up to 25 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c8i-flex.8xlarge",
+    "price_per_hour_usd": 1.42432,
+    "vcpu": 32,
+    "memory": "64 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 15000 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c7i.8xlarge",
+    "price_per_hour_usd": 1.428,
+    "vcpu": 32,
+    "memory": "64 GiB",
+    "storage": "EBS only",
+    "network_performance": "12500 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Sapphire Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m8g.8xlarge",
+    "price_per_hour_usd": 1.43616,
+    "vcpu": 32,
+    "memory": "128 GiB",
+    "storage": "EBS only",
+    "network_performance": "15 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m6gd.8xlarge",
+    "price_per_hour_usd": 1.4464,
+    "vcpu": 32,
+    "memory": "128 GiB",
+    "storage": "1 x 1900 NVMe SSD",
+    "network_performance": "12 Gigabit",
+    "processor_architecture": "AWS Graviton2 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c7gd.8xlarge",
+    "price_per_hour_usd": 1.4515,
+    "vcpu": 32,
+    "memory": "64 GiB",
+    "storage": "1 x 1900 NVMe SSD",
+    "network_performance": "15 Gigabit",
+    "processor_architecture": "AWS Graviton3 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "im4gn.4xlarge",
+    "price_per_hour_usd": 1.45517,
+    "vcpu": 16,
+    "memory": "64 GiB",
+    "storage": "1 x 7500 SSD",
+    "network_performance": "25 Gigabit",
+    "processor_architecture": "AWS Graviton2 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r8gn.4xlarge",
+    "price_per_hour_usd": 1.4574,
+    "vcpu": 16,
+    "memory": "128 GiB",
+    "storage": "EBS only",
+    "network_performance": "50 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r8gb.4xlarge",
+    "price_per_hour_usd": 1.45744,
+    "vcpu": 16,
+    "memory": "128 GiB",
+    "storage": "EBS only",
+    "network_performance": "33.333 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r7iz.4xlarge",
+    "price_per_hour_usd": 1.488,
+    "vcpu": 16,
+    "memory": "128 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 12500 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Sapphire Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c8i.8xlarge",
+    "price_per_hour_usd": 1.49936,
+    "vcpu": 32,
+    "memory": "64 GiB",
+    "storage": "EBS only",
+    "network_performance": "15000 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "i7i.4xlarge",
+    "price_per_hour_usd": 1.5101,
+    "vcpu": 16,
+    "memory": "128 GiB",
+    "storage": "1 x 3750 NVMe SSD",
+    "network_performance": "Up to 25 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Emerald Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c5.9xlarge",
+    "price_per_hour_usd": 1.53,
+    "vcpu": 36,
+    "memory": "72 GiB",
+    "storage": "EBS only",
+    "network_performance": "10 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8124M",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m7i-flex.8xlarge",
+    "price_per_hour_usd": 1.53216,
+    "vcpu": 32,
+    "memory": "128 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 12500 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Sapphire Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m6i.8xlarge",
+    "price_per_hour_usd": 1.536,
+    "vcpu": 32,
+    "memory": "128 GiB",
+    "storage": "EBS only",
+    "network_performance": "12500 Megabit",
+    "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m5.8xlarge",
+    "price_per_hour_usd": 1.536,
+    "vcpu": 32,
+    "memory": "128 GiB",
+    "storage": "EBS only",
+    "network_performance": "10 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8175",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "gr6.4xlarge",
+    "price_per_hour_usd": 1.5392,
+    "vcpu": 16,
+    "memory": "128 GiB",
+    "storage": "1 x 600 GB NVMe SSD",
+    "network_performance": "Up to 25 Gigabit",
+    "processor_architecture": "AMD EPYC 7R13 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "i7ie.3xlarge",
+    "price_per_hour_usd": 1.5594,
+    "vcpu": 12,
+    "memory": "96 GiB",
+    "storage": "1 x 7500 NVMe SSD",
+    "network_performance": "Up to 25 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Emerald Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r6idn.4xlarge",
+    "price_per_hour_usd": 1.56312,
+    "vcpu": 16,
+    "memory": "128 GiB",
+    "storage": "1 x 950 NVMe SSD",
+    "network_performance": "Up to 50000 Megabit",
+    "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "x8g.4xlarge",
+    "price_per_hour_usd": 1.5632,
+    "vcpu": 16,
+    "memory": "256 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 15 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c8gd.8xlarge",
+    "price_per_hour_usd": 1.56768,
+    "vcpu": 32,
+    "memory": "64 GiB",
+    "storage": "1 x 1900 NVMe SSD",
+    "network_performance": "15 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c4.8xlarge",
+    "price_per_hour_usd": 1.591,
+    "vcpu": 36,
+    "memory": "60 GiB",
+    "storage": "EBS only",
+    "network_performance": "10 Gigabit",
+    "processor_architecture": "Intel Xeon E5-2666 v3 (Haswell)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m8i-flex.8xlarge",
+    "price_per_hour_usd": 1.6088,
+    "vcpu": 32,
+    "memory": "128 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 15000 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m7i.8xlarge",
+    "price_per_hour_usd": 1.6128,
+    "vcpu": 32,
+    "memory": "128 GiB",
+    "storage": "EBS only",
+    "network_performance": "12500 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Sapphire Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r6g.8xlarge",
+    "price_per_hour_usd": 1.6128,
+    "vcpu": 32,
+    "memory": "256 GiB",
+    "storage": "EBS only",
+    "network_performance": "12 Gigabit",
+    "processor_architecture": "AWS Graviton2 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c6id.8xlarge",
+    "price_per_hour_usd": 1.6128,
+    "vcpu": 32,
+    "memory": "64 GiB",
+    "storage": "1 x 1900 NVMe SSD",
+    "network_performance": "12500 Megabit",
+    "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "g5.4xlarge",
+    "price_per_hour_usd": 1.624,
+    "vcpu": 16,
+    "memory": "64 GiB",
+    "storage": "1 x 600 GB NVMe SSD",
+    "network_performance": "Up to 25 Gigabit",
+    "processor_architecture": "AMD EPYC 7R32",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c6g.12xlarge",
+    "price_per_hour_usd": 1.632,
+    "vcpu": 48,
+    "memory": "96 GiB",
+    "storage": "EBS only",
+    "network_performance": "20 Gigabit",
+    "processor_architecture": "AWS Graviton2 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c7a.8xlarge",
+    "price_per_hour_usd": 1.64224,
+    "vcpu": 32,
+    "memory": "64 GiB",
+    "storage": "EBS only",
+    "network_performance": "12500 Megabit",
+    "processor_architecture": "AMD EPYC 9R14 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m5ad.8xlarge",
+    "price_per_hour_usd": 1.648,
+    "vcpu": 32,
+    "memory": "128 GiB",
+    "storage": "2 x 600 NVMe SSD",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "AMD EPYC 7571",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "f1.2xlarge",
+    "price_per_hour_usd": 1.65,
+    "vcpu": 8,
+    "memory": "122 GiB",
+    "storage": "1 x 470 NVMe SSD",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "Intel Xeon E5-2686 v4 (Broadwell)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "x2iedn.2xlarge",
+    "price_per_hour_usd": 1.66725,
+    "vcpu": 8,
+    "memory": "256 GiB",
+    "storage": "1 x 237 NVMe SSD",
+    "network_performance": "Up to 25 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Icelake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "x1e.2xlarge",
+    "price_per_hour_usd": 1.668,
+    "vcpu": 8,
+    "memory": "244 GiB",
+    "storage": "1 x 240 SSD",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "High Frequency Intel Xeon E7-8880 v3 (Haswell)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "x2iezn.2xlarge",
+    "price_per_hour_usd": 1.668,
+    "vcpu": 8,
+    "memory": "256 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 25 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8252",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m8ine.4xlarge",
+    "price_per_hour_usd": 1.6708,
+    "vcpu": 16,
+    "memory": "64.0 GiB",
+    "storage": "EBS only",
+    "network_performance": "25 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r8in.4xlarge",
+    "price_per_hour_usd": 1.6736,
+    "vcpu": 16,
+    "memory": "128.0 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 50 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r8ib.4xlarge",
+    "price_per_hour_usd": 1.6736,
+    "vcpu": 16,
+    "memory": "128.0 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 33.33 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c3.8xlarge",
+    "price_per_hour_usd": 1.68,
+    "vcpu": 32,
+    "memory": "60 GiB",
+    "storage": "2 x 320 SSD",
+    "network_performance": "10 Gigabit",
+    "processor_architecture": "Intel Xeon E5-2680 v2 (Ivy Bridge)",
+    "current_generation": "No"
+  },
+  {
+    "instance_type": "hpc7g.4xlarge",
+    "price_per_hour_usd": 1.6832,
+    "vcpu": 16,
+    "memory": "128 GiB",
+    "storage": "EBS only",
+    "network_performance": "200 Gigabit",
+    "processor_architecture": "AWS Graviton3 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "hpc7g.8xlarge",
+    "price_per_hour_usd": 1.6832,
+    "vcpu": 32,
+    "memory": "128 GiB",
+    "storage": "EBS only",
+    "network_performance": "200 Gigabit",
+    "processor_architecture": "AWS Graviton3 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "hpc7g.16xlarge",
+    "price_per_hour_usd": 1.6832,
+    "vcpu": 64,
+    "memory": "128 GiB",
+    "storage": "EBS only",
+    "network_performance": "200 Gigabit",
+    "processor_architecture": "AWS Graviton3 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m8i.8xlarge",
+    "price_per_hour_usd": 1.69344,
+    "vcpu": 32,
+    "memory": "128 GiB",
+    "storage": "EBS only",
+    "network_performance": "15000 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "i2.2xlarge",
+    "price_per_hour_usd": 1.705,
+    "vcpu": 8,
+    "memory": "61 GiB",
+    "storage": "2 x 800 SSD",
+    "network_performance": "High",
+    "processor_architecture": "Intel Xeon E5-2670 v2 (Ivy Bridge)",
+    "current_generation": "No"
+  },
+  {
+    "instance_type": "m7gd.8xlarge",
+    "price_per_hour_usd": 1.7086,
+    "vcpu": 32,
+    "memory": "128 GiB",
+    "storage": "1 x 1900 NVMe SSD",
+    "network_performance": "15 Gigabit",
+    "processor_architecture": "AWS Graviton3 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r7g.8xlarge",
+    "price_per_hour_usd": 1.7136,
+    "vcpu": 32,
+    "memory": "256 GiB",
+    "storage": "EBS only",
+    "network_performance": "15 Gigabit",
+    "processor_architecture": "AWS Graviton3 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c8a.8xlarge",
+    "price_per_hour_usd": 1.72432,
+    "vcpu": 32,
+    "memory": "64 GiB",
+    "storage": "EBS only",
+    "network_performance": "15000 Megabit",
+    "processor_architecture": "AMD EPYC 9R45 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c5d.9xlarge",
+    "price_per_hour_usd": 1.728,
+    "vcpu": 36,
+    "memory": "72 GiB",
+    "storage": "1 x 900 NVMe SSD",
+    "network_performance": "10 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8124M",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "g4ad.8xlarge",
+    "price_per_hour_usd": 1.734,
+    "vcpu": 32,
+    "memory": "128 GiB",
+    "storage": "1200 GB NVMe SSD",
+    "network_performance": "15 Gigabit",
+    "processor_architecture": "AMD EPYC 7R32",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c7g.12xlarge",
+    "price_per_hour_usd": 1.74,
+    "vcpu": 48,
+    "memory": "96 GiB",
+    "storage": "EBS only",
+    "network_performance": "22500 Megabit",
+    "processor_architecture": "AWS Graviton3 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "x8i.4xlarge",
+    "price_per_hour_usd": 1.75064,
+    "vcpu": 16,
+    "memory": "256 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 15000 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c8id.8xlarge",
+    "price_per_hour_usd": 1.77408,
+    "vcpu": 32,
+    "memory": "64 GiB",
+    "storage": "1 x 1900 NVMe SSD",
+    "network_performance": "15000 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m5d.8xlarge",
+    "price_per_hour_usd": 1.808,
+    "vcpu": 32,
+    "memory": "128 GiB",
+    "storage": "2 x 600 NVMe SSD",
+    "network_performance": "10 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8175",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r5a.8xlarge",
+    "price_per_hour_usd": 1.808,
+    "vcpu": 32,
+    "memory": "256 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "AMD EPYC 7571",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r6a.8xlarge",
+    "price_per_hour_usd": 1.8144,
+    "vcpu": 32,
+    "memory": "256 GiB",
+    "storage": "EBS only",
+    "network_performance": "12500 Megabit",
+    "processor_architecture": "AMD EPYC 7R13 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c6in.8xlarge",
+    "price_per_hour_usd": 1.8144,
+    "vcpu": 32,
+    "memory": "64 GiB",
+    "storage": "EBS only",
+    "network_performance": "50000 Megabit",
+    "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c6a.12xlarge",
+    "price_per_hour_usd": 1.836,
+    "vcpu": 48,
+    "memory": "96 GiB",
+    "storage": "EBS only",
+    "network_performance": "18750 Megabit",
+    "processor_architecture": "AMD EPYC 7R13 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c6gd.12xlarge",
+    "price_per_hour_usd": 1.8432,
+    "vcpu": 48,
+    "memory": "96 GiB",
+    "storage": "2 x 1425 NVMe SSD",
+    "network_performance": "20 Gigabit",
+    "processor_architecture": "AWS Graviton2 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r6gd.8xlarge",
+    "price_per_hour_usd": 1.8432,
+    "vcpu": 32,
+    "memory": "256 GiB",
+    "storage": "1 x 1900 NVMe SSD",
+    "network_performance": "12 Gigabit",
+    "processor_architecture": "AWS Graviton2 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m8gd.8xlarge",
+    "price_per_hour_usd": 1.84512,
+    "vcpu": 32,
+    "memory": "128 GiB",
+    "storage": "1 x 1900 NVMe SSD",
+    "network_performance": "15 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c5a.12xlarge",
+    "price_per_hour_usd": 1.848,
+    "vcpu": 48,
+    "memory": "96 GiB",
+    "storage": "EBS only",
+    "network_performance": "12 Gigabit",
+    "processor_architecture": "AMD EPYC 7R32",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m6g.12xlarge",
+    "price_per_hour_usd": 1.848,
+    "vcpu": 48,
+    "memory": "192 GiB",
+    "storage": "EBS only",
+    "network_performance": "20 Gigabit",
+    "processor_architecture": "AWS Graviton2 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m7a.8xlarge",
+    "price_per_hour_usd": 1.85472,
+    "vcpu": 32,
+    "memory": "128 GiB",
+    "storage": "EBS only",
+    "network_performance": "12500 Megabit",
+    "processor_architecture": "AMD EPYC 9R14 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "g6e.xlarge",
+    "price_per_hour_usd": 1.861,
+    "vcpu": 4,
+    "memory": "32 GiB",
+    "storage": "1 x 250 GB NVMe SSD",
+    "network_performance": "Up to 20 Gigabit",
+    "processor_architecture": "AMD EPYC 7R13 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "h1.8xlarge",
+    "price_per_hour_usd": 1.872,
+    "vcpu": 32,
+    "memory": "128 GiB",
+    "storage": "4 x 2000 HDD",
+    "network_performance": "10 Gigabit",
+    "processor_architecture": "Intel Xeon E5-2686 v4 (Broadwell)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r8g.8xlarge",
+    "price_per_hour_usd": 1.88512,
+    "vcpu": 32,
+    "memory": "256 GiB",
+    "storage": "EBS only",
+    "network_performance": "15 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c8gb.8xlarge",
+    "price_per_hour_usd": 1.896,
+    "vcpu": 32,
+    "memory": "64 GiB",
+    "storage": "EBS only",
+    "network_performance": "66.667 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c8gn.8xlarge",
+    "price_per_hour_usd": 1.896,
+    "vcpu": 32,
+    "memory": "64 GiB",
+    "storage": "EBS only",
+    "network_performance": "100 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m6id.8xlarge",
+    "price_per_hour_usd": 1.8984,
+    "vcpu": 32,
+    "memory": "128 GiB",
+    "storage": "1 x 1900 NVMe SSD",
+    "network_performance": "12500 Megabit",
+    "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m5n.8xlarge",
+    "price_per_hour_usd": 1.904,
+    "vcpu": 32,
+    "memory": "128 GiB",
+    "storage": "EBS only",
+    "network_performance": "25 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8259 (Cascade Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c8g.12xlarge",
+    "price_per_hour_usd": 1.91424,
+    "vcpu": 48,
+    "memory": "96 GiB",
+    "storage": "EBS only",
+    "network_performance": "22.5 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c5n.9xlarge",
+    "price_per_hour_usd": 1.944,
+    "vcpu": 36,
+    "memory": "96 GiB",
+    "storage": "EBS only",
+    "network_performance": "50 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8124M",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m8a.8xlarge",
+    "price_per_hour_usd": 1.94752,
+    "vcpu": 32,
+    "memory": "128 GiB",
+    "storage": "EBS only",
+    "network_performance": "15000 Megabit",
+    "processor_architecture": "AMD EPYC 9R45 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m7g.12xlarge",
+    "price_per_hour_usd": 1.9584,
+    "vcpu": 48,
+    "memory": "192 GiB",
+    "storage": "EBS only",
+    "network_performance": "22500 Megabit",
+    "processor_architecture": "AWS Graviton3 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "inf2.8xlarge",
+    "price_per_hour_usd": 1.96786,
+    "vcpu": 32,
+    "memory": "128 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 25 Gigabit",
+    "processor_architecture": "AMD EPYC 7R13 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "f2.6xlarge",
+    "price_per_hour_usd": 1.98,
+    "vcpu": 24,
+    "memory": "256 GiB",
+    "storage": "1 x 950 NVMe SSD",
+    "network_performance": "12.5 Gigabit",
+    "processor_architecture": "AMD EPYC 7R13 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m5zn.6xlarge",
+    "price_per_hour_usd": 1.982,
+    "vcpu": 24,
+    "memory": "96 GiB",
+    "storage": "EBS only",
+    "network_performance": "50 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8252",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c7gn.8xlarge",
+    "price_per_hour_usd": 1.9968,
+    "vcpu": 32,
+    "memory": "64 GiB",
+    "storage": "EBS only",
+    "network_performance": "100 Gigabit",
+    "processor_architecture": "AWS Graviton3 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "d3.4xlarge",
+    "price_per_hour_usd": 1.998,
+    "vcpu": 16,
+    "memory": "128 GiB",
+    "storage": "12 x 2000 HDD",
+    "network_performance": "Up to 15 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8259 (Cascade Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m4.10xlarge",
+    "price_per_hour_usd": 2,
+    "vcpu": 40,
+    "memory": "160 GiB",
+    "storage": "EBS only",
+    "network_performance": "10 Gigabit",
+    "processor_architecture": "Intel Xeon E5-2676 v3 (Haswell)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "g6.8xlarge",
+    "price_per_hour_usd": 2.0144,
+    "vcpu": 32,
+    "memory": "128 GiB",
+    "storage": "2 x 450 GB NVMe SSD",
+    "network_performance": "25 Gigabit",
+    "processor_architecture": "AMD EPYC 7R13 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r5.8xlarge",
+    "price_per_hour_usd": 2.016,
+    "vcpu": 32,
+    "memory": "256 GiB",
+    "storage": "EBS only",
+    "network_performance": "10 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8175",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r6i.8xlarge",
+    "price_per_hour_usd": 2.016,
+    "vcpu": 32,
+    "memory": "256 GiB",
+    "storage": "EBS only",
+    "network_performance": "12500 Megabit",
+    "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c7i-flex.12xlarge",
+    "price_per_hour_usd": 2.0349,
+    "vcpu": 48,
+    "memory": "96 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 18750 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Sapphire Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c6i.12xlarge",
+    "price_per_hour_usd": 2.04,
+    "vcpu": 48,
+    "memory": "96 GiB",
+    "storage": "EBS only",
+    "network_performance": "18750 Megabit",
+    "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c5.12xlarge",
+    "price_per_hour_usd": 2.04,
+    "vcpu": 48,
+    "memory": "96 GiB",
+    "storage": "EBS only",
+    "network_performance": "12 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8275L",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m5a.12xlarge",
+    "price_per_hour_usd": 2.064,
+    "vcpu": 48,
+    "memory": "192 GiB",
+    "storage": "EBS only",
+    "network_performance": "10 Gigabit",
+    "processor_architecture": "AMD EPYC 7571",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c5ad.12xlarge",
+    "price_per_hour_usd": 2.064,
+    "vcpu": 48,
+    "memory": "96 GiB",
+    "storage": "2 x 900 NVMe SSD",
+    "network_performance": "12 Gigabit",
+    "processor_architecture": "AMD EPYC 7R32",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c6gn.12xlarge",
+    "price_per_hour_usd": 2.0736,
+    "vcpu": 48,
+    "memory": "96 GiB",
+    "storage": "EBS only",
+    "network_performance": "75 Gigabit",
+    "processor_architecture": "AWS Graviton2 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m6a.12xlarge",
+    "price_per_hour_usd": 2.0736,
+    "vcpu": 48,
+    "memory": "192 GiB",
+    "storage": "EBS only",
+    "network_performance": "18750 Megabit",
+    "processor_architecture": "AMD EPYC 7R13 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m8id.8xlarge",
+    "price_per_hour_usd": 2.08832,
+    "vcpu": 32,
+    "memory": "128 GiB",
+    "storage": "1 x 1900 NVMe SSD",
+    "network_performance": "15000 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r5ad.8xlarge",
+    "price_per_hour_usd": 2.096,
+    "vcpu": 32,
+    "memory": "256 GiB",
+    "storage": "2 x 600 NVMe SSD",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "AMD EPYC 7571",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "d3en.4xlarge",
+    "price_per_hour_usd": 2.103,
+    "vcpu": 16,
+    "memory": "64 GiB",
+    "storage": "8 x 14000 HDD",
+    "network_performance": "25 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8259 (Cascade Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r8i-flex.8xlarge",
+    "price_per_hour_usd": 2.11152,
+    "vcpu": 32,
+    "memory": "256 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 15000 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r7i.8xlarge",
+    "price_per_hour_usd": 2.1168,
+    "vcpu": 32,
+    "memory": "256 GiB",
+    "storage": "EBS only",
+    "network_performance": "12500 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Sapphire Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r4.8xlarge",
+    "price_per_hour_usd": 2.128,
+    "vcpu": 32,
+    "memory": "244 GiB",
+    "storage": "EBS only",
+    "network_performance": "10 Gigabit",
+    "processor_architecture": "Intel Xeon E5-2686 v4 (Broadwell)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c8i-flex.12xlarge",
+    "price_per_hour_usd": 2.13648,
+    "vcpu": 48,
+    "memory": "96 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 22500 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c7i.12xlarge",
+    "price_per_hour_usd": 2.142,
+    "vcpu": 48,
+    "memory": "96 GiB",
+    "storage": "EBS only",
+    "network_performance": "18750 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Sapphire Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m8g.12xlarge",
+    "price_per_hour_usd": 2.15424,
+    "vcpu": 48,
+    "memory": "192 GiB",
+    "storage": "EBS only",
+    "network_performance": "22.5 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m6gd.12xlarge",
+    "price_per_hour_usd": 2.1696,
+    "vcpu": 48,
+    "memory": "192 GiB",
+    "storage": "2 x 1425 NVMe SSD",
+    "network_performance": "20 Gigabit",
+    "processor_architecture": "AWS Graviton2 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "g4dn.8xlarge",
+    "price_per_hour_usd": 2.176,
+    "vcpu": 32,
+    "memory": "128 GiB",
+    "storage": "900 GB NVMe SSD",
+    "network_performance": "50 Gigabit",
+    "processor_architecture": "Intel Xeon Family",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m5dn.8xlarge",
+    "price_per_hour_usd": 2.176,
+    "vcpu": 32,
+    "memory": "128 GiB",
+    "storage": "2 x 600 NVMe SSD",
+    "network_performance": "25 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8259 (Cascade Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c6g.16xlarge",
+    "price_per_hour_usd": 2.176,
+    "vcpu": 64,
+    "memory": "128 GiB",
+    "storage": "EBS only",
+    "network_performance": "25 Gigabit",
+    "processor_architecture": "AWS Graviton2 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c8ib.8xlarge",
+    "price_per_hour_usd": 2.17728,
+    "vcpu": 32,
+    "memory": "64 GiB",
+    "storage": "EBS only",
+    "network_performance": "33.333 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c8in.8xlarge",
+    "price_per_hour_usd": 2.17728,
+    "vcpu": 32,
+    "memory": "64 GiB",
+    "storage": "EBS only",
+    "network_performance": "50 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r7gd.8xlarge",
+    "price_per_hour_usd": 2.1773,
+    "vcpu": 32,
+    "memory": "256 GiB",
+    "storage": "1 x 1900 NVMe SSD",
+    "network_performance": "15 Gigabit",
+    "processor_architecture": "AWS Graviton3 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c7gd.12xlarge",
+    "price_per_hour_usd": 2.1773,
+    "vcpu": 48,
+    "memory": "96 GiB",
+    "storage": "2 x 1425 NVMe SSD",
+    "network_performance": "22500 Megabit",
+    "processor_architecture": "AWS Graviton3 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r8i.8xlarge",
+    "price_per_hour_usd": 2.22272,
+    "vcpu": 32,
+    "memory": "256 GiB",
+    "storage": "EBS only",
+    "network_performance": "15000 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m6in.8xlarge",
+    "price_per_hour_usd": 2.22768,
+    "vcpu": 32,
+    "memory": "128 GiB",
+    "storage": "EBS only",
+    "network_performance": "50000 Megabit",
+    "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "z1d.6xlarge",
+    "price_per_hour_usd": 2.232,
+    "vcpu": 24,
+    "memory": "192 GiB",
+    "storage": "1 x 900 NVMe SSD",
+    "network_performance": "10 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8151",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "g6e.2xlarge",
+    "price_per_hour_usd": 2.24208,
+    "vcpu": 8,
+    "memory": "64 GiB",
+    "storage": "1 x 450 GB NVMe SSD",
+    "network_performance": "Up to 20 Gigabit",
+    "processor_architecture": "AMD EPYC 7R13 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c8i.12xlarge",
+    "price_per_hour_usd": 2.24904,
+    "vcpu": 48,
+    "memory": "96 GiB",
+    "storage": "EBS only",
+    "network_performance": "22500 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "g3.8xlarge",
+    "price_per_hour_usd": 2.28,
+    "vcpu": 32,
+    "memory": "244 GiB",
+    "storage": "EBS only",
+    "network_performance": "10 Gigabit",
+    "processor_architecture": "Intel Xeon E5-2686 v4 (Broadwell)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m7i-flex.12xlarge",
+    "price_per_hour_usd": 2.29824,
+    "vcpu": 48,
+    "memory": "192 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 18750 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Sapphire Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c5d.12xlarge",
+    "price_per_hour_usd": 2.304,
+    "vcpu": 48,
+    "memory": "96 GiB",
+    "storage": "2 x 900 NVMe SSD",
+    "network_performance": "12 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8275L",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m5.12xlarge",
+    "price_per_hour_usd": 2.304,
+    "vcpu": 48,
+    "memory": "192 GiB",
+    "storage": "EBS only",
+    "network_performance": "10 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8175",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m6i.12xlarge",
+    "price_per_hour_usd": 2.304,
+    "vcpu": 48,
+    "memory": "192 GiB",
+    "storage": "EBS only",
+    "network_performance": "18750 Megabit",
+    "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r5d.8xlarge",
+    "price_per_hour_usd": 2.304,
+    "vcpu": 32,
+    "memory": "256 GiB",
+    "storage": "2 x 600 NVMe SSD",
+    "network_performance": "10 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8175",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "is4gen.4xlarge",
+    "price_per_hour_usd": 2.3052,
+    "vcpu": 16,
+    "memory": "96 GiB",
+    "storage": "2 x 7500 SSD",
+    "network_performance": "25 Gigabit",
+    "processor_architecture": "AWS Graviton2 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c7g.16xlarge",
+    "price_per_hour_usd": 2.32,
+    "vcpu": 64,
+    "memory": "128 GiB",
+    "storage": "EBS only",
+    "network_performance": "30 Gigabit",
+    "processor_architecture": "AWS Graviton3 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m8gb.8xlarge",
+    "price_per_hour_usd": 2.328,
+    "vcpu": 32,
+    "memory": "128 GiB",
+    "storage": "EBS only",
+    "network_performance": "66.667 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m8gn.8xlarge",
+    "price_per_hour_usd": 2.328,
+    "vcpu": 32,
+    "memory": "128 GiB",
+    "storage": "EBS only",
+    "network_performance": "100 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r8gd.8xlarge",
+    "price_per_hour_usd": 2.35136,
+    "vcpu": 32,
+    "memory": "256 GiB",
+    "storage": "1 x 1900 NVMe SSD",
+    "network_performance": "15 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c8gd.12xlarge",
+    "price_per_hour_usd": 2.35152,
+    "vcpu": 48,
+    "memory": "96 GiB",
+    "storage": "3 x 950 NVMe SSD",
+    "network_performance": "22500 Megabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r5n.8xlarge",
+    "price_per_hour_usd": 2.384,
+    "vcpu": 32,
+    "memory": "256 GiB",
+    "storage": "EBS only",
+    "network_performance": "25 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8259 (Cascade Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r5b.8xlarge",
+    "price_per_hour_usd": 2.384,
+    "vcpu": 32,
+    "memory": "256 GiB",
+    "storage": "EBS only",
+    "network_performance": "10 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8259 (Cascade Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m8i-flex.12xlarge",
+    "price_per_hour_usd": 2.4132,
+    "vcpu": 48,
+    "memory": "192 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 22500 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r6id.8xlarge",
+    "price_per_hour_usd": 2.4192,
+    "vcpu": 32,
+    "memory": "256 GiB",
+    "storage": "1 x 1900 NVMe SSD",
+    "network_performance": "12500 Megabit",
+    "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c6id.12xlarge",
+    "price_per_hour_usd": 2.4192,
+    "vcpu": 48,
+    "memory": "96 GiB",
+    "storage": "2 x 1425 NVMe SSD",
+    "network_performance": "18750 Megabit",
+    "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m7i.12xlarge",
+    "price_per_hour_usd": 2.4192,
+    "vcpu": 48,
+    "memory": "192 GiB",
+    "storage": "EBS only",
+    "network_performance": "18750 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Sapphire Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r6g.12xlarge",
+    "price_per_hour_usd": 2.4192,
+    "vcpu": 48,
+    "memory": "384 GiB",
+    "storage": "EBS only",
+    "network_performance": "20 Gigabit",
+    "processor_architecture": "AWS Graviton2 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r7a.8xlarge",
+    "price_per_hour_usd": 2.4344,
+    "vcpu": 32,
+    "memory": "256 GiB",
+    "storage": "EBS only",
+    "network_performance": "12500 Megabit",
+    "processor_architecture": "AMD EPYC 9R14 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "gr6.8xlarge",
+    "price_per_hour_usd": 2.4464,
+    "vcpu": 32,
+    "memory": "256 GiB",
+    "storage": "2 x 450 GB NVMe SSD",
+    "network_performance": "25 Gigabit",
+    "processor_architecture": "AMD EPYC 7R13 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "g5.8xlarge",
+    "price_per_hour_usd": 2.448,
+    "vcpu": 32,
+    "memory": "128 GiB",
+    "storage": "1 x 900 GB NVMe SSD",
+    "network_performance": "25 Gigabit",
+    "processor_architecture": "AMD EPYC 7R32",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c6a.16xlarge",
+    "price_per_hour_usd": 2.448,
+    "vcpu": 64,
+    "memory": "128 GiB",
+    "storage": "EBS only",
+    "network_performance": "25000 Megabit",
+    "processor_architecture": "AMD EPYC 7R13 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c6gd.16xlarge",
+    "price_per_hour_usd": 2.4576,
+    "vcpu": 64,
+    "memory": "128 GiB",
+    "storage": "2 x 1900 NVMe SSD",
+    "network_performance": "25 Gigabit",
+    "processor_architecture": "AWS Graviton2 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c7a.12xlarge",
+    "price_per_hour_usd": 2.46336,
+    "vcpu": 48,
+    "memory": "96 GiB",
+    "storage": "EBS only",
+    "network_performance": "18750 Megabit",
+    "processor_architecture": "AMD EPYC 9R14 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c5a.16xlarge",
+    "price_per_hour_usd": 2.464,
+    "vcpu": 64,
+    "memory": "128 GiB",
+    "storage": "EBS only",
+    "network_performance": "20 Gigabit",
+    "processor_architecture": "AMD EPYC 7R32",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m6g.16xlarge",
+    "price_per_hour_usd": 2.464,
+    "vcpu": 64,
+    "memory": "256 GiB",
+    "storage": "EBS only",
+    "network_performance": "25 Gigabit",
+    "processor_architecture": "AWS Graviton2 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "i4g.8xlarge",
+    "price_per_hour_usd": 2.47104,
+    "vcpu": 32,
+    "memory": "256 GiB",
+    "storage": "2 x 3750 SSD",
+    "network_performance": "18750 Megabit",
+    "processor_architecture": "AWS Graviton2 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m5ad.12xlarge",
+    "price_per_hour_usd": 2.472,
+    "vcpu": 48,
+    "memory": "192 GiB",
+    "storage": "2 x 900 NVMe SSD",
+    "network_performance": "10 Gigabit",
+    "processor_architecture": "AMD EPYC 7571",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m8azn.6xlarge",
+    "price_per_hour_usd": 2.47752,
+    "vcpu": 24,
+    "memory": "96 GiB",
+    "storage": "EBS only",
+    "network_performance": "50 Gigabit",
+    "processor_architecture": "AMD EPYC 9575F",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "i3.8xlarge",
+    "price_per_hour_usd": 2.496,
+    "vcpu": 32,
+    "memory": "244 GiB",
+    "storage": "4 x 1900 NVMe SSD",
+    "network_performance": "10 Gigabit",
+    "processor_architecture": "Intel Xeon E5-2686 v4 (Broadwell)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m8i.12xlarge",
+    "price_per_hour_usd": 2.54016,
+    "vcpu": 48,
+    "memory": "192 GiB",
+    "storage": "EBS only",
+    "network_performance": "22500 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m6idn.8xlarge",
+    "price_per_hour_usd": 2.54592,
+    "vcpu": 32,
+    "memory": "128 GiB",
+    "storage": "1 x 1900 NVMe SSD",
+    "network_performance": "50000 Megabit",
+    "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c8g.16xlarge",
+    "price_per_hour_usd": 2.55232,
+    "vcpu": 64,
+    "memory": "128 GiB",
+    "storage": "EBS only",
+    "network_performance": "30 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r8a.8xlarge",
+    "price_per_hour_usd": 2.55616,
+    "vcpu": 32,
+    "memory": "256 GiB",
+    "storage": "EBS only",
+    "network_performance": "15000 Megabit",
+    "processor_architecture": "AMD EPYC 9R45 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m7gd.12xlarge",
+    "price_per_hour_usd": 2.5628,
+    "vcpu": 48,
+    "memory": "192 GiB",
+    "storage": "2 x 1425 NVMe SSD",
+    "network_performance": "22500 Megabit",
+    "processor_architecture": "AWS Graviton3 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r7g.12xlarge",
+    "price_per_hour_usd": 2.5704,
+    "vcpu": 48,
+    "memory": "384 GiB",
+    "storage": "EBS only",
+    "network_performance": "22500 Megabit",
+    "processor_architecture": "AWS Graviton3 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c8a.12xlarge",
+    "price_per_hour_usd": 2.58648,
+    "vcpu": 48,
+    "memory": "96 GiB",
+    "storage": "EBS only",
+    "network_performance": "22500 Megabit",
+    "processor_architecture": "AMD EPYC 9R45 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "g2.8xlarge",
+    "price_per_hour_usd": 2.6,
+    "vcpu": 32,
+    "memory": "60 GiB",
+    "storage": "2 x 120 SSD",
+    "network_performance": "High",
+    "processor_architecture": "Intel Xeon E5-2670 (Sandy Bridge)",
+    "current_generation": "No"
+  },
+  {
+    "instance_type": "m7g.16xlarge",
+    "price_per_hour_usd": 2.6112,
+    "vcpu": 64,
+    "memory": "256 GiB",
+    "storage": "EBS only",
+    "network_performance": "30 Gigabit",
+    "processor_architecture": "AWS Graviton3 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r3.8xlarge",
+    "price_per_hour_usd": 2.66,
+    "vcpu": 32,
+    "memory": "244 GiB",
+    "storage": "2 x 320 SSD",
+    "network_performance": "10 Gigabit",
+    "processor_architecture": "Intel Xeon E5-2670 v2 (Ivy Bridge)",
+    "current_generation": "No"
+  },
+  {
+    "instance_type": "r8id.8xlarge",
+    "price_per_hour_usd": 2.66112,
+    "vcpu": 32,
+    "memory": "256 GiB",
+    "storage": "1 x 1900 NVMe SSD",
+    "network_performance": "15000 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c8id.12xlarge",
+    "price_per_hour_usd": 2.66112,
+    "vcpu": 48,
+    "memory": "96 GiB",
+    "storage": "1 x 2850 NVMe SSD",
+    "network_performance": "22500 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r5dn.8xlarge",
+    "price_per_hour_usd": 2.672,
+    "vcpu": 32,
+    "memory": "256 GiB",
+    "storage": "2 x 600 NVMe SSD",
+    "network_performance": "25 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8259 (Cascade Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "x2gd.8xlarge",
+    "price_per_hour_usd": 2.672,
+    "vcpu": 32,
+    "memory": "512 GiB",
+    "storage": "1 x 1900 SSD",
+    "network_performance": "12 Gigabit",
+    "processor_architecture": "AWS Graviton2 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m8in.8xlarge",
+    "price_per_hour_usd": 2.67328,
+    "vcpu": 32,
+    "memory": "128.0 GiB",
+    "storage": "EBS only",
+    "network_performance": "50 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m8ib.8xlarge",
+    "price_per_hour_usd": 2.67328,
+    "vcpu": 32,
+    "memory": "128.0 GiB",
+    "storage": "EBS only",
+    "network_performance": "33.33 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m5d.12xlarge",
+    "price_per_hour_usd": 2.712,
+    "vcpu": 48,
+    "memory": "192 GiB",
+    "storage": "2 x 900 NVMe SSD",
+    "network_performance": "10 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8175",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r5a.12xlarge",
+    "price_per_hour_usd": 2.712,
+    "vcpu": 48,
+    "memory": "384 GiB",
+    "storage": "EBS only",
+    "network_performance": "10 Gigabit",
+    "processor_architecture": "AMD EPYC 7571",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "i3en.6xlarge",
+    "price_per_hour_usd": 2.712,
+    "vcpu": 24,
+    "memory": "192 GiB",
+    "storage": "2 x 7500 NVMe SSD",
+    "network_performance": "25 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8175",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c7i-flex.16xlarge",
+    "price_per_hour_usd": 2.7132,
+    "vcpu": 64,
+    "memory": "128 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 25000 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Sapphire Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c6i.16xlarge",
+    "price_per_hour_usd": 2.72,
+    "vcpu": 64,
+    "memory": "128 GiB",
+    "storage": "EBS only",
+    "network_performance": "25000 Megabit",
+    "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c6in.12xlarge",
+    "price_per_hour_usd": 2.7216,
+    "vcpu": 48,
+    "memory": "96 GiB",
+    "storage": "EBS only",
+    "network_performance": "75000 Megabit",
+    "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r6a.12xlarge",
+    "price_per_hour_usd": 2.7216,
+    "vcpu": 48,
+    "memory": "384 GiB",
+    "storage": "EBS only",
+    "network_performance": "18750 Megabit",
+    "processor_architecture": "AMD EPYC 7R13 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c8ine.8xlarge",
+    "price_per_hour_usd": 2.7216,
+    "vcpu": 32,
+    "memory": "64 GiB",
+    "storage": "EBS only",
+    "network_performance": "50 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "g5g.16xlarge",
+    "price_per_hour_usd": 2.744,
+    "vcpu": 64,
+    "memory": "128 GiB",
+    "storage": "EBS only",
+    "network_performance": "25 Gigabit",
+    "processor_architecture": "AWS Graviton2 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "i8g.8xlarge",
+    "price_per_hour_usd": 2.7456,
+    "vcpu": 32,
+    "memory": "256 GiB",
+    "storage": "2 x 3750GB",
+    "network_performance": "Up to 25 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "i4i.8xlarge",
+    "price_per_hour_usd": 2.746,
+    "vcpu": 32,
+    "memory": "256 GiB",
+    "storage": "2 x 3750 NVMe SSD",
+    "network_performance": "18750 Megabit",
+    "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m5a.16xlarge",
+    "price_per_hour_usd": 2.752,
+    "vcpu": 64,
+    "memory": "256 GiB",
+    "storage": "EBS only",
+    "network_performance": "12 Gigabit",
+    "processor_architecture": "AMD EPYC 7571",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c5ad.16xlarge",
+    "price_per_hour_usd": 2.752,
+    "vcpu": 64,
+    "memory": "128 GiB",
+    "storage": "2 x 1200 NVMe SSD",
+    "network_performance": "20 Gigabit",
+    "processor_architecture": "AMD EPYC 7R32",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "d2.4xlarge",
+    "price_per_hour_usd": 2.76,
+    "vcpu": 16,
+    "memory": "122 GiB",
+    "storage": "12 x 2000 HDD",
+    "network_performance": "High",
+    "processor_architecture": "Intel Xeon E5-2676 v3 (Haswell)",
+    "current_generation": "No"
+  },
+  {
+    "instance_type": "c6gn.16xlarge",
+    "price_per_hour_usd": 2.7648,
+    "vcpu": 64,
+    "memory": "128 GiB",
+    "storage": "EBS only",
+    "network_performance": "100 Gigabit",
+    "processor_architecture": "AWS Graviton2 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r6gd.12xlarge",
+    "price_per_hour_usd": 2.7648,
+    "vcpu": 48,
+    "memory": "384 GiB",
+    "storage": "2 x 1425 NVMe SSD",
+    "network_performance": "20 Gigabit",
+    "processor_architecture": "AWS Graviton2 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m6a.16xlarge",
+    "price_per_hour_usd": 2.7648,
+    "vcpu": 64,
+    "memory": "256 GiB",
+    "storage": "EBS only",
+    "network_performance": "25000 Megabit",
+    "processor_architecture": "AMD EPYC 7R13 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m8gd.12xlarge",
+    "price_per_hour_usd": 2.76768,
+    "vcpu": 48,
+    "memory": "192 GiB",
+    "storage": "3 x 950 NVMe SSD",
+    "network_performance": "22500 Megabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m7a.12xlarge",
+    "price_per_hour_usd": 2.78208,
+    "vcpu": 48,
+    "memory": "192 GiB",
+    "storage": "EBS only",
+    "network_performance": "18750 Megabit",
+    "processor_architecture": "AMD EPYC 9R14 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r6in.8xlarge",
+    "price_per_hour_usd": 2.78928,
+    "vcpu": 32,
+    "memory": "256 GiB",
+    "storage": "EBS only",
+    "network_performance": "50000 Megabit",
+    "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r8g.12xlarge",
+    "price_per_hour_usd": 2.82768,
+    "vcpu": 48,
+    "memory": "384 GiB",
+    "storage": "EBS only",
+    "network_performance": "22.5 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c8gb.12xlarge",
+    "price_per_hour_usd": 2.844,
+    "vcpu": 48,
+    "memory": "96 GiB",
+    "storage": "EBS only",
+    "network_performance": "100 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c8gn.12xlarge",
+    "price_per_hour_usd": 2.844,
+    "vcpu": 48,
+    "memory": "96 GiB",
+    "storage": "EBS only",
+    "network_performance": "150 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "i8ge.6xlarge",
+    "price_per_hour_usd": 2.8476,
+    "vcpu": 24,
+    "memory": "192 GiB",
+    "storage": "2 x 7500 NVMe SSD",
+    "network_performance": "37.5 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m6id.12xlarge",
+    "price_per_hour_usd": 2.8476,
+    "vcpu": 48,
+    "memory": "192 GiB",
+    "storage": "2 x 1425 NVMe SSD",
+    "network_performance": "18750 Megabit",
+    "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c8i-flex.16xlarge",
+    "price_per_hour_usd": 2.84864,
+    "vcpu": 64,
+    "memory": "128 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 30000 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c7i.16xlarge",
+    "price_per_hour_usd": 2.856,
+    "vcpu": 64,
+    "memory": "128 GiB",
+    "storage": "EBS only",
+    "network_performance": "25000 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Sapphire Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m5n.12xlarge",
+    "price_per_hour_usd": 2.856,
+    "vcpu": 48,
+    "memory": "192 GiB",
+    "storage": "EBS only",
+    "network_performance": "50 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8259 (Cascade Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m8g.16xlarge",
+    "price_per_hour_usd": 2.87232,
+    "vcpu": 64,
+    "memory": "256 GiB",
+    "storage": "EBS only",
+    "network_performance": "30 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m6gd.16xlarge",
+    "price_per_hour_usd": 2.8928,
+    "vcpu": 64,
+    "memory": "256 GiB",
+    "storage": "2 x 1900 NVMe SSD",
+    "network_performance": "25 Gigabit",
+    "processor_architecture": "AWS Graviton2 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c7gd.16xlarge",
+    "price_per_hour_usd": 2.903,
+    "vcpu": 64,
+    "memory": "128 GiB",
+    "storage": "2 x 1900 NVMe SSD",
+    "network_performance": "30 Gigabit",
+    "processor_architecture": "AWS Graviton3 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "im4gn.8xlarge",
+    "price_per_hour_usd": 2.91034,
+    "vcpu": 32,
+    "memory": "128 GiB",
+    "storage": "2 x 7500 SSD",
+    "network_performance": "50 Gigabit",
+    "processor_architecture": "AWS Graviton2 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r8gb.8xlarge",
+    "price_per_hour_usd": 2.91488,
+    "vcpu": 32,
+    "memory": "256 GiB",
+    "storage": "EBS only",
+    "network_performance": "66.667 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r8gn.8xlarge",
+    "price_per_hour_usd": 2.9149,
+    "vcpu": 32,
+    "memory": "256 GiB",
+    "storage": "EBS only",
+    "network_performance": "100 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m8a.12xlarge",
+    "price_per_hour_usd": 2.92128,
+    "vcpu": 48,
+    "memory": "192 GiB",
+    "storage": "EBS only",
+    "network_performance": "22500 Megabit",
+    "processor_architecture": "AMD EPYC 9R45 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r7iz.8xlarge",
+    "price_per_hour_usd": 2.976,
+    "vcpu": 32,
+    "memory": "256 GiB",
+    "storage": "EBS only",
+    "network_performance": "12500 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Sapphire Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c7gn.12xlarge",
+    "price_per_hour_usd": 2.9952,
+    "vcpu": 48,
+    "memory": "96 GiB",
+    "storage": "EBS only",
+    "network_performance": "150 Gigabit",
+    "processor_architecture": "AWS Graviton3 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c8i.16xlarge",
+    "price_per_hour_usd": 2.99872,
+    "vcpu": 64,
+    "memory": "128 GiB",
+    "storage": "EBS only",
+    "network_performance": "30000 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "g6e.4xlarge",
+    "price_per_hour_usd": 3.00424,
+    "vcpu": 16,
+    "memory": "128 GiB",
+    "storage": "1 x 600 GB NVMe SSD",
+    "network_performance": "20 Gigabit",
+    "processor_architecture": "AMD EPYC 7R13 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "i7i.8xlarge",
+    "price_per_hour_usd": 3.0202,
+    "vcpu": 32,
+    "memory": "256 GiB",
+    "storage": "2 x 3750 NVMe SSD",
+    "network_performance": "Up to 25 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Emerald Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r5.12xlarge",
+    "price_per_hour_usd": 3.024,
+    "vcpu": 48,
+    "memory": "384 GiB",
+    "storage": "EBS only",
+    "network_performance": "10 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8175",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r6i.12xlarge",
+    "price_per_hour_usd": 3.024,
+    "vcpu": 48,
+    "memory": "384 GiB",
+    "storage": "EBS only",
+    "network_performance": "18750 Megabit",
+    "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "p3.2xlarge",
+    "price_per_hour_usd": 3.06,
+    "vcpu": 8,
+    "memory": "61 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "Intel Xeon E5-2686 v4 (Broadwell)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c5.18xlarge",
+    "price_per_hour_usd": 3.06,
+    "vcpu": 72,
+    "memory": "144 GiB",
+    "storage": "EBS only",
+    "network_performance": "25 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8124M",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m7i-flex.16xlarge",
+    "price_per_hour_usd": 3.06432,
+    "vcpu": 64,
+    "memory": "256 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 25000 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Sapphire Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m5.16xlarge",
+    "price_per_hour_usd": 3.072,
+    "vcpu": 64,
+    "memory": "256 GiB",
+    "storage": "EBS only",
+    "network_performance": "20 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8175",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m6i.16xlarge",
+    "price_per_hour_usd": 3.072,
+    "vcpu": 64,
+    "memory": "256 GiB",
+    "storage": "EBS only",
+    "network_performance": "25000 Megabit",
+    "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "i7ie.6xlarge",
+    "price_per_hour_usd": 3.1188,
+    "vcpu": 24,
+    "memory": "192 GiB",
+    "storage": "2 x 7500 NVMe SSD",
+    "network_performance": "Up to 25 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Emerald Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r6idn.8xlarge",
+    "price_per_hour_usd": 3.12624,
+    "vcpu": 32,
+    "memory": "256 GiB",
+    "storage": "1 x 1900 NVMe SSD",
+    "network_performance": "50000 Megabit",
+    "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "x8g.8xlarge",
+    "price_per_hour_usd": 3.1264,
+    "vcpu": 32,
+    "memory": "512 GiB",
+    "storage": "EBS only",
+    "network_performance": "15 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m8id.12xlarge",
+    "price_per_hour_usd": 3.13248,
+    "vcpu": 48,
+    "memory": "192 GiB",
+    "storage": "1 x 2850 NVMe SSD",
+    "network_performance": "22500 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c8gd.16xlarge",
+    "price_per_hour_usd": 3.13536,
+    "vcpu": 64,
+    "memory": "128 GiB",
+    "storage": "2 x 1900 NVMe SSD",
+    "network_performance": "30 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r5ad.12xlarge",
+    "price_per_hour_usd": 3.144,
+    "vcpu": 48,
+    "memory": "384 GiB",
+    "storage": "2 x 900 NVMe SSD",
+    "network_performance": "10 Gigabit",
+    "processor_architecture": "AMD EPYC 7571",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "d3en.6xlarge",
+    "price_per_hour_usd": 3.154,
+    "vcpu": 24,
+    "memory": "96 GiB",
+    "storage": "12 x 14000 HDD",
+    "network_performance": "40 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8259 (Cascade Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r8i-flex.12xlarge",
+    "price_per_hour_usd": 3.16728,
+    "vcpu": 48,
+    "memory": "384 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 22500 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r7i.12xlarge",
+    "price_per_hour_usd": 3.1752,
+    "vcpu": 48,
+    "memory": "384 GiB",
+    "storage": "EBS only",
+    "network_performance": "18750 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Sapphire Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m4.16xlarge",
+    "price_per_hour_usd": 3.2,
+    "vcpu": 64,
+    "memory": "256 GiB",
+    "storage": "EBS only",
+    "network_performance": "20 Gigabit",
+    "processor_architecture": "Intel Xeon E5-2686 v4 (Broadwell)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m8i-flex.16xlarge",
+    "price_per_hour_usd": 3.2176,
+    "vcpu": 64,
+    "memory": "256 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 30000 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c6id.16xlarge",
+    "price_per_hour_usd": 3.2256,
+    "vcpu": 64,
+    "memory": "128 GiB",
+    "storage": "2 x 1900 NVMe SSD",
+    "network_performance": "25000 Megabit",
+    "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m7i.16xlarge",
+    "price_per_hour_usd": 3.2256,
+    "vcpu": 64,
+    "memory": "256 GiB",
+    "storage": "EBS only",
+    "network_performance": "25000 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Sapphire Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r6g.16xlarge",
+    "price_per_hour_usd": 3.2256,
+    "vcpu": 64,
+    "memory": "512 GiB",
+    "storage": "EBS only",
+    "network_performance": "25 Gigabit",
+    "processor_architecture": "AWS Graviton2 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m5dn.12xlarge",
+    "price_per_hour_usd": 3.264,
+    "vcpu": 48,
+    "memory": "192 GiB",
+    "storage": "2 x 900 GB NVMe SSD",
+    "network_performance": "50 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8259 (Cascade Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r7gd.12xlarge",
+    "price_per_hour_usd": 3.2659,
+    "vcpu": 48,
+    "memory": "384 GiB",
+    "storage": "2 x 1425 NVMe SSD",
+    "network_performance": "22500 Megabit",
+    "processor_architecture": "AWS Graviton3 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c8ib.12xlarge",
+    "price_per_hour_usd": 3.26592,
+    "vcpu": 48,
+    "memory": "96 GiB",
+    "storage": "EBS only",
+    "network_performance": "50 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c8in.12xlarge",
+    "price_per_hour_usd": 3.26592,
+    "vcpu": 48,
+    "memory": "96 GiB",
+    "storage": "EBS only",
+    "network_performance": "75 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c7a.16xlarge",
+    "price_per_hour_usd": 3.28448,
+    "vcpu": 64,
+    "memory": "128 GiB",
+    "storage": "EBS only",
+    "network_performance": "25000 Megabit",
+    "processor_architecture": "AMD EPYC 9R14 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m5ad.16xlarge",
+    "price_per_hour_usd": 3.296,
+    "vcpu": 64,
+    "memory": "256 GiB",
+    "storage": "4 x 600 NVMe SSD",
+    "network_performance": "12 Gigabit",
+    "processor_architecture": "AMD EPYC 7571",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "f1.4xlarge",
+    "price_per_hour_usd": 3.3,
+    "vcpu": 16,
+    "memory": "244 GiB",
+    "storage": "1 x 940 NVMe SSD",
+    "network_performance": "10 Gigabit",
+    "processor_architecture": "Intel Xeon E5-2686 v4 (Broadwell)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r8i.12xlarge",
+    "price_per_hour_usd": 3.33408,
+    "vcpu": 48,
+    "memory": "384 GiB",
+    "storage": "EBS only",
+    "network_performance": "22500 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "x2iedn.4xlarge",
+    "price_per_hour_usd": 3.3345,
+    "vcpu": 16,
+    "memory": "512 GiB",
+    "storage": "1 x 475 NVMe SSD",
+    "network_performance": "Up to 25 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Icelake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "x2iezn.4xlarge",
+    "price_per_hour_usd": 3.336,
+    "vcpu": 16,
+    "memory": "512 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 25 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8252",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "x1e.4xlarge",
+    "price_per_hour_usd": 3.336,
+    "vcpu": 16,
+    "memory": "488 GiB",
+    "storage": "1 x 480 SSD",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "High Frequency Intel Xeon E7-8880 v3 (Haswell)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m6in.12xlarge",
+    "price_per_hour_usd": 3.34152,
+    "vcpu": 48,
+    "memory": "192 GiB",
+    "storage": "EBS only",
+    "network_performance": "75000 Megabit",
+    "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m8ine.8xlarge",
+    "price_per_hour_usd": 3.3416,
+    "vcpu": 32,
+    "memory": "128.0 GiB",
+    "storage": "EBS only",
+    "network_performance": "50 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r8ib.8xlarge",
+    "price_per_hour_usd": 3.3472,
+    "vcpu": 32,
+    "memory": "256.0 GiB",
+    "storage": "EBS only",
+    "network_performance": "33.33 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r8in.8xlarge",
+    "price_per_hour_usd": 3.3472,
+    "vcpu": 32,
+    "memory": "256.0 GiB",
+    "storage": "EBS only",
+    "network_performance": "50 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "g7e.2xlarge",
+    "price_per_hour_usd": 3.36312,
+    "vcpu": 8,
+    "memory": "64 GiB",
+    "storage": "1 x 1900 NVMe SSD",
+    "network_performance": "50 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Emerald Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m8i.16xlarge",
+    "price_per_hour_usd": 3.38688,
+    "vcpu": 64,
+    "memory": "256 GiB",
+    "storage": "EBS only",
+    "network_performance": "30000 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "g6.16xlarge",
+    "price_per_hour_usd": 3.3968,
+    "vcpu": 64,
+    "memory": "256 GiB",
+    "storage": "2 x 940 GB NVMe SSD",
+    "network_performance": "25 Gigabit",
+    "processor_architecture": "AMD EPYC 7R13 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "i2.4xlarge",
+    "price_per_hour_usd": 3.41,
+    "vcpu": 16,
+    "memory": "122 GiB",
+    "storage": "4 x 800 SSD",
+    "network_performance": "High",
+    "processor_architecture": "Intel Xeon E5-2670 v2 (Ivy Bridge)",
+    "current_generation": "No"
+  },
+  {
+    "instance_type": "m7gd.16xlarge",
+    "price_per_hour_usd": 3.4171,
+    "vcpu": 64,
+    "memory": "256 GiB",
+    "storage": "2 x 1900 NVMe SSD",
+    "network_performance": "30 Gigabit",
+    "processor_architecture": "AWS Graviton3 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r7g.16xlarge",
+    "price_per_hour_usd": 3.4272,
+    "vcpu": 64,
+    "memory": "512 GiB",
+    "storage": "EBS only",
+    "network_performance": "30 Gigabit",
+    "processor_architecture": "AWS Graviton3 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c8a.16xlarge",
+    "price_per_hour_usd": 3.44864,
+    "vcpu": 64,
+    "memory": "128 GiB",
+    "storage": "EBS only",
+    "network_performance": "30000 Megabit",
+    "processor_architecture": "AMD EPYC 9R45 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c5d.18xlarge",
+    "price_per_hour_usd": 3.456,
+    "vcpu": 72,
+    "memory": "144 GiB",
+    "storage": "2 x 900 NVMe SSD",
+    "network_performance": "25 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8124M",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r5d.12xlarge",
+    "price_per_hour_usd": 3.456,
+    "vcpu": 48,
+    "memory": "384 GiB",
+    "storage": "2 x 900 NVMe SSD",
+    "network_performance": "10 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8175",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "g4ad.16xlarge",
+    "price_per_hour_usd": 3.468,
+    "vcpu": 64,
+    "memory": "256 GiB",
+    "storage": "2400 GB NVMe SSD",
+    "network_performance": "25 Gigabit",
+    "processor_architecture": "AMD EPYC 7R32",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m8gb.12xlarge",
+    "price_per_hour_usd": 3.492,
+    "vcpu": 48,
+    "memory": "192 GiB",
+    "storage": "EBS only",
+    "network_performance": "100 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m8gn.12xlarge",
+    "price_per_hour_usd": 3.492,
+    "vcpu": 48,
+    "memory": "192 GiB",
+    "storage": "EBS only",
+    "network_performance": "150 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "cr1.8xlarge",
+    "price_per_hour_usd": 3.5,
+    "vcpu": 32,
+    "memory": "244 GiB",
+    "storage": "2 x 120 SSD",
+    "network_performance": "10 Gigabit",
+    "processor_architecture": "Intel Xeon E5-2670",
+    "current_generation": "No"
+  },
+  {
+    "instance_type": "x8i.8xlarge",
+    "price_per_hour_usd": 3.50128,
+    "vcpu": 32,
+    "memory": "512 GiB",
+    "storage": "EBS only",
+    "network_performance": "15000 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r8gd.12xlarge",
+    "price_per_hour_usd": 3.52704,
+    "vcpu": 48,
+    "memory": "384 GiB",
+    "storage": "3 x 950 NVMe SSD",
+    "network_performance": "22500 Megabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c8id.16xlarge",
+    "price_per_hour_usd": 3.54816,
+    "vcpu": 64,
+    "memory": "128 GiB",
+    "storage": "1 x 3800 NVMe SSD",
+    "network_performance": "30000 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r5b.12xlarge",
+    "price_per_hour_usd": 3.576,
+    "vcpu": 48,
+    "memory": "384 GiB",
+    "storage": "EBS only",
+    "network_performance": "10 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8259 (Cascade Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r5n.12xlarge",
+    "price_per_hour_usd": 3.576,
+    "vcpu": 48,
+    "memory": "384 GiB",
+    "storage": "EBS only",
+    "network_performance": "50 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8259 (Cascade Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r5a.16xlarge",
+    "price_per_hour_usd": 3.616,
+    "vcpu": 64,
+    "memory": "512 GiB",
+    "storage": "EBS only",
+    "network_performance": "12 Gigabit",
+    "processor_architecture": "AMD EPYC 7571",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m5d.16xlarge",
+    "price_per_hour_usd": 3.616,
+    "vcpu": 64,
+    "memory": "256 GiB",
+    "storage": "4 x 600 NVMe SSD",
+    "network_performance": "20 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8175",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r6id.12xlarge",
+    "price_per_hour_usd": 3.6288,
+    "vcpu": 48,
+    "memory": "384 GiB",
+    "storage": "2 x 1425 NVMe SSD",
+    "network_performance": "18750 Megabit",
+    "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r6a.16xlarge",
+    "price_per_hour_usd": 3.6288,
+    "vcpu": 64,
+    "memory": "512 GiB",
+    "storage": "EBS only",
+    "network_performance": "25000 Megabit",
+    "processor_architecture": "AMD EPYC 7R13 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c6in.16xlarge",
+    "price_per_hour_usd": 3.6288,
+    "vcpu": 64,
+    "memory": "128 GiB",
+    "storage": "EBS only",
+    "network_performance": "100000 Megabit",
+    "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r7a.12xlarge",
+    "price_per_hour_usd": 3.6516,
+    "vcpu": 48,
+    "memory": "384 GiB",
+    "storage": "EBS only",
+    "network_performance": "18750 Megabit",
+    "processor_architecture": "AMD EPYC 9R14 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c6a.24xlarge",
+    "price_per_hour_usd": 3.672,
+    "vcpu": 96,
+    "memory": "192 GiB",
+    "storage": "EBS only",
+    "network_performance": "37500 Megabit",
+    "processor_architecture": "AMD EPYC 7R13 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r6gd.16xlarge",
+    "price_per_hour_usd": 3.6864,
+    "vcpu": 64,
+    "memory": "512 GiB",
+    "storage": "2 x 1900 NVMe SSD",
+    "network_performance": "25 Gigabit",
+    "processor_architecture": "AWS Graviton2 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m8gd.16xlarge",
+    "price_per_hour_usd": 3.69024,
+    "vcpu": 64,
+    "memory": "256 GiB",
+    "storage": "2 x 1900 NVMe SSD",
+    "network_performance": "30 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c5a.24xlarge",
+    "price_per_hour_usd": 3.696,
+    "vcpu": 96,
+    "memory": "192 GiB",
+    "storage": "EBS only",
+    "network_performance": "20 Gigabit",
+    "processor_architecture": "AMD EPYC 7R32",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m7a.16xlarge",
+    "price_per_hour_usd": 3.70944,
+    "vcpu": 64,
+    "memory": "256 GiB",
+    "storage": "EBS only",
+    "network_performance": "25000 Megabit",
+    "processor_architecture": "AMD EPYC 9R14 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "h1.16xlarge",
+    "price_per_hour_usd": 3.744,
+    "vcpu": 64,
+    "memory": "256 GiB",
+    "storage": "8 x 2000 HDD",
+    "network_performance": "25 Gigabit",
+    "processor_architecture": "Intel Xeon E5-2686 v4 (Broadwell)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r8g.16xlarge",
+    "price_per_hour_usd": 3.77024,
+    "vcpu": 64,
+    "memory": "512 GiB",
+    "storage": "EBS only",
+    "network_performance": "30 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c8gn.16xlarge",
+    "price_per_hour_usd": 3.792,
+    "vcpu": 64,
+    "memory": "128 GiB",
+    "storage": "EBS only",
+    "network_performance": "200 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c8gb.16xlarge",
+    "price_per_hour_usd": 3.792,
+    "vcpu": 64,
+    "memory": "128 GiB",
+    "storage": "EBS only",
+    "network_performance": "133.333 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m6id.16xlarge",
+    "price_per_hour_usd": 3.7968,
+    "vcpu": 64,
+    "memory": "256 GiB",
+    "storage": "2 x 1900 NVMe SSD",
+    "network_performance": "25000 Megabit",
+    "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m5n.16xlarge",
+    "price_per_hour_usd": 3.808,
+    "vcpu": 64,
+    "memory": "256 GiB",
+    "storage": "EBS only",
+    "network_performance": "75 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8259 (Cascade Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m6idn.12xlarge",
+    "price_per_hour_usd": 3.81888,
+    "vcpu": 48,
+    "memory": "192 GiB",
+    "storage": "2 x 1425 NVMe SSD",
+    "network_performance": "75000 Megabit",
+    "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c8g.24xlarge",
+    "price_per_hour_usd": 3.82848,
+    "vcpu": 96,
+    "memory": "192 GiB",
+    "storage": "EBS only",
+    "network_performance": "40 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r8a.12xlarge",
+    "price_per_hour_usd": 3.83424,
+    "vcpu": 48,
+    "memory": "384 GiB",
+    "storage": "EBS only",
+    "network_performance": "22500 Megabit",
+    "processor_architecture": "AMD EPYC 9R45 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c5n.18xlarge",
+    "price_per_hour_usd": 3.888,
+    "vcpu": 72,
+    "memory": "192 GiB",
+    "storage": "EBS only",
+    "network_performance": "100 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8124M",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m8a.16xlarge",
+    "price_per_hour_usd": 3.89504,
+    "vcpu": 64,
+    "memory": "256 GiB",
+    "storage": "EBS only",
+    "network_performance": "30000 Megabit",
+    "processor_architecture": "AMD EPYC 9R45 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "g4dn.12xlarge",
+    "price_per_hour_usd": 3.912,
+    "vcpu": 48,
+    "memory": "192 GiB",
+    "storage": "900 GB NVMe SSD",
+    "network_performance": "50 Gigabit",
+    "processor_architecture": "Intel Xeon Family",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "f2.12xlarge",
+    "price_per_hour_usd": 3.96,
+    "vcpu": 48,
+    "memory": "512 GiB",
+    "storage": "2 x 950 NVMe SSD",
+    "network_performance": "25 Gigabit",
+    "processor_architecture": "AMD EPYC 7R13 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m5zn.12xlarge",
+    "price_per_hour_usd": 3.9641,
+    "vcpu": 48,
+    "memory": "192 GiB",
+    "storage": "EBS only",
+    "network_performance": "100 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8252",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r8id.12xlarge",
+    "price_per_hour_usd": 3.99168,
+    "vcpu": 48,
+    "memory": "384 GiB",
+    "storage": "1 x 2850 NVMe SSD",
+    "network_performance": "22500 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c7gn.16xlarge",
+    "price_per_hour_usd": 3.9936,
+    "vcpu": 64,
+    "memory": "128 GiB",
+    "storage": "EBS only",
+    "network_performance": "200 Gigabit",
+    "processor_architecture": "AWS Graviton3 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "d3.8xlarge",
+    "price_per_hour_usd": 3.99552,
+    "vcpu": 32,
+    "memory": "256 GiB",
+    "storage": "24 x 2000 HDD",
+    "network_performance": "25 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8259 (Cascade Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "g7e.4xlarge",
+    "price_per_hour_usd": 3.99816,
+    "vcpu": 16,
+    "memory": "128 GiB",
+    "storage": "1 x 1900 NVMe SSD",
+    "network_performance": "50 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Emerald Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r5dn.12xlarge",
+    "price_per_hour_usd": 4.008,
+    "vcpu": 48,
+    "memory": "384 GiB",
+    "storage": "2 x 900 GB NVMe SSD",
+    "network_performance": "50 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8259 (Cascade Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "x2gd.12xlarge",
+    "price_per_hour_usd": 4.008,
+    "vcpu": 48,
+    "memory": "768 GiB",
+    "storage": "2 x 1425 SSD",
+    "network_performance": "20 Gigabit",
+    "processor_architecture": "AWS Graviton2 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m8ib.12xlarge",
+    "price_per_hour_usd": 4.00992,
+    "vcpu": 48,
+    "memory": "192.0 GiB",
+    "storage": "EBS only",
+    "network_performance": "50 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m8in.12xlarge",
+    "price_per_hour_usd": 4.00992,
+    "vcpu": 48,
+    "memory": "192.0 GiB",
+    "storage": "EBS only",
+    "network_performance": "75 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r6i.16xlarge",
+    "price_per_hour_usd": 4.032,
+    "vcpu": 64,
+    "memory": "512 GiB",
+    "storage": "EBS only",
+    "network_performance": "25000 Megabit",
+    "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r5.16xlarge",
+    "price_per_hour_usd": 4.032,
+    "vcpu": 64,
+    "memory": "512 GiB",
+    "storage": "EBS only",
+    "network_performance": "20 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8175",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c6i.24xlarge",
+    "price_per_hour_usd": 4.08,
+    "vcpu": 96,
+    "memory": "192 GiB",
+    "storage": "EBS only",
+    "network_performance": "37500 Megabit",
+    "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c5.24xlarge",
+    "price_per_hour_usd": 4.08,
+    "vcpu": 96,
+    "memory": "192 GiB",
+    "storage": "EBS only",
+    "network_performance": "25 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8275L",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c8ine.12xlarge",
+    "price_per_hour_usd": 4.0824,
+    "vcpu": 48,
+    "memory": "96 GiB",
+    "storage": "EBS only",
+    "network_performance": "75 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "g5.16xlarge",
+    "price_per_hour_usd": 4.096,
+    "vcpu": 64,
+    "memory": "256 GiB",
+    "storage": "1 x 1900 GB NVMe SSD",
+    "network_performance": "25 Gigabit",
+    "processor_architecture": "AMD EPYC 7R32",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "i4i.12xlarge",
+    "price_per_hour_usd": 4.118,
+    "vcpu": 48,
+    "memory": "384 GiB",
+    "storage": "3 x 3750 NVMe SSD",
+    "network_performance": "28125 Megabit",
+    "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "i8g.12xlarge",
+    "price_per_hour_usd": 4.1184,
+    "vcpu": 48,
+    "memory": "384 GiB",
+    "storage": "3 x 3750GB",
+    "network_performance": "Up to 28.125 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c5ad.24xlarge",
+    "price_per_hour_usd": 4.128,
+    "vcpu": 96,
+    "memory": "192 GiB",
+    "storage": "2 x 1900 NVMe SSD",
+    "network_performance": "20 Gigabit",
+    "processor_architecture": "AMD EPYC 7R32",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m5a.24xlarge",
+    "price_per_hour_usd": 4.128,
+    "vcpu": 96,
+    "memory": "384 GiB",
+    "storage": "EBS only",
+    "network_performance": "20 Gigabit",
+    "processor_architecture": "AMD EPYC 7571",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m6a.24xlarge",
+    "price_per_hour_usd": 4.1472,
+    "vcpu": 96,
+    "memory": "384 GiB",
+    "storage": "EBS only",
+    "network_performance": "37500 Megabit",
+    "processor_architecture": "AMD EPYC 7R13 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m8id.16xlarge",
+    "price_per_hour_usd": 4.17664,
+    "vcpu": 64,
+    "memory": "256 GiB",
+    "storage": "1 x 3800 NVMe SSD",
+    "network_performance": "30000 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r6in.12xlarge",
+    "price_per_hour_usd": 4.18392,
+    "vcpu": 48,
+    "memory": "384 GiB",
+    "storage": "EBS only",
+    "network_performance": "75000 Megabit",
+    "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r5ad.16xlarge",
+    "price_per_hour_usd": 4.192,
+    "vcpu": 64,
+    "memory": "512 GiB",
+    "storage": "4 x 600 NVMe SSD",
+    "network_performance": "12 Gigabit",
+    "processor_architecture": "AMD EPYC 7571",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "d3en.8xlarge",
+    "price_per_hour_usd": 4.20576,
+    "vcpu": 32,
+    "memory": "128 GiB",
+    "storage": "16 x 14000 HDD",
+    "network_performance": "50 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8259 (Cascade Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r8i-flex.16xlarge",
+    "price_per_hour_usd": 4.22304,
+    "vcpu": 64,
+    "memory": "512 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 30000 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r7i.16xlarge",
+    "price_per_hour_usd": 4.2336,
+    "vcpu": 64,
+    "memory": "512 GiB",
+    "storage": "EBS only",
+    "network_performance": "25000 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Sapphire Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r4.16xlarge",
+    "price_per_hour_usd": 4.256,
+    "vcpu": 64,
+    "memory": "488 GiB",
+    "storage": "EBS only",
+    "network_performance": "20 Gigabit",
+    "processor_architecture": "Intel Xeon E5-2686 v4 (Broadwell)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c7i.24xlarge",
+    "price_per_hour_usd": 4.284,
+    "vcpu": 96,
+    "memory": "192 GiB",
+    "storage": "EBS only",
+    "network_performance": "37500 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Sapphire Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m8g.24xlarge",
+    "price_per_hour_usd": 4.30848,
+    "vcpu": 96,
+    "memory": "384 GiB",
+    "storage": "EBS only",
+    "network_performance": "40 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m5dn.16xlarge",
+    "price_per_hour_usd": 4.352,
+    "vcpu": 64,
+    "memory": "256 GiB",
+    "storage": "4 x 600 NVMe SSD",
+    "network_performance": "75 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8259 (Cascade Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "g4dn.16xlarge",
+    "price_per_hour_usd": 4.352,
+    "vcpu": 64,
+    "memory": "256 GiB",
+    "storage": "900 GB NVMe SSD",
+    "network_performance": "50 Gigabit",
+    "processor_architecture": "Intel Xeon Family",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c8in.16xlarge",
+    "price_per_hour_usd": 4.35456,
+    "vcpu": 64,
+    "memory": "128 GiB",
+    "storage": "EBS only",
+    "network_performance": "100 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c8ib.16xlarge",
+    "price_per_hour_usd": 4.35456,
+    "vcpu": 64,
+    "memory": "128 GiB",
+    "storage": "EBS only",
+    "network_performance": "66.667 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r7gd.16xlarge",
+    "price_per_hour_usd": 4.3546,
+    "vcpu": 64,
+    "memory": "512 GiB",
+    "storage": "2 x 1900 NVMe SSD",
+    "network_performance": "30 Gigabit",
+    "processor_architecture": "AWS Graviton3 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r8gn.12xlarge",
+    "price_per_hour_usd": 4.3723,
+    "vcpu": 48,
+    "memory": "384 GiB",
+    "storage": "EBS only",
+    "network_performance": "150 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r8gb.12xlarge",
+    "price_per_hour_usd": 4.37232,
+    "vcpu": 48,
+    "memory": "384 GiB",
+    "storage": "EBS only",
+    "network_performance": "100 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r8i.16xlarge",
+    "price_per_hour_usd": 4.44544,
+    "vcpu": 64,
+    "memory": "512 GiB",
+    "storage": "EBS only",
+    "network_performance": "30000 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m6in.16xlarge",
+    "price_per_hour_usd": 4.45536,
+    "vcpu": 64,
+    "memory": "256 GiB",
+    "storage": "EBS only",
+    "network_performance": "100000 Megabit",
+    "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "z1d.12xlarge",
+    "price_per_hour_usd": 4.464,
+    "vcpu": 48,
+    "memory": "384 GiB",
+    "storage": "2 x 900 NVMe SSD",
+    "network_performance": "25 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8151",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r7iz.12xlarge",
+    "price_per_hour_usd": 4.464,
+    "vcpu": 48,
+    "memory": "384 GiB",
+    "storage": "EBS only",
+    "network_performance": "25000 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Sapphire Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c8i.24xlarge",
+    "price_per_hour_usd": 4.49808,
+    "vcpu": 96,
+    "memory": "192 GiB",
+    "storage": "EBS only",
+    "network_performance": "40000 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "g6e.8xlarge",
+    "price_per_hour_usd": 4.52856,
+    "vcpu": 32,
+    "memory": "256 GiB",
+    "storage": "1 x 900 GB NVMe SSD",
+    "network_performance": "25 Gigabit",
+    "processor_architecture": "AMD EPYC 7R13 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "i7i.12xlarge",
+    "price_per_hour_usd": 4.5302,
+    "vcpu": 48,
+    "memory": "384 GiB",
+    "storage": "3 x 3750 NVMe SSD",
+    "network_performance": "Up to 28.125 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Emerald Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "g3.16xlarge",
+    "price_per_hour_usd": 4.56,
+    "vcpu": 64,
+    "memory": "488 GiB",
+    "storage": "EBS only",
+    "network_performance": "20 Gigabit",
+    "processor_architecture": "Intel Xeon E5-2686 v4 (Broadwell)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "g6.12xlarge",
+    "price_per_hour_usd": 4.6016,
+    "vcpu": 48,
+    "memory": "192 GiB",
+    "storage": "4 X 940 GB NVMe SSD",
+    "network_performance": "40 Gigabit",
+    "processor_architecture": "AMD EPYC 7R13 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m5.24xlarge",
+    "price_per_hour_usd": 4.608,
+    "vcpu": 96,
+    "memory": "384 GiB",
+    "storage": "EBS only",
+    "network_performance": "25 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8175",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m6i.24xlarge",
+    "price_per_hour_usd": 4.608,
+    "vcpu": 96,
+    "memory": "384 GiB",
+    "storage": "EBS only",
+    "network_performance": "37500 Megabit",
+    "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c5d.24xlarge",
+    "price_per_hour_usd": 4.608,
+    "vcpu": 96,
+    "memory": "192 GiB",
+    "storage": "4 x 900 NVMe SSD",
+    "network_performance": "25 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8275L",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r5d.16xlarge",
+    "price_per_hour_usd": 4.608,
+    "vcpu": 64,
+    "memory": "512 GiB",
+    "storage": "4 x 600 NVMe SSD",
+    "network_performance": "20 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8175",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "is4gen.8xlarge",
+    "price_per_hour_usd": 4.6104,
+    "vcpu": 32,
+    "memory": "192 GiB",
+    "storage": "4 x 7500 SSD",
+    "network_performance": "50 Gigabit",
+    "processor_architecture": "AWS Graviton2 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m8gb.16xlarge",
+    "price_per_hour_usd": 4.656,
+    "vcpu": 64,
+    "memory": "256 GiB",
+    "storage": "EBS only",
+    "network_performance": "133.333 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m8gn.16xlarge",
+    "price_per_hour_usd": 4.656,
+    "vcpu": 64,
+    "memory": "256 GiB",
+    "storage": "EBS only",
+    "network_performance": "200 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r6idn.12xlarge",
+    "price_per_hour_usd": 4.68936,
+    "vcpu": 48,
+    "memory": "384 GiB",
+    "storage": "2 x 1425 NVMe SSD",
+    "network_performance": "75000 Megabit",
+    "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "x8g.12xlarge",
+    "price_per_hour_usd": 4.6896,
+    "vcpu": 48,
+    "memory": "768 GiB",
+    "storage": "EBS only",
+    "network_performance": "22.5 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r8gd.16xlarge",
+    "price_per_hour_usd": 4.70272,
+    "vcpu": 64,
+    "memory": "512 GiB",
+    "storage": "2 x 1900 NVMe SSD",
+    "network_performance": "30 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c8gd.24xlarge",
+    "price_per_hour_usd": 4.70304,
+    "vcpu": 96,
+    "memory": "192 GiB",
+    "storage": "3 x 1900 NVMe SSD",
+    "network_performance": "40 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "inf1.24xlarge",
+    "price_per_hour_usd": 4.721,
+    "vcpu": 96,
+    "memory": "192 GiB",
+    "storage": "EBS only",
+    "network_performance": "100 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8275CL (Cascade Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r5n.16xlarge",
+    "price_per_hour_usd": 4.768,
+    "vcpu": 64,
+    "memory": "512 GiB",
+    "storage": "EBS only",
+    "network_performance": "75 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8259 (Cascade Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r5b.16xlarge",
+    "price_per_hour_usd": 4.768,
+    "vcpu": 64,
+    "memory": "512 GiB",
+    "storage": "EBS only",
+    "network_performance": "20 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8259 (Cascade Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r6id.16xlarge",
+    "price_per_hour_usd": 4.8384,
+    "vcpu": 64,
+    "memory": "512 GiB",
+    "storage": "2 x 1900 NVMe SSD",
+    "network_performance": "25000 Megabit",
+    "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c6id.24xlarge",
+    "price_per_hour_usd": 4.8384,
+    "vcpu": 96,
+    "memory": "192 GiB",
+    "storage": "4 x 1425 NVMe SSD",
+    "network_performance": "37500 Megabit",
+    "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m7i.24xlarge",
+    "price_per_hour_usd": 4.8384,
+    "vcpu": 96,
+    "memory": "384 GiB",
+    "storage": "EBS only",
+    "network_performance": "37500 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Sapphire Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r7a.16xlarge",
+    "price_per_hour_usd": 4.8688,
+    "vcpu": 64,
+    "memory": "512 GiB",
+    "storage": "EBS only",
+    "network_performance": "25000 Megabit",
+    "processor_architecture": "AMD EPYC 9R14 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c6a.32xlarge",
+    "price_per_hour_usd": 4.896,
+    "vcpu": 128,
+    "memory": "256 GiB",
+    "storage": "EBS only",
+    "network_performance": "50000 Megabit",
+    "processor_architecture": "AMD EPYC 7R13 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c7a.24xlarge",
+    "price_per_hour_usd": 4.92672,
+    "vcpu": 96,
+    "memory": "192 GiB",
+    "storage": "EBS only",
+    "network_performance": "37500 Megabit",
+    "processor_architecture": "AMD EPYC 9R14 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "i4g.16xlarge",
+    "price_per_hour_usd": 4.94208,
+    "vcpu": 64,
+    "memory": "512 GiB",
+    "storage": "4 x 3750 SSD",
+    "network_performance": "37500 Megabit",
+    "processor_architecture": "AWS Graviton2 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m5ad.24xlarge",
+    "price_per_hour_usd": 4.944,
+    "vcpu": 96,
+    "memory": "384 GiB",
+    "storage": "4 x 900 NVMe SSD",
+    "network_performance": "20 Gigabit",
+    "processor_architecture": "AMD EPYC 7571",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m8azn.12xlarge",
+    "price_per_hour_usd": 4.95504,
+    "vcpu": 48,
+    "memory": "192 GiB",
+    "storage": "EBS only",
+    "network_performance": "100 Gigabit",
+    "processor_architecture": "AMD EPYC 9575F",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "i3.16xlarge",
+    "price_per_hour_usd": 4.992,
+    "vcpu": 64,
+    "memory": "488 GiB",
+    "storage": "8 x 1900 NVMe SSD",
+    "network_performance": "20 Gigabit",
+    "processor_architecture": "Intel Xeon E5-2686 v4 (Broadwell)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "x2iezn.6xlarge",
+    "price_per_hour_usd": 5.004,
+    "vcpu": 24,
+    "memory": "768 GiB",
+    "storage": "EBS only",
+    "network_performance": "50 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8252",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m8ine.12xlarge",
+    "price_per_hour_usd": 5.0124,
+    "vcpu": 48,
+    "memory": "192.0 GiB",
+    "storage": "EBS only",
+    "network_performance": "75 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r8ib.12xlarge",
+    "price_per_hour_usd": 5.0208,
+    "vcpu": 48,
+    "memory": "384.0 GiB",
+    "storage": "EBS only",
+    "network_performance": "50 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r8in.12xlarge",
+    "price_per_hour_usd": 5.0208,
+    "vcpu": 48,
+    "memory": "384.0 GiB",
+    "storage": "EBS only",
+    "network_performance": "75 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m8i.24xlarge",
+    "price_per_hour_usd": 5.08032,
+    "vcpu": 96,
+    "memory": "384 GiB",
+    "storage": "EBS only",
+    "network_performance": "40000 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m6idn.16xlarge",
+    "price_per_hour_usd": 5.09184,
+    "vcpu": 64,
+    "memory": "256 GiB",
+    "storage": "2 x 1900 NVMe SSD",
+    "network_performance": "100000 Megabit",
+    "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r8a.16xlarge",
+    "price_per_hour_usd": 5.11232,
+    "vcpu": 64,
+    "memory": "512 GiB",
+    "storage": "EBS only",
+    "network_performance": "30000 Megabit",
+    "processor_architecture": "AMD EPYC 9R45 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c8a.24xlarge",
+    "price_per_hour_usd": 5.17296,
+    "vcpu": 96,
+    "memory": "192 GiB",
+    "storage": "EBS only",
+    "network_performance": "40000 Megabit",
+    "processor_architecture": "AMD EPYC 9R45 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "vt1.24xlarge",
+    "price_per_hour_usd": 5.2,
+    "vcpu": 96,
+    "memory": "192 GiB",
+    "storage": "EBS only",
+    "network_performance": "25000 Megabit",
+    "processor_architecture": "Intel Xeon Platinum 8259CL",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "x8i.12xlarge",
+    "price_per_hour_usd": 5.25192,
+    "vcpu": 48,
+    "memory": "768 GiB",
+    "storage": "EBS only",
+    "network_performance": "22500 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "g7e.8xlarge",
+    "price_per_hour_usd": 5.26824,
+    "vcpu": 32,
+    "memory": "256 GiB",
+    "storage": "1 x 1900 NVMe SSD",
+    "network_performance": "100 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Emerald Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c8id.24xlarge",
+    "price_per_hour_usd": 5.32224,
+    "vcpu": 96,
+    "memory": "192 GiB",
+    "storage": "2 x 2850 NVMe SSD",
+    "network_performance": "40000 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r8id.16xlarge",
+    "price_per_hour_usd": 5.32224,
+    "vcpu": 64,
+    "memory": "512 GiB",
+    "storage": "1 x 3800 NVMe SSD",
+    "network_performance": "30000 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r5dn.16xlarge",
+    "price_per_hour_usd": 5.344,
+    "vcpu": 64,
+    "memory": "512 GiB",
+    "storage": "4 x 600 NVMe SSD",
+    "network_performance": "75 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8259 (Cascade Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "x2gd.16xlarge",
+    "price_per_hour_usd": 5.344,
+    "vcpu": 64,
+    "memory": "1024 GiB",
+    "storage": "2 x 1900 SSD",
+    "network_performance": "25 Gigabit",
+    "processor_architecture": "AWS Graviton2 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m8ib.16xlarge",
+    "price_per_hour_usd": 5.34656,
+    "vcpu": 64,
+    "memory": "256.0 GiB",
+    "storage": "EBS only",
+    "network_performance": "66.66 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m8in.16xlarge",
+    "price_per_hour_usd": 5.34656,
+    "vcpu": 64,
+    "memory": "256.0 GiB",
+    "storage": "EBS only",
+    "network_performance": "100 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m5d.24xlarge",
+    "price_per_hour_usd": 5.424,
+    "vcpu": 96,
+    "memory": "384 GiB",
+    "storage": "4 x 900 NVMe SSD",
+    "network_performance": "25 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8175",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r5a.24xlarge",
+    "price_per_hour_usd": 5.424,
+    "vcpu": 96,
+    "memory": "768 GiB",
+    "storage": "EBS only",
+    "network_performance": "20 Gigabit",
+    "processor_architecture": "AMD EPYC 7571",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "i3en.12xlarge",
+    "price_per_hour_usd": 5.424,
+    "vcpu": 48,
+    "memory": "384 GiB",
+    "storage": "4 x 7500 NVMe SSD",
+    "network_performance": "50 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8175",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c6i.32xlarge",
+    "price_per_hour_usd": 5.44,
+    "vcpu": 128,
+    "memory": "256 GiB",
+    "storage": "EBS only",
+    "network_performance": "50000 Megabit",
+    "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r6a.24xlarge",
+    "price_per_hour_usd": 5.4432,
+    "vcpu": 96,
+    "memory": "768 GiB",
+    "storage": "EBS only",
+    "network_performance": "37500 Megabit",
+    "processor_architecture": "AMD EPYC 7R13 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c6in.24xlarge",
+    "price_per_hour_usd": 5.4432,
+    "vcpu": 96,
+    "memory": "192 GiB",
+    "storage": "EBS only",
+    "network_performance": "150000 Megabit",
+    "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "i4i.16xlarge",
+    "price_per_hour_usd": 5.491,
+    "vcpu": 64,
+    "memory": "512 GiB",
+    "storage": "4 x 3750 NVMe SSD",
+    "network_performance": "35000 Megabit",
+    "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "i8g.16xlarge",
+    "price_per_hour_usd": 5.4912,
+    "vcpu": 64,
+    "memory": "512 GiB",
+    "storage": "4 x 3750GB",
+    "network_performance": "Up to 37.5 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "d2.8xlarge",
+    "price_per_hour_usd": 5.52,
+    "vcpu": 36,
+    "memory": "244 GiB",
+    "storage": "24 x 2000 HDD",
+    "network_performance": "10 Gigabit",
+    "processor_architecture": "Intel Xeon E5-2676 v3 (Haswell)",
+    "current_generation": "No"
+  },
+  {
+    "instance_type": "m6a.32xlarge",
+    "price_per_hour_usd": 5.5296,
+    "vcpu": 128,
+    "memory": "512 GiB",
+    "storage": "EBS only",
+    "network_performance": "50000 Megabit",
+    "processor_architecture": "AMD EPYC 7R13 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m8gd.24xlarge",
+    "price_per_hour_usd": 5.53536,
+    "vcpu": 96,
+    "memory": "384 GiB",
+    "storage": "3 x 1900 NVMe SSD",
+    "network_performance": "40 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m7a.24xlarge",
+    "price_per_hour_usd": 5.56416,
+    "vcpu": 96,
+    "memory": "384 GiB",
+    "storage": "EBS only",
+    "network_performance": "37500 Megabit",
+    "processor_architecture": "AMD EPYC 9R14 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r6in.16xlarge",
+    "price_per_hour_usd": 5.57856,
+    "vcpu": 64,
+    "memory": "512 GiB",
+    "storage": "EBS only",
+    "network_performance": "100000 Megabit",
+    "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r8g.24xlarge",
+    "price_per_hour_usd": 5.65536,
+    "vcpu": 96,
+    "memory": "768 GiB",
+    "storage": "EBS only",
+    "network_performance": "40 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "g5.12xlarge",
+    "price_per_hour_usd": 5.672,
+    "vcpu": 48,
+    "memory": "192 GiB",
+    "storage": "1 x 3800 GB NVMe SSD",
+    "network_performance": "40 Gigabit",
+    "processor_architecture": "AMD EPYC 7R32",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c8gn.24xlarge",
+    "price_per_hour_usd": 5.688,
+    "vcpu": 96,
+    "memory": "192 GiB",
+    "storage": "EBS only",
+    "network_performance": "300 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c8gb.24xlarge",
+    "price_per_hour_usd": 5.688,
+    "vcpu": 96,
+    "memory": "192 GiB",
+    "storage": "EBS only",
+    "network_performance": "200 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "i8ge.12xlarge",
+    "price_per_hour_usd": 5.6952,
+    "vcpu": 48,
+    "memory": "384 GiB",
+    "storage": "4 x 7500 NVMe SSD",
+    "network_performance": "75 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m6id.24xlarge",
+    "price_per_hour_usd": 5.6952,
+    "vcpu": 96,
+    "memory": "384 GiB",
+    "storage": "4 x 1425 NVMe SSD",
+    "network_performance": "37500 Megabit",
+    "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m5n.24xlarge",
+    "price_per_hour_usd": 5.712,
+    "vcpu": 96,
+    "memory": "384 GiB",
+    "storage": "EBS only",
+    "network_performance": "100 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8259 (Cascade Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "im4gn.16xlarge",
+    "price_per_hour_usd": 5.82067,
+    "vcpu": 64,
+    "memory": "256 GiB",
+    "storage": "4 x 7500 SSD",
+    "network_performance": "100 Gigabit",
+    "processor_architecture": "AWS Graviton2 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r8gb.16xlarge",
+    "price_per_hour_usd": 5.82976,
+    "vcpu": 64,
+    "memory": "512 GiB",
+    "storage": "EBS only",
+    "network_performance": "133.333 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r8gn.16xlarge",
+    "price_per_hour_usd": 5.8298,
+    "vcpu": 64,
+    "memory": "512 GiB",
+    "storage": "EBS only",
+    "network_performance": "200 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m8a.24xlarge",
+    "price_per_hour_usd": 5.84256,
+    "vcpu": 96,
+    "memory": "384 GiB",
+    "storage": "EBS only",
+    "network_performance": "40000 Megabit",
+    "processor_architecture": "AMD EPYC 9R45 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r7iz.16xlarge",
+    "price_per_hour_usd": 5.952,
+    "vcpu": 64,
+    "memory": "512 GiB",
+    "storage": "EBS only",
+    "network_performance": "25000 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Sapphire Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c8i.32xlarge",
+    "price_per_hour_usd": 5.99744,
+    "vcpu": 128,
+    "memory": "256 GiB",
+    "storage": "EBS only",
+    "network_performance": "50000 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "i7i.16xlarge",
+    "price_per_hour_usd": 6.0403,
+    "vcpu": 64,
+    "memory": "512 GiB",
+    "storage": "4 x 3750 NVMe SSD",
+    "network_performance": "Up to 37.5 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Emerald Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r5.24xlarge",
+    "price_per_hour_usd": 6.048,
+    "vcpu": 96,
+    "memory": "768 GiB",
+    "storage": "EBS only",
+    "network_performance": "25 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8175",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r6i.24xlarge",
+    "price_per_hour_usd": 6.048,
+    "vcpu": 96,
+    "memory": "768 GiB",
+    "storage": "EBS only",
+    "network_performance": "37500 Megabit",
+    "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m6i.32xlarge",
+    "price_per_hour_usd": 6.144,
+    "vcpu": 128,
+    "memory": "512 GiB",
+    "storage": "EBS only",
+    "network_performance": "50000 Megabit",
+    "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "i7ie.12xlarge",
+    "price_per_hour_usd": 6.2376,
+    "vcpu": 48,
+    "memory": "384 GiB",
+    "storage": "4 x 7500 NVMe SSD",
+    "network_performance": "Up to 50 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Emerald Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r6idn.16xlarge",
+    "price_per_hour_usd": 6.25248,
+    "vcpu": 64,
+    "memory": "512 GiB",
+    "storage": "2 x 1900 NVMe SSD",
+    "network_performance": "100000 Megabit",
+    "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "x8g.16xlarge",
+    "price_per_hour_usd": 6.2528,
+    "vcpu": 64,
+    "memory": "1024 GiB",
+    "storage": "EBS only",
+    "network_performance": "30 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m8id.24xlarge",
+    "price_per_hour_usd": 6.26496,
+    "vcpu": 96,
+    "memory": "384 GiB",
+    "storage": "2 x 2850 NVMe SSD",
+    "network_performance": "40000 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r5ad.24xlarge",
+    "price_per_hour_usd": 6.288,
+    "vcpu": 96,
+    "memory": "768 GiB",
+    "storage": "4 x 900 NVMe SSD",
+    "network_performance": "20 Gigabit",
+    "processor_architecture": "AMD EPYC 7571",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "d3en.12xlarge",
+    "price_per_hour_usd": 6.30864,
+    "vcpu": 48,
+    "memory": "192 GiB",
+    "storage": "24 x 14000 HDD",
+    "network_performance": "75 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8259 (Cascade Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r7i.24xlarge",
+    "price_per_hour_usd": 6.3504,
+    "vcpu": 96,
+    "memory": "768 GiB",
+    "storage": "EBS only",
+    "network_performance": "37500 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Sapphire Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c6id.32xlarge",
+    "price_per_hour_usd": 6.4512,
+    "vcpu": 128,
+    "memory": "256 GiB",
+    "storage": "4 x 1900 NVMe SSD",
+    "network_performance": "50000 Megabit",
+    "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "inf2.24xlarge",
+    "price_per_hour_usd": 6.49063,
+    "vcpu": 96,
+    "memory": "384 GiB",
+    "storage": "EBS only",
+    "network_performance": "50 Gigabit",
+    "processor_architecture": "AMD EPYC 7R13 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m5dn.24xlarge",
+    "price_per_hour_usd": 6.528,
+    "vcpu": 96,
+    "memory": "384 GiB",
+    "storage": "4 x 900 NVMe SSD",
+    "network_performance": "100 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8259 (Cascade Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c8ib.24xlarge",
+    "price_per_hour_usd": 6.53184,
+    "vcpu": 96,
+    "memory": "192 GiB",
+    "storage": "EBS only",
+    "network_performance": "100 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c8in.24xlarge",
+    "price_per_hour_usd": 6.53184,
+    "vcpu": 96,
+    "memory": "192 GiB",
+    "storage": "EBS only",
+    "network_performance": "150 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c7a.32xlarge",
+    "price_per_hour_usd": 6.56896,
+    "vcpu": 128,
+    "memory": "256 GiB",
+    "storage": "EBS only",
+    "network_performance": "50000 Megabit",
+    "processor_architecture": "AMD EPYC 9R14 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r8i.24xlarge",
+    "price_per_hour_usd": 6.66816,
+    "vcpu": 96,
+    "memory": "768 GiB",
+    "storage": "EBS only",
+    "network_performance": "40000 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "x2idn.16xlarge",
+    "price_per_hour_usd": 6.669,
+    "vcpu": 64,
+    "memory": "1024 GiB",
+    "storage": "1 x 1900 NVMe SSD",
+    "network_performance": "50 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Icelake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "x2iedn.8xlarge",
+    "price_per_hour_usd": 6.669,
+    "vcpu": 32,
+    "memory": "1024 GiB",
+    "storage": "1 x 950 NVMe SSD",
+    "network_performance": "25 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Icelake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "x1.16xlarge",
+    "price_per_hour_usd": 6.669,
+    "vcpu": 64,
+    "memory": "976 GiB",
+    "storage": "1 x 1920 SSD",
+    "network_performance": "High",
+    "processor_architecture": "High Frequency Intel Xeon E7-8880 v3 (Haswell)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "x1e.8xlarge",
+    "price_per_hour_usd": 6.672,
+    "vcpu": 32,
+    "memory": "976 GiB",
+    "storage": "1 x 960 SSD",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "High Frequency Intel Xeon E7-8880 v3 (Haswell)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "x2iezn.8xlarge",
+    "price_per_hour_usd": 6.672,
+    "vcpu": 32,
+    "memory": "1024 GiB",
+    "storage": "EBS only",
+    "network_performance": "75 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8252",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "g6.24xlarge",
+    "price_per_hour_usd": 6.6752,
+    "vcpu": 96,
+    "memory": "384 GiB",
+    "storage": "4 X 940 GB NVMe SSD",
+    "network_performance": "50 Gigabit",
+    "processor_architecture": "AMD EPYC 7R13 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m6in.24xlarge",
+    "price_per_hour_usd": 6.68304,
+    "vcpu": 96,
+    "memory": "384 GiB",
+    "storage": "EBS only",
+    "network_performance": "150000 Megabit",
+    "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r8ib.16xlarge",
+    "price_per_hour_usd": 6.6944,
+    "vcpu": 64,
+    "memory": "512.0 GiB",
+    "storage": "EBS only",
+    "network_performance": "66.66 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r8in.16xlarge",
+    "price_per_hour_usd": 6.6944,
+    "vcpu": 64,
+    "memory": "512.0 GiB",
+    "storage": "EBS only",
+    "network_performance": "100 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m8i.32xlarge",
+    "price_per_hour_usd": 6.77376,
+    "vcpu": 128,
+    "memory": "512 GiB",
+    "storage": "EBS only",
+    "network_performance": "50000 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "i2.8xlarge",
+    "price_per_hour_usd": 6.82,
+    "vcpu": 32,
+    "memory": "244 GiB",
+    "storage": "8 x 800 SSD",
+    "network_performance": "10 Gigabit",
+    "processor_architecture": "Intel Xeon E5-2670 v2 (Ivy Bridge)",
+    "current_generation": "No"
+  },
+  {
+    "instance_type": "p5.4xlarge",
+    "price_per_hour_usd": 6.88,
+    "vcpu": 16,
+    "memory": "256 GiB",
+    "storage": "1 x 3840 GB SSD",
+    "network_performance": "100 Gigabit",
+    "processor_architecture": "AMD EPYC 7R13 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r5d.24xlarge",
+    "price_per_hour_usd": 6.912,
+    "vcpu": 96,
+    "memory": "768 GiB",
+    "storage": "4 x 900 NVMe SSD",
+    "network_performance": "25 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8175",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m8gn.24xlarge",
+    "price_per_hour_usd": 6.984,
+    "vcpu": 96,
+    "memory": "384 GiB",
+    "storage": "EBS only",
+    "network_performance": "300 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m8gb.24xlarge",
+    "price_per_hour_usd": 6.984,
+    "vcpu": 96,
+    "memory": "384 GiB",
+    "storage": "EBS only",
+    "network_performance": "200 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "x8i.16xlarge",
+    "price_per_hour_usd": 7.00256,
+    "vcpu": 64,
+    "memory": "1024 GiB",
+    "storage": "EBS only",
+    "network_performance": "30000 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r8gd.24xlarge",
+    "price_per_hour_usd": 7.05408,
+    "vcpu": 96,
+    "memory": "768 GiB",
+    "storage": "3 x 1900 NVMe SSD",
+    "network_performance": "40 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c8id.32xlarge",
+    "price_per_hour_usd": 7.09632,
+    "vcpu": 128,
+    "memory": "256 GiB",
+    "storage": "2 x 3800 NVMe SSD",
+    "network_performance": "50000 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r5b.24xlarge",
+    "price_per_hour_usd": 7.152,
+    "vcpu": 96,
+    "memory": "768 GiB",
+    "storage": "EBS only",
+    "network_performance": "25 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8259 (Cascade Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r5n.24xlarge",
+    "price_per_hour_usd": 7.152,
+    "vcpu": 96,
+    "memory": "768 GiB",
+    "storage": "EBS only",
+    "network_performance": "100 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8259 (Cascade Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "p2.8xlarge",
+    "price_per_hour_usd": 7.2,
+    "vcpu": 32,
+    "memory": "488 GiB",
+    "storage": "EBS only",
+    "network_performance": "10 Gigabit",
+    "processor_architecture": "Intel Xeon E5-2686 v4 (Broadwell)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r6id.24xlarge",
+    "price_per_hour_usd": 7.2576,
+    "vcpu": 96,
+    "memory": "768 GiB",
+    "storage": "4 x 1425 NVMe SSD",
+    "network_performance": "37500 Megabit",
+    "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r6a.32xlarge",
+    "price_per_hour_usd": 7.2576,
+    "vcpu": 128,
+    "memory": "1024 GiB",
+    "storage": "EBS only",
+    "network_performance": "50000 Megabit",
+    "processor_architecture": "AMD EPYC 7R13 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c6in.32xlarge",
+    "price_per_hour_usd": 7.2576,
+    "vcpu": 128,
+    "memory": "256 GiB",
+    "storage": "EBS only",
+    "network_performance": "200000 Megabit",
+    "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r7a.24xlarge",
+    "price_per_hour_usd": 7.3032,
+    "vcpu": 96,
+    "memory": "768 GiB",
+    "storage": "EBS only",
+    "network_performance": "37500 Megabit",
+    "processor_architecture": "AMD EPYC 9R14 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c6a.48xlarge",
+    "price_per_hour_usd": 7.344,
+    "vcpu": 192,
+    "memory": "384 GiB",
+    "storage": "EBS only",
+    "network_performance": "50000 Megabit",
+    "processor_architecture": "AMD EPYC 7R13 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m7a.32xlarge",
+    "price_per_hour_usd": 7.41888,
+    "vcpu": 128,
+    "memory": "512 GiB",
+    "storage": "EBS only",
+    "network_performance": "50000 Megabit",
+    "processor_architecture": "AMD EPYC 9R14 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "g6e.16xlarge",
+    "price_per_hour_usd": 7.57719,
+    "vcpu": 64,
+    "memory": "512 GiB",
+    "storage": "1 x 1900 GB NVMe SSD",
+    "network_performance": "35 Gigabit",
+    "processor_architecture": "AMD EPYC 7R13 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m6id.32xlarge",
+    "price_per_hour_usd": 7.5936,
+    "vcpu": 128,
+    "memory": "512 GiB",
+    "storage": "4 x 1900 NVMe SSD",
+    "network_performance": "50000 Megabit",
+    "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m6idn.24xlarge",
+    "price_per_hour_usd": 7.63776,
+    "vcpu": 96,
+    "memory": "384 GiB",
+    "storage": "4 x 1425 NVMe SSD",
+    "network_performance": "150000 Megabit",
+    "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c8g.48xlarge",
+    "price_per_hour_usd": 7.65696,
+    "vcpu": 192,
+    "memory": "384 GiB",
+    "storage": "EBS only",
+    "network_performance": "50 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r8a.24xlarge",
+    "price_per_hour_usd": 7.66848,
+    "vcpu": 96,
+    "memory": "768 GiB",
+    "storage": "EBS only",
+    "network_performance": "40000 Megabit",
+    "processor_architecture": "AMD EPYC 9R45 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r8id.24xlarge",
+    "price_per_hour_usd": 7.98336,
+    "vcpu": 96,
+    "memory": "768 GiB",
+    "storage": "2 x 2850 NVMe SSD",
+    "network_performance": "40000 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r5dn.24xlarge",
+    "price_per_hour_usd": 8.016,
+    "vcpu": 96,
+    "memory": "768 GiB",
+    "storage": "4 x 900 NVMe SSD",
+    "network_performance": "100 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8259 (Cascade Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m8ib.24xlarge",
+    "price_per_hour_usd": 8.01984,
+    "vcpu": 96,
+    "memory": "384.0 GiB",
+    "storage": "EBS only",
+    "network_performance": "100 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m8in.24xlarge",
+    "price_per_hour_usd": 8.01984,
+    "vcpu": 96,
+    "memory": "384.0 GiB",
+    "storage": "EBS only",
+    "network_performance": "150 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r6i.32xlarge",
+    "price_per_hour_usd": 8.064,
+    "vcpu": 128,
+    "memory": "1024 GiB",
+    "storage": "EBS only",
+    "network_performance": "50000 Megabit",
+    "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "g5.24xlarge",
+    "price_per_hour_usd": 8.144,
+    "vcpu": 96,
+    "memory": "384 GiB",
+    "storage": "1 x 3800 GB NVMe SSD",
+    "network_performance": "50 Gigabit",
+    "processor_architecture": "AMD EPYC 7R32",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "i8g.24xlarge",
+    "price_per_hour_usd": 8.2368,
+    "vcpu": 96,
+    "memory": "768 GiB",
+    "storage": "6 x 3750GB",
+    "network_performance": "Up to 56.25 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "i4i.24xlarge",
+    "price_per_hour_usd": 8.2368,
+    "vcpu": 96,
+    "memory": "768 GiB",
+    "storage": "6 x 3750 NVMe SSD",
+    "network_performance": "56250 Megabit",
+    "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "g7e.12xlarge",
+    "price_per_hour_usd": 8.28608,
+    "vcpu": 48,
+    "memory": "512 GiB",
+    "storage": "1 x 3800 NVMe SSD",
+    "network_performance": "400 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Emerald Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m6a.48xlarge",
+    "price_per_hour_usd": 8.2944,
+    "vcpu": 192,
+    "memory": "768 GiB",
+    "storage": "EBS only",
+    "network_performance": "50000 Megabit",
+    "processor_architecture": "AMD EPYC 7R13 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m8id.32xlarge",
+    "price_per_hour_usd": 8.35328,
+    "vcpu": 128,
+    "memory": "512 GiB",
+    "storage": "2 x 3800 NVMe SSD",
+    "network_performance": "50000 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r6in.24xlarge",
+    "price_per_hour_usd": 8.36784,
+    "vcpu": 96,
+    "memory": "768 GiB",
+    "storage": "EBS only",
+    "network_performance": "150000 Megabit",
+    "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "i8ge.18xlarge",
+    "price_per_hour_usd": 8.5428,
+    "vcpu": 72,
+    "memory": "576 GiB",
+    "storage": "6 x 7500 NVMe SSD",
+    "network_performance": "112.5 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c7i.48xlarge",
+    "price_per_hour_usd": 8.568,
+    "vcpu": 192,
+    "memory": "384 GiB",
+    "storage": "EBS only",
+    "network_performance": "50000 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Sapphire Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m8g.48xlarge",
+    "price_per_hour_usd": 8.61696,
+    "vcpu": 192,
+    "memory": "768 GiB",
+    "storage": "EBS only",
+    "network_performance": "50 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c8in.32xlarge",
+    "price_per_hour_usd": 8.70912,
+    "vcpu": 128,
+    "memory": "256 GiB",
+    "storage": "EBS only",
+    "network_performance": "200 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c8ib.32xlarge",
+    "price_per_hour_usd": 8.70912,
+    "vcpu": 128,
+    "memory": "256 GiB",
+    "storage": "EBS only",
+    "network_performance": "133.333 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r8gn.24xlarge",
+    "price_per_hour_usd": 8.7446,
+    "vcpu": 96,
+    "memory": "768 GiB",
+    "storage": "EBS only",
+    "network_performance": "300 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r8gb.24xlarge",
+    "price_per_hour_usd": 8.74464,
+    "vcpu": 96,
+    "memory": "768 GiB",
+    "storage": "EBS only",
+    "network_performance": "200 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r8i.32xlarge",
+    "price_per_hour_usd": 8.89088,
+    "vcpu": 128,
+    "memory": "1024 GiB",
+    "storage": "EBS only",
+    "network_performance": "50000 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m6in.32xlarge",
+    "price_per_hour_usd": 8.91072,
+    "vcpu": 128,
+    "memory": "512 GiB",
+    "storage": "EBS only",
+    "network_performance": "200000 Megabit",
+    "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c8i.48xlarge",
+    "price_per_hour_usd": 8.99616,
+    "vcpu": 192,
+    "memory": "384 GiB",
+    "storage": "EBS only",
+    "network_performance": "75000 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "i7i.24xlarge",
+    "price_per_hour_usd": 9.0605,
+    "vcpu": 96,
+    "memory": "768 GiB",
+    "storage": "6 x 3750 NVMe SSD",
+    "network_performance": "Up to 56.25 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Emerald Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "i7ie.18xlarge",
+    "price_per_hour_usd": 9.3564,
+    "vcpu": 72,
+    "memory": "576 GiB",
+    "storage": "6 x 7500 NVMe SSD",
+    "network_performance": "Up to 75 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Emerald Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r6idn.24xlarge",
+    "price_per_hour_usd": 9.37872,
+    "vcpu": 96,
+    "memory": "768 GiB",
+    "storage": "4 x 1425 NVMe SSD",
+    "network_performance": "150000 Megabit",
+    "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "x8g.24xlarge",
+    "price_per_hour_usd": 9.3792,
+    "vcpu": 96,
+    "memory": "1536 GiB",
+    "storage": "EBS only",
+    "network_performance": "40 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c8gd.48xlarge",
+    "price_per_hour_usd": 9.40608,
+    "vcpu": 192,
+    "memory": "384 GiB",
+    "storage": "6 x 1900 NVMe SSD",
+    "network_performance": "50 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m7i.48xlarge",
+    "price_per_hour_usd": 9.6768,
+    "vcpu": 192,
+    "memory": "768 GiB",
+    "storage": "EBS only",
+    "network_performance": "50000 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Sapphire Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r6id.32xlarge",
+    "price_per_hour_usd": 9.6768,
+    "vcpu": 128,
+    "memory": "1024 GiB",
+    "storage": "4 x 1900 NVMe SSD",
+    "network_performance": "50000 Megabit",
+    "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r7a.32xlarge",
+    "price_per_hour_usd": 9.7376,
+    "vcpu": 128,
+    "memory": "1024 GiB",
+    "storage": "EBS only",
+    "network_performance": "50000 Megabit",
+    "processor_architecture": "AMD EPYC 9R14 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c7a.48xlarge",
+    "price_per_hour_usd": 9.85344,
+    "vcpu": 192,
+    "memory": "384 GiB",
+    "storage": "EBS only",
+    "network_performance": "50000 Megabit",
+    "processor_architecture": "AMD EPYC 9R14 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m8azn.24xlarge",
+    "price_per_hour_usd": 9.91008,
+    "vcpu": 96,
+    "memory": "384 GiB",
+    "storage": "EBS only",
+    "network_performance": "200 Gigabit",
+    "processor_architecture": "AMD EPYC 9575F",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "x2idn.24xlarge",
+    "price_per_hour_usd": 10.0035,
+    "vcpu": 96,
+    "memory": "1536 GiB",
+    "storage": "2 x 1425 NVMe SSD",
+    "network_performance": "75 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Icelake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "x2iezn.12xlarge",
+    "price_per_hour_usd": 10.008,
+    "vcpu": 48,
+    "memory": "1536 GiB",
+    "storage": "EBS only",
+    "network_performance": "100 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8252",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r8in.24xlarge",
+    "price_per_hour_usd": 10.0416,
+    "vcpu": 96,
+    "memory": "768.0 GiB",
+    "storage": "EBS only",
+    "network_performance": "150 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r8ib.24xlarge",
+    "price_per_hour_usd": 10.0416,
+    "vcpu": 96,
+    "memory": "768.0 GiB",
+    "storage": "EBS only",
+    "network_performance": "100 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m8i.48xlarge",
+    "price_per_hour_usd": 10.16064,
+    "vcpu": 192,
+    "memory": "768 GiB",
+    "storage": "EBS only",
+    "network_performance": "75000 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m6idn.32xlarge",
+    "price_per_hour_usd": 10.18368,
+    "vcpu": 128,
+    "memory": "512 GiB",
+    "storage": "4 x 1900 NVMe SSD",
+    "network_performance": "200000 Megabit",
+    "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c8a.48xlarge",
+    "price_per_hour_usd": 10.34592,
+    "vcpu": 192,
+    "memory": "384 GiB",
+    "storage": "EBS only",
+    "network_performance": "75000 Megabit",
+    "processor_architecture": "AMD EPYC 9R45 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "g6e.12xlarge",
+    "price_per_hour_usd": 10.49264,
+    "vcpu": 48,
+    "memory": "384 GiB",
+    "storage": "2 x 1900 GB NVMe SSD",
+    "network_performance": "100 Gigabit",
+    "processor_architecture": "AMD EPYC 7R13 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "x8i.24xlarge",
+    "price_per_hour_usd": 10.50384,
+    "vcpu": 96,
+    "memory": "1536 GiB",
+    "storage": "EBS only",
+    "network_performance": "40000 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r8id.32xlarge",
+    "price_per_hour_usd": 10.64448,
+    "vcpu": 128,
+    "memory": "1024 GiB",
+    "storage": "2 x 3800 NVMe SSD",
+    "network_performance": "50000 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c8id.48xlarge",
+    "price_per_hour_usd": 10.64448,
+    "vcpu": 192,
+    "memory": "384 GiB",
+    "storage": "3 x 3800 NVMe SSD",
+    "network_performance": "75000 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m8in.32xlarge",
+    "price_per_hour_usd": 10.69312,
+    "vcpu": 128,
+    "memory": "512.0 GiB",
+    "storage": "EBS only",
+    "network_performance": "200 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m8ib.32xlarge",
+    "price_per_hour_usd": 10.69312,
+    "vcpu": 128,
+    "memory": "512.0 GiB",
+    "storage": "EBS only",
+    "network_performance": "133.33 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "i3en.24xlarge",
+    "price_per_hour_usd": 10.848,
+    "vcpu": 96,
+    "memory": "768 GiB",
+    "storage": "8 x 7500 NVMe SSD",
+    "network_performance": "100 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8175",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r6a.48xlarge",
+    "price_per_hour_usd": 10.8864,
+    "vcpu": 192,
+    "memory": "1536 GiB",
+    "storage": "EBS only",
+    "network_performance": "50000 Megabit",
+    "processor_architecture": "AMD EPYC 7R13 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "i4i.32xlarge",
+    "price_per_hour_usd": 10.9824,
+    "vcpu": 128,
+    "memory": "1024 GiB",
+    "storage": "8 x 3750 SSD",
+    "network_performance": "75000 Megabit",
+    "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m8gd.48xlarge",
+    "price_per_hour_usd": 11.07072,
+    "vcpu": 192,
+    "memory": "768 GiB",
+    "storage": "6 x 1900 NVMe SSD",
+    "network_performance": "50 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m7a.48xlarge",
+    "price_per_hour_usd": 11.12832,
+    "vcpu": 192,
+    "memory": "768 GiB",
+    "storage": "EBS only",
+    "network_performance": "50000 Megabit",
+    "processor_architecture": "AMD EPYC 9R14 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r6in.32xlarge",
+    "price_per_hour_usd": 11.15712,
+    "vcpu": 128,
+    "memory": "1024 GiB",
+    "storage": "EBS only",
+    "network_performance": "200000 Megabit",
+    "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r8g.48xlarge",
+    "price_per_hour_usd": 11.31072,
+    "vcpu": 192,
+    "memory": "1536 GiB",
+    "storage": "EBS only",
+    "network_performance": "50 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c8gn.48xlarge",
+    "price_per_hour_usd": 11.376,
+    "vcpu": 192,
+    "memory": "384 GiB",
+    "storage": "EBS only",
+    "network_performance": "600 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c8gb.48xlarge",
+    "price_per_hour_usd": 11.376,
+    "vcpu": 192,
+    "memory": "384 GiB",
+    "storage": "EBS only",
+    "network_performance": "400 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "i8ge.24xlarge",
+    "price_per_hour_usd": 11.3904,
+    "vcpu": 96,
+    "memory": "768 GiB",
+    "storage": "8 x 7500 NVMe SSD",
+    "network_performance": "150 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m8a.48xlarge",
+    "price_per_hour_usd": 11.68512,
+    "vcpu": 192,
+    "memory": "768 GiB",
+    "storage": "EBS only",
+    "network_performance": "75000 Megabit",
+    "processor_architecture": "AMD EPYC 9R45 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r7iz.32xlarge",
+    "price_per_hour_usd": 11.904,
+    "vcpu": 128,
+    "memory": "1024 GiB",
+    "storage": "EBS only",
+    "network_performance": "50000 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Sapphire Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "p3.8xlarge",
+    "price_per_hour_usd": 12.24,
+    "vcpu": 32,
+    "memory": "244 GiB",
+    "storage": "EBS only",
+    "network_performance": "10 Gigabit",
+    "processor_architecture": "Intel Xeon E5-2686 v4 (Broadwell)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "i7ie.24xlarge",
+    "price_per_hour_usd": 12.4752,
+    "vcpu": 96,
+    "memory": "768 GiB",
+    "storage": "8 x 7500 NVMe SSD",
+    "network_performance": "Up to 100 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Emerald Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r6idn.32xlarge",
+    "price_per_hour_usd": 12.50496,
+    "vcpu": 128,
+    "memory": "1024 GiB",
+    "storage": "4 x 1900 NVMe SSD",
+    "network_performance": "200000 Megabit",
+    "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m8id.48xlarge",
+    "price_per_hour_usd": 12.52992,
+    "vcpu": 192,
+    "memory": "768 GiB",
+    "storage": "3 x 3800 NVMe SSD",
+    "network_performance": "75000 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r7i.48xlarge",
+    "price_per_hour_usd": 12.7008,
+    "vcpu": 192,
+    "memory": "1536 GiB",
+    "storage": "EBS only",
+    "network_performance": "50000 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Sapphire Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "inf2.48xlarge",
+    "price_per_hour_usd": 12.98127,
+    "vcpu": 192,
+    "memory": "768 GiB",
+    "storage": "EBS only",
+    "network_performance": "100 Gigabit",
+    "processor_architecture": "AMD EPYC 7R13 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c8ib.48xlarge",
+    "price_per_hour_usd": 13.06368,
+    "vcpu": 192,
+    "memory": "384 GiB",
+    "storage": "EBS only",
+    "network_performance": "200 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c8in.48xlarge",
+    "price_per_hour_usd": 13.06368,
+    "vcpu": 192,
+    "memory": "384 GiB",
+    "storage": "EBS only",
+    "network_performance": "300 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "dl1.24xlarge",
+    "price_per_hour_usd": 13.10904,
+    "vcpu": 96,
+    "memory": "768 GiB",
+    "storage": "4 x 1000 GB NVMe SSD",
+    "network_performance": "400 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8275L",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "f1.16xlarge",
+    "price_per_hour_usd": 13.2,
+    "vcpu": 64,
+    "memory": "976 GiB",
+    "storage": "4 x 940 NVMe SSD",
+    "network_performance": "25 Gigabit",
+    "processor_architecture": "Intel Xeon E5-2686 v4 (Broadwell)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r8i.48xlarge",
+    "price_per_hour_usd": 13.33632,
+    "vcpu": 192,
+    "memory": "1536 GiB",
+    "storage": "EBS only",
+    "network_performance": "75000 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "x1.32xlarge",
+    "price_per_hour_usd": 13.338,
+    "vcpu": 128,
+    "memory": "1952 GiB",
+    "storage": "2 x 1920 SSD",
+    "network_performance": "High",
+    "processor_architecture": "High Frequency Intel Xeon E7-8880 v3 (Haswell)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "x2idn.32xlarge",
+    "price_per_hour_usd": 13.338,
+    "vcpu": 128,
+    "memory": "2048 GiB",
+    "storage": "2 x 1900 NVMe SSD",
+    "network_performance": "100 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Icelake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "x2iedn.16xlarge",
+    "price_per_hour_usd": 13.338,
+    "vcpu": 64,
+    "memory": "2048 GiB",
+    "storage": "1 x 1900 NVMe SSD",
+    "network_performance": "50 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Icelake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "x1e.16xlarge",
+    "price_per_hour_usd": 13.344,
+    "vcpu": 64,
+    "memory": "1952 GiB",
+    "storage": "1 x 1920 SSD",
+    "network_performance": "10 Gigabit",
+    "processor_architecture": "High Frequency Intel Xeon E7-8880 v3 (Haswell)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "g6.48xlarge",
+    "price_per_hour_usd": 13.3504,
+    "vcpu": 192,
+    "memory": "768 GiB",
+    "storage": "8 x 940 NVMe SSD",
+    "network_performance": "100 Gigabit",
+    "processor_architecture": "AMD EPYC 7R13 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r8ib.32xlarge",
+    "price_per_hour_usd": 13.3888,
+    "vcpu": 128,
+    "memory": "1024.0 GiB",
+    "storage": "EBS only",
+    "network_performance": "133.33 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r8in.32xlarge",
+    "price_per_hour_usd": 13.3888,
+    "vcpu": 128,
+    "memory": "1024.0 GiB",
+    "storage": "EBS only",
+    "network_performance": "200 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m8gb.48xlarge",
+    "price_per_hour_usd": 13.968,
+    "vcpu": 192,
+    "memory": "768 GiB",
+    "storage": "EBS only",
+    "network_performance": "400 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m8gn.48xlarge",
+    "price_per_hour_usd": 13.968,
+    "vcpu": 192,
+    "memory": "768 GiB",
+    "storage": "EBS only",
+    "network_performance": "600 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "x8i.32xlarge",
+    "price_per_hour_usd": 14.00512,
+    "vcpu": 128,
+    "memory": "2048 GiB",
+    "storage": "EBS only",
+    "network_performance": "50000 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r8gd.48xlarge",
+    "price_per_hour_usd": 14.10816,
+    "vcpu": 192,
+    "memory": "1536 GiB",
+    "storage": "6 x 1900 NVMe SSD",
+    "network_performance": "50 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "p2.16xlarge",
+    "price_per_hour_usd": 14.4,
+    "vcpu": 64,
+    "memory": "732 GiB",
+    "storage": "EBS only",
+    "network_performance": "20 Gigabit",
+    "processor_architecture": "Intel Xeon E5-2686 v4 (Broadwell)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r7a.48xlarge",
+    "price_per_hour_usd": 14.6064,
+    "vcpu": 192,
+    "memory": "1536 GiB",
+    "storage": "EBS only",
+    "network_performance": "50000 Megabit",
+    "processor_architecture": "AMD EPYC 9R14 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "g6e.24xlarge",
+    "price_per_hour_usd": 15.06559,
+    "vcpu": 96,
+    "memory": "768 GiB",
+    "storage": "2 x 1900 GB NVMe SSD",
+    "network_performance": "200 Gigabit",
+    "processor_architecture": "AMD EPYC 7R13 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r8a.48xlarge",
+    "price_per_hour_usd": 15.33696,
+    "vcpu": 192,
+    "memory": "1536 GiB",
+    "storage": "EBS only",
+    "network_performance": "75000 Megabit",
+    "processor_architecture": "AMD EPYC 9R45 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "f2.48xlarge",
+    "price_per_hour_usd": 15.84,
+    "vcpu": 192,
+    "memory": "2048 GiB",
+    "storage": "8 x 950 NVMe SSD",
+    "network_performance": "100 Gigabit",
+    "processor_architecture": "AMD EPYC 7R13 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r8id.48xlarge",
+    "price_per_hour_usd": 15.96672,
+    "vcpu": 192,
+    "memory": "1536 GiB",
+    "storage": "3 x 3800 NVMe SSD",
+    "network_performance": "75000 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m8in.48xlarge",
+    "price_per_hour_usd": 16.03968,
+    "vcpu": 192,
+    "memory": "768.0 GiB",
+    "storage": "EBS only",
+    "network_performance": "300 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m8ib.48xlarge",
+    "price_per_hour_usd": 16.03968,
+    "vcpu": 192,
+    "memory": "768.0 GiB",
+    "storage": "EBS only",
+    "network_performance": "200 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "g5.48xlarge",
+    "price_per_hour_usd": 16.288,
+    "vcpu": 192,
+    "memory": "768 GiB",
+    "storage": "2 x 3800 GB NVMe SSD",
+    "network_performance": "100 Gigabit",
+    "processor_architecture": "AMD EPYC 7R32",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "i8g.48xlarge",
+    "price_per_hour_usd": 16.4736,
+    "vcpu": 192,
+    "memory": "1536 GiB",
+    "storage": "12 x 3750GB",
+    "network_performance": "Up to 100 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "g7e.24xlarge",
+    "price_per_hour_usd": 16.57216,
+    "vcpu": 96,
+    "memory": "1024 GiB",
+    "storage": "2 x 3800 NVMe SSD",
+    "network_performance": "800 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Emerald Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r8gb.48xlarge",
+    "price_per_hour_usd": 17.48928,
+    "vcpu": 192,
+    "memory": "1536 GiB",
+    "storage": "EBS only",
+    "network_performance": "400 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r8gn.48xlarge",
+    "price_per_hour_usd": 17.4893,
+    "vcpu": 192,
+    "memory": "1536 GiB",
+    "storage": "EBS only",
+    "network_performance": "600 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c8i.96xlarge",
+    "price_per_hour_usd": 17.99232,
+    "vcpu": 384,
+    "memory": "768 GiB",
+    "storage": "EBS only",
+    "network_performance": "100000 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "i7i.48xlarge",
+    "price_per_hour_usd": 18.121,
+    "vcpu": 192,
+    "memory": "1536 GiB",
+    "storage": "12 x 3750 NVMe SSD",
+    "network_performance": "Up to 100 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Emerald Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "x8g.48xlarge",
+    "price_per_hour_usd": 18.7584,
+    "vcpu": 192,
+    "memory": "3072 GiB",
+    "storage": "EBS only",
+    "network_performance": "50 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "x2iedn.24xlarge",
+    "price_per_hour_usd": 20.007,
+    "vcpu": 96,
+    "memory": "3072 GiB",
+    "storage": "2 x 1425 NVMe SSD",
+    "network_performance": "75 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Icelake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r8ib.48xlarge",
+    "price_per_hour_usd": 20.0832,
+    "vcpu": 192,
+    "memory": "1536.0 GiB",
+    "storage": "EBS only",
+    "network_performance": "200 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r8in.48xlarge",
+    "price_per_hour_usd": 20.0832,
+    "vcpu": 192,
+    "memory": "1536.0 GiB",
+    "storage": "EBS only",
+    "network_performance": "300 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m8i.96xlarge",
+    "price_per_hour_usd": 20.32128,
+    "vcpu": 384,
+    "memory": "1536 GiB",
+    "storage": "EBS only",
+    "network_performance": "100000 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "x8i.48xlarge",
+    "price_per_hour_usd": 21.00768,
+    "vcpu": 192,
+    "memory": "3072 GiB",
+    "storage": "EBS only",
+    "network_performance": "75000 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c8id.96xlarge",
+    "price_per_hour_usd": 21.28896,
+    "vcpu": 384,
+    "memory": "768 GiB",
+    "storage": "6 x 3800 NVMe SSD",
+    "network_performance": "100000 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "trn1.32xlarge",
+    "price_per_hour_usd": 21.5,
+    "vcpu": 128,
+    "memory": "512 GiB",
+    "storage": "4 x 1900 NVMe SSD",
+    "network_performance": "800 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Icelake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "p4d.24xlarge",
+    "price_per_hour_usd": 21.957642,
+    "vcpu": 96,
+    "memory": "1152 GiB",
+    "storage": "8 x 1000 SSD",
+    "network_performance": "400 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8275L",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "i8ge.48xlarge",
+    "price_per_hour_usd": 22.7808,
+    "vcpu": 192,
+    "memory": "1536 GiB",
+    "storage": "16 x 7500 NVMe SSD",
+    "network_performance": "300 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "p3.16xlarge",
+    "price_per_hour_usd": 24.48,
+    "vcpu": 64,
+    "memory": "488 GiB",
+    "storage": "EBS only",
+    "network_performance": "25 Gigabit",
+    "processor_architecture": "Intel Xeon E5-2686 v4 (Broadwell)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "trn1n.32xlarge",
+    "price_per_hour_usd": 24.78,
+    "vcpu": 128,
+    "memory": "512 GiB",
+    "storage": "4 x 1900 NVMe SSD",
+    "network_performance": "1600 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Icelake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "i7ie.48xlarge",
+    "price_per_hour_usd": 24.9504,
+    "vcpu": 192,
+    "memory": "1536 GiB",
+    "storage": "16 x 7500 NVMe SSD",
+    "network_performance": "100 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Emerald Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m8id.96xlarge",
+    "price_per_hour_usd": 25.05984,
+    "vcpu": 384,
+    "memory": "1536 GiB",
+    "storage": "6 x 3800 NVMe SSD",
+    "network_performance": "100000 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c8ib.96xlarge",
+    "price_per_hour_usd": 26.12736,
+    "vcpu": 384,
+    "memory": "768 GiB",
+    "storage": "EBS only",
+    "network_performance": "400 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "c8in.96xlarge",
+    "price_per_hour_usd": 26.12736,
+    "vcpu": 384,
+    "memory": "768 GiB",
+    "storage": "EBS only",
+    "network_performance": "600 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r8i.96xlarge",
+    "price_per_hour_usd": 26.67264,
+    "vcpu": 384,
+    "memory": "3072 GiB",
+    "storage": "EBS only",
+    "network_performance": "100000 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "x2iedn.32xlarge",
+    "price_per_hour_usd": 26.676,
+    "vcpu": 128,
+    "memory": "4096 GiB",
+    "storage": "2 x 1900 NVMe SSD",
+    "network_performance": "100 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Icelake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "x1e.32xlarge",
+    "price_per_hour_usd": 26.688,
+    "vcpu": 128,
+    "memory": "3904 GiB",
+    "storage": "2 x 1920 SSD",
+    "network_performance": "25 Gigabit",
+    "processor_architecture": "High Frequency Intel Xeon E7-8880 v3 (Haswell)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "u-3tb1.56xlarge",
+    "price_per_hour_usd": 27.3,
+    "vcpu": 224,
+    "memory": "3072 GiB",
+    "storage": "EBS only",
+    "network_performance": "50 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Skylake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "p4de.24xlarge",
+    "price_per_hour_usd": 27.44705,
+    "vcpu": 96,
+    "memory": "1152 GiB",
+    "storage": "8 x 1000 SSD",
+    "network_performance": "400 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8275L",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "x8i.64xlarge",
+    "price_per_hour_usd": 28.01024,
+    "vcpu": 256,
+    "memory": "4096 GiB",
+    "storage": "EBS only",
+    "network_performance": "80000 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "g6e.48xlarge",
+    "price_per_hour_usd": 30.13118,
+    "vcpu": 192,
+    "memory": "1536 GiB",
+    "storage": "4 x 1900 GB NVMe SSD",
+    "network_performance": "400 Gigabit",
+    "processor_architecture": "AMD EPYC 7R13 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "p3dn.24xlarge",
+    "price_per_hour_usd": 31.212,
+    "vcpu": 96,
+    "memory": "768 GiB",
+    "storage": "2 x 900 NVMe SSD",
+    "network_performance": "100 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8175 (Skylake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r8id.96xlarge",
+    "price_per_hour_usd": 31.93344,
+    "vcpu": 384,
+    "memory": "3072 GiB",
+    "storage": "6 x 3800 NVMe SSD",
+    "network_performance": "100000 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m8in.96xlarge",
+    "price_per_hour_usd": 32.07936,
+    "vcpu": 384,
+    "memory": "1536.0 GiB",
+    "storage": "EBS only",
+    "network_performance": "600 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "m8ib.96xlarge",
+    "price_per_hour_usd": 32.07936,
+    "vcpu": 384,
+    "memory": "1536.0 GiB",
+    "storage": "EBS only",
+    "network_performance": "400 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "g7e.48xlarge",
+    "price_per_hour_usd": 33.14432,
+    "vcpu": 192,
+    "memory": "2048 GiB",
+    "storage": "4 x 3800 NVMe SSD",
+    "network_performance": "1600 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Emerald Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r8in.96xlarge",
+    "price_per_hour_usd": 40.1664,
+    "vcpu": 384,
+    "memory": "3072.0 GiB",
+    "storage": "EBS only",
+    "network_performance": "600 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "r8ib.96xlarge",
+    "price_per_hour_usd": 40.1664,
+    "vcpu": 384,
+    "memory": "3072.0 GiB",
+    "storage": "EBS only",
+    "network_performance": "400 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "u-6tb1.56xlarge",
+    "price_per_hour_usd": 46.40391,
+    "vcpu": 224,
+    "memory": "6144 GiB",
+    "storage": "EBS only",
+    "network_performance": "100 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Skylake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "x8i.96xlarge",
+    "price_per_hour_usd": 48.74438,
+    "vcpu": 384,
+    "memory": "6144 GiB",
+    "storage": "EBS only",
+    "network_performance": "100000 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "u-6tb1.112xlarge",
+    "price_per_hour_usd": 54.6,
+    "vcpu": 448,
+    "memory": "6144 GiB",
+    "storage": "EBS only",
+    "network_performance": "100 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Skylake)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "p5.48xlarge",
+    "price_per_hour_usd": 55.04,
+    "vcpu": 192,
+    "memory": "2048 GiB",
+    "storage": "8 x 3840 GB SSD",
+    "network_performance": "3200 Gigabit",
+    "processor_architecture": "AMD EPYC 7R13 Processor",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "u7i-6tb.112xlarge",
+    "price_per_hour_usd": 62.79,
+    "vcpu": 448,
+    "memory": "6144 GiB",
+    "storage": "EBS only",
+    "network_performance": "100 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Sapphire Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "p5en.48xlarge",
+    "price_per_hour_usd": 63.296,
+    "vcpu": 192,
+    "memory": "2048 GiB",
+    "storage": "8 x 3840 NVMe SSD",
+    "network_performance": "3200 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Sapphire Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "u-9tb1.112xlarge",
+    "price_per_hour_usd": 81.9,
+    "vcpu": 448,
+    "memory": "9216 GiB",
+    "storage": "EBS only",
+    "network_performance": "100 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Skylake)",
+    "current_generation": "No"
+  },
+  {
+    "instance_type": "u7i-8tb.112xlarge",
+    "price_per_hour_usd": 83.72,
+    "vcpu": 448,
+    "memory": "8192 GiB",
+    "storage": "EBS only",
+    "network_performance": "100 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Sapphire Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "u-12tb1.112xlarge",
+    "price_per_hour_usd": 109.2,
+    "vcpu": 448,
+    "memory": "12288 GiB",
+    "storage": "EBS only",
+    "network_performance": "100 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Skylake)",
+    "current_generation": "No"
+  },
+  {
+    "instance_type": "p6-b200.48xlarge",
+    "price_per_hour_usd": 113.9328,
+    "vcpu": 192,
+    "memory": "2048 GiB",
+    "storage": "8 x 3840 NVMe SSD",
+    "network_performance": "3200 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Emerald Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "u7i-12tb.224xlarge",
+    "price_per_hour_usd": 125.58182,
+    "vcpu": 896,
+    "memory": "12288 GiB",
+    "storage": "EBS only",
+    "network_performance": "100 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Sapphire Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "p6-b300.48xlarge",
+    "price_per_hour_usd": 142.416,
+    "vcpu": 192,
+    "memory": "4096 GiB",
+    "storage": "8 x 3840 NVMe SSD",
+    "network_performance": "6400 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Emerald Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "u-18tb1.112xlarge",
+    "price_per_hour_usd": 163.8,
+    "vcpu": 448,
+    "memory": "18432 GiB",
+    "storage": "EBS only",
+    "network_performance": "100 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8280L (Cascade Lake)",
+    "current_generation": "No"
+  },
+  {
+    "instance_type": "u7in-16tb.224xlarge",
+    "price_per_hour_usd": 180.47558,
+    "vcpu": 896,
+    "memory": "16384 GiB",
+    "storage": "EBS only",
+    "network_performance": "200 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Sapphire Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "u-24tb1.112xlarge",
+    "price_per_hour_usd": 218.4,
+    "vcpu": 448,
+    "memory": "24576 GiB",
+    "storage": "EBS only",
+    "network_performance": "100 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8280L (Cascade Lake)",
+    "current_generation": "No"
+  },
+  {
+    "instance_type": "u7in-24tb.224xlarge",
+    "price_per_hour_usd": 270.73128,
+    "vcpu": 896,
+    "memory": "24576 GiB",
+    "storage": "EBS only",
+    "network_performance": "200 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Sapphire Rapids)",
+    "current_generation": "Yes"
+  },
+  {
+    "instance_type": "u7in-32tb.224xlarge",
+    "price_per_hour_usd": 360.98695,
+    "vcpu": 896,
+    "memory": "32768 GiB",
+    "storage": "EBS only",
+    "network_performance": "200 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Sapphire Rapids)",
+    "current_generation": "Yes"
+  }
+];

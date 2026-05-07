@@ -1887,9 +1887,12 @@ function GPUFinancialCorrelationBlock({fHist,fHistErr}){
                 <tr>
                   <th style={{...finThRow,minWidth:170}}></th>
                   {periods.map(p=>{
-                    // Partial flag = any primary OR visible secondary SKU has that period partial
+                    // Partial = the API marked this label as MTD/QTD (the
+                    // current calendar period is always seeded so the column
+                    // shows even before any SKU has a data point in it), OR
+                    // any rendered SKU has a partial record for that period.
                     const rowPool=showSecondary?[...GPU_FIN_PRIMARY_ROWS,...GPU_FIN_SECONDARY_ROWS]:GPU_FIN_PRIMARY_ROWS;
-                    let partial=false;
+                    let partial=!!p[partialKey];
                     for(const row of rowPool){
                       const sr=(series[row.sku]||[]).find(x=>x.period===p.period);
                       if(sr&&sr[partialKey]){partial=true;break;}
@@ -3032,12 +3035,16 @@ function buildMonthlyPeriods(weeks){
   return out;
 }
 
-function OpenRouterTokenDemandTable(){
+function OpenRouterTokenDemandTable({refreshTick=0}={}){
   const[mode,setMode]=useState("quarter"); // "quarter" (default) | "month"
   const[state,setState]=useState({phase:"loading",data:null,error:null});
+  // refreshTick changes whenever a parent refresh button fires; the cache-bust
+  // query param keeps a stale Cloudflare edge response from being reused on
+  // refresh. Without this, a long-open tab can hold an old payload past the
+  // edge's max-age and miss new month columns until a full page reload.
   useEffect(()=>{
     let cancelled=false;
-    fetch("/api/openrouter-chart-weekly?full=1")
+    fetch("/api/openrouter-chart-weekly?full=1&_="+(refreshTick||Date.now()),{cache:"no-store"})
       .then(r=>r.ok?r.json():Promise.reject(new Error("HTTP "+r.status)))
       .then(d=>{
         if(cancelled)return;
@@ -3046,7 +3053,7 @@ function OpenRouterTokenDemandTable(){
       })
       .catch(e=>{if(!cancelled)setState({phase:"error",data:null,error:e.message||"Fetch failed"});});
     return()=>{cancelled=true;};
-  },[]);
+  },[refreshTick]);
 
   const subtitle=mode==="month"
     ? "Month-aligned OpenRouter token demand, provider share, and growth — real historical chart data only."
@@ -3316,12 +3323,12 @@ function OpenRouterTokenDemandTable(){
      - quarter-end label convention (Mar/Jun/Sep/Dec)
      - QTD detection + growth suppression for partial periods
 ═══════════════════════════════════════════════════════ */
-function GoogleGeminiAdoptionTable(){
+function GoogleGeminiAdoptionTable({refreshTick=0}={}){
   const[mode,setMode]=useState("quarter"); // "quarter" (default) | "month"
   const[state,setState]=useState({phase:"loading",data:null,error:null});
   useEffect(()=>{
     let cancelled=false;
-    fetch("/api/openrouter-chart-weekly?full=1")
+    fetch("/api/openrouter-chart-weekly?full=1&_="+(refreshTick||Date.now()),{cache:"no-store"})
       .then(r=>r.ok?r.json():Promise.reject(new Error("HTTP "+r.status)))
       .then(d=>{
         if(cancelled)return;
@@ -3330,7 +3337,7 @@ function GoogleGeminiAdoptionTable(){
       })
       .catch(e=>{if(!cancelled)setState({phase:"error",data:null,error:e.message||"Fetch failed"});});
     return()=>{cancelled=true;};
-  },[]);
+  },[refreshTick]);
 
   const subtitle=mode==="month"
     ? "Google-specific cut of OpenRouter token demand by month — real historical chart data only."
@@ -3782,7 +3789,7 @@ function PPTHistoryIframe(){
   );
 }
 
-function ORTab({data,busy,ts,live,refresh}){
+function ORTab({data,busy,ts,live,refresh,refreshTick,bumpRefreshTick}){
   const trunc=(s,n)=>s&&s.length>n?s.slice(0,n-1)+"…":(s||"");
   const best=data.find(m=>m.isGemini),top=data[0];
   const _seen={};
@@ -3799,13 +3806,15 @@ function ORTab({data,busy,ts,live,refresh}){
           <Pill text="AI Adoption · openrouter.ai / rankings" bg="#dbeafe" color="#1e40af"/>
           <LiveDot live={live} ts={ts}/>
         </div>
-        <RBtn busy={busy} onClick={refresh}/>
+        <RBtn busy={busy} onClick={()=>{refresh();bumpRefreshTick&&bumpRefreshTick();}}/>
       </div>
 
       {/* First detailed section — finance-model quarterly token-demand matrix.
          Renders independently of the rankings refresh state so it stays visible
-         while the OR rankings card/table/chart below shimmer through a refresh. */}
-      <OpenRouterTokenDemandTable/>
+         while the OR rankings card/table/chart below shimmer through a refresh.
+         refreshTick is bumped by the App-level Refresh-all and the OR section
+         RBtn so a long-open tab can pull new month columns without a page reload. */}
+      <OpenRouterTokenDemandTable refreshTick={refreshTick}/>
 
       {busy?<Shimmer rows={7}/>:(<>
         <div style={{display:"flex",gap:10,marginBottom:14}}>
@@ -4907,20 +4916,80 @@ function AwsCapacityProxySection(){
    slim Data Feed Status strip; period-by-period IPv4 capacity lives
    in the matrix component. */
 
-/* AWS Pricing Trends — live reverse-proxy embed of
-   aws.amazon.com/ec2/pricing/on-demand/. Wrapper card with section
-   label / title / subtitle / iframe / source note, plus a clean
-   fallback if the iframe errors out. */
+/* AWS Pricing Trends — clean source-backed pricing tables.
+   The previous iframe approach is gone: AWS's pricing widget data API
+   returns 403 outside aws.amazon.com, the marketing HTML uses
+   `{priceOf!...}` placeholder tokens that the same blocked widget
+   resolves at runtime, and the inner pricing-table widget enforces a
+   CSP frame-ancestors allow-list of AWS-owned domains only. Net
+   result of the iframe path was "Something went wrong / Reload"
+   stamped over every pricing area.
+
+   This component renders two source-backed tables instead, both
+   wired to AWS's official Price List bulk files:
+     - Instance pricing: pre-built snapshot from
+       /api/aws/ec2-pricing/on-demand (snapshot built by
+       scripts/fetch-aws-ec2-pricing.mjs from the AmazonEC2 us-east-1
+       bulk CSV; rebuilt manually when AWS publishes price changes).
+     - Data Transfer: live per-request fetch of the AWSDataTransfer
+       us-east-1 bulk CSV (~480KB) at /api/aws/ec2-pricing/data-transfer
+       with edge cache.
+   No fake values, no estimated rows, no broken widget reload buttons. */
 function AwsPricingTrendsSection(){
-  const[err,setErr]=useState(false);
-  // Cache-bust the iframe src once per page load so reloads pick up
-  // upstream changes without forcing the proxy to be uncached.
-  const[bust]=useState(()=>Math.floor(Date.now()/1000));
-  const proxyUrl="/api/proxy/aws/ec2-on-demand-pricing/?v="+bust;
+  // Two independent fetches so a transient hiccup on one endpoint
+  // doesn't blank both tables.
+  const[od,setOd]=useState({phase:"loading",data:null,error:null});
+  const[dt,setDt]=useState({phase:"loading",data:null,error:null});
+  const[query,setQuery]=useState("");
+  const[odLimit,setOdLimit]=useState(50);
+
+  useEffect(()=>{
+    let cancelled=false;
+    const v=Math.floor(Date.now()/3e5);
+    const params=new URLSearchParams();
+    if(query) params.set("q",query);
+    params.set("limit", String(odLimit));
+    params.set("v", String(v));
+    fetch("/api/aws/ec2-pricing/on-demand?"+params)
+      .then(r=>r.ok?r.json():Promise.reject(new Error("HTTP "+r.status)))
+      .then(d=>{
+        if(cancelled) return;
+        if(!d||d.success===false){setOd({phase:"error",data:null,error:d?.error||"Empty response"});return;}
+        setOd({phase:"ready",data:d,error:null});
+      })
+      .catch(e=>{if(!cancelled)setOd({phase:"error",data:null,error:e.message||"Fetch failed"});});
+    return()=>{cancelled=true;};
+  },[query,odLimit]);
+
+  useEffect(()=>{
+    let cancelled=false;
+    const v=Math.floor(Date.now()/3e5);
+    fetch("/api/aws/ec2-pricing/data-transfer?v="+v)
+      .then(r=>r.ok?r.json():Promise.reject(new Error("HTTP "+r.status)))
+      .then(d=>{
+        if(cancelled) return;
+        if(!d||d.success===false){setDt({phase:"error",data:null,error:d?.error||d?.detail||"Empty response"});return;}
+        setDt({phase:"ready",data:d,error:null});
+      })
+      .catch(e=>{if(!cancelled)setDt({phase:"error",data:null,error:e.message||"Fetch failed"});});
+    return()=>{cancelled=true;};
+  },[]);
+
+  // Format helpers — investor-grade decimals: hourly rates can be as
+  // small as $0.0042 so 4 decimals is the right resolution.
+  const fmtUsdHr4=v=>(typeof v==="number"&&isFinite(v))
+    ? "$" + v.toFixed(4)
+    : "—";
+  const fmtPerGB=v=>{
+    if(typeof v!=="number"||!isFinite(v)) return "—";
+    if(v===0) return "$0.00";
+    if(v<0.01) return "$" + v.toFixed(4).replace(/\.?0+$/,"");
+    return "$" + v.toFixed(2);
+  };
 
   return(
     <div style={{marginTop:18}}>
-      {/* Header — same visual rhythm as the Capacity Footprint header. */}
+      {/* Header */}
       <div style={{marginBottom:12}}>
         <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:4}}>
           <span style={{width:7,height:7,borderRadius:"50%",background:"#0e7490",display:"inline-block"}}/>
@@ -4930,57 +4999,138 @@ function AwsPricingTrendsSection(){
           <div style={{minWidth:0,flex:"1 1 320px"}}>
             <div style={{fontSize:18,fontWeight:700,color:"#111827",lineHeight:1.3}}>AWS EC2 On-Demand Pricing</div>
             <div style={{fontSize:12,color:"#6b7280",marginTop:4,lineHeight:1.5,maxWidth:760}}>
-              Live AWS EC2 on-demand instance and data-transfer pricing for US East (N. Virginia).
+              Official AWS-published EC2 on-demand and data-transfer pricing for US East (N. Virginia).
             </div>
           </div>
           <div style={{display:"flex",alignItems:"center",gap:6,flexShrink:0}}>
             <span style={{width:6,height:6,borderRadius:"50%",background:"#10b981",display:"inline-block"}}/>
-            <span style={{fontSize:10,padding:"3px 9px",borderRadius:999,fontWeight:600,background:"#ecfdf5",color:"#065f46",border:"0.5px solid #a7f3d0",whiteSpace:"nowrap"}}>Live source · aws.amazon.com</span>
+            <span style={{fontSize:10,padding:"3px 9px",borderRadius:999,fontWeight:600,background:"#ecfdf5",color:"#065f46",border:"0.5px solid #a7f3d0",whiteSpace:"nowrap"}}>Source-backed · AWS public pricing</span>
           </div>
         </div>
       </div>
 
-      {/* Embed card or fallback. The iframe sandboxes are deliberately
-         permissive (allow-scripts + allow-same-origin) because the proxied
-         AWS page needs JS to render the data-transfer tables interactively
-         (sortable headers, region filter dropdowns) and to load its own
-         absolute-URL assets from awsstatic.com. */}
-      {err?(
-        <div style={{background:"#fff",border:"0.5px dashed #fca5a5",borderRadius:10,padding:"14px 16px"}}>
-          <div style={{fontSize:12,color:"#991b1b",fontWeight:600}}>AWS EC2 pricing live embed temporarily unavailable.</div>
-          <div style={{fontSize:11,color:"#6b7280",marginTop:3}}>
-            You can open the source page directly:{" "}
-            <a href="https://aws.amazon.com/ec2/pricing/on-demand/" target="_blank" rel="noopener" style={{color:"#0e7490"}}>aws.amazon.com/ec2/pricing/on-demand</a>.
-          </div>
-          <button onClick={()=>setErr(false)}
-            style={{marginTop:10,fontSize:11,padding:"5px 14px",border:"0.5px solid #d1d5db",borderRadius:6,background:"#fff",color:"#374151",cursor:"pointer",fontFamily:"inherit"}}>
-            Retry
-          </button>
-        </div>
-      ):(
-        <div style={{borderRadius:8,overflow:"hidden",border:"0.5px solid #e5e7eb",background:"#fff"}}>
-          <iframe
-            src={proxyUrl}
-            title="AWS EC2 On-Demand Pricing"
-            loading="lazy"
-            referrerPolicy="no-referrer"
-            sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
-            onError={()=>setErr(true)}
-            style={{border:0,display:"block",width:"100%",height:"calc(100vh - 240px)",minHeight:720,background:"#fff"}}
+      {/* ── Table 1: EC2 On-Demand Instance Pricing ── */}
+      <PricingTableCard
+        title="EC2 On-Demand Instance Pricing"
+        subtitle={od.phase==="ready"
+          ? "Linux · Shared tenancy · No license required · " + (od.data?.matched_rows||0).toLocaleString() + (od.data?.matched_rows===1?" instance type":" instance types") + (od.data?.generated_at?(" · snapshot " + od.data.generated_at.slice(0,10)):"")
+          : "Linux · Shared tenancy · No license required"}>
+        {/* Search bar — filters server-side via ?q=. Lightweight pagination
+            via Show more so a 1k-row table doesn't bloat first paint. */}
+        <div style={{padding:"8px 12px",borderBottom:"1px solid #f3f4f6",display:"flex",gap:8,flexWrap:"wrap",alignItems:"center"}}>
+          <input
+            type="text"
+            placeholder="Filter by instance name (e.g. t4g, c7i, m5)…"
+            value={query}
+            onChange={e=>{setQuery(e.target.value);setOdLimit(50);}}
+            style={{fontSize:12,padding:"6px 10px",border:"0.5px solid #d1d5db",borderRadius:6,background:"#fff",color:"#111827",fontFamily:"inherit",flex:"1 1 240px",minWidth:200}}
           />
+          {query&&<button onClick={()=>{setQuery("");setOdLimit(50);}} style={{fontSize:11,padding:"5px 10px",border:"0.5px solid #d1d5db",borderRadius:6,background:"#fff",color:"#374151",cursor:"pointer",fontFamily:"inherit"}}>Clear</button>}
+          {od.phase==="ready"&&od.data&&(
+            <span style={{fontSize:10.5,color:"#9ca3af",marginLeft:"auto"}}>
+              Showing {Math.min(od.data.rows.length, od.data.matched_rows).toLocaleString()} of {od.data.matched_rows.toLocaleString()}
+            </span>
+          )}
         </div>
-      )}
 
-      {/* Source note + the honest caveat about the inner pricing-table
-         widget. Spec says don't add custom summaries — this is just the
-         provenance line and the one disclosure the user needs to interpret
-         a possibly-blank instance pricing region. */}
-      <div style={{fontSize:10,color:"#9ca3af",marginTop:6,lineHeight:1.5}}>
-        Source: AWS EC2 On-Demand Pricing page. Live embedded reference; pricing is shown as published by AWS.
+        {od.phase==="loading"&&<div style={{padding:"14px"}}><Shimmer rows={6}/></div>}
+        {od.phase==="error"&&(
+          <div style={{padding:"14px",fontSize:12,color:"#991b1b"}}>
+            AWS EC2 pricing data temporarily unavailable. <span style={{color:"#6b7280"}}>{od.error}</span>
+          </div>
+        )}
+        {od.phase==="ready"&&(
+          <>
+            <div style={{overflowX:"auto"}}>
+              <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
+                <thead>
+                  <tr>
+                    {["Instance name","On-Demand hourly","vCPU","Memory","Storage","Network performance"].map((h,i)=>(
+                      <th key={h} style={{...S.lbl,textAlign:i===0?"left":(i<=2?"right":"left"),padding:"8px 12px",borderBottom:"1px solid #f3f4f6",background:"#fafafa",whiteSpace:"nowrap"}}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {od.data.rows.length===0?(
+                    <tr><td colSpan={6} style={{padding:"14px 12px",fontSize:11,color:"#9ca3af",textAlign:"center"}}>No instance types match this filter.</td></tr>
+                  ):od.data.rows.map(r=>(
+                    <tr key={r.instance_type}>
+                      <td style={{padding:"8px 12px",borderBottom:"1px solid #f9fafb",fontFamily:"ui-monospace,SFMono-Regular,Menlo,monospace",fontWeight:600,color:"#111827",whiteSpace:"nowrap"}}>{r.instance_type}</td>
+                      <td style={{padding:"8px 12px",borderBottom:"1px solid #f9fafb",fontFamily:"ui-monospace,SFMono-Regular,Menlo,monospace",color:"#111827",textAlign:"right",whiteSpace:"nowrap"}}>{fmtUsdHr4(r.price_per_hour_usd)}</td>
+                      <td style={{padding:"8px 12px",borderBottom:"1px solid #f9fafb",fontFamily:"ui-monospace,SFMono-Regular,Menlo,monospace",color:"#111827",textAlign:"right",whiteSpace:"nowrap"}}>{r.vcpu??"—"}</td>
+                      <td style={{padding:"8px 12px",borderBottom:"1px solid #f9fafb",color:"#374151",whiteSpace:"nowrap"}}>{r.memory||"—"}</td>
+                      <td style={{padding:"8px 12px",borderBottom:"1px solid #f9fafb",color:"#374151",whiteSpace:"nowrap"}}>{r.storage||"—"}</td>
+                      <td style={{padding:"8px 12px",borderBottom:"1px solid #f9fafb",color:"#374151",whiteSpace:"nowrap"}}>{r.network_performance||"—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {od.data.matched_rows > od.data.rows.length && (
+              <div style={{padding:"10px 12px",borderTop:"1px solid #f3f4f6",textAlign:"center"}}>
+                <button onClick={()=>setOdLimit(l=>l+100)}
+                  style={{fontSize:11,padding:"6px 14px",border:"0.5px solid #d1d5db",borderRadius:6,background:"#fff",color:"#374151",cursor:"pointer",fontFamily:"inherit"}}>
+                  Show more ({(od.data.matched_rows - od.data.rows.length).toLocaleString()} remaining)
+                </button>
+              </div>
+            )}
+          </>
+        )}
+      </PricingTableCard>
+
+      {/* ── Table 2: EC2 Data Transfer Pricing ── */}
+      <PricingTableCard
+        title="EC2 Data Transfer Pricing"
+        subtitle="Per-GB rates for traffic in / out of EC2 in US East (N. Virginia)"
+        marginTop={14}>
+        {dt.phase==="loading"&&<div style={{padding:"14px"}}><Shimmer rows={6}/></div>}
+        {dt.phase==="error"&&(
+          <div style={{padding:"14px",fontSize:12,color:"#991b1b"}}>
+            AWS data-transfer pricing temporarily unavailable. <span style={{color:"#6b7280"}}>{dt.error}</span>
+          </div>
+        )}
+        {dt.phase==="ready"&&dt.data?.groups?.map((g,gi)=>(
+          <div key={gi} style={{borderBottom: gi < dt.data.groups.length - 1 ? "1px solid #f3f4f6" : "none"}}>
+            <div style={{padding:"10px 12px 6px"}}>
+              <div style={{fontSize:12,fontWeight:600,color:"#111827"}}>{g.title}</div>
+              {g.note&&<div style={{fontSize:10.5,color:"#9ca3af",marginTop:3,lineHeight:1.45}}>{g.note}</div>}
+            </div>
+            <div style={{overflowX:"auto"}}>
+              <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
+                <tbody>
+                  {g.rows.length===0?(
+                    <tr><td colSpan={2} style={{padding:"10px 12px",fontSize:11,color:"#9ca3af",textAlign:"center"}}>No published rows.</td></tr>
+                  ):g.rows.map((r,ri)=>(
+                    <tr key={ri}>
+                      <td style={{padding:"6px 12px",borderTop:"1px solid #f9fafb",color:"#374151",whiteSpace:"nowrap"}}>{r.label}</td>
+                      <td style={{padding:"6px 12px",borderTop:"1px solid #f9fafb",fontFamily:"ui-monospace,SFMono-Regular,Menlo,monospace",color:r.price===0?"#6b7280":"#111827",textAlign:"right",whiteSpace:"nowrap"}}>{fmtPerGB(r.price)} <span style={{color:"#9ca3af"}}>per GB</span></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        ))}
+      </PricingTableCard>
+
+      {/* Source note */}
+      <div style={{fontSize:10,color:"#9ca3af",marginTop:8,lineHeight:1.55,maxWidth:760}}>
+        Source: AWS EC2 On-Demand Pricing / AWS public pricing files. Values are shown as published by AWS in the official Price List CSV (us-east-1, Linux, Shared tenancy). Instance pricing is a snapshot rebuilt manually when AWS publishes price changes; data-transfer pricing is fetched live per request and edge-cached.
       </div>
-      <div style={{fontSize:10,color:"#9ca3af",marginTop:3,lineHeight:1.5,maxWidth:760}}>
-        Note: AWS's instance pricing widget enforces a strict frame-ancestors policy; if the table area appears blank, that section is blocked by AWS and the data-transfer pricing tables below it are still live.
+    </div>
+  );
+}
+
+/** Reusable wrapper card for the two pricing tables. Keeps the visual
+ *  rhythm consistent with the rest of the dashboard's table cards. */
+function PricingTableCard({title,subtitle,marginTop,children}){
+  return(
+    <div style={{background:"#fff",border:"0.5px solid #e5e7eb",borderRadius:12,overflow:"hidden",marginTop:marginTop||0}}>
+      <div style={{padding:"12px 14px",borderBottom:"1px solid #f3f4f6"}}>
+        <div style={{fontSize:13,fontWeight:600,color:"#111827",lineHeight:1.3}}>{title}</div>
+        {subtitle&&<div style={{fontSize:10.5,color:"#9ca3af",marginTop:2,lineHeight:1.45}}>{subtitle}</div>}
       </div>
+      {children}
     </div>
   );
 }
@@ -5599,6 +5749,11 @@ export default function App(){
   const radar =usePanel(LIVE.bots,  fetchRadar);
   const trends=usePanel(LIVE.trends,fetchTrends);
   const[fetchedAtLabel,setFetchedAtLabel]=useState(LIVE.fetchedAt);
+  // Bumped by refreshAll and the OR-section refresh button so
+  // OpenRouter-token-demand and Gemini-adoption matrices (which manage their
+  // own fetches and would otherwise be pinned to the data they pulled at
+  // page-load) re-fetch and pick up new month/quarter columns on demand.
+  const[refreshTick,setRefreshTick]=useState(0);
 
   const[allPressed,setAllPressed]=useState(false);
   const anyBusy=or.busy||radar.busy||trends.busy;
@@ -5610,6 +5765,7 @@ export default function App(){
     const datePart=d.toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric",timeZone:"UTC"});
     const timePart=String(d.getUTCHours()).padStart(2,"0")+":"+String(d.getUTCMinutes()).padStart(2,"0")+":"+String(d.getUTCSeconds()).padStart(2,"0");
     setFetchedAtLabel(datePart+" \u00B7 "+timePart+" UTC");
+    setRefreshTick(t=>t+1);
     or.refresh();radar.refresh();trends.refresh();
   }
 
@@ -5669,7 +5825,7 @@ export default function App(){
 
       {/* Active tab */}
       <div style={S.card}>
-        {tab==="adoption"&&<ORTab {...or}/>}
+        {tab==="adoption"&&<ORTab {...or} refreshTick={refreshTick} bumpRefreshTick={()=>setRefreshTick(t=>t+1)}/>}
         {tab==="pricing"&&<ModelPricingTab/>}
         {tab==="gpu"&&<GPUHardwarePricingTab/>}
         {tab==="gcloud"&&(
@@ -5677,7 +5833,7 @@ export default function App(){
             {/* First section — Google / Gemini cut of the OpenRouter chart-native
                token-demand data. Reuses the same data and period builder as
                the AI Adoption table; just renders the Google bucket. */}
-            <GoogleGeminiAdoptionTable/>
+            <GoogleGeminiAdoptionTable refreshTick={refreshTick}/>
             {/* Second section — Google / Gemini slice of the Model Pricing
                peer matrix. Reuses /api/model-pricing-peer-matrix; just
                renders the google-frontier and google-fast reps. */}
