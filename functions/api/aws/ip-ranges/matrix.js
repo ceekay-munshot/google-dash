@@ -4,14 +4,14 @@
  *
  * Powers the OpenRouter-style Current Breakdown matrix table in the
  * Amazon > AWS section. Returns:
- *   - periods[]:  ordered list of calendar quarters (or months) in the
- *                 captured window, with display labels and the
+ *   - periods[]:  ordered list of calendar quarters / months / ISO weeks
+ *                 in the captured window, with display labels and the
  *                 representative snapshot date for each.
  *   - items[]:    top-N services or regions ranked by the LATEST
  *                 period's IPv4 capacity. Each item carries a value per
- *                 period plus QoQ/MoM and YoY growth blocks (pct) and
- *                 absolute_change blocks. Missing comparison periods
- *                 yield null — never a synthetic 0.
+ *                 period plus growth blocks (qoq | mom | wow + yoy)
+ *                 and absolute_change blocks. Missing comparison
+ *                 periods yield null — never a synthetic 0.
  *
  * Read-only over HISTORY_KV. Never fetches AWS upstream, never writes
  * to KV. Each period's value is the LATEST snapshot in that calendar
@@ -19,7 +19,7 @@
  *
  * Query params:
  *   ?dimension=service|region        default service
- *   ?period=quarter|month            default quarter
+ *   ?period=quarter|month|week       default quarter
  *   ?metric=ipv4_addresses           only metric supported today
  *   ?limit=8                         1..32, ranked by latest period value
  */
@@ -58,6 +58,38 @@ function monthInfo(dateStr) {
   };
 }
 
+/** Parse YYYY-MM-DD as a UTC Date (midnight). */
+function parseDateUTC(s) {
+  const [y, m, d] = s.split('-').map(Number);
+  return new Date(Date.UTC(y, m - 1, d));
+}
+
+/**
+ * ISO 8601 week info: { year (ISO week-year), week (1..53), key,
+ * mondayDate (Date), mondayStr (YYYY-MM-DD). Mirrors the existing
+ * helper in /api/history.js so AWS week math agrees with canonical
+ * history week math elsewhere in the dashboard. */
+function weekInfo(dateStr) {
+  const dt = parseDateUTC(dateStr);
+  // Move to the nearest Thursday: current date + 4 - current day-of-week (Mon=1..Sun=7).
+  const thursday = new Date(dt);
+  thursday.setUTCDate(dt.getUTCDate() + 4 - (dt.getUTCDay() || 7));
+  const isoYear = thursday.getUTCFullYear();
+  const yearStart = new Date(Date.UTC(isoYear, 0, 1));
+  const weekNo = Math.ceil(((thursday - yearStart) / 86400000 + 1) / 7);
+  // Monday of the ISO week containing dt.
+  const dow = dt.getUTCDay() || 7;
+  const monday = new Date(dt);
+  monday.setUTCDate(dt.getUTCDate() - (dow - 1));
+  return {
+    year: isoYear,
+    week: weekNo,
+    key: isoYear + '-W' + String(weekNo).padStart(2, '0'),
+    mondayDate: monday,
+    mondayStr: monday.toISOString().slice(0, 10),
+  };
+}
+
 /** Two-digit year suffix from full year. */
 function yy(year) {
   return String(year % 100).padStart(2, '0');
@@ -74,9 +106,18 @@ function monthLabel(year, monthIdx, isCurrent) {
   return MONTH_ABBR[monthIdx] + '-' + yy(year) + (isCurrent ? ' MTD' : '');
 }
 
+/** "May 4 W19" for a week — Monday's "MMM D" plus the ISO week number,
+ * with optional " WTD" suffix. Compact enough to fit a column header. */
+function weekLabel(info, isCurrent) {
+  const m = info.mondayDate.getUTCMonth();
+  const d = info.mondayDate.getUTCDate();
+  return MONTH_ABBR[m] + ' ' + d + ' W' + String(info.week).padStart(2, '0') + (isCurrent ? ' WTD' : '');
+}
+
 /** Whether period A is the same calendar period as period B (matching the period mode). */
 function samePeriod(a, b, period) {
   if (period === 'quarter') return a.year === b.year && a.quarter === b.quarter;
+  if (period === 'week') return a.year === b.year && a.week === b.week;
   return a.year === b.year && a.month === b.month;
 }
 
@@ -95,8 +136,8 @@ export async function onRequestGet({ request, env }) {
   if (dimension !== 'service' && dimension !== 'region') {
     return jsonResp({ success: false, error: 'Unsupported dimension: ' + dimension + ' (only "service" and "region" are supported)' }, 400);
   }
-  if (period !== 'quarter' && period !== 'month') {
-    return jsonResp({ success: false, error: 'Unsupported period: ' + period + ' (only "quarter" and "month" are supported)' }, 400);
+  if (period !== 'quarter' && period !== 'month' && period !== 'week') {
+    return jsonResp({ success: false, error: 'Unsupported period: ' + period + ' (only "quarter", "month", and "week" are supported)' }, 400);
   }
   if (metric !== 'ipv4_addresses') {
     return jsonResp({ success: false, error: 'Unsupported metric: ' + metric + ' (only "ipv4_addresses" is supported today)' }, 400);
@@ -129,23 +170,32 @@ export async function onRequestGet({ request, env }) {
   // ── Group snapshots into periods, picking the LATEST snapshot in each group. ──
   // The Map preserves insertion order; we walk asc and overwrite so each key
   // ends up holding the latest snapshot for that period.
+  const infoFor = (dateStr) =>
+    period === 'quarter' ? quarterInfo(dateStr)
+    : period === 'week'  ? weekInfo(dateStr)
+    : monthInfo(dateStr);
+
   const byPeriod = new Map(); // periodKey → { info, snapshot }
   for (const s of snaps) {
-    const info = period === 'quarter' ? quarterInfo(s.snapshot_date) : monthInfo(s.snapshot_date);
+    const info = infoFor(s.snapshot_date);
     byPeriod.set(info.key, { info, snapshot: s });
   }
 
-  // Sort period keys chronologically asc.
+  // Sort period keys chronologically asc. Quarter/month keys sort by string
+  // already; ISO-week keys also sort correctly because the ISO week-year is
+  // padded and the week number is two digits.
   const sortedKeys = Array.from(byPeriod.keys()).sort();
   const todayStr = new Date().toISOString().slice(0, 10);
-  const todayInfo = period === 'quarter' ? quarterInfo(todayStr) : monthInfo(todayStr);
+  const todayInfo = infoFor(todayStr);
 
   const periods = sortedKeys.map(k => {
     const { info, snapshot } = byPeriod.get(k);
     const isCurrent = samePeriod(info, todayInfo, period);
     const label = period === 'quarter'
       ? quarterLabel(info.year, info.quarter, isCurrent)
-      : monthLabel(info.year, info.monthIdx, isCurrent);
+      : period === 'week'
+        ? weekLabel(info, isCurrent)
+        : monthLabel(info.year, info.monthIdx, isCurrent);
     return { key: k, label, snapshot_date: snapshot.snapshot_date };
   });
 
@@ -196,6 +246,13 @@ export async function onRequestGet({ request, env }) {
       const [y, qPart] = currentKey.split('-Q');
       return (parseInt(y, 10) - 1) + '-Q' + qPart;
     }
+    if (period === 'week') {
+      // ISO week key form: "YYYY-Wnn". Map to (year-1)-Wnn. The vast
+      // majority of weeks line up year-to-year; week 53 in a non-53-week
+      // year will simply not match and yield null growth (correct).
+      const [y, wPart] = currentKey.split('-W');
+      return (parseInt(y, 10) - 1) + '-W' + wPart;
+    }
     const [y, m] = currentKey.split('-');
     return (parseInt(y, 10) - 1) + '-' + m;
   }
@@ -210,27 +267,22 @@ export async function onRequestGet({ request, env }) {
   const items = pickedNames.map(name => {
     const valuesMap = values.get(name) || new Map();
     const valuesObj = {};
-    const growthQoq = {}, growthMom = {}, growthYoy = {};
-    const absQoq = {}, absMom = {}, absYoy = {};
+    const growthQoq = {}, growthMom = {}, growthWow = {}, growthYoy = {};
+    const absQoq = {}, absMom = {}, absWow = {}, absYoy = {};
     for (const k of sortedKeys) {
       const v = valuesMap.has(k) ? valuesMap.get(k) : null;
       valuesObj[k] = v;
 
-      // QoQ / MoM (period-prior).
+      // QoQ / MoM / WoW (period-prior). Only one of these is populated per
+      // request — the one matching the selected period mode. The other
+      // blocks stay empty so the response shape stays consistent.
       const priorKey = priorPeriodKey(k);
-      if (priorKey) {
-        const { pct, abs } = pctAndAbs(v, valuesMap.has(priorKey) ? valuesMap.get(priorKey) : null);
-        if (period === 'quarter') {
-          growthQoq[k] = pct;
-          absQoq[k] = abs;
-        } else {
-          growthMom[k] = pct;
-          absMom[k] = abs;
-        }
-      } else {
-        if (period === 'quarter') { growthQoq[k] = null; absQoq[k] = null; }
-        else { growthMom[k] = null; absMom[k] = null; }
-      }
+      const { pct, abs } = priorKey
+        ? pctAndAbs(v, valuesMap.has(priorKey) ? valuesMap.get(priorKey) : null)
+        : { pct: null, abs: null };
+      if (period === 'quarter') { growthQoq[k] = pct; absQoq[k] = abs; }
+      else if (period === 'month') { growthMom[k] = pct; absMom[k] = abs; }
+      else { growthWow[k] = pct; absWow[k] = abs; }
 
       // YoY (same period one year earlier).
       const yoyKey = yoyPriorKey(k);
@@ -242,8 +294,8 @@ export async function onRequestGet({ request, env }) {
     return {
       name,
       values: valuesObj,
-      growth: { qoq: growthQoq, mom: growthMom, yoy: growthYoy },
-      absolute_change: { qoq: absQoq, mom: absMom, yoy: absYoy },
+      growth: { qoq: growthQoq, mom: growthMom, wow: growthWow, yoy: growthYoy },
+      absolute_change: { qoq: absQoq, mom: absMom, wow: absWow, yoy: absYoy },
     };
   });
 

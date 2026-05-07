@@ -5236,6 +5236,7 @@ function CurrentBreakdown(){
       <div style={{display:"flex",gap:4,alignItems:"center"}}>
         {pillBtn(period==="quarter",()=>setPeriod("quarter"),"Quarter")}
         {pillBtn(period==="month",  ()=>setPeriod("month"),  "Month")}
+        {pillBtn(period==="week",   ()=>setPeriod("week"),   "Week")}
       </div>
     </div>
   );
@@ -5281,7 +5282,7 @@ function CurrentBreakdown(){
   // Single-period young-history note. Spec: render the table anyway, with
   // QoQ/MoM/YoY rows showing "—". Just add a small note above.
   const youngHistory=periods.length<=1;
-  const titleSuffix=period==="quarter"?"by quarter":"by month";
+  const titleSuffix=period==="quarter"?"by quarter":period==="week"?"by week":"by month";
   const tableTitle=dimension==="service"
     ? `Top AWS services by public IPv4 capacity ${titleSuffix}`
     : `Top AWS regions by public IPv4 capacity ${titleSuffix}`;
@@ -5379,8 +5380,14 @@ function CurrentBreakdown(){
   );
 
   // Period-prior section label — adapts to the selected period mode.
-  const periodPriorLabel = period==="quarter" ? "QoQ Growth" : "MoM Growth";
-  const periodPriorGrowthKey = period==="quarter" ? "qoq" : "mom";
+  const periodPriorLabel =
+    period==="quarter" ? "QoQ Growth"
+    : period==="week"  ? "WoW Growth"
+    : "MoM Growth";
+  const periodPriorGrowthKey =
+    period==="quarter" ? "qoq"
+    : period==="week"  ? "wow"
+    : "mom";
   const periodPriorAbsKey = periodPriorGrowthKey;
 
   return(
@@ -5389,7 +5396,7 @@ function CurrentBreakdown(){
 
       {youngHistory&&(
         <div style={{fontSize:10.5,color:"#9ca3af",lineHeight:1.5,marginBottom:6}}>
-          Growth rows will populate as monthly and quarterly history builds.
+          Growth rows will populate automatically as the daily 04:15 UTC capture builds weekly, monthly, and quarterly history.
         </div>
       )}
 
