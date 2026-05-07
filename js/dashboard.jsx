@@ -4877,9 +4877,8 @@ function AwsCapacityProxySection(){
 
   return sectionWrap(
     <>
-      {/* Trend-driven hero KPI row + slim feed-status strip below */}
+      {/* Trend-driven hero KPI row */}
       <CapacityKpiRow latest={s} summary={summary} fmtN={fmtN} fmtCompact={fmtCompact}/>
-      <CapacityFeedStatusStrip latest={s} summary={summary} servedFrom={state.servedFrom} fmtN={fmtN}/>
 
       {/* Service-Level Public IPv4 Capacity Trend — main analytical module */}
       <ServiceCapacityTrend ts={ts} fmtN={fmtN} fmtCompact={fmtCompact}/>
@@ -5018,43 +5017,6 @@ function CapacityKpiRow({latest,summary,fmtN,fmtCompact}){
           <div style={{fontSize:10.5,color:"#6b7280",marginTop:6,lineHeight:1.45}}>{k.sub}</div>
         </div>
       ))}
-    </div>
-  );
-}
-
-/* Slim Data Feed Status strip — single horizontal row that holds the
-   capture metadata plus the static counts that used to be hero KPIs
-   (IPv4 prefixes, IPv6 prefixes, regions count, services count). The
-   strip wraps cleanly on mobile. Stays visible even when /summary
-   errors (it falls back to /latest values for the static counts and
-   shows "—" for snapshot count). */
-function CapacityFeedStatusStrip({latest,summary,servedFrom,fmtN}){
-  const sum=summary?.data;
-  const snapshotCount = (summary?.phase==="ready" && typeof sum?.snapshot_count==="number") ? sum.snapshot_count : null;
-  const latestSnapDate = sum?.latest_snapshot_date || latest?.snapshot_date || null;
-  const sep=<span style={{color:"#d1d5db"}}>·</span>;
-  return(
-    <div style={{background:"#f9fafb",border:"0.5px solid #e5e7eb",borderRadius:8,padding:"8px 14px",marginBottom:14,display:"flex",flexWrap:"wrap",alignItems:"center",gap:"4px 14px",fontSize:11,color:"#6b7280",lineHeight:1.6}}>
-      <span style={{...S.lbl,color:"#374151"}}>Data feed status</span>
-      {sep}
-      <span><b style={{color:"#374151",fontWeight:600}}>Daily capture:</b> <span style={{color:"#065f46",fontWeight:600}}>Active</span></span>
-      {sep}
-      <span><b style={{color:"#374151",fontWeight:600}}>Snapshots:</b> <span style={{fontFamily:"monospace",color:"#111827"}}>{snapshotCount==null?"—":snapshotCount}</span></span>
-      {sep}
-      <span><b style={{color:"#374151",fontWeight:600}}>Latest:</b> <span style={{fontFamily:"monospace",color:"#111827"}}>{latestSnapDate||"—"}</span></span>
-      {sep}
-      <span><b style={{color:"#374151",fontWeight:600}}>AWS file:</b> <span style={{fontFamily:"monospace",color:"#111827"}}>{latest?.aws_create_date||"—"}</span></span>
-      {sep}
-      <span><b style={{color:"#374151",fontWeight:600}}>Source:</b> <span style={{fontFamily:"monospace",color:"#111827"}}>AWS ip-ranges.json</span></span>
-      {sep}
-      <span><b style={{color:"#374151",fontWeight:600}}>IPv4 prefixes:</b> <span style={{fontFamily:"monospace",color:"#111827"}}>{fmtN(latest?.total_ipv4_prefixes)}</span></span>
-      {sep}
-      <span><b style={{color:"#374151",fontWeight:600}}>IPv6 prefixes:</b> <span style={{fontFamily:"monospace",color:"#111827"}}>{fmtN(latest?.total_ipv6_prefixes)}</span></span>
-      {sep}
-      <span><b style={{color:"#374151",fontWeight:600}}>Regions:</b> <span style={{fontFamily:"monospace",color:"#111827"}}>{fmtN(latest?.total_regions)}</span></span>
-      {sep}
-      <span><b style={{color:"#374151",fontWeight:600}}>Services:</b> <span style={{fontFamily:"monospace",color:"#111827"}}>{fmtN(latest?.total_services)}</span></span>
-      {servedFrom&&(<>{sep}<span style={{color:"#9ca3af"}}>served from <span style={{fontFamily:"monospace"}}>{servedFrom}</span></span></>)}
     </div>
   );
 }
