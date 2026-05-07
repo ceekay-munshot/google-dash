@@ -4705,7 +4705,10 @@ function HistoryTabCanonical(){
    Model Pricing / GPU Hardware Pricing subtabs.
 ═══════════════════════════════════════════════════════ */
 function AmazonTab(){
-  const[awsSubtab,setAwsSubtab]=useState("aws");
+  // Inner views inside the Amazon > AWS area. "capacity" = the existing
+  // capacity-footprint module; "pricing" = the new live AWS EC2 pricing
+  // reverse-proxy embed.
+  const[awsSubtab,setAwsSubtab]=useState("capacity");
   return(
     <>
       {/* Hero */}
@@ -4726,10 +4729,13 @@ function AmazonTab(){
         </div>
       </div>
 
-      {/* Inner tab bar — same pill pattern as Model Pricing / GPU Hardware Pricing */}
+      {/* Inner tab bar — Capacity Footprint and the new Pricing Trends pill,
+         using the same underline-pill pattern as Model Pricing / GPU
+         Hardware Pricing subtabs. */}
       <div style={{display:"flex",gap:4,marginBottom:14,borderBottom:"0.5px solid #e5e7eb"}}>
         {[
-          {id:"aws",label:"AWS",sub:"usage trends · pricing · capacity"},
+          {id:"capacity",label:"Capacity Footprint",sub:"public IPv4 capacity · daily snapshots"},
+          {id:"pricing", label:"Pricing Trends",    sub:"live AWS EC2 on-demand pricing"},
         ].map(t=>{
           const active=awsSubtab===t.id;
           return(
@@ -4742,7 +4748,8 @@ function AmazonTab(){
         })}
       </div>
 
-      {awsSubtab==="aws"&&<AwsCapacityProxySection/>}
+      {awsSubtab==="capacity"&&<AwsCapacityProxySection/>}
+      {awsSubtab==="pricing"&&<AwsPricingTrendsSection/>}
     </>
   );
 }
@@ -4899,6 +4906,84 @@ function AwsCapacityProxySection(){
    table below. The latest snapshot's static counts now live in the
    slim Data Feed Status strip; period-by-period IPv4 capacity lives
    in the matrix component. */
+
+/* AWS Pricing Trends — live reverse-proxy embed of
+   aws.amazon.com/ec2/pricing/on-demand/. Wrapper card with section
+   label / title / subtitle / iframe / source note, plus a clean
+   fallback if the iframe errors out. */
+function AwsPricingTrendsSection(){
+  const[err,setErr]=useState(false);
+  // Cache-bust the iframe src once per page load so reloads pick up
+  // upstream changes without forcing the proxy to be uncached.
+  const[bust]=useState(()=>Math.floor(Date.now()/1000));
+  const proxyUrl="/api/proxy/aws/ec2-on-demand-pricing/?v="+bust;
+
+  return(
+    <div style={{marginTop:18}}>
+      {/* Header — same visual rhythm as the Capacity Footprint header. */}
+      <div style={{marginBottom:12}}>
+        <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:4}}>
+          <span style={{width:7,height:7,borderRadius:"50%",background:"#0e7490",display:"inline-block"}}/>
+          <span style={{fontSize:10,textTransform:"uppercase",letterSpacing:".09em",fontWeight:700,color:"#0e7490"}}>AWS · pricing signal</span>
+        </div>
+        <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:12,flexWrap:"wrap"}}>
+          <div style={{minWidth:0,flex:"1 1 320px"}}>
+            <div style={{fontSize:18,fontWeight:700,color:"#111827",lineHeight:1.3}}>AWS EC2 On-Demand Pricing</div>
+            <div style={{fontSize:12,color:"#6b7280",marginTop:4,lineHeight:1.5,maxWidth:760}}>
+              Live AWS EC2 on-demand instance and data-transfer pricing for US East (N. Virginia).
+            </div>
+          </div>
+          <div style={{display:"flex",alignItems:"center",gap:6,flexShrink:0}}>
+            <span style={{width:6,height:6,borderRadius:"50%",background:"#10b981",display:"inline-block"}}/>
+            <span style={{fontSize:10,padding:"3px 9px",borderRadius:999,fontWeight:600,background:"#ecfdf5",color:"#065f46",border:"0.5px solid #a7f3d0",whiteSpace:"nowrap"}}>Live source · aws.amazon.com</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Embed card or fallback. The iframe sandboxes are deliberately
+         permissive (allow-scripts + allow-same-origin) because the proxied
+         AWS page needs JS to render the data-transfer tables interactively
+         (sortable headers, region filter dropdowns) and to load its own
+         absolute-URL assets from awsstatic.com. */}
+      {err?(
+        <div style={{background:"#fff",border:"0.5px dashed #fca5a5",borderRadius:10,padding:"14px 16px"}}>
+          <div style={{fontSize:12,color:"#991b1b",fontWeight:600}}>AWS EC2 pricing live embed temporarily unavailable.</div>
+          <div style={{fontSize:11,color:"#6b7280",marginTop:3}}>
+            You can open the source page directly:{" "}
+            <a href="https://aws.amazon.com/ec2/pricing/on-demand/" target="_blank" rel="noopener" style={{color:"#0e7490"}}>aws.amazon.com/ec2/pricing/on-demand</a>.
+          </div>
+          <button onClick={()=>setErr(false)}
+            style={{marginTop:10,fontSize:11,padding:"5px 14px",border:"0.5px solid #d1d5db",borderRadius:6,background:"#fff",color:"#374151",cursor:"pointer",fontFamily:"inherit"}}>
+            Retry
+          </button>
+        </div>
+      ):(
+        <div style={{borderRadius:8,overflow:"hidden",border:"0.5px solid #e5e7eb",background:"#fff"}}>
+          <iframe
+            src={proxyUrl}
+            title="AWS EC2 On-Demand Pricing"
+            loading="lazy"
+            referrerPolicy="no-referrer"
+            sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
+            onError={()=>setErr(true)}
+            style={{border:0,display:"block",width:"100%",height:"calc(100vh - 240px)",minHeight:720,background:"#fff"}}
+          />
+        </div>
+      )}
+
+      {/* Source note + the honest caveat about the inner pricing-table
+         widget. Spec says don't add custom summaries — this is just the
+         provenance line and the one disclosure the user needs to interpret
+         a possibly-blank instance pricing region. */}
+      <div style={{fontSize:10,color:"#9ca3af",marginTop:6,lineHeight:1.5}}>
+        Source: AWS EC2 On-Demand Pricing page. Live embedded reference; pricing is shown as published by AWS.
+      </div>
+      <div style={{fontSize:10,color:"#9ca3af",marginTop:3,lineHeight:1.5,maxWidth:760}}>
+        Note: AWS's instance pricing widget enforces a strict frame-ancestors policy; if the table area appears blank, that section is blocked by AWS and the data-transfer pricing tables below it are still live.
+      </div>
+    </div>
+  );
+}
 
 /* Trend-driven KPI hero row. Five cards driven by /api/aws/ip-ranges/summary:
      1. Latest Public IPv4 Capacity   (anchor — always available once
