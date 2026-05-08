@@ -1,14 +1,21 @@
 // AUTO-GENERATED — do not edit by hand.
 // Source: AWS Price List bulk CSV — https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/AmazonEC2/current/us-east-1/index.csv
-// Generated: 2026-05-07T06:11:36.190Z
+// Generated: 2026-05-08T11:44:54.381Z
 // Filters applied: TermType=OnDemand, OS=Linux, Tenancy=Shared, PreInstalled_SW=NA,
-//                  CapacityStatus=Used, License=No License required, Location=US East (N. Virginia)
+//                  CapacityStatus=Used, License=No License required, Location=US East (N. Virginia),
+//                  ProductFamily ∈ {Compute Instance, Compute Instance (bare metal)}
 // Regenerate with: node scripts/fetch-aws-ec2-pricing.mjs
-export const generatedAt = "2026-05-07T06:11:36.190Z";
+export const generatedAt = "2026-05-08T11:44:54.381Z";
 export const region = "us-east-1";
 export const regionLabel = "US East (N. Virginia)";
 export const operatingSystem = "Linux";
 export const tenancy = "Shared";
+// AWS marketing-page widget instance count for the same filter combo,
+// captured manually on AWS_REFERENCE_COUNT_DATE. Used to flag drift
+// between the official bulk CSV and the widget — the two data sources
+// don't always match exactly.
+export const awsReferenceCount = 1256;
+export const awsReferenceCountDate = "2026-05-08";
 export const onDemandRows = [
   {
     "instance_type": "t4g.nano",
@@ -18,7 +25,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 5 Gigabit",
     "processor_architecture": "AWS Graviton2 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "t3a.nano",
@@ -28,7 +36,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 5 Gigabit",
     "processor_architecture": "AMD EPYC 7571",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "t3.nano",
@@ -38,7 +47,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 5 Gigabit",
     "processor_architecture": "Intel Skylake E5 2686 v5",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "t2.nano",
@@ -48,7 +58,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Low",
     "processor_architecture": "Intel Xeon Family",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "t4g.micro",
@@ -58,7 +69,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 5 Gigabit",
     "processor_architecture": "AWS Graviton2 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "t3a.micro",
@@ -68,7 +80,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 5 Gigabit",
     "processor_architecture": "AMD EPYC 7571",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "t3.micro",
@@ -78,7 +91,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 5 Gigabit",
     "processor_architecture": "Intel Skylake E5 2686 v5",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "t2.micro",
@@ -88,7 +102,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Low to Moderate",
     "processor_architecture": "Intel Xeon Family",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "t4g.small",
@@ -98,7 +113,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 5 Gigabit",
     "processor_architecture": "AWS Graviton2 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "t3a.small",
@@ -108,7 +124,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 5 Gigabit",
     "processor_architecture": "AMD EPYC 7571",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "t1.micro",
@@ -118,7 +135,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Very Low",
     "processor_architecture": "Variable",
-    "current_generation": "No"
+    "current_generation": "No",
+    "bare_metal": false
   },
   {
     "instance_type": "t3.small",
@@ -128,7 +146,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 5 Gigabit",
     "processor_architecture": "Intel Skylake E5 2686 v5",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "t2.small",
@@ -138,7 +157,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Low to Moderate",
     "processor_architecture": "Intel Xeon Family",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "a1.medium",
@@ -148,7 +168,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "AWS Graviton Processor",
-    "current_generation": "No"
+    "current_generation": "No",
+    "bare_metal": false
   },
   {
     "instance_type": "t4g.medium",
@@ -158,7 +179,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 5 Gigabit",
     "processor_architecture": "AWS Graviton2 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c6g.medium",
@@ -168,7 +190,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "AWS Graviton2 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c7g.medium",
@@ -178,7 +201,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 12500 Megabit",
     "processor_architecture": "AWS Graviton3 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "t3a.medium",
@@ -188,7 +212,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 5 Gigabit",
     "processor_architecture": "AMD EPYC 7571",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c6gd.medium",
@@ -198,7 +223,8 @@ export const onDemandRows = [
     "storage": "1 x 59 NVMe SSD",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "AWS Graviton2 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m6g.medium",
@@ -208,7 +234,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "AWS Graviton2 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c8g.medium",
@@ -218,7 +245,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 12.5 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m7g.medium",
@@ -228,7 +256,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 12500 Megabit",
     "processor_architecture": "AWS Graviton3 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "t3.medium",
@@ -238,7 +267,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 5 Gigabit",
     "processor_architecture": "Intel Skylake E5 2686 v5",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c6gn.medium",
@@ -248,7 +278,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 25 Gigabit",
     "processor_architecture": "AWS Graviton2 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m1.small",
@@ -258,7 +289,8 @@ export const onDemandRows = [
     "storage": "1 x 160 SSD",
     "network_performance": "Low",
     "processor_architecture": "Intel Xeon Family",
-    "current_generation": "No"
+    "current_generation": "No",
+    "bare_metal": false
   },
   {
     "instance_type": "m8g.medium",
@@ -268,7 +300,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 12.5 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m6gd.medium",
@@ -278,7 +311,8 @@ export const onDemandRows = [
     "storage": "1 x 59 NVMe SSD",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "AWS Graviton2 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c7gd.medium",
@@ -288,7 +322,8 @@ export const onDemandRows = [
     "storage": "1 x 59 NVMe SSD",
     "network_performance": "Up to 12500 Megabit",
     "processor_architecture": "AWS Graviton3 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "t2.medium",
@@ -298,7 +333,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Low to Moderate",
     "processor_architecture": "Intel Xeon Family",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c8gd.medium",
@@ -308,7 +344,8 @@ export const onDemandRows = [
     "storage": "1 x 59 NVMe SSD",
     "network_performance": "Up to 12500 Megabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r6g.medium",
@@ -318,7 +355,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "AWS Graviton2 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "a1.large",
@@ -328,7 +366,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "AWS Graviton Processor",
-    "current_generation": "No"
+    "current_generation": "No",
+    "bare_metal": false
   },
   {
     "instance_type": "c7a.medium",
@@ -338,7 +377,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 12500 Megabit",
     "processor_architecture": "AMD EPYC 9R14 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m7gd.medium",
@@ -348,7 +388,8 @@ export const onDemandRows = [
     "storage": "1 x 59 NVMe SSD",
     "network_performance": "Up to 12500 Megabit",
     "processor_architecture": "AWS Graviton3 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r7g.medium",
@@ -358,7 +399,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 12500 Megabit",
     "processor_architecture": "AWS Graviton3 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c8a.medium",
@@ -368,7 +410,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 15000 Megabit",
     "processor_architecture": "AMD EPYC 9R45 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r6gd.medium",
@@ -378,7 +421,8 @@ export const onDemandRows = [
     "storage": "1 x 59 NVMe SSD",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "AWS Graviton2 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m8gd.medium",
@@ -388,7 +432,8 @@ export const onDemandRows = [
     "storage": "1 x 59 NVMe SSD",
     "network_performance": "Up to 12500 Megabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m7a.medium",
@@ -398,7 +443,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 12500 Megabit",
     "processor_architecture": "AMD EPYC 9R14 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r8g.medium",
@@ -408,7 +454,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 12.5 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c8gb.medium",
@@ -418,7 +465,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 16.667 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c8gn.medium",
@@ -428,7 +476,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 25 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m8a.medium",
@@ -438,7 +487,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 15000 Megabit",
     "processor_architecture": "AMD EPYC 9R45 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c7gn.medium",
@@ -448,7 +498,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 25 Gigabit",
     "processor_architecture": "AWS Graviton3 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m3.medium",
@@ -458,7 +509,8 @@ export const onDemandRows = [
     "storage": "1 x 4 SSD",
     "network_performance": "Moderate",
     "processor_architecture": "Intel Xeon E5-2670 v2 (Ivy Bridge/Sandy Bridge)",
-    "current_generation": "No"
+    "current_generation": "No",
+    "bare_metal": false
   },
   {
     "instance_type": "t4g.large",
@@ -468,7 +520,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 5 Gigabit",
     "processor_architecture": "AWS Graviton2 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r7gd.medium",
@@ -478,7 +531,8 @@ export const onDemandRows = [
     "storage": "1 x 59 NVMe SSD",
     "network_performance": "Up to 12500 Megabit",
     "processor_architecture": "AWS Graviton3 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c6g.large",
@@ -488,7 +542,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "AWS Graviton2 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c7g.large",
@@ -498,7 +553,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 12500 Megabit",
     "processor_architecture": "AWS Graviton3 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m8gb.medium",
@@ -508,7 +564,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 16.667 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m8gn.medium",
@@ -518,7 +575,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 25 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r8gd.medium",
@@ -528,7 +586,8 @@ export const onDemandRows = [
     "storage": "1 x 59 NVMe SSD",
     "network_performance": "Up to 12500 Megabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "t3a.large",
@@ -538,7 +597,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 5 Gigabit",
     "processor_architecture": "AMD EPYC 7571",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r7a.medium",
@@ -548,7 +608,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 12500 Megabit",
     "processor_architecture": "AMD EPYC 9R14 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c6a.large",
@@ -558,7 +619,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 12500 Megabit",
     "processor_architecture": "AMD EPYC 7R13 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c6gd.large",
@@ -568,7 +630,8 @@ export const onDemandRows = [
     "storage": "1 x 118 NVMe SSD",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "AWS Graviton2 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c5a.large",
@@ -578,7 +641,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "AMD EPYC 7R32",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m6g.large",
@@ -588,7 +652,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "AWS Graviton2 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c8g.large",
@@ -598,7 +663,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 12.5 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r8a.medium",
@@ -608,7 +674,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 15000 Megabit",
     "processor_architecture": "AMD EPYC 9R45 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m7g.large",
@@ -618,7 +685,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 12500 Megabit",
     "processor_architecture": "AWS Graviton3 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "t3.large",
@@ -628,7 +696,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 5 Gigabit",
     "processor_architecture": "Intel Skylake E5 2686 v5",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "x2gd.medium",
@@ -638,7 +707,8 @@ export const onDemandRows = [
     "storage": "1 x 59 SSD",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "AWS Graviton2 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c7i-flex.large",
@@ -648,7 +718,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 12500 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Sapphire Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c5.large",
@@ -658,7 +729,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8124M",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c6i.large",
@@ -668,7 +740,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 12500 Megabit",
     "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m5a.large",
@@ -678,7 +751,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "AMD EPYC 7571",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c5ad.large",
@@ -688,7 +762,8 @@ export const onDemandRows = [
     "storage": "1 x 75 NVMe SSD",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "AMD EPYC 7R32",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m6a.large",
@@ -698,7 +773,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 12500 Megabit",
     "processor_architecture": "AMD EPYC 7R13 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c6gn.large",
@@ -708,7 +784,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 25 Gigabit",
     "processor_architecture": "AWS Graviton2 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m1.medium",
@@ -718,7 +795,8 @@ export const onDemandRows = [
     "storage": "1 x 410 SSD",
     "network_performance": "Moderate",
     "processor_architecture": "Intel Xeon Family",
-    "current_generation": "No"
+    "current_generation": "No",
+    "bare_metal": false
   },
   {
     "instance_type": "c8i-flex.large",
@@ -728,7 +806,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 12500 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c7i.large",
@@ -738,7 +817,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 12500 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Sapphire Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m8g.large",
@@ -748,7 +828,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 12.5 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m6gd.large",
@@ -758,7 +839,8 @@ export const onDemandRows = [
     "storage": "1 x 118 NVMe SSD",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "AWS Graviton2 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c7gd.large",
@@ -768,7 +850,8 @@ export const onDemandRows = [
     "storage": "1 x 118 NVMe SSD",
     "network_performance": "Up to 12500 Megabit",
     "processor_architecture": "AWS Graviton3 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r8gb.medium",
@@ -778,7 +861,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 16.667 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r8gn.medium",
@@ -788,7 +872,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 25 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "t2.large",
@@ -798,7 +883,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Low to Moderate",
     "processor_architecture": "Intel Xeon Family",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c8i.large",
@@ -808,7 +894,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 12500 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m7i-flex.large",
@@ -818,7 +905,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 12500 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Sapphire Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m5.large",
@@ -828,7 +916,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8175",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m6i.large",
@@ -838,7 +927,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 12500 Megabit",
     "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c5d.large",
@@ -848,7 +938,8 @@ export const onDemandRows = [
     "storage": "1 x 50 NVMe SSD",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8124M",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "x8g.medium",
@@ -858,7 +949,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 12.5 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c8gd.large",
@@ -868,7 +960,8 @@ export const onDemandRows = [
     "storage": "1 x 118 NVMe SSD",
     "network_performance": "Up to 12500 Megabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c4.large",
@@ -878,7 +971,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Moderate",
     "processor_architecture": "Intel Xeon E5-2666 v3 (Haswell)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m4.large",
@@ -888,7 +982,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Moderate",
     "processor_architecture": "Intel Xeon E5-2676 v3 (Haswell)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m8i-flex.large",
@@ -898,7 +993,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 12500 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c6id.large",
@@ -908,7 +1004,8 @@ export const onDemandRows = [
     "storage": "1 x 118 NVMe SSD",
     "network_performance": "Up to 12500 Megabit",
     "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m7i.large",
@@ -918,7 +1015,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 12500 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Sapphire Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r6g.large",
@@ -928,7 +1026,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "AWS Graviton2 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "a1.xlarge",
@@ -938,7 +1037,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "AWS Graviton Processor",
-    "current_generation": "No"
+    "current_generation": "No",
+    "bare_metal": false
   },
   {
     "instance_type": "c7a.large",
@@ -948,7 +1048,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 12500 Megabit",
     "processor_architecture": "AMD EPYC 9R14 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m5ad.large",
@@ -958,7 +1059,8 @@ export const onDemandRows = [
     "storage": "1 x 75 NVMe SSD",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "AMD EPYC 7571",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m8azn.medium",
@@ -968,7 +1070,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 25 Gigabit",
     "processor_architecture": "AMD EPYC 9575F",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c3.large",
@@ -978,7 +1081,8 @@ export const onDemandRows = [
     "storage": "2 x 16 SSD",
     "network_performance": "Moderate",
     "processor_architecture": "Intel Xeon E5-2680 v2 (Ivy Bridge)",
-    "current_generation": "No"
+    "current_generation": "No",
+    "bare_metal": false
   },
   {
     "instance_type": "m8i.large",
@@ -988,7 +1092,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 12500 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m7gd.large",
@@ -998,7 +1103,8 @@ export const onDemandRows = [
     "storage": "1 x 118 NVMe SSD",
     "network_performance": "Up to 12500 Megabit",
     "processor_architecture": "AWS Graviton3 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r7g.large",
@@ -1008,7 +1114,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 12500 Megabit",
     "processor_architecture": "AWS Graviton3 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c8a.large",
@@ -1018,7 +1125,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 15000 Megabit",
     "processor_architecture": "AMD EPYC 9R45 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c5n.large",
@@ -1028,7 +1136,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 25 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8124M",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c8id.large",
@@ -1038,7 +1147,8 @@ export const onDemandRows = [
     "storage": "1 x 118 NVMe SSD",
     "network_performance": "Up to 12500 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m5d.large",
@@ -1048,7 +1158,8 @@ export const onDemandRows = [
     "storage": "1 x 75 NVMe SSD",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8175",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r5a.large",
@@ -1058,7 +1169,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "AMD EPYC 7571",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c6in.large",
@@ -1068,7 +1180,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 25000 Megabit",
     "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r6a.large",
@@ -1078,7 +1191,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 12500 Megabit",
     "processor_architecture": "AMD EPYC 7R13 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r6gd.large",
@@ -1088,7 +1202,8 @@ export const onDemandRows = [
     "storage": "1 x 118 NVMe SSD",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "AWS Graviton2 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m8gd.large",
@@ -1098,7 +1213,8 @@ export const onDemandRows = [
     "storage": "1 x 118 NVMe SSD",
     "network_performance": "Up to 12500 Megabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m7a.large",
@@ -1108,7 +1224,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 12500 Megabit",
     "processor_architecture": "AMD EPYC 9R14 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r8g.large",
@@ -1118,7 +1235,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 12.5 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c8gb.large",
@@ -1128,7 +1246,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 20 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c8gn.large",
@@ -1138,7 +1257,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 30 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m6id.large",
@@ -1148,7 +1268,8 @@ export const onDemandRows = [
     "storage": "1 x 118 NVMe SSD",
     "network_performance": "Up to 12500 Megabit",
     "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m5n.large",
@@ -1158,7 +1279,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 25 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8259 (Cascade Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m8a.large",
@@ -1168,7 +1290,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 15000 Megabit",
     "processor_architecture": "AMD EPYC 9R45 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c7gn.large",
@@ -1178,7 +1301,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 30 Gigabit",
     "processor_architecture": "AWS Graviton3 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r6i.large",
@@ -1188,7 +1312,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 12500 Megabit",
     "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r5.large",
@@ -1198,7 +1323,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8175",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c1.medium",
@@ -1208,7 +1334,8 @@ export const onDemandRows = [
     "storage": "1 x 350 SSD",
     "network_performance": "Moderate",
     "processor_architecture": "Intel Xeon Family",
-    "current_generation": "No"
+    "current_generation": "No",
+    "bare_metal": false
   },
   {
     "instance_type": "m8id.large",
@@ -1218,7 +1345,8 @@ export const onDemandRows = [
     "storage": "1 x 118 NVMe SSD",
     "network_performance": "Up to 12500 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r5ad.large",
@@ -1228,7 +1356,8 @@ export const onDemandRows = [
     "storage": "1 x 75 NVMe SSD",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "AMD EPYC 7571",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r8i-flex.large",
@@ -1238,7 +1367,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 12500 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r7i.large",
@@ -1248,7 +1378,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 12500 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Sapphire Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r4.large",
@@ -1258,7 +1389,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "Intel Xeon E5-2686 v4 (Broadwell)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m3.large",
@@ -1268,7 +1400,8 @@ export const onDemandRows = [
     "storage": "1 x 32 SSD",
     "network_performance": "Moderate",
     "processor_architecture": "Intel Xeon E5-2670 v2 (Ivy Bridge/Sandy Bridge)",
-    "current_generation": "No"
+    "current_generation": "No",
+    "bare_metal": false
   },
   {
     "instance_type": "t4g.xlarge",
@@ -1278,7 +1411,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 5 Gigabit",
     "processor_architecture": "AWS Graviton2 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m5dn.large",
@@ -1288,7 +1422,8 @@ export const onDemandRows = [
     "storage": "1 x 75 NVMe SSD",
     "network_performance": "Up to 25 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8259 (Cascade Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c6g.xlarge",
@@ -1298,7 +1433,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "AWS Graviton2 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c8in.large",
@@ -1308,7 +1444,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 25 Gigabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c8ib.large",
@@ -1318,7 +1455,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 16.667 Gigabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r7gd.large",
@@ -1328,7 +1466,8 @@ export const onDemandRows = [
     "storage": "1 x 118 NVMe SSD",
     "network_performance": "Up to 12500 Megabit",
     "processor_architecture": "AWS Graviton3 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r8i.large",
@@ -1338,7 +1477,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 12500 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m6in.large",
@@ -1348,7 +1488,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 25000 Megabit",
     "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r5d.large",
@@ -1358,7 +1499,8 @@ export const onDemandRows = [
     "storage": "1 x 75 NVMe SSD",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8175",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "is4gen.medium",
@@ -1368,7 +1510,8 @@ export const onDemandRows = [
     "storage": "1 x 937 SSD",
     "network_performance": "Up to 25 Gigabit",
     "processor_architecture": "AWS Graviton2 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c7g.xlarge",
@@ -1378,7 +1521,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 12500 Megabit",
     "processor_architecture": "AWS Graviton3 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m8gn.large",
@@ -1388,7 +1532,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 30 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m8gb.large",
@@ -1398,7 +1543,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 20 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r8gd.large",
@@ -1408,7 +1554,8 @@ export const onDemandRows = [
     "storage": "1 x 118 NVMe SSD",
     "network_performance": "Up to 12500 Megabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r5b.large",
@@ -1418,7 +1565,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8259 (Cascade Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r5n.large",
@@ -1428,7 +1576,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 25 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8259 (Cascade Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "t3a.xlarge",
@@ -1438,7 +1587,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 5 Gigabit",
     "processor_architecture": "AMD EPYC 7571",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r6id.large",
@@ -1448,7 +1598,8 @@ export const onDemandRows = [
     "storage": "1 x 118 NVMe SSD",
     "network_performance": "Up to 12500 Megabit",
     "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r7a.large",
@@ -1458,7 +1609,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 12500 Megabit",
     "processor_architecture": "AMD EPYC 9R14 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c6a.xlarge",
@@ -1468,7 +1620,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 12500 Megabit",
     "processor_architecture": "AMD EPYC 7R13 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c6gd.xlarge",
@@ -1478,7 +1631,8 @@ export const onDemandRows = [
     "storage": "1 x 237 NVMe SSD",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "AWS Graviton2 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c5a.xlarge",
@@ -1488,7 +1642,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "AMD EPYC 7R32",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m6g.xlarge",
@@ -1498,7 +1653,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "AWS Graviton2 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "i4g.large",
@@ -1508,7 +1664,8 @@ export const onDemandRows = [
     "storage": "1 x 468 SSD",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "AWS Graviton2 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "i3.large",
@@ -1518,7 +1675,8 @@ export const onDemandRows = [
     "storage": "1 x 475 NVMe SSD",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "Intel Xeon E5-2686 v4 (Broadwell)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m6idn.large",
@@ -1528,7 +1686,8 @@ export const onDemandRows = [
     "storage": "1 x 118 NVMe SSD",
     "network_performance": "Up to 25000 Megabit",
     "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c8g.xlarge",
@@ -1538,7 +1697,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 12.5 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r8a.large",
@@ -1548,7 +1708,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 15000 Megabit",
     "processor_architecture": "AMD EPYC 9R45 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m7g.xlarge",
@@ -1558,7 +1719,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 12500 Megabit",
     "processor_architecture": "AWS Graviton3 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m5zn.large",
@@ -1568,7 +1730,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 25 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8252",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r3.large",
@@ -1578,7 +1741,8 @@ export const onDemandRows = [
     "storage": "1 x 32 SSD",
     "network_performance": "Moderate",
     "processor_architecture": "Intel Xeon E5-2670 v2 (Ivy Bridge)",
-    "current_generation": "No"
+    "current_generation": "No",
+    "bare_metal": false
   },
   {
     "instance_type": "r8id.large",
@@ -1588,7 +1752,8 @@ export const onDemandRows = [
     "storage": "1 x 118 NVMe SSD",
     "network_performance": "Up to 12500 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "t3.xlarge",
@@ -1598,7 +1763,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 5 Gigabit",
     "processor_architecture": "Intel Skylake E5 2686 v5",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r5dn.large",
@@ -1608,7 +1774,8 @@ export const onDemandRows = [
     "storage": "1 x 75 NVMe SSD",
     "network_performance": "Up to 25 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8259 (Cascade Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "x2gd.large",
@@ -1618,7 +1785,8 @@ export const onDemandRows = [
     "storage": "1 x 118 SSD",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "AWS Graviton2 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m8in.large",
@@ -1628,7 +1796,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 25 Gigabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m8ib.large",
@@ -1638,7 +1807,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 16.66 Gigabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c7i-flex.xlarge",
@@ -1648,7 +1818,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 12500 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Sapphire Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c5.xlarge",
@@ -1658,7 +1829,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8124M",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c6i.xlarge",
@@ -1668,7 +1840,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 12500 Megabit",
     "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c8ine.large",
@@ -1678,7 +1851,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "3.125 Gigabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "i8g.large",
@@ -1688,7 +1862,8 @@ export const onDemandRows = [
     "storage": "1 x 468GB",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m5a.xlarge",
@@ -1698,7 +1873,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "AMD EPYC 7571",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "i4i.large",
@@ -1708,7 +1884,8 @@ export const onDemandRows = [
     "storage": "1 x 468 NVMe SSD",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c5ad.xlarge",
@@ -1718,7 +1895,8 @@ export const onDemandRows = [
     "storage": "1 x 150 NVMe SSD",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "AMD EPYC 7R32",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c6gn.xlarge",
@@ -1728,7 +1906,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 25 Gigabit",
     "processor_architecture": "AWS Graviton2 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m6a.xlarge",
@@ -1738,7 +1917,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 12500 Megabit",
     "processor_architecture": "AMD EPYC 7R13 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r6in.large",
@@ -1748,7 +1928,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 25000 Megabit",
     "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m1.large",
@@ -1758,7 +1939,8 @@ export const onDemandRows = [
     "storage": "2 x 420 SSD",
     "network_performance": "Moderate",
     "processor_architecture": "Intel Xeon Family",
-    "current_generation": "No"
+    "current_generation": "No",
+    "bare_metal": false
   },
   {
     "instance_type": "c8i-flex.xlarge",
@@ -1768,7 +1950,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 12500 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c7i.xlarge",
@@ -1778,7 +1961,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 12500 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Sapphire Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m8g.xlarge",
@@ -1788,7 +1972,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 12.5 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m6gd.xlarge",
@@ -1798,7 +1983,8 @@ export const onDemandRows = [
     "storage": "1 x 237 NVMe SSD",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "AWS Graviton2 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c7gd.xlarge",
@@ -1808,7 +1994,8 @@ export const onDemandRows = [
     "storage": "1 x 237 NVMe SSD",
     "network_performance": "Up to 12500 Megabit",
     "processor_architecture": "AWS Graviton3 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "im4gn.large",
@@ -1818,7 +2005,8 @@ export const onDemandRows = [
     "storage": "1 x 937 SSD",
     "network_performance": "Up to 25 Gigabit",
     "processor_architecture": "AWS Graviton2 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r8gb.large",
@@ -1828,7 +2016,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 20 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r8gn.large",
@@ -1838,7 +2027,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 30 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "t2.xlarge",
@@ -1848,7 +2038,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Moderate",
     "processor_architecture": "Intel Xeon Family",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "z1d.large",
@@ -1858,7 +2049,8 @@ export const onDemandRows = [
     "storage": "1 x 75 NVMe SSD",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8151",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r7iz.large",
@@ -1868,7 +2060,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 12500 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Sapphire Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c8i.xlarge",
@@ -1878,7 +2071,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 12500 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "i7i.large",
@@ -1888,7 +2082,30 @@ export const onDemandRows = [
     "storage": "1 x 468 NVMe SSD",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "Intel Xeon Scalable (Emerald Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "m8idn.large",
+    "price_per_hour_usd": 0.19094,
+    "vcpu": 2,
+    "memory": "8.0 GiB",
+    "storage": "1 x 118 NVMe SSD",
+    "network_performance": "Up to 25 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "m8idb.large",
+    "price_per_hour_usd": 0.19094,
+    "vcpu": 2,
+    "memory": "8.0 GiB",
+    "storage": "1 x 118 NVMe SSD",
+    "network_performance": "Up to 16.66 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m7i-flex.xlarge",
@@ -1898,7 +2115,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 12500 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Sapphire Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m6i.xlarge",
@@ -1908,7 +2126,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 12500 Megabit",
     "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m5.xlarge",
@@ -1918,7 +2137,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8175",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c5d.xlarge",
@@ -1928,7 +2148,8 @@ export const onDemandRows = [
     "storage": "1 x 100 NVMe SSD",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8124M",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r6idn.large",
@@ -1938,7 +2159,8 @@ export const onDemandRows = [
     "storage": "1 x 118 NVMe SSD",
     "network_performance": "Up to 25000 Megabit",
     "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "x8g.large",
@@ -1948,7 +2170,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 12.5 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c8gd.xlarge",
@@ -1958,7 +2181,8 @@ export const onDemandRows = [
     "storage": "1 x 237 NVMe SSD",
     "network_performance": "Up to 12500 Megabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c4.xlarge",
@@ -1968,7 +2192,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "High",
     "processor_architecture": "Intel Xeon E5-2666 v3 (Haswell)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m4.xlarge",
@@ -1978,7 +2203,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "High",
     "processor_architecture": "Intel Xeon E5-2676 v3 (Haswell)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m8i-flex.xlarge",
@@ -1988,7 +2214,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 12500 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c6id.xlarge",
@@ -1998,7 +2225,8 @@ export const onDemandRows = [
     "storage": "1 x 237 NVMe SSD",
     "network_performance": "Up to 12500 Megabit",
     "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r6g.xlarge",
@@ -2008,7 +2236,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "AWS Graviton2 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m7i.xlarge",
@@ -2018,7 +2247,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 12500 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Sapphire Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "g6f.large",
@@ -2028,7 +2258,8 @@ export const onDemandRows = [
     "storage": "1 x 100 NVMe SSD",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "AMD EPYC 7R13 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "a1.2xlarge",
@@ -2038,7 +2269,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "AWS Graviton Processor",
-    "current_generation": "No"
+    "current_generation": "No",
+    "bare_metal": false
   },
   {
     "instance_type": "c7a.xlarge",
@@ -2048,7 +2280,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 12500 Megabit",
     "processor_architecture": "AMD EPYC 9R14 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m5ad.xlarge",
@@ -2058,7 +2291,8 @@ export const onDemandRows = [
     "storage": "1 x 150 NVMe SSD",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "AMD EPYC 7571",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m8azn.large",
@@ -2068,7 +2302,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 30 Gigabit",
     "processor_architecture": "AMD EPYC 9575F",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m8ine.large",
@@ -2078,7 +2313,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "3.125 Gigabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r8in.large",
@@ -2088,7 +2324,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 25 Gigabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r8ib.large",
@@ -2098,7 +2335,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 16.66 Gigabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c3.xlarge",
@@ -2108,7 +2346,8 @@ export const onDemandRows = [
     "storage": "2 x 40 SSD",
     "network_performance": "Moderate",
     "processor_architecture": "Intel Xeon E5-2680 v2 (Ivy Bridge)",
-    "current_generation": "No"
+    "current_generation": "No",
+    "bare_metal": false
   },
   {
     "instance_type": "m8i.xlarge",
@@ -2118,7 +2357,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 12500 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m7gd.xlarge",
@@ -2128,7 +2368,8 @@ export const onDemandRows = [
     "storage": "1 x 237 NVMe SSD",
     "network_performance": "Up to 12500 Megabit",
     "processor_architecture": "AWS Graviton3 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r7g.xlarge",
@@ -2138,7 +2379,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 12500 Megabit",
     "processor_architecture": "AWS Graviton3 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c8a.xlarge",
@@ -2148,7 +2390,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 15000 Megabit",
     "processor_architecture": "AMD EPYC 9R45 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c5n.xlarge",
@@ -2158,7 +2401,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 25 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8124M",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "x8i.large",
@@ -2168,7 +2412,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 12500 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c8id.xlarge",
@@ -2178,7 +2423,8 @@ export const onDemandRows = [
     "storage": "1 x 237 NVMe SSD",
     "network_performance": "Up to 12500 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r5a.xlarge",
@@ -2188,7 +2434,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "AMD EPYC 7571",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m5d.xlarge",
@@ -2198,7 +2445,8 @@ export const onDemandRows = [
     "storage": "1 x 150 NVMe SSD",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8175",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "i3en.large",
@@ -2208,7 +2456,8 @@ export const onDemandRows = [
     "storage": "1 x 1250 NVMe SSD",
     "network_performance": "Up to 25 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8175",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c6in.xlarge",
@@ -2218,7 +2467,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 30000 Megabit",
     "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r6a.xlarge",
@@ -2228,7 +2478,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 12500 Megabit",
     "processor_architecture": "AMD EPYC 7R13 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "inf1.xlarge",
@@ -2238,7 +2489,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 25 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8275CL (Cascade Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r6gd.xlarge",
@@ -2248,7 +2500,8 @@ export const onDemandRows = [
     "storage": "1 x 237 NVMe SSD",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "AWS Graviton2 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m8gd.xlarge",
@@ -2258,7 +2511,8 @@ export const onDemandRows = [
     "storage": "1 x 237 NVMe SSD",
     "network_performance": "Up to 12500 Megabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m7a.xlarge",
@@ -2268,7 +2522,30 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 12500 Megabit",
     "processor_architecture": "AMD EPYC 9R14 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "r8idb.large",
+    "price_per_hour_usd": 0.23447,
+    "vcpu": 2,
+    "memory": "16.0 GiB",
+    "storage": "1 x 118 NVMe SSD",
+    "network_performance": "Up to 16.66 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "r8idn.large",
+    "price_per_hour_usd": 0.23447,
+    "vcpu": 2,
+    "memory": "16.0 GiB",
+    "storage": "1 x 118 NVMe SSD",
+    "network_performance": "Up to 25 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r8g.xlarge",
@@ -2278,7 +2555,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 12.5 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c8gb.xlarge",
@@ -2288,7 +2566,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 26.667 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c8gn.xlarge",
@@ -2298,7 +2577,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 40 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "i8ge.large",
@@ -2308,7 +2588,8 @@ export const onDemandRows = [
     "storage": "1 x 1250 NVMe SSD",
     "network_performance": "Up to 25 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m6id.xlarge",
@@ -2318,7 +2599,8 @@ export const onDemandRows = [
     "storage": "1 x 237 NVMe SSD",
     "network_performance": "Up to 12500 Megabit",
     "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "g6f.xlarge",
@@ -2328,7 +2610,8 @@ export const onDemandRows = [
     "storage": "1 x 100 NVMe SSD",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "AMD EPYC 7R13 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m5n.xlarge",
@@ -2338,7 +2621,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 25 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8259 (Cascade Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m8a.xlarge",
@@ -2348,7 +2632,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 15000 Megabit",
     "processor_architecture": "AMD EPYC 9R45 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m2.xlarge",
@@ -2358,7 +2643,8 @@ export const onDemandRows = [
     "storage": "1 x 420 SSD",
     "network_performance": "Moderate",
     "processor_architecture": "Intel Xeon Family",
-    "current_generation": "No"
+    "current_generation": "No",
+    "bare_metal": false
   },
   {
     "instance_type": "c7gn.xlarge",
@@ -2368,7 +2654,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 40 Gigabit",
     "processor_architecture": "AWS Graviton3 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r6i.xlarge",
@@ -2378,7 +2665,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 12500 Megabit",
     "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r5.xlarge",
@@ -2388,7 +2676,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8175",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "i7ie.large",
@@ -2398,7 +2687,8 @@ export const onDemandRows = [
     "storage": "1 x 1250 NVMe SSD",
     "network_performance": "Up to 25 Gigabit",
     "processor_architecture": "Intel Xeon Scalable (Emerald Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m8id.xlarge",
@@ -2408,7 +2698,8 @@ export const onDemandRows = [
     "storage": "1 x 237 NVMe SSD",
     "network_performance": "Up to 12500 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r5ad.xlarge",
@@ -2418,7 +2709,8 @@ export const onDemandRows = [
     "storage": "1 x 150 NVMe SSD",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "AMD EPYC 7571",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r8i-flex.xlarge",
@@ -2428,7 +2720,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 12500 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r7i.xlarge",
@@ -2438,7 +2731,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 12500 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Sapphire Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m3.xlarge",
@@ -2448,7 +2742,8 @@ export const onDemandRows = [
     "storage": "2 x 40 SSD",
     "network_performance": "High",
     "processor_architecture": "Intel Xeon E5-2670 v2 (Ivy Bridge/Sandy Bridge)",
-    "current_generation": "No"
+    "current_generation": "No",
+    "bare_metal": false
   },
   {
     "instance_type": "r4.xlarge",
@@ -2458,7 +2753,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "Intel Xeon E5-2686 v4 (Broadwell)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "t4g.2xlarge",
@@ -2468,7 +2764,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 5 Gigabit",
     "processor_architecture": "AWS Graviton2 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c6g.2xlarge",
@@ -2478,7 +2775,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "AWS Graviton2 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m5dn.xlarge",
@@ -2488,7 +2786,8 @@ export const onDemandRows = [
     "storage": "1 x 150 NVMe SSD",
     "network_performance": "Up to 25 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8259 (Cascade Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c8ib.xlarge",
@@ -2498,7 +2797,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 20 Gigabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c8in.xlarge",
@@ -2508,7 +2808,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 30 Gigabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r7gd.xlarge",
@@ -2518,7 +2819,8 @@ export const onDemandRows = [
     "storage": "1 x 237 NVMe SSD",
     "network_performance": "Up to 12500 Megabit",
     "processor_architecture": "AWS Graviton3 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r8i.xlarge",
@@ -2528,7 +2830,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 12500 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m6in.xlarge",
@@ -2538,7 +2841,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 30000 Megabit",
     "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r5d.xlarge",
@@ -2548,7 +2852,8 @@ export const onDemandRows = [
     "storage": "1 x 150 NVMe SSD",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8175",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "is4gen.large",
@@ -2558,7 +2863,8 @@ export const onDemandRows = [
     "storage": "1 x 1875 SSD",
     "network_performance": "Up to 25 Gigabit",
     "processor_architecture": "AWS Graviton2 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c7g.2xlarge",
@@ -2568,7 +2874,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 15 Gigabit",
     "processor_architecture": "AWS Graviton3 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m8gb.xlarge",
@@ -2578,7 +2885,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 26.667 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m8gn.xlarge",
@@ -2588,7 +2896,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 40 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r8gd.xlarge",
@@ -2598,7 +2907,8 @@ export const onDemandRows = [
     "storage": "1 x 237 NVMe SSD",
     "network_performance": "Up to 12500 Megabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r5n.xlarge",
@@ -2608,7 +2918,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 25 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8259 (Cascade Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r5b.xlarge",
@@ -2618,7 +2929,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8259 (Cascade Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "t3a.2xlarge",
@@ -2628,7 +2940,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 5 Gigabit",
     "processor_architecture": "AMD EPYC 7571",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r6id.xlarge",
@@ -2638,7 +2951,8 @@ export const onDemandRows = [
     "storage": "1 x 237 NVMe SSD",
     "network_performance": "Up to 12500 Megabit",
     "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r7a.xlarge",
@@ -2648,7 +2962,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 12500 Megabit",
     "processor_architecture": "AMD EPYC 9R14 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c6a.2xlarge",
@@ -2658,7 +2973,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 12500 Megabit",
     "processor_architecture": "AMD EPYC 7R13 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c6gd.2xlarge",
@@ -2668,7 +2984,8 @@ export const onDemandRows = [
     "storage": "1 x 475 NVMe SSD",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "AWS Graviton2 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m6g.2xlarge",
@@ -2678,7 +2995,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "AWS Graviton2 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c5a.2xlarge",
@@ -2688,7 +3006,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "AMD EPYC 7R32",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "i4g.xlarge",
@@ -2698,7 +3017,8 @@ export const onDemandRows = [
     "storage": "1 x 937 SSD",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "AWS Graviton2 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "i3.xlarge",
@@ -2708,7 +3028,8 @@ export const onDemandRows = [
     "storage": "1 x 950 NVMe SSD",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "Intel Xeon E5-2686 v4 (Broadwell)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m6idn.xlarge",
@@ -2718,7 +3039,8 @@ export const onDemandRows = [
     "storage": "1 x 237 NVMe SSD",
     "network_performance": "Up to 30000 Megabit",
     "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c8g.2xlarge",
@@ -2728,7 +3050,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 15 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r8a.xlarge",
@@ -2738,7 +3061,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 15000 Megabit",
     "processor_architecture": "AMD EPYC 9R45 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m7g.2xlarge",
@@ -2748,7 +3072,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 15 Gigabit",
     "processor_architecture": "AWS Graviton3 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m5zn.xlarge",
@@ -2758,7 +3083,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 25 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8252",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r8id.xlarge",
@@ -2768,7 +3094,8 @@ export const onDemandRows = [
     "storage": "1 x 237 NVMe SSD",
     "network_performance": "Up to 12500 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "t3.2xlarge",
@@ -2778,7 +3105,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 5 Gigabit",
     "processor_architecture": "Intel Skylake E5 2686 v5",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r3.xlarge",
@@ -2788,7 +3116,8 @@ export const onDemandRows = [
     "storage": "1 x 80 SSD",
     "network_performance": "Moderate",
     "processor_architecture": "Intel Xeon E5-2670 v2 (Ivy Bridge)",
-    "current_generation": "No"
+    "current_generation": "No",
+    "bare_metal": false
   },
   {
     "instance_type": "r5dn.xlarge",
@@ -2798,7 +3127,8 @@ export const onDemandRows = [
     "storage": "1 x 150 NVMe SSD",
     "network_performance": "Up to 25 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8259 (Cascade Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "x2gd.xlarge",
@@ -2808,7 +3138,8 @@ export const onDemandRows = [
     "storage": "1 x 237 SSD",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "AWS Graviton2 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m8in.xlarge",
@@ -2818,7 +3149,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 30 Gigabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m8ib.xlarge",
@@ -2828,7 +3160,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 20 Gigabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c7i-flex.2xlarge",
@@ -2838,7 +3171,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 12500 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Sapphire Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c5.2xlarge",
@@ -2848,7 +3182,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8124M",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c6i.2xlarge",
@@ -2858,7 +3193,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 12500 Megabit",
     "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c8ine.xlarge",
@@ -2868,7 +3204,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "6.25 Gigabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "i4i.xlarge",
@@ -2878,7 +3215,8 @@ export const onDemandRows = [
     "storage": "1 x 937 NVMe SSD",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "i8g.xlarge",
@@ -2888,7 +3226,8 @@ export const onDemandRows = [
     "storage": "1 x 937GB",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c5ad.2xlarge",
@@ -2898,7 +3237,8 @@ export const onDemandRows = [
     "storage": "1 x 300 NVMe SSD",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "AMD EPYC 7R32",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m5a.2xlarge",
@@ -2908,7 +3248,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "AMD EPYC 7571",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m6a.2xlarge",
@@ -2918,7 +3259,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 12500 Megabit",
     "processor_architecture": "AMD EPYC 7R13 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c6gn.2xlarge",
@@ -2928,7 +3270,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 25 Gigabit",
     "processor_architecture": "AWS Graviton2 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r6in.xlarge",
@@ -2938,7 +3281,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 30000 Megabit",
     "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m1.xlarge",
@@ -2948,7 +3292,8 @@ export const onDemandRows = [
     "storage": "4 x 420 SSD",
     "network_performance": "High",
     "processor_architecture": "Intel Xeon Family",
-    "current_generation": "No"
+    "current_generation": "No",
+    "bare_metal": false
   },
   {
     "instance_type": "c8i-flex.2xlarge",
@@ -2958,7 +3303,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 15000 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c7i.2xlarge",
@@ -2968,7 +3314,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 12500 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Sapphire Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m8g.2xlarge",
@@ -2978,7 +3325,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 15 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m6gd.2xlarge",
@@ -2988,7 +3336,8 @@ export const onDemandRows = [
     "storage": "1 x 475 NVMe SSD",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "AWS Graviton2 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "inf1.2xlarge",
@@ -2998,7 +3347,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 25 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8275CL (Cascade Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c7gd.2xlarge",
@@ -3008,7 +3358,8 @@ export const onDemandRows = [
     "storage": "1 x 475 NVMe SSD",
     "network_performance": "Up to 15 Gigabit",
     "processor_architecture": "AWS Graviton3 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "im4gn.xlarge",
@@ -3018,7 +3369,8 @@ export const onDemandRows = [
     "storage": "1 x 1875 SSD",
     "network_performance": "Up to 25 Gigabit",
     "processor_architecture": "AWS Graviton2 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r8gb.xlarge",
@@ -3028,7 +3380,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 26.667 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r8gn.xlarge",
@@ -3038,7 +3391,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 40 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "t2.2xlarge",
@@ -3048,7 +3402,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Moderate",
     "processor_architecture": "Intel Xeon Family",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r7iz.xlarge",
@@ -3058,7 +3413,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 12500 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Sapphire Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "z1d.xlarge",
@@ -3068,7 +3424,8 @@ export const onDemandRows = [
     "storage": "1 x 150 NVMe SSD",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8151",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c8i.2xlarge",
@@ -3078,7 +3435,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 15000 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "i7i.xlarge",
@@ -3088,7 +3446,8 @@ export const onDemandRows = [
     "storage": "1 x 937 NVMe SSD",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "Intel Xeon Scalable (Emerald Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "g4ad.xlarge",
@@ -3098,7 +3457,30 @@ export const onDemandRows = [
     "storage": "150 GB NVMe SSD",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "AMD EPYC 7R32",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "m8idb.xlarge",
+    "price_per_hour_usd": 0.38188,
+    "vcpu": 4,
+    "memory": "16.0 GiB",
+    "storage": "1 x 237 NVMe SSD",
+    "network_performance": "Up to 20 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "m8idn.xlarge",
+    "price_per_hour_usd": 0.38188,
+    "vcpu": 4,
+    "memory": "16.0 GiB",
+    "storage": "1 x 237 NVMe SSD",
+    "network_performance": "Up to 30 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m7i-flex.2xlarge",
@@ -3108,7 +3490,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 12500 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Sapphire Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m6i.2xlarge",
@@ -3118,7 +3501,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 12500 Megabit",
     "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c5d.2xlarge",
@@ -3128,7 +3512,8 @@ export const onDemandRows = [
     "storage": "1 x 200 NVMe SSD",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8124M",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m5.2xlarge",
@@ -3138,7 +3523,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8175",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r6idn.xlarge",
@@ -3148,7 +3534,8 @@ export const onDemandRows = [
     "storage": "1 x 237 NVMe SSD",
     "network_performance": "Up to 30000 Megabit",
     "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "x8g.xlarge",
@@ -3158,7 +3545,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 12.5 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c8gd.2xlarge",
@@ -3168,7 +3556,8 @@ export const onDemandRows = [
     "storage": "1 x 475 NVMe SSD",
     "network_performance": "Up to 15 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c4.2xlarge",
@@ -3178,7 +3567,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "High",
     "processor_architecture": "Intel Xeon E5-2666 v3 (Haswell)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m4.2xlarge",
@@ -3188,7 +3578,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "High",
     "processor_architecture": "Intel Xeon E5-2676 v3 (Haswell)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m8i-flex.2xlarge",
@@ -3198,7 +3589,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 15000 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m7i.2xlarge",
@@ -3208,7 +3600,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 12500 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Sapphire Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r6g.2xlarge",
@@ -3218,7 +3611,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "AWS Graviton2 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c6id.2xlarge",
@@ -3228,7 +3622,19 @@ export const onDemandRows = [
     "storage": "1 x 474 NVMe SSD",
     "network_performance": "Up to 12500 Megabit",
     "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "a1.metal",
+    "price_per_hour_usd": 0.408,
+    "vcpu": 16,
+    "memory": "32 GiB",
+    "storage": "EBS only",
+    "network_performance": "Up to 10 Gigabit",
+    "processor_architecture": "AWS Graviton Processor",
+    "current_generation": "No",
+    "bare_metal": true
   },
   {
     "instance_type": "a1.4xlarge",
@@ -3238,7 +3644,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "AWS Graviton Processor",
-    "current_generation": "No"
+    "current_generation": "No",
+    "bare_metal": false
   },
   {
     "instance_type": "c7a.2xlarge",
@@ -3248,7 +3655,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 12500 Megabit",
     "processor_architecture": "AMD EPYC 9R14 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m5ad.2xlarge",
@@ -3258,7 +3666,8 @@ export const onDemandRows = [
     "storage": "1 x 300 NVMe SSD",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "AMD EPYC 7571",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m8azn.xlarge",
@@ -3268,7 +3677,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 40 Gigabit",
     "processor_architecture": "AMD EPYC 9575F",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m8ine.xlarge",
@@ -3278,7 +3688,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "6.25 Gigabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r8in.xlarge",
@@ -3288,7 +3699,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 30 Gigabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r8ib.xlarge",
@@ -3298,7 +3710,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 20 Gigabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "g5g.xlarge",
@@ -3308,7 +3721,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "AWS Graviton2 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c3.2xlarge",
@@ -3318,7 +3732,8 @@ export const onDemandRows = [
     "storage": "2 x 80 SSD",
     "network_performance": "High",
     "processor_architecture": "Intel Xeon E5-2680 v2 (Ivy Bridge)",
-    "current_generation": "No"
+    "current_generation": "No",
+    "bare_metal": false
   },
   {
     "instance_type": "m8i.2xlarge",
@@ -3328,7 +3743,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 15000 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m7gd.2xlarge",
@@ -3338,7 +3754,8 @@ export const onDemandRows = [
     "storage": "1 x 475 NVMe SSD",
     "network_performance": "Up to 15 Gigabit",
     "processor_architecture": "AWS Graviton3 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r7g.2xlarge",
@@ -3348,7 +3765,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 15 Gigabit",
     "processor_architecture": "AWS Graviton3 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c8a.2xlarge",
@@ -3358,7 +3776,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 15000 Megabit",
     "processor_architecture": "AMD EPYC 9R45 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c5n.2xlarge",
@@ -3368,7 +3787,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 25 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8124M",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "x8i.xlarge",
@@ -3378,7 +3798,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 12500 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c8id.2xlarge",
@@ -3388,7 +3809,8 @@ export const onDemandRows = [
     "storage": "1 x 474 NVMe SSD",
     "network_performance": "Up to 15000 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r5a.2xlarge",
@@ -3398,7 +3820,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "AMD EPYC 7571",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "i3en.xlarge",
@@ -3408,7 +3831,8 @@ export const onDemandRows = [
     "storage": "1 x 2500 NVMe SSD",
     "network_performance": "Up to 25 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8175",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m5d.2xlarge",
@@ -3418,7 +3842,8 @@ export const onDemandRows = [
     "storage": "1 x 300 NVMe SSD",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8175",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c6in.2xlarge",
@@ -3428,7 +3853,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 40000 Megabit",
     "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r6a.2xlarge",
@@ -3438,7 +3864,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 12500 Megabit",
     "processor_architecture": "AMD EPYC 7R13 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r6gd.2xlarge",
@@ -3448,7 +3875,8 @@ export const onDemandRows = [
     "storage": "1 x 475 NVMe SSD",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "AWS Graviton2 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m8gd.2xlarge",
@@ -3458,7 +3886,8 @@ export const onDemandRows = [
     "storage": "1 x 475 NVMe SSD",
     "network_performance": "Up to 15 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m7a.2xlarge",
@@ -3468,7 +3897,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 12500 Megabit",
     "processor_architecture": "AMD EPYC 9R14 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "h1.2xlarge",
@@ -3478,7 +3908,30 @@ export const onDemandRows = [
     "storage": "1 x 2000 HDD",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "Intel Xeon E5-2686 v4 (Broadwell)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "r8idn.xlarge",
+    "price_per_hour_usd": 0.46894,
+    "vcpu": 4,
+    "memory": "32.0 GiB",
+    "storage": "1 x 237 NVMe SSD",
+    "network_performance": "Up to 30 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "r8idb.xlarge",
+    "price_per_hour_usd": 0.46894,
+    "vcpu": 4,
+    "memory": "32.0 GiB",
+    "storage": "1 x 237 NVMe SSD",
+    "network_performance": "Up to 20 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r8g.2xlarge",
@@ -3488,7 +3941,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 15 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c8gn.2xlarge",
@@ -3498,7 +3952,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 50 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c8gb.2xlarge",
@@ -3508,7 +3963,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 33.333 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m6id.2xlarge",
@@ -3518,7 +3974,8 @@ export const onDemandRows = [
     "storage": "1 x 474 NVMe SSD",
     "network_performance": "Up to 12500 Megabit",
     "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "i8ge.xlarge",
@@ -3528,7 +3985,8 @@ export const onDemandRows = [
     "storage": "1 x 2500 NVMe SSD",
     "network_performance": "Up to 25 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "g6f.2xlarge",
@@ -3538,7 +3996,8 @@ export const onDemandRows = [
     "storage": "1 x 200 NVMe SSD",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "AMD EPYC 7R13 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m5n.2xlarge",
@@ -3548,7 +4007,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 25 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8259 (Cascade Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m8a.2xlarge",
@@ -3558,7 +4018,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 15000 Megabit",
     "processor_architecture": "AMD EPYC 9R45 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m2.2xlarge",
@@ -3568,7 +4029,8 @@ export const onDemandRows = [
     "storage": "1 x 850 SSD",
     "network_performance": "Moderate",
     "processor_architecture": "Intel Xeon Family",
-    "current_generation": "No"
+    "current_generation": "No",
+    "bare_metal": false
   },
   {
     "instance_type": "d3.xlarge",
@@ -3578,7 +4040,8 @@ export const onDemandRows = [
     "storage": "3 x 2000 HDD",
     "network_performance": "Up to 15 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8259 (Cascade Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c7gn.2xlarge",
@@ -3588,7 +4051,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 50 Gigabit",
     "processor_architecture": "AWS Graviton3 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r5.2xlarge",
@@ -3598,7 +4062,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8175",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r6i.2xlarge",
@@ -3608,7 +4073,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 12500 Megabit",
     "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "i7ie.xlarge",
@@ -3618,7 +4084,8 @@ export const onDemandRows = [
     "storage": "1 x 2500 NVMe SSD",
     "network_performance": "Up to 25 Gigabit",
     "processor_architecture": "Intel Xeon Scalable (Emerald Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c1.xlarge",
@@ -3628,7 +4095,8 @@ export const onDemandRows = [
     "storage": "4 x 420 SSD",
     "network_performance": "High",
     "processor_architecture": "Intel Xeon Family",
-    "current_generation": "No"
+    "current_generation": "No",
+    "bare_metal": false
   },
   {
     "instance_type": "m8id.2xlarge",
@@ -3638,7 +4106,8 @@ export const onDemandRows = [
     "storage": "1 x 474 NVMe SSD",
     "network_performance": "Up to 15000 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r5ad.2xlarge",
@@ -3648,7 +4117,8 @@ export const onDemandRows = [
     "storage": "1 x 300 NVMe SSD",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "AMD EPYC 7571",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "g4dn.xlarge",
@@ -3658,7 +4128,8 @@ export const onDemandRows = [
     "storage": "125 GB NVMe SSD",
     "network_performance": "Up to 25 Gigabit",
     "processor_architecture": "Intel Xeon Family",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "d3en.xlarge",
@@ -3668,7 +4139,8 @@ export const onDemandRows = [
     "storage": "2 x 14000 HDD",
     "network_performance": "Up to 25 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8259 (Cascade Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r8i-flex.2xlarge",
@@ -3678,7 +4150,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 15000 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r7i.2xlarge",
@@ -3688,7 +4161,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 12500 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Sapphire Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r4.2xlarge",
@@ -3698,7 +4172,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "Intel Xeon E5-2686 v4 (Broadwell)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m3.2xlarge",
@@ -3708,7 +4183,8 @@ export const onDemandRows = [
     "storage": "2 x 80 SSD",
     "network_performance": "High",
     "processor_architecture": "Intel Xeon E5-2670 v2 (Ivy Bridge/Sandy Bridge)",
-    "current_generation": "No"
+    "current_generation": "No",
+    "bare_metal": false
   },
   {
     "instance_type": "g4ad.2xlarge",
@@ -3718,7 +4194,8 @@ export const onDemandRows = [
     "storage": "300 GB NVMe SSD",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "AMD EPYC 7R32",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c6g.4xlarge",
@@ -3728,7 +4205,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "AWS Graviton2 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m5dn.2xlarge",
@@ -3738,7 +4216,8 @@ export const onDemandRows = [
     "storage": "1 x 300 NVMe SSD",
     "network_performance": "Up to 25 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8259 (Cascade Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r7gd.2xlarge",
@@ -3748,7 +4227,8 @@ export const onDemandRows = [
     "storage": "1 x 475 NVMe SSD",
     "network_performance": "Up to 15 Gigabit",
     "processor_architecture": "AWS Graviton3 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c8in.2xlarge",
@@ -3758,7 +4238,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 40 Gigabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c8ib.2xlarge",
@@ -3768,7 +4249,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 26.667 Gigabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r8i.2xlarge",
@@ -3778,7 +4260,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 15000 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "g5g.2xlarge",
@@ -3788,7 +4271,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "AWS Graviton2 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m6in.2xlarge",
@@ -3798,7 +4282,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 40000 Megabit",
     "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r5d.2xlarge",
@@ -3808,7 +4293,8 @@ export const onDemandRows = [
     "storage": "1 x 300 NVMe SSD",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8175",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "is4gen.xlarge",
@@ -3818,7 +4304,8 @@ export const onDemandRows = [
     "storage": "1 x 3750 SSD",
     "network_performance": "Up to 25 Gigabit",
     "processor_architecture": "AWS Graviton2 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c7g.4xlarge",
@@ -3828,7 +4315,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 15 Gigabit",
     "processor_architecture": "AWS Graviton3 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m8gn.2xlarge",
@@ -3838,7 +4326,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 50 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m8gb.2xlarge",
@@ -3848,7 +4337,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 33.333 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r8gd.2xlarge",
@@ -3858,7 +4348,8 @@ export const onDemandRows = [
     "storage": "1 x 475 NVMe SSD",
     "network_performance": "Up to 15 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r5n.2xlarge",
@@ -3868,7 +4359,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 25 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8259 (Cascade Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r5b.2xlarge",
@@ -3878,7 +4370,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8259 (Cascade Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r6id.2xlarge",
@@ -3888,7 +4381,8 @@ export const onDemandRows = [
     "storage": "1 x 474 NVMe SSD",
     "network_performance": "Up to 12500 Megabit",
     "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r7a.2xlarge",
@@ -3898,7 +4392,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 12500 Megabit",
     "processor_architecture": "AMD EPYC 9R14 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c6a.4xlarge",
@@ -3908,7 +4403,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 12500 Megabit",
     "processor_architecture": "AMD EPYC 7R13 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c6gd.4xlarge",
@@ -3918,7 +4414,8 @@ export const onDemandRows = [
     "storage": "1 x 950 NVMe SSD",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "AWS Graviton2 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c5a.4xlarge",
@@ -3928,7 +4425,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "AMD EPYC 7R32",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m6g.4xlarge",
@@ -3938,7 +4436,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "AWS Graviton2 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "i4g.2xlarge",
@@ -3948,7 +4447,8 @@ export const onDemandRows = [
     "storage": "1 x 1875 SSD",
     "network_performance": "Up to 12 Gigabit",
     "processor_architecture": "AWS Graviton2 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "i3.2xlarge",
@@ -3958,7 +4458,8 @@ export const onDemandRows = [
     "storage": "1 x 1900 NVMe SSD",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "Intel Xeon E5-2686 v4 (Broadwell)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m6idn.2xlarge",
@@ -3968,7 +4469,8 @@ export const onDemandRows = [
     "storage": "1 x 474 NVMe SSD",
     "network_performance": "Up to 40000 Megabit",
     "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c8g.4xlarge",
@@ -3978,7 +4480,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 15 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r8a.2xlarge",
@@ -3988,7 +4491,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 15000 Megabit",
     "processor_architecture": "AMD EPYC 9R45 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "g2.2xlarge",
@@ -3998,7 +4502,8 @@ export const onDemandRows = [
     "storage": "1 x 60 SSD",
     "network_performance": "Moderate",
     "processor_architecture": "Intel Xeon E5-2670 (Sandy Bridge)",
-    "current_generation": "No"
+    "current_generation": "No",
+    "bare_metal": false
   },
   {
     "instance_type": "vt1.3xlarge",
@@ -4008,7 +4513,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "3125 Megabit",
     "processor_architecture": "Intel Xeon Platinum 8259CL",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m7g.4xlarge",
@@ -4018,7 +4524,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 15 Gigabit",
     "processor_architecture": "AWS Graviton3 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m5zn.2xlarge",
@@ -4028,7 +4535,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 25 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8252",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r3.2xlarge",
@@ -4038,7 +4546,8 @@ export const onDemandRows = [
     "storage": "1 x 160 SSD",
     "network_performance": "High",
     "processor_architecture": "Intel Xeon E5-2670 v2 (Ivy Bridge)",
-    "current_generation": "No"
+    "current_generation": "No",
+    "bare_metal": false
   },
   {
     "instance_type": "r8id.2xlarge",
@@ -4048,7 +4557,8 @@ export const onDemandRows = [
     "storage": "1 x 474 NVMe SSD",
     "network_performance": "Up to 15000 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "x2gd.2xlarge",
@@ -4058,7 +4568,8 @@ export const onDemandRows = [
     "storage": "1 x 474 SSD",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "AWS Graviton2 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r5dn.2xlarge",
@@ -4068,7 +4579,8 @@ export const onDemandRows = [
     "storage": "1 x 300 NVMe SSD",
     "network_performance": "Up to 25 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8259 (Cascade Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m8in.2xlarge",
@@ -4078,7 +4590,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 40 Gigabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m8ib.2xlarge",
@@ -4088,7 +4601,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 26.66 Gigabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c7i-flex.4xlarge",
@@ -4098,7 +4612,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 12500 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Sapphire Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c6i.4xlarge",
@@ -4108,7 +4623,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 12500 Megabit",
     "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c5.4xlarge",
@@ -4118,7 +4634,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8124M",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c8ine.2xlarge",
@@ -4128,7 +4645,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "12.5 Gigabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "i4i.2xlarge",
@@ -4138,7 +4656,8 @@ export const onDemandRows = [
     "storage": "1 x 1875 NVMe SSD",
     "network_performance": "Up to 12 Gigabit",
     "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "i8g.2xlarge",
@@ -4148,7 +4667,8 @@ export const onDemandRows = [
     "storage": "1 x 1875GB",
     "network_performance": "Up to 12 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m5a.4xlarge",
@@ -4158,7 +4678,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "AMD EPYC 7571",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c5ad.4xlarge",
@@ -4168,7 +4689,8 @@ export const onDemandRows = [
     "storage": "2 x 300 NVMe SSD",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "AMD EPYC 7R32",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "d2.xlarge",
@@ -4178,7 +4700,8 @@ export const onDemandRows = [
     "storage": "3 x 2000 HDD",
     "network_performance": "Moderate",
     "processor_architecture": "Intel Xeon E5-2676 v3 (Haswell)",
-    "current_generation": "No"
+    "current_generation": "No",
+    "bare_metal": false
   },
   {
     "instance_type": "c6gn.4xlarge",
@@ -4188,7 +4711,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "25 Gigabit",
     "processor_architecture": "AWS Graviton2 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m6a.4xlarge",
@@ -4198,7 +4722,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 12500 Megabit",
     "processor_architecture": "AMD EPYC 7R13 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r6in.2xlarge",
@@ -4208,7 +4733,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 40000 Megabit",
     "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c8i-flex.4xlarge",
@@ -4218,7 +4744,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 15000 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c7i.4xlarge",
@@ -4228,7 +4755,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 12500 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Sapphire Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m8g.4xlarge",
@@ -4238,7 +4766,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 15 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m6gd.4xlarge",
@@ -4248,7 +4777,8 @@ export const onDemandRows = [
     "storage": "1 x 950 NVMe SSD",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "AWS Graviton2 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c7gd.4xlarge",
@@ -4258,7 +4788,8 @@ export const onDemandRows = [
     "storage": "1 x 950 NVMe SSD",
     "network_performance": "Up to 15 Gigabit",
     "processor_architecture": "AWS Graviton3 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "im4gn.2xlarge",
@@ -4268,7 +4799,8 @@ export const onDemandRows = [
     "storage": "1 x 3750 SSD",
     "network_performance": "Up to 25 Gigabit",
     "processor_architecture": "AWS Graviton2 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r8gn.2xlarge",
@@ -4278,7 +4810,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 50 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r8gb.2xlarge",
@@ -4288,7 +4821,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 33.333 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r7iz.2xlarge",
@@ -4298,7 +4832,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 12500 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Sapphire Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "z1d.2xlarge",
@@ -4308,7 +4843,8 @@ export const onDemandRows = [
     "storage": "1 x 300 NVMe SSD",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8151",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c8i.4xlarge",
@@ -4318,7 +4854,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 15000 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "g3s.xlarge",
@@ -4328,7 +4865,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "10 Gigabit",
     "processor_architecture": "Intel Xeon E5-2686 v4 (Broadwell)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "g4dn.2xlarge",
@@ -4338,7 +4876,8 @@ export const onDemandRows = [
     "storage": "225 GB NVMe SSD",
     "network_performance": "Up to 25 Gigabit",
     "processor_architecture": "Intel Xeon Family",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "i7i.2xlarge",
@@ -4348,7 +4887,8 @@ export const onDemandRows = [
     "storage": "1 x 1875 NVMe SSD",
     "network_performance": "Up to 12 Gigabit",
     "processor_architecture": "Intel Xeon Scalable (Emerald Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "inf2.xlarge",
@@ -4358,7 +4898,30 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 15 Gigabit",
     "processor_architecture": "AMD EPYC 7R13 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "m8idn.2xlarge",
+    "price_per_hour_usd": 0.76376,
+    "vcpu": 8,
+    "memory": "32.0 GiB",
+    "storage": "1 x 474 NVMe SSD",
+    "network_performance": "Up to 40 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "m8idb.2xlarge",
+    "price_per_hour_usd": 0.76376,
+    "vcpu": 8,
+    "memory": "32.0 GiB",
+    "storage": "1 x 474 NVMe SSD",
+    "network_performance": "Up to 26.66 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m7i-flex.4xlarge",
@@ -4368,7 +4931,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 12500 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Sapphire Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m5.4xlarge",
@@ -4378,7 +4942,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8175",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c5d.4xlarge",
@@ -4388,7 +4953,8 @@ export const onDemandRows = [
     "storage": "1 x 400 NVMe SSD",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8124M",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m6i.4xlarge",
@@ -4398,7 +4964,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 12500 Megabit",
     "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r6idn.2xlarge",
@@ -4408,7 +4975,8 @@ export const onDemandRows = [
     "storage": "1 x 474 NVMe SSD",
     "network_performance": "Up to 40000 Megabit",
     "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "x8g.2xlarge",
@@ -4418,7 +4986,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 15 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c8gd.4xlarge",
@@ -4428,7 +4997,8 @@ export const onDemandRows = [
     "storage": "1 x 950 NVMe SSD",
     "network_performance": "Up to 15 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c4.4xlarge",
@@ -4438,7 +5008,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "High",
     "processor_architecture": "Intel Xeon E5-2666 v3 (Haswell)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m4.4xlarge",
@@ -4448,7 +5019,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "High",
     "processor_architecture": "Intel Xeon E5-2676 v3 (Haswell)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m8i-flex.4xlarge",
@@ -4458,7 +5030,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 15000 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "g6.xlarge",
@@ -4468,7 +5041,8 @@ export const onDemandRows = [
     "storage": "1 x 250 GB NVMe SSD",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "AMD EPYC 7R13 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c6id.4xlarge",
@@ -4478,7 +5052,8 @@ export const onDemandRows = [
     "storage": "1 x 950 NVMe SSD",
     "network_performance": "Up to 12500 Megabit",
     "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m7i.4xlarge",
@@ -4488,7 +5063,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 12500 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Sapphire Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r6g.4xlarge",
@@ -4498,7 +5074,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "AWS Graviton2 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c7a.4xlarge",
@@ -4508,7 +5085,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 12500 Megabit",
     "processor_architecture": "AMD EPYC 9R14 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m5ad.4xlarge",
@@ -4518,7 +5096,8 @@ export const onDemandRows = [
     "storage": "2 x 300 NVMe SSD",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "AMD EPYC 7571",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "g5g.4xlarge",
@@ -4528,7 +5107,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "AWS Graviton2 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "x2iedn.xlarge",
@@ -4538,7 +5118,8 @@ export const onDemandRows = [
     "storage": "1 x 118 NVMe SSD",
     "network_performance": "Up to 25 Gigabit",
     "processor_architecture": "Intel Xeon Scalable (Icelake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "x1e.xlarge",
@@ -4548,7 +5129,8 @@ export const onDemandRows = [
     "storage": "1 x 120 SSD",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "High Frequency Intel Xeon E7-8880 v3 (Haswell)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m8ine.2xlarge",
@@ -4558,7 +5140,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "12.5 Gigabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r8in.2xlarge",
@@ -4568,7 +5151,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 40 Gigabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r8ib.2xlarge",
@@ -4578,7 +5162,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 26.66 Gigabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c3.4xlarge",
@@ -4588,7 +5173,8 @@ export const onDemandRows = [
     "storage": "2 x 160 SSD",
     "network_performance": "High",
     "processor_architecture": "Intel Xeon E5-2680 v2 (Ivy Bridge)",
-    "current_generation": "No"
+    "current_generation": "No",
+    "bare_metal": false
   },
   {
     "instance_type": "m8i.4xlarge",
@@ -4598,7 +5184,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 15000 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "i2.xlarge",
@@ -4608,7 +5195,8 @@ export const onDemandRows = [
     "storage": "1 x 800 SSD",
     "network_performance": "Moderate",
     "processor_architecture": "Intel Xeon E5-2670 v2 (Ivy Bridge)",
-    "current_generation": "No"
+    "current_generation": "No",
+    "bare_metal": false
   },
   {
     "instance_type": "m7gd.4xlarge",
@@ -4618,7 +5206,8 @@ export const onDemandRows = [
     "storage": "1 x 950 NVMe SSD",
     "network_performance": "Up to 15 Gigabit",
     "processor_architecture": "AWS Graviton3 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r7g.4xlarge",
@@ -4628,7 +5217,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 15 Gigabit",
     "processor_architecture": "AWS Graviton3 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c8a.4xlarge",
@@ -4638,7 +5228,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 15000 Megabit",
     "processor_architecture": "AMD EPYC 9R45 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c5n.4xlarge",
@@ -4648,7 +5239,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 25 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8124M",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "g4ad.4xlarge",
@@ -4658,7 +5250,8 @@ export const onDemandRows = [
     "storage": "600 GB NVMe SSD",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "AMD EPYC 7R32",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "x8i.2xlarge",
@@ -4668,7 +5261,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 15000 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c8id.4xlarge",
@@ -4678,7 +5272,8 @@ export const onDemandRows = [
     "storage": "1 x 950 NVMe SSD",
     "network_performance": "Up to 15000 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "p2.xlarge",
@@ -4688,7 +5283,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "High",
     "processor_architecture": "Intel Xeon E5-2686 v4 (Broadwell)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r5a.4xlarge",
@@ -4698,7 +5294,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "AMD EPYC 7571",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "i3en.2xlarge",
@@ -4708,7 +5305,8 @@ export const onDemandRows = [
     "storage": "2 x 2500 NVMe SSD",
     "network_performance": "Up to 25 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8175",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m5d.4xlarge",
@@ -4718,7 +5316,8 @@ export const onDemandRows = [
     "storage": "2 x 300 NVMe SSD",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8175",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r6a.4xlarge",
@@ -4728,7 +5327,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 12500 Megabit",
     "processor_architecture": "AMD EPYC 7R13 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c6in.4xlarge",
@@ -4738,7 +5338,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 50000 Megabit",
     "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r6gd.4xlarge",
@@ -4748,7 +5349,8 @@ export const onDemandRows = [
     "storage": "1 x 950 NVMe SSD",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "AWS Graviton2 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m8gd.4xlarge",
@@ -4758,7 +5360,8 @@ export const onDemandRows = [
     "storage": "1 x 950 NVMe SSD",
     "network_performance": "Up to 15 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m7a.4xlarge",
@@ -4768,7 +5371,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 12500 Megabit",
     "processor_architecture": "AMD EPYC 9R14 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "h1.4xlarge",
@@ -4778,7 +5382,30 @@ export const onDemandRows = [
     "storage": "2 x 2000 HDD",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "Intel Xeon E5-2686 v4 (Broadwell)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "r8idn.2xlarge",
+    "price_per_hour_usd": 0.93788,
+    "vcpu": 8,
+    "memory": "64.0 GiB",
+    "storage": "1 x 474 NVMe SSD",
+    "network_performance": "Up to 40 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "r8idb.2xlarge",
+    "price_per_hour_usd": 0.93788,
+    "vcpu": 8,
+    "memory": "64.0 GiB",
+    "storage": "1 x 474 NVMe SSD",
+    "network_performance": "Up to 26.66 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r8g.4xlarge",
@@ -4788,7 +5415,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 15 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c8gn.4xlarge",
@@ -4798,7 +5426,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "50 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c8gb.4xlarge",
@@ -4808,7 +5437,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "33.333 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m6id.4xlarge",
@@ -4818,7 +5448,8 @@ export const onDemandRows = [
     "storage": "1 x 950 NVMe SSD",
     "network_performance": "Up to 12500 Megabit",
     "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "i8ge.2xlarge",
@@ -4828,7 +5459,8 @@ export const onDemandRows = [
     "storage": "2 x 2500 NVMe SSD",
     "network_performance": "Up to 25 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "g6f.4xlarge",
@@ -4838,7 +5470,8 @@ export const onDemandRows = [
     "storage": "1 x 450 NVMe SSD",
     "network_performance": "Up to 25 Gigabit",
     "processor_architecture": "AMD EPYC 7R13 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m5n.4xlarge",
@@ -4848,7 +5481,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 25 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8259 (Cascade Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m8a.4xlarge",
@@ -4858,7 +5492,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 15000 Megabit",
     "processor_architecture": "AMD EPYC 9R45 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "g6.2xlarge",
@@ -4868,7 +5503,8 @@ export const onDemandRows = [
     "storage": "1 x 450 GB NVMe SSD",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "AMD EPYC 7R13 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m2.4xlarge",
@@ -4878,7 +5514,8 @@ export const onDemandRows = [
     "storage": "2 x 840 SSD",
     "network_performance": "High",
     "processor_architecture": "Intel Xeon Family",
-    "current_generation": "No"
+    "current_generation": "No",
+    "bare_metal": false
   },
   {
     "instance_type": "m5zn.3xlarge",
@@ -4888,7 +5525,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 25 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8252",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c7gn.4xlarge",
@@ -4898,7 +5536,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "50 Gigabit",
     "processor_architecture": "AWS Graviton3 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "d3.2xlarge",
@@ -4908,7 +5547,8 @@ export const onDemandRows = [
     "storage": "6 x 2000 HDD",
     "network_performance": "Up to 15 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8259 (Cascade Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "g5.xlarge",
@@ -4918,7 +5558,8 @@ export const onDemandRows = [
     "storage": "1 x 250 GB NVMe SSD",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "AMD EPYC 7R32",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r6i.4xlarge",
@@ -4928,7 +5569,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 12500 Megabit",
     "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r5.4xlarge",
@@ -4938,7 +5580,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8175",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "i7ie.2xlarge",
@@ -4948,7 +5591,8 @@ export const onDemandRows = [
     "storage": "2 x 2500 NVMe SSD",
     "network_performance": "Up to 25 Gigabit",
     "processor_architecture": "Intel Xeon Scalable (Emerald Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m8id.4xlarge",
@@ -4958,7 +5602,8 @@ export const onDemandRows = [
     "storage": "1 x 950 NVMe SSD",
     "network_performance": "Up to 15000 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r5ad.4xlarge",
@@ -4968,7 +5613,8 @@ export const onDemandRows = [
     "storage": "2 x 300 NVMe SSD",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "AMD EPYC 7571",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "d3en.2xlarge",
@@ -4978,7 +5624,8 @@ export const onDemandRows = [
     "storage": "4 x 14000 HDD",
     "network_performance": "Up to 25 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8259 (Cascade Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r8i-flex.4xlarge",
@@ -4988,7 +5635,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 15000 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r7i.4xlarge",
@@ -4998,7 +5646,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 12500 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Sapphire Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r4.4xlarge",
@@ -5008,7 +5657,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "Intel Xeon E5-2686 v4 (Broadwell)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "gr6f.4xlarge",
@@ -5018,7 +5668,8 @@ export const onDemandRows = [
     "storage": "1 x 450 NVMe SSD",
     "network_performance": "Up to 25 Gigabit",
     "processor_architecture": "AMD EPYC 7R13 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m5dn.4xlarge",
@@ -5028,7 +5679,8 @@ export const onDemandRows = [
     "storage": "2 x 300 NVMe SSD",
     "network_performance": "Up to 25 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8259 (Cascade Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c6g.8xlarge",
@@ -5038,7 +5690,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "12 Gigabit",
     "processor_architecture": "AWS Graviton2 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r7gd.4xlarge",
@@ -5048,7 +5701,8 @@ export const onDemandRows = [
     "storage": "1 x 950 NVMe SSD",
     "network_performance": "Up to 15 Gigabit",
     "processor_architecture": "AWS Graviton3 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c8in.4xlarge",
@@ -5058,7 +5712,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 50 Gigabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c8ib.4xlarge",
@@ -5068,7 +5723,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 33.333 Gigabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r8i.4xlarge",
@@ -5078,7 +5734,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 15000 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m6in.4xlarge",
@@ -5088,7 +5745,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 50000 Megabit",
     "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "z1d.3xlarge",
@@ -5098,7 +5756,8 @@ export const onDemandRows = [
     "storage": "1 x 450 NVMe SSD",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8151",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "g3.4xlarge",
@@ -5108,7 +5767,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "Intel Xeon E5-2686 v4 (Broadwell)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r5d.4xlarge",
@@ -5118,7 +5778,8 @@ export const onDemandRows = [
     "storage": "2 x 300 NVMe SSD",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8175",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "is4gen.2xlarge",
@@ -5128,7 +5789,8 @@ export const onDemandRows = [
     "storage": "1 x 7500 SSD",
     "network_performance": "Up to 25 Gigabit",
     "processor_architecture": "AWS Graviton2 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c7g.8xlarge",
@@ -5138,7 +5800,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "15 Gigabit",
     "processor_architecture": "AWS Graviton3 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m8gb.4xlarge",
@@ -5148,7 +5811,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "33.333 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m8gn.4xlarge",
@@ -5158,7 +5822,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "50 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r8gd.4xlarge",
@@ -5168,7 +5833,8 @@ export const onDemandRows = [
     "storage": "1 x 950 NVMe SSD",
     "network_performance": "Up to 15 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "inf1.6xlarge",
@@ -5178,7 +5844,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "25 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8275CL (Cascade Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r5b.4xlarge",
@@ -5188,7 +5855,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8259 (Cascade Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r5n.4xlarge",
@@ -5198,7 +5866,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 25 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8259 (Cascade Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "g4dn.4xlarge",
@@ -5208,7 +5877,8 @@ export const onDemandRows = [
     "storage": "225 GB NVMe SSD",
     "network_performance": "Up to 25 Gigabit",
     "processor_architecture": "Intel Xeon Family",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r6id.4xlarge",
@@ -5218,7 +5888,8 @@ export const onDemandRows = [
     "storage": "1 x 950 NVMe SSD",
     "network_performance": "Up to 12500 Megabit",
     "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "g5.2xlarge",
@@ -5228,7 +5899,8 @@ export const onDemandRows = [
     "storage": "1 x 450 GB NVMe SSD",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "AMD EPYC 7R32",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r7a.4xlarge",
@@ -5238,7 +5910,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 12500 Megabit",
     "processor_architecture": "AMD EPYC 9R14 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c6a.8xlarge",
@@ -5248,7 +5921,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "12500 Megabit",
     "processor_architecture": "AMD EPYC 7R13 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c6gd.8xlarge",
@@ -5258,7 +5932,8 @@ export const onDemandRows = [
     "storage": "1 x 1900 NVMe SSD",
     "network_performance": "12 Gigabit",
     "processor_architecture": "AWS Graviton2 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c5a.8xlarge",
@@ -5268,7 +5943,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "10 Gigabit",
     "processor_architecture": "AMD EPYC 7R32",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m6g.8xlarge",
@@ -5278,7 +5954,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "12 Gigabit",
     "processor_architecture": "AWS Graviton2 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "i4g.4xlarge",
@@ -5288,7 +5965,8 @@ export const onDemandRows = [
     "storage": "1 x 3750 SSD",
     "network_performance": "Up to 25 Gigabit",
     "processor_architecture": "AWS Graviton2 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m8azn.3xlarge",
@@ -5298,7 +5976,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 50 Gigabit",
     "processor_architecture": "AMD EPYC 9575F",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "i3.4xlarge",
@@ -5308,7 +5987,8 @@ export const onDemandRows = [
     "storage": "2 x 1900 NVMe SSD",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "Intel Xeon E5-2686 v4 (Broadwell)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m6idn.4xlarge",
@@ -5318,7 +5998,8 @@ export const onDemandRows = [
     "storage": "1 x 950 NVMe SSD",
     "network_performance": "Up to 50000 Megabit",
     "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c8g.8xlarge",
@@ -5328,7 +6009,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "15 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r8a.4xlarge",
@@ -5338,7 +6020,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 15000 Megabit",
     "processor_architecture": "AMD EPYC 9R45 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "vt1.6xlarge",
@@ -5348,7 +6031,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "6250 Megabit",
     "processor_architecture": "Intel Xeon Platinum 8259CL",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m7g.8xlarge",
@@ -5358,7 +6042,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "15 Gigabit",
     "processor_architecture": "AWS Graviton3 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "g6.4xlarge",
@@ -5368,7 +6053,8 @@ export const onDemandRows = [
     "storage": "1 x 600 GB NVMe SSD",
     "network_performance": "Up to 25 Gigabit",
     "processor_architecture": "AMD EPYC 7R13 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r3.4xlarge",
@@ -5378,7 +6064,8 @@ export const onDemandRows = [
     "storage": "1 x 320 SSD",
     "network_performance": "High",
     "processor_architecture": "Intel Xeon E5-2670 v2 (Ivy Bridge)",
-    "current_generation": "No"
+    "current_generation": "No",
+    "bare_metal": false
   },
   {
     "instance_type": "r8id.4xlarge",
@@ -5388,7 +6075,8 @@ export const onDemandRows = [
     "storage": "1 x 950 NVMe SSD",
     "network_performance": "Up to 15000 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "x2gd.4xlarge",
@@ -5398,7 +6086,8 @@ export const onDemandRows = [
     "storage": "1 x 950 SSD",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "AWS Graviton2 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r5dn.4xlarge",
@@ -5408,7 +6097,8 @@ export const onDemandRows = [
     "storage": "2 x 300 NVMe SSD",
     "network_performance": "Up to 25 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8259 (Cascade Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m8ib.4xlarge",
@@ -5418,7 +6108,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 33.33 Gigabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m8in.4xlarge",
@@ -5428,7 +6119,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 50 Gigabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "trn1.2xlarge",
@@ -5438,7 +6130,8 @@ export const onDemandRows = [
     "storage": "1 x 475 NVMe SSD",
     "network_performance": "12500 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Icelake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "i3en.3xlarge",
@@ -5448,7 +6141,8 @@ export const onDemandRows = [
     "storage": "1 x 7500 NVMe SSD",
     "network_performance": "Up to 25 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8175",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c7i-flex.8xlarge",
@@ -5458,7 +6152,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 12500 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Sapphire Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c6i.8xlarge",
@@ -5468,7 +6163,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "12500 Megabit",
     "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c8ine.4xlarge",
@@ -5478,7 +6174,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "25 Gigabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "g5g.8xlarge",
@@ -5488,7 +6185,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 12 Gigabit",
     "processor_architecture": "AWS Graviton2 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "i8g.4xlarge",
@@ -5498,7 +6196,8 @@ export const onDemandRows = [
     "storage": "1 x 3750GB",
     "network_performance": "Up to 25 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "i4i.4xlarge",
@@ -5508,7 +6207,8 @@ export const onDemandRows = [
     "storage": "1 x 3750 NVMe SSD",
     "network_performance": "Up to 25 Gigabit",
     "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m5a.8xlarge",
@@ -5518,7 +6218,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "AMD EPYC 7571",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c5ad.8xlarge",
@@ -5528,7 +6229,8 @@ export const onDemandRows = [
     "storage": "2 x 600 NVMe SSD",
     "network_performance": "10 Gigabit",
     "processor_architecture": "AMD EPYC 7R32",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "d2.2xlarge",
@@ -5538,7 +6240,8 @@ export const onDemandRows = [
     "storage": "6 x 2000 HDD",
     "network_performance": "High",
     "processor_architecture": "Intel Xeon E5-2676 v3 (Haswell)",
-    "current_generation": "No"
+    "current_generation": "No",
+    "bare_metal": false
   },
   {
     "instance_type": "m6a.8xlarge",
@@ -5548,7 +6251,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "12500 Megabit",
     "processor_architecture": "AMD EPYC 7R13 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c6gn.8xlarge",
@@ -5558,7 +6262,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "50 Gigabit",
     "processor_architecture": "AWS Graviton2 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r6in.4xlarge",
@@ -5568,7 +6273,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 50000 Megabit",
     "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "i8ge.3xlarge",
@@ -5578,7 +6284,8 @@ export const onDemandRows = [
     "storage": "1 x 7500 NVMe SSD",
     "network_performance": "Up to 25 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c8i-flex.8xlarge",
@@ -5588,7 +6295,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 15000 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c7i.8xlarge",
@@ -5598,7 +6306,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "12500 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Sapphire Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m8g.8xlarge",
@@ -5608,7 +6317,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "15 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m6gd.8xlarge",
@@ -5618,7 +6328,8 @@ export const onDemandRows = [
     "storage": "1 x 1900 NVMe SSD",
     "network_performance": "12 Gigabit",
     "processor_architecture": "AWS Graviton2 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c7gd.8xlarge",
@@ -5628,7 +6339,8 @@ export const onDemandRows = [
     "storage": "1 x 1900 NVMe SSD",
     "network_performance": "15 Gigabit",
     "processor_architecture": "AWS Graviton3 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "im4gn.4xlarge",
@@ -5638,7 +6350,8 @@ export const onDemandRows = [
     "storage": "1 x 7500 SSD",
     "network_performance": "25 Gigabit",
     "processor_architecture": "AWS Graviton2 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r8gn.4xlarge",
@@ -5648,7 +6361,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "50 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r8gb.4xlarge",
@@ -5658,7 +6372,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "33.333 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r7iz.4xlarge",
@@ -5668,7 +6383,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 12500 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Sapphire Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c8i.8xlarge",
@@ -5678,7 +6394,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "15000 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "i7i.4xlarge",
@@ -5688,7 +6405,30 @@ export const onDemandRows = [
     "storage": "1 x 3750 NVMe SSD",
     "network_performance": "Up to 25 Gigabit",
     "processor_architecture": "Intel Xeon Scalable (Emerald Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "m8idn.4xlarge",
+    "price_per_hour_usd": 1.52752,
+    "vcpu": 16,
+    "memory": "64.0 GiB",
+    "storage": "1 x 950 NVMe SSD",
+    "network_performance": "Up to 50 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "m8idb.4xlarge",
+    "price_per_hour_usd": 1.52752,
+    "vcpu": 16,
+    "memory": "64.0 GiB",
+    "storage": "1 x 950 NVMe SSD",
+    "network_performance": "Up to 33.33 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c5.9xlarge",
@@ -5698,7 +6438,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "10 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8124M",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m7i-flex.8xlarge",
@@ -5708,7 +6449,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 12500 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Sapphire Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m6i.8xlarge",
@@ -5718,7 +6460,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "12500 Megabit",
     "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m5.8xlarge",
@@ -5728,7 +6471,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "10 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8175",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "gr6.4xlarge",
@@ -5738,7 +6482,8 @@ export const onDemandRows = [
     "storage": "1 x 600 GB NVMe SSD",
     "network_performance": "Up to 25 Gigabit",
     "processor_architecture": "AMD EPYC 7R13 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "i7ie.3xlarge",
@@ -5748,7 +6493,8 @@ export const onDemandRows = [
     "storage": "1 x 7500 NVMe SSD",
     "network_performance": "Up to 25 Gigabit",
     "processor_architecture": "Intel Xeon Scalable (Emerald Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r6idn.4xlarge",
@@ -5758,7 +6504,8 @@ export const onDemandRows = [
     "storage": "1 x 950 NVMe SSD",
     "network_performance": "Up to 50000 Megabit",
     "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "x8g.4xlarge",
@@ -5768,7 +6515,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 15 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c8gd.8xlarge",
@@ -5778,7 +6526,8 @@ export const onDemandRows = [
     "storage": "1 x 1900 NVMe SSD",
     "network_performance": "15 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c4.8xlarge",
@@ -5788,7 +6537,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "10 Gigabit",
     "processor_architecture": "Intel Xeon E5-2666 v3 (Haswell)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m8i-flex.8xlarge",
@@ -5798,7 +6548,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 15000 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m7i.8xlarge",
@@ -5808,7 +6559,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "12500 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Sapphire Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r6g.8xlarge",
@@ -5818,7 +6570,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "12 Gigabit",
     "processor_architecture": "AWS Graviton2 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c6id.8xlarge",
@@ -5828,7 +6581,8 @@ export const onDemandRows = [
     "storage": "1 x 1900 NVMe SSD",
     "network_performance": "12500 Megabit",
     "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "g5.4xlarge",
@@ -5838,7 +6592,8 @@ export const onDemandRows = [
     "storage": "1 x 600 GB NVMe SSD",
     "network_performance": "Up to 25 Gigabit",
     "processor_architecture": "AMD EPYC 7R32",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c6g.12xlarge",
@@ -5848,7 +6603,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "20 Gigabit",
     "processor_architecture": "AWS Graviton2 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c7a.8xlarge",
@@ -5858,7 +6614,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "12500 Megabit",
     "processor_architecture": "AMD EPYC 9R14 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m5ad.8xlarge",
@@ -5868,7 +6625,8 @@ export const onDemandRows = [
     "storage": "2 x 600 NVMe SSD",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "AMD EPYC 7571",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "f1.2xlarge",
@@ -5878,7 +6636,8 @@ export const onDemandRows = [
     "storage": "1 x 470 NVMe SSD",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "Intel Xeon E5-2686 v4 (Broadwell)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "x2iedn.2xlarge",
@@ -5888,7 +6647,8 @@ export const onDemandRows = [
     "storage": "1 x 237 NVMe SSD",
     "network_performance": "Up to 25 Gigabit",
     "processor_architecture": "Intel Xeon Scalable (Icelake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "x1e.2xlarge",
@@ -5898,7 +6658,8 @@ export const onDemandRows = [
     "storage": "1 x 240 SSD",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "High Frequency Intel Xeon E7-8880 v3 (Haswell)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "x2iezn.2xlarge",
@@ -5908,7 +6669,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 25 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8252",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m8ine.4xlarge",
@@ -5918,7 +6680,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "25 Gigabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r8in.4xlarge",
@@ -5928,7 +6691,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 50 Gigabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r8ib.4xlarge",
@@ -5938,7 +6702,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 33.33 Gigabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c3.8xlarge",
@@ -5948,7 +6713,8 @@ export const onDemandRows = [
     "storage": "2 x 320 SSD",
     "network_performance": "10 Gigabit",
     "processor_architecture": "Intel Xeon E5-2680 v2 (Ivy Bridge)",
-    "current_generation": "No"
+    "current_generation": "No",
+    "bare_metal": false
   },
   {
     "instance_type": "hpc7g.4xlarge",
@@ -5958,7 +6724,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "200 Gigabit",
     "processor_architecture": "AWS Graviton3 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "hpc7g.8xlarge",
@@ -5968,7 +6735,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "200 Gigabit",
     "processor_architecture": "AWS Graviton3 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "hpc7g.16xlarge",
@@ -5978,7 +6746,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "200 Gigabit",
     "processor_architecture": "AWS Graviton3 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m8i.8xlarge",
@@ -5988,7 +6757,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "15000 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "i2.2xlarge",
@@ -5998,7 +6768,8 @@ export const onDemandRows = [
     "storage": "2 x 800 SSD",
     "network_performance": "High",
     "processor_architecture": "Intel Xeon E5-2670 v2 (Ivy Bridge)",
-    "current_generation": "No"
+    "current_generation": "No",
+    "bare_metal": false
   },
   {
     "instance_type": "m7gd.8xlarge",
@@ -6008,7 +6779,8 @@ export const onDemandRows = [
     "storage": "1 x 1900 NVMe SSD",
     "network_performance": "15 Gigabit",
     "processor_architecture": "AWS Graviton3 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r7g.8xlarge",
@@ -6018,7 +6790,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "15 Gigabit",
     "processor_architecture": "AWS Graviton3 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c8a.8xlarge",
@@ -6028,7 +6801,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "15000 Megabit",
     "processor_architecture": "AMD EPYC 9R45 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c5d.9xlarge",
@@ -6038,7 +6812,8 @@ export const onDemandRows = [
     "storage": "1 x 900 NVMe SSD",
     "network_performance": "10 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8124M",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "g4ad.8xlarge",
@@ -6048,7 +6823,8 @@ export const onDemandRows = [
     "storage": "1200 GB NVMe SSD",
     "network_performance": "15 Gigabit",
     "processor_architecture": "AMD EPYC 7R32",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c7g.12xlarge",
@@ -6058,7 +6834,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "22500 Megabit",
     "processor_architecture": "AWS Graviton3 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "x8i.4xlarge",
@@ -6068,7 +6845,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 15000 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c8id.8xlarge",
@@ -6078,7 +6856,8 @@ export const onDemandRows = [
     "storage": "1 x 1900 NVMe SSD",
     "network_performance": "15000 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m5d.8xlarge",
@@ -6088,7 +6867,8 @@ export const onDemandRows = [
     "storage": "2 x 600 NVMe SSD",
     "network_performance": "10 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8175",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r5a.8xlarge",
@@ -6098,7 +6878,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "AMD EPYC 7571",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r6a.8xlarge",
@@ -6108,7 +6889,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "12500 Megabit",
     "processor_architecture": "AMD EPYC 7R13 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c6in.8xlarge",
@@ -6118,7 +6900,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "50000 Megabit",
     "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c6a.12xlarge",
@@ -6128,7 +6911,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "18750 Megabit",
     "processor_architecture": "AMD EPYC 7R13 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c6gd.12xlarge",
@@ -6138,7 +6922,8 @@ export const onDemandRows = [
     "storage": "2 x 1425 NVMe SSD",
     "network_performance": "20 Gigabit",
     "processor_architecture": "AWS Graviton2 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r6gd.8xlarge",
@@ -6148,7 +6933,8 @@ export const onDemandRows = [
     "storage": "1 x 1900 NVMe SSD",
     "network_performance": "12 Gigabit",
     "processor_architecture": "AWS Graviton2 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m8gd.8xlarge",
@@ -6158,7 +6944,8 @@ export const onDemandRows = [
     "storage": "1 x 1900 NVMe SSD",
     "network_performance": "15 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c5a.12xlarge",
@@ -6168,7 +6955,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "12 Gigabit",
     "processor_architecture": "AMD EPYC 7R32",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m6g.12xlarge",
@@ -6178,7 +6966,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "20 Gigabit",
     "processor_architecture": "AWS Graviton2 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m7a.8xlarge",
@@ -6188,7 +6977,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "12500 Megabit",
     "processor_architecture": "AMD EPYC 9R14 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "g6e.xlarge",
@@ -6198,7 +6988,8 @@ export const onDemandRows = [
     "storage": "1 x 250 GB NVMe SSD",
     "network_performance": "Up to 20 Gigabit",
     "processor_architecture": "AMD EPYC 7R13 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "h1.8xlarge",
@@ -6208,7 +6999,30 @@ export const onDemandRows = [
     "storage": "4 x 2000 HDD",
     "network_performance": "10 Gigabit",
     "processor_architecture": "Intel Xeon E5-2686 v4 (Broadwell)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "r8idb.4xlarge",
+    "price_per_hour_usd": 1.87576,
+    "vcpu": 16,
+    "memory": "128.0 GiB",
+    "storage": "1 x 950 NVMe SSD",
+    "network_performance": "Up to 33.33 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "r8idn.4xlarge",
+    "price_per_hour_usd": 1.87576,
+    "vcpu": 16,
+    "memory": "128.0 GiB",
+    "storage": "1 x 950 NVMe SSD",
+    "network_performance": "Up to 50 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r8g.8xlarge",
@@ -6218,7 +7032,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "15 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c8gb.8xlarge",
@@ -6228,7 +7043,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "66.667 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c8gn.8xlarge",
@@ -6238,7 +7054,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "100 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m6id.8xlarge",
@@ -6248,7 +7065,8 @@ export const onDemandRows = [
     "storage": "1 x 1900 NVMe SSD",
     "network_performance": "12500 Megabit",
     "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m5n.8xlarge",
@@ -6258,7 +7076,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "25 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8259 (Cascade Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c8g.12xlarge",
@@ -6268,7 +7087,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "22.5 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c5n.9xlarge",
@@ -6278,7 +7098,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "50 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8124M",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m8a.8xlarge",
@@ -6288,7 +7109,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "15000 Megabit",
     "processor_architecture": "AMD EPYC 9R45 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m7g.12xlarge",
@@ -6298,7 +7120,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "22500 Megabit",
     "processor_architecture": "AWS Graviton3 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "inf2.8xlarge",
@@ -6308,7 +7131,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 25 Gigabit",
     "processor_architecture": "AMD EPYC 7R13 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "f2.6xlarge",
@@ -6318,7 +7142,8 @@ export const onDemandRows = [
     "storage": "1 x 950 NVMe SSD",
     "network_performance": "12.5 Gigabit",
     "processor_architecture": "AMD EPYC 7R13 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m5zn.6xlarge",
@@ -6328,7 +7153,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "50 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8252",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c7gn.8xlarge",
@@ -6338,7 +7164,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "100 Gigabit",
     "processor_architecture": "AWS Graviton3 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "d3.4xlarge",
@@ -6348,7 +7175,8 @@ export const onDemandRows = [
     "storage": "12 x 2000 HDD",
     "network_performance": "Up to 15 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8259 (Cascade Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m4.10xlarge",
@@ -6358,7 +7186,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "10 Gigabit",
     "processor_architecture": "Intel Xeon E5-2676 v3 (Haswell)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "g6.8xlarge",
@@ -6368,7 +7197,8 @@ export const onDemandRows = [
     "storage": "2 x 450 GB NVMe SSD",
     "network_performance": "25 Gigabit",
     "processor_architecture": "AMD EPYC 7R13 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r5.8xlarge",
@@ -6378,7 +7208,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "10 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8175",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r6i.8xlarge",
@@ -6388,7 +7219,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "12500 Megabit",
     "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c7i-flex.12xlarge",
@@ -6398,7 +7230,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 18750 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Sapphire Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c6i.12xlarge",
@@ -6408,7 +7241,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "18750 Megabit",
     "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c5.12xlarge",
@@ -6418,7 +7252,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "12 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8275L",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m5a.12xlarge",
@@ -6428,7 +7263,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "10 Gigabit",
     "processor_architecture": "AMD EPYC 7571",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c5ad.12xlarge",
@@ -6438,7 +7274,8 @@ export const onDemandRows = [
     "storage": "2 x 900 NVMe SSD",
     "network_performance": "12 Gigabit",
     "processor_architecture": "AMD EPYC 7R32",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c6gn.12xlarge",
@@ -6448,7 +7285,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "75 Gigabit",
     "processor_architecture": "AWS Graviton2 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m6a.12xlarge",
@@ -6458,7 +7296,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "18750 Megabit",
     "processor_architecture": "AMD EPYC 7R13 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m8id.8xlarge",
@@ -6468,7 +7307,8 @@ export const onDemandRows = [
     "storage": "1 x 1900 NVMe SSD",
     "network_performance": "15000 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r5ad.8xlarge",
@@ -6478,7 +7318,8 @@ export const onDemandRows = [
     "storage": "2 x 600 NVMe SSD",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "AMD EPYC 7571",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "d3en.4xlarge",
@@ -6488,7 +7329,8 @@ export const onDemandRows = [
     "storage": "8 x 14000 HDD",
     "network_performance": "25 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8259 (Cascade Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r8i-flex.8xlarge",
@@ -6498,7 +7340,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 15000 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r7i.8xlarge",
@@ -6508,7 +7351,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "12500 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Sapphire Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r4.8xlarge",
@@ -6518,7 +7362,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "10 Gigabit",
     "processor_architecture": "Intel Xeon E5-2686 v4 (Broadwell)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c8i-flex.12xlarge",
@@ -6528,7 +7373,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 22500 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c7i.12xlarge",
@@ -6538,7 +7384,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "18750 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Sapphire Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m8g.12xlarge",
@@ -6548,7 +7395,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "22.5 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m6gd.12xlarge",
@@ -6558,7 +7406,19 @@ export const onDemandRows = [
     "storage": "2 x 1425 NVMe SSD",
     "network_performance": "20 Gigabit",
     "processor_architecture": "AWS Graviton2 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "c6g.metal",
+    "price_per_hour_usd": 2.176,
+    "vcpu": 64,
+    "memory": "128 GiB",
+    "storage": "EBS only",
+    "network_performance": "25 Gigabit",
+    "processor_architecture": "AWS Graviton2 Processor",
+    "current_generation": "Yes",
+    "bare_metal": true
   },
   {
     "instance_type": "g4dn.8xlarge",
@@ -6568,7 +7428,8 @@ export const onDemandRows = [
     "storage": "900 GB NVMe SSD",
     "network_performance": "50 Gigabit",
     "processor_architecture": "Intel Xeon Family",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m5dn.8xlarge",
@@ -6578,7 +7439,8 @@ export const onDemandRows = [
     "storage": "2 x 600 NVMe SSD",
     "network_performance": "25 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8259 (Cascade Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c6g.16xlarge",
@@ -6588,7 +7450,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "25 Gigabit",
     "processor_architecture": "AWS Graviton2 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c8ib.8xlarge",
@@ -6598,7 +7461,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "33.333 Gigabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c8in.8xlarge",
@@ -6608,7 +7472,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "50 Gigabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r7gd.8xlarge",
@@ -6618,7 +7483,8 @@ export const onDemandRows = [
     "storage": "1 x 1900 NVMe SSD",
     "network_performance": "15 Gigabit",
     "processor_architecture": "AWS Graviton3 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c7gd.12xlarge",
@@ -6628,7 +7494,8 @@ export const onDemandRows = [
     "storage": "2 x 1425 NVMe SSD",
     "network_performance": "22500 Megabit",
     "processor_architecture": "AWS Graviton3 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r8i.8xlarge",
@@ -6638,7 +7505,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "15000 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m6in.8xlarge",
@@ -6648,7 +7516,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "50000 Megabit",
     "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "z1d.6xlarge",
@@ -6658,7 +7527,8 @@ export const onDemandRows = [
     "storage": "1 x 900 NVMe SSD",
     "network_performance": "10 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8151",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "g6e.2xlarge",
@@ -6668,7 +7538,8 @@ export const onDemandRows = [
     "storage": "1 x 450 GB NVMe SSD",
     "network_performance": "Up to 20 Gigabit",
     "processor_architecture": "AMD EPYC 7R13 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c8i.12xlarge",
@@ -6678,7 +7549,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "22500 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "g3.8xlarge",
@@ -6688,7 +7560,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "10 Gigabit",
     "processor_architecture": "Intel Xeon E5-2686 v4 (Broadwell)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m7i-flex.12xlarge",
@@ -6698,7 +7571,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 18750 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Sapphire Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c5d.12xlarge",
@@ -6708,7 +7582,8 @@ export const onDemandRows = [
     "storage": "2 x 900 NVMe SSD",
     "network_performance": "12 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8275L",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m5.12xlarge",
@@ -6718,7 +7593,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "10 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8175",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m6i.12xlarge",
@@ -6728,7 +7604,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "18750 Megabit",
     "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r5d.8xlarge",
@@ -6738,7 +7615,8 @@ export const onDemandRows = [
     "storage": "2 x 600 NVMe SSD",
     "network_performance": "10 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8175",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "is4gen.4xlarge",
@@ -6748,7 +7626,8 @@ export const onDemandRows = [
     "storage": "2 x 7500 SSD",
     "network_performance": "25 Gigabit",
     "processor_architecture": "AWS Graviton2 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c7g.16xlarge",
@@ -6758,7 +7637,19 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "30 Gigabit",
     "processor_architecture": "AWS Graviton3 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "c7g.metal",
+    "price_per_hour_usd": 2.32,
+    "vcpu": 64,
+    "memory": "128 GiB",
+    "storage": "EBS only",
+    "network_performance": "30 Gigabit",
+    "processor_architecture": "AWS Graviton3 Processor",
+    "current_generation": "Yes",
+    "bare_metal": true
   },
   {
     "instance_type": "m8gb.8xlarge",
@@ -6768,7 +7659,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "66.667 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m8gn.8xlarge",
@@ -6778,7 +7670,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "100 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r8gd.8xlarge",
@@ -6788,7 +7681,8 @@ export const onDemandRows = [
     "storage": "1 x 1900 NVMe SSD",
     "network_performance": "15 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c8gd.12xlarge",
@@ -6798,7 +7692,8 @@ export const onDemandRows = [
     "storage": "3 x 950 NVMe SSD",
     "network_performance": "22500 Megabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r5n.8xlarge",
@@ -6808,7 +7703,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "25 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8259 (Cascade Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r5b.8xlarge",
@@ -6818,7 +7714,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "10 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8259 (Cascade Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m8i-flex.12xlarge",
@@ -6828,7 +7725,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 22500 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r6id.8xlarge",
@@ -6838,7 +7736,8 @@ export const onDemandRows = [
     "storage": "1 x 1900 NVMe SSD",
     "network_performance": "12500 Megabit",
     "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c6id.12xlarge",
@@ -6848,7 +7747,8 @@ export const onDemandRows = [
     "storage": "2 x 1425 NVMe SSD",
     "network_performance": "18750 Megabit",
     "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m7i.12xlarge",
@@ -6858,7 +7758,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "18750 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Sapphire Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r6g.12xlarge",
@@ -6868,7 +7769,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "20 Gigabit",
     "processor_architecture": "AWS Graviton2 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r7a.8xlarge",
@@ -6878,7 +7780,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "12500 Megabit",
     "processor_architecture": "AMD EPYC 9R14 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "gr6.8xlarge",
@@ -6888,7 +7791,8 @@ export const onDemandRows = [
     "storage": "2 x 450 GB NVMe SSD",
     "network_performance": "25 Gigabit",
     "processor_architecture": "AMD EPYC 7R13 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "g5.8xlarge",
@@ -6898,7 +7802,8 @@ export const onDemandRows = [
     "storage": "1 x 900 GB NVMe SSD",
     "network_performance": "25 Gigabit",
     "processor_architecture": "AMD EPYC 7R32",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c6a.16xlarge",
@@ -6908,7 +7813,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "25000 Megabit",
     "processor_architecture": "AMD EPYC 7R13 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c6gd.16xlarge",
@@ -6918,7 +7824,19 @@ export const onDemandRows = [
     "storage": "2 x 1900 NVMe SSD",
     "network_performance": "25 Gigabit",
     "processor_architecture": "AWS Graviton2 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "c6gd.metal",
+    "price_per_hour_usd": 2.4576,
+    "vcpu": 64,
+    "memory": "128 GiB",
+    "storage": "2 x 1900 NVMe SSD",
+    "network_performance": "25 Gigabit",
+    "processor_architecture": "AWS Graviton2 Processor",
+    "current_generation": "Yes",
+    "bare_metal": true
   },
   {
     "instance_type": "c7a.12xlarge",
@@ -6928,7 +7846,19 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "18750 Megabit",
     "processor_architecture": "AMD EPYC 9R14 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "m6g.metal",
+    "price_per_hour_usd": 2.464,
+    "vcpu": 64,
+    "memory": "256 GiB",
+    "storage": "EBS only",
+    "network_performance": "25 Gigabit",
+    "processor_architecture": "AWS Graviton2 Processor",
+    "current_generation": "Yes",
+    "bare_metal": true
   },
   {
     "instance_type": "c5a.16xlarge",
@@ -6938,7 +7868,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "20 Gigabit",
     "processor_architecture": "AMD EPYC 7R32",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m6g.16xlarge",
@@ -6948,7 +7879,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "25 Gigabit",
     "processor_architecture": "AWS Graviton2 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "i4g.8xlarge",
@@ -6958,7 +7890,8 @@ export const onDemandRows = [
     "storage": "2 x 3750 SSD",
     "network_performance": "18750 Megabit",
     "processor_architecture": "AWS Graviton2 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m5ad.12xlarge",
@@ -6968,7 +7901,8 @@ export const onDemandRows = [
     "storage": "2 x 900 NVMe SSD",
     "network_performance": "10 Gigabit",
     "processor_architecture": "AMD EPYC 7571",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m8azn.6xlarge",
@@ -6978,7 +7912,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "50 Gigabit",
     "processor_architecture": "AMD EPYC 9575F",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "i3.8xlarge",
@@ -6988,7 +7923,8 @@ export const onDemandRows = [
     "storage": "4 x 1900 NVMe SSD",
     "network_performance": "10 Gigabit",
     "processor_architecture": "Intel Xeon E5-2686 v4 (Broadwell)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m8i.12xlarge",
@@ -6998,7 +7934,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "22500 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m6idn.8xlarge",
@@ -7008,7 +7945,8 @@ export const onDemandRows = [
     "storage": "1 x 1900 NVMe SSD",
     "network_performance": "50000 Megabit",
     "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c8g.16xlarge",
@@ -7018,7 +7956,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "30 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r8a.8xlarge",
@@ -7028,7 +7967,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "15000 Megabit",
     "processor_architecture": "AMD EPYC 9R45 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m7gd.12xlarge",
@@ -7038,7 +7978,8 @@ export const onDemandRows = [
     "storage": "2 x 1425 NVMe SSD",
     "network_performance": "22500 Megabit",
     "processor_architecture": "AWS Graviton3 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r7g.12xlarge",
@@ -7048,7 +7989,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "22500 Megabit",
     "processor_architecture": "AWS Graviton3 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c8a.12xlarge",
@@ -7058,7 +8000,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "22500 Megabit",
     "processor_architecture": "AMD EPYC 9R45 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "g2.8xlarge",
@@ -7068,7 +8011,8 @@ export const onDemandRows = [
     "storage": "2 x 120 SSD",
     "network_performance": "High",
     "processor_architecture": "Intel Xeon E5-2670 (Sandy Bridge)",
-    "current_generation": "No"
+    "current_generation": "No",
+    "bare_metal": false
   },
   {
     "instance_type": "m7g.16xlarge",
@@ -7078,7 +8022,19 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "30 Gigabit",
     "processor_architecture": "AWS Graviton3 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "m7g.metal",
+    "price_per_hour_usd": 2.6112,
+    "vcpu": 64,
+    "memory": "256 GiB",
+    "storage": "EBS only",
+    "network_performance": "30 Gigabit",
+    "processor_architecture": "AWS Graviton3 Processor",
+    "current_generation": "Yes",
+    "bare_metal": true
   },
   {
     "instance_type": "r3.8xlarge",
@@ -7088,7 +8044,8 @@ export const onDemandRows = [
     "storage": "2 x 320 SSD",
     "network_performance": "10 Gigabit",
     "processor_architecture": "Intel Xeon E5-2670 v2 (Ivy Bridge)",
-    "current_generation": "No"
+    "current_generation": "No",
+    "bare_metal": false
   },
   {
     "instance_type": "r8id.8xlarge",
@@ -7098,7 +8055,8 @@ export const onDemandRows = [
     "storage": "1 x 1900 NVMe SSD",
     "network_performance": "15000 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c8id.12xlarge",
@@ -7108,7 +8066,8 @@ export const onDemandRows = [
     "storage": "1 x 2850 NVMe SSD",
     "network_performance": "22500 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r5dn.8xlarge",
@@ -7118,7 +8077,8 @@ export const onDemandRows = [
     "storage": "2 x 600 NVMe SSD",
     "network_performance": "25 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8259 (Cascade Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "x2gd.8xlarge",
@@ -7128,7 +8088,8 @@ export const onDemandRows = [
     "storage": "1 x 1900 SSD",
     "network_performance": "12 Gigabit",
     "processor_architecture": "AWS Graviton2 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m8in.8xlarge",
@@ -7138,7 +8099,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "50 Gigabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m8ib.8xlarge",
@@ -7148,7 +8110,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "33.33 Gigabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m5d.12xlarge",
@@ -7158,7 +8121,8 @@ export const onDemandRows = [
     "storage": "2 x 900 NVMe SSD",
     "network_performance": "10 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8175",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r5a.12xlarge",
@@ -7168,7 +8132,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "10 Gigabit",
     "processor_architecture": "AMD EPYC 7571",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "i3en.6xlarge",
@@ -7178,7 +8143,8 @@ export const onDemandRows = [
     "storage": "2 x 7500 NVMe SSD",
     "network_performance": "25 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8175",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c7i-flex.16xlarge",
@@ -7188,7 +8154,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 25000 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Sapphire Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c6i.16xlarge",
@@ -7198,7 +8165,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "25000 Megabit",
     "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c6in.12xlarge",
@@ -7208,7 +8176,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "75000 Megabit",
     "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r6a.12xlarge",
@@ -7218,7 +8187,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "18750 Megabit",
     "processor_architecture": "AMD EPYC 7R13 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c8ine.8xlarge",
@@ -7228,7 +8198,19 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "50 Gigabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "g5g.metal",
+    "price_per_hour_usd": 2.744,
+    "vcpu": 64,
+    "memory": "128 GiB",
+    "storage": "EBS only",
+    "network_performance": "25 Gigabit",
+    "processor_architecture": "AWS Graviton2 Processor",
+    "current_generation": "Yes",
+    "bare_metal": true
   },
   {
     "instance_type": "g5g.16xlarge",
@@ -7238,7 +8220,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "25 Gigabit",
     "processor_architecture": "AWS Graviton2 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "i8g.8xlarge",
@@ -7248,7 +8231,8 @@ export const onDemandRows = [
     "storage": "2 x 3750GB",
     "network_performance": "Up to 25 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "i4i.8xlarge",
@@ -7258,7 +8242,8 @@ export const onDemandRows = [
     "storage": "2 x 3750 NVMe SSD",
     "network_performance": "18750 Megabit",
     "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m5a.16xlarge",
@@ -7268,7 +8253,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "12 Gigabit",
     "processor_architecture": "AMD EPYC 7571",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c5ad.16xlarge",
@@ -7278,7 +8264,8 @@ export const onDemandRows = [
     "storage": "2 x 1200 NVMe SSD",
     "network_performance": "20 Gigabit",
     "processor_architecture": "AMD EPYC 7R32",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "d2.4xlarge",
@@ -7288,7 +8275,8 @@ export const onDemandRows = [
     "storage": "12 x 2000 HDD",
     "network_performance": "High",
     "processor_architecture": "Intel Xeon E5-2676 v3 (Haswell)",
-    "current_generation": "No"
+    "current_generation": "No",
+    "bare_metal": false
   },
   {
     "instance_type": "c6gn.16xlarge",
@@ -7298,7 +8286,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "100 Gigabit",
     "processor_architecture": "AWS Graviton2 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r6gd.12xlarge",
@@ -7308,7 +8297,8 @@ export const onDemandRows = [
     "storage": "2 x 1425 NVMe SSD",
     "network_performance": "20 Gigabit",
     "processor_architecture": "AWS Graviton2 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m6a.16xlarge",
@@ -7318,7 +8308,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "25000 Megabit",
     "processor_architecture": "AMD EPYC 7R13 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m8gd.12xlarge",
@@ -7328,7 +8319,8 @@ export const onDemandRows = [
     "storage": "3 x 950 NVMe SSD",
     "network_performance": "22500 Megabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m7a.12xlarge",
@@ -7338,7 +8330,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "18750 Megabit",
     "processor_architecture": "AMD EPYC 9R14 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r6in.8xlarge",
@@ -7348,7 +8341,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "50000 Megabit",
     "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r8g.12xlarge",
@@ -7358,7 +8352,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "22.5 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c8gb.12xlarge",
@@ -7368,7 +8363,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "100 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c8gn.12xlarge",
@@ -7378,7 +8374,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "150 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "i8ge.6xlarge",
@@ -7388,7 +8385,8 @@ export const onDemandRows = [
     "storage": "2 x 7500 NVMe SSD",
     "network_performance": "37.5 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m6id.12xlarge",
@@ -7398,7 +8396,8 @@ export const onDemandRows = [
     "storage": "2 x 1425 NVMe SSD",
     "network_performance": "18750 Megabit",
     "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c8i-flex.16xlarge",
@@ -7408,7 +8407,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 30000 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c7i.16xlarge",
@@ -7418,7 +8418,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "25000 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Sapphire Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m5n.12xlarge",
@@ -7428,7 +8429,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "50 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8259 (Cascade Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m8g.16xlarge",
@@ -7438,7 +8440,19 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "30 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "m6gd.metal",
+    "price_per_hour_usd": 2.8928,
+    "vcpu": 64,
+    "memory": "256 GiB",
+    "storage": "2 x 1900 NVMe SSD",
+    "network_performance": "25 Gigabit",
+    "processor_architecture": "AWS Graviton2 Processor",
+    "current_generation": "Yes",
+    "bare_metal": true
   },
   {
     "instance_type": "m6gd.16xlarge",
@@ -7448,7 +8462,19 @@ export const onDemandRows = [
     "storage": "2 x 1900 NVMe SSD",
     "network_performance": "25 Gigabit",
     "processor_architecture": "AWS Graviton2 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "c7gd.metal",
+    "price_per_hour_usd": 2.903,
+    "vcpu": 64,
+    "memory": "128 GiB",
+    "storage": "2 x 1900 NVMe SSD",
+    "network_performance": "30 Gigabit",
+    "processor_architecture": "AWS Graviton3 Processor",
+    "current_generation": "Yes",
+    "bare_metal": true
   },
   {
     "instance_type": "c7gd.16xlarge",
@@ -7458,7 +8484,8 @@ export const onDemandRows = [
     "storage": "2 x 1900 NVMe SSD",
     "network_performance": "30 Gigabit",
     "processor_architecture": "AWS Graviton3 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "im4gn.8xlarge",
@@ -7468,7 +8495,8 @@ export const onDemandRows = [
     "storage": "2 x 7500 SSD",
     "network_performance": "50 Gigabit",
     "processor_architecture": "AWS Graviton2 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r8gb.8xlarge",
@@ -7478,7 +8506,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "66.667 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r8gn.8xlarge",
@@ -7488,7 +8517,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "100 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m8a.12xlarge",
@@ -7498,7 +8528,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "22500 Megabit",
     "processor_architecture": "AMD EPYC 9R45 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r7iz.8xlarge",
@@ -7508,7 +8539,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "12500 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Sapphire Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c7gn.12xlarge",
@@ -7518,7 +8550,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "150 Gigabit",
     "processor_architecture": "AWS Graviton3 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c8i.16xlarge",
@@ -7528,7 +8561,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "30000 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "g6e.4xlarge",
@@ -7538,7 +8572,8 @@ export const onDemandRows = [
     "storage": "1 x 600 GB NVMe SSD",
     "network_performance": "20 Gigabit",
     "processor_architecture": "AMD EPYC 7R13 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "i7i.8xlarge",
@@ -7548,7 +8583,8 @@ export const onDemandRows = [
     "storage": "2 x 3750 NVMe SSD",
     "network_performance": "Up to 25 Gigabit",
     "processor_architecture": "Intel Xeon Scalable (Emerald Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r5.12xlarge",
@@ -7558,7 +8594,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "10 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8175",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r6i.12xlarge",
@@ -7568,7 +8605,30 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "18750 Megabit",
     "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "m8idn.8xlarge",
+    "price_per_hour_usd": 3.05504,
+    "vcpu": 32,
+    "memory": "128.0 GiB",
+    "storage": "1 x 1900 NVMe SSD",
+    "network_performance": "50 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "m8idb.8xlarge",
+    "price_per_hour_usd": 3.05504,
+    "vcpu": 32,
+    "memory": "128.0 GiB",
+    "storage": "1 x 1900 NVMe SSD",
+    "network_performance": "33.33 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "p3.2xlarge",
@@ -7578,7 +8638,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "Intel Xeon E5-2686 v4 (Broadwell)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c5.18xlarge",
@@ -7588,7 +8649,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "25 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8124M",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m7i-flex.16xlarge",
@@ -7598,7 +8660,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 25000 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Sapphire Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m5.16xlarge",
@@ -7608,7 +8671,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "20 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8175",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m6i.16xlarge",
@@ -7618,7 +8682,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "25000 Megabit",
     "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "i7ie.6xlarge",
@@ -7628,7 +8693,8 @@ export const onDemandRows = [
     "storage": "2 x 7500 NVMe SSD",
     "network_performance": "Up to 25 Gigabit",
     "processor_architecture": "Intel Xeon Scalable (Emerald Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r6idn.8xlarge",
@@ -7638,7 +8704,8 @@ export const onDemandRows = [
     "storage": "1 x 1900 NVMe SSD",
     "network_performance": "50000 Megabit",
     "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "x8g.8xlarge",
@@ -7648,7 +8715,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "15 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m8id.12xlarge",
@@ -7658,7 +8726,8 @@ export const onDemandRows = [
     "storage": "1 x 2850 NVMe SSD",
     "network_performance": "22500 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c8gd.16xlarge",
@@ -7668,7 +8737,8 @@ export const onDemandRows = [
     "storage": "2 x 1900 NVMe SSD",
     "network_performance": "30 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r5ad.12xlarge",
@@ -7678,7 +8748,8 @@ export const onDemandRows = [
     "storage": "2 x 900 NVMe SSD",
     "network_performance": "10 Gigabit",
     "processor_architecture": "AMD EPYC 7571",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "d3en.6xlarge",
@@ -7688,7 +8759,8 @@ export const onDemandRows = [
     "storage": "12 x 14000 HDD",
     "network_performance": "40 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8259 (Cascade Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r8i-flex.12xlarge",
@@ -7698,7 +8770,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 22500 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r7i.12xlarge",
@@ -7708,7 +8781,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "18750 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Sapphire Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m4.16xlarge",
@@ -7718,7 +8792,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "20 Gigabit",
     "processor_architecture": "Intel Xeon E5-2686 v4 (Broadwell)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m8i-flex.16xlarge",
@@ -7728,7 +8803,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 30000 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c6id.16xlarge",
@@ -7738,7 +8814,19 @@ export const onDemandRows = [
     "storage": "2 x 1900 NVMe SSD",
     "network_performance": "25000 Megabit",
     "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "r6g.metal",
+    "price_per_hour_usd": 3.2256,
+    "vcpu": 64,
+    "memory": "512 GiB",
+    "storage": "EBS only",
+    "network_performance": "25 Gigabit",
+    "processor_architecture": "AWS Graviton2 Processor",
+    "current_generation": "Yes",
+    "bare_metal": true
   },
   {
     "instance_type": "m7i.16xlarge",
@@ -7748,7 +8836,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "25000 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Sapphire Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r6g.16xlarge",
@@ -7758,7 +8847,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "25 Gigabit",
     "processor_architecture": "AWS Graviton2 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m5dn.12xlarge",
@@ -7768,7 +8858,8 @@ export const onDemandRows = [
     "storage": "2 x 900 GB NVMe SSD",
     "network_performance": "50 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8259 (Cascade Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r7gd.12xlarge",
@@ -7778,7 +8869,8 @@ export const onDemandRows = [
     "storage": "2 x 1425 NVMe SSD",
     "network_performance": "22500 Megabit",
     "processor_architecture": "AWS Graviton3 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c8ib.12xlarge",
@@ -7788,7 +8880,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "50 Gigabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c8in.12xlarge",
@@ -7798,7 +8891,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "75 Gigabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c7a.16xlarge",
@@ -7808,7 +8902,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "25000 Megabit",
     "processor_architecture": "AMD EPYC 9R14 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m5ad.16xlarge",
@@ -7818,7 +8913,8 @@ export const onDemandRows = [
     "storage": "4 x 600 NVMe SSD",
     "network_performance": "12 Gigabit",
     "processor_architecture": "AMD EPYC 7571",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "f1.4xlarge",
@@ -7828,7 +8924,8 @@ export const onDemandRows = [
     "storage": "1 x 940 NVMe SSD",
     "network_performance": "10 Gigabit",
     "processor_architecture": "Intel Xeon E5-2686 v4 (Broadwell)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r8i.12xlarge",
@@ -7838,7 +8935,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "22500 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "x2iedn.4xlarge",
@@ -7848,7 +8946,8 @@ export const onDemandRows = [
     "storage": "1 x 475 NVMe SSD",
     "network_performance": "Up to 25 Gigabit",
     "processor_architecture": "Intel Xeon Scalable (Icelake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "x2iezn.4xlarge",
@@ -7858,7 +8957,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 25 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8252",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "x1e.4xlarge",
@@ -7868,7 +8968,8 @@ export const onDemandRows = [
     "storage": "1 x 480 SSD",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "High Frequency Intel Xeon E7-8880 v3 (Haswell)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m6in.12xlarge",
@@ -7878,7 +8979,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "75000 Megabit",
     "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m8ine.8xlarge",
@@ -7888,7 +8990,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "50 Gigabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r8ib.8xlarge",
@@ -7898,7 +9001,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "33.33 Gigabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r8in.8xlarge",
@@ -7908,7 +9012,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "50 Gigabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "g7e.2xlarge",
@@ -7918,7 +9023,8 @@ export const onDemandRows = [
     "storage": "1 x 1900 NVMe SSD",
     "network_performance": "50 Gigabit",
     "processor_architecture": "Intel Xeon Scalable (Emerald Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m8i.16xlarge",
@@ -7928,7 +9034,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "30000 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "g6.16xlarge",
@@ -7938,7 +9045,8 @@ export const onDemandRows = [
     "storage": "2 x 940 GB NVMe SSD",
     "network_performance": "25 Gigabit",
     "processor_architecture": "AMD EPYC 7R13 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "i2.4xlarge",
@@ -7948,7 +9056,19 @@ export const onDemandRows = [
     "storage": "4 x 800 SSD",
     "network_performance": "High",
     "processor_architecture": "Intel Xeon E5-2670 v2 (Ivy Bridge)",
-    "current_generation": "No"
+    "current_generation": "No",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "m7gd.metal",
+    "price_per_hour_usd": 3.4171,
+    "vcpu": 64,
+    "memory": "256 GiB",
+    "storage": "2 x 1900 NVMe SSD",
+    "network_performance": "30 Gigabit",
+    "processor_architecture": "AWS Graviton3 Processor",
+    "current_generation": "Yes",
+    "bare_metal": true
   },
   {
     "instance_type": "m7gd.16xlarge",
@@ -7958,7 +9078,19 @@ export const onDemandRows = [
     "storage": "2 x 1900 NVMe SSD",
     "network_performance": "30 Gigabit",
     "processor_architecture": "AWS Graviton3 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "r7g.metal",
+    "price_per_hour_usd": 3.4272,
+    "vcpu": 64,
+    "memory": "512 GiB",
+    "storage": "EBS only",
+    "network_performance": "30 Gigabit",
+    "processor_architecture": "AWS Graviton3 Processor",
+    "current_generation": "Yes",
+    "bare_metal": true
   },
   {
     "instance_type": "r7g.16xlarge",
@@ -7968,7 +9100,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "30 Gigabit",
     "processor_architecture": "AWS Graviton3 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c8a.16xlarge",
@@ -7978,7 +9111,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "30000 Megabit",
     "processor_architecture": "AMD EPYC 9R45 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c5d.18xlarge",
@@ -7988,7 +9122,8 @@ export const onDemandRows = [
     "storage": "2 x 900 NVMe SSD",
     "network_performance": "25 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8124M",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r5d.12xlarge",
@@ -7998,7 +9133,8 @@ export const onDemandRows = [
     "storage": "2 x 900 NVMe SSD",
     "network_performance": "10 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8175",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "g4ad.16xlarge",
@@ -8008,7 +9144,8 @@ export const onDemandRows = [
     "storage": "2400 GB NVMe SSD",
     "network_performance": "25 Gigabit",
     "processor_architecture": "AMD EPYC 7R32",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m8gb.12xlarge",
@@ -8018,7 +9155,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "100 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m8gn.12xlarge",
@@ -8028,7 +9166,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "150 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "cr1.8xlarge",
@@ -8038,7 +9177,8 @@ export const onDemandRows = [
     "storage": "2 x 120 SSD",
     "network_performance": "10 Gigabit",
     "processor_architecture": "Intel Xeon E5-2670",
-    "current_generation": "No"
+    "current_generation": "No",
+    "bare_metal": false
   },
   {
     "instance_type": "x8i.8xlarge",
@@ -8048,7 +9188,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "15000 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r8gd.12xlarge",
@@ -8058,7 +9199,8 @@ export const onDemandRows = [
     "storage": "3 x 950 NVMe SSD",
     "network_performance": "22500 Megabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c8id.16xlarge",
@@ -8068,7 +9210,8 @@ export const onDemandRows = [
     "storage": "1 x 3800 NVMe SSD",
     "network_performance": "30000 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r5b.12xlarge",
@@ -8078,7 +9221,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "10 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8259 (Cascade Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r5n.12xlarge",
@@ -8088,7 +9232,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "50 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8259 (Cascade Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r5a.16xlarge",
@@ -8098,7 +9243,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "12 Gigabit",
     "processor_architecture": "AMD EPYC 7571",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m5d.16xlarge",
@@ -8108,7 +9254,8 @@ export const onDemandRows = [
     "storage": "4 x 600 NVMe SSD",
     "network_performance": "20 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8175",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r6id.12xlarge",
@@ -8118,7 +9265,8 @@ export const onDemandRows = [
     "storage": "2 x 1425 NVMe SSD",
     "network_performance": "18750 Megabit",
     "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r6a.16xlarge",
@@ -8128,7 +9276,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "25000 Megabit",
     "processor_architecture": "AMD EPYC 7R13 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c6in.16xlarge",
@@ -8138,7 +9287,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "100000 Megabit",
     "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r7a.12xlarge",
@@ -8148,7 +9298,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "18750 Megabit",
     "processor_architecture": "AMD EPYC 9R14 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c6a.24xlarge",
@@ -8158,7 +9309,19 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "37500 Megabit",
     "processor_architecture": "AMD EPYC 7R13 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "r6gd.metal",
+    "price_per_hour_usd": 3.6864,
+    "vcpu": 64,
+    "memory": "512 GiB",
+    "storage": "2 x 1900 NVMe SSD",
+    "network_performance": "25 Gigabit",
+    "processor_architecture": "AWS Graviton2 Processor",
+    "current_generation": "Yes",
+    "bare_metal": true
   },
   {
     "instance_type": "r6gd.16xlarge",
@@ -8168,7 +9331,8 @@ export const onDemandRows = [
     "storage": "2 x 1900 NVMe SSD",
     "network_performance": "25 Gigabit",
     "processor_architecture": "AWS Graviton2 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m8gd.16xlarge",
@@ -8178,7 +9342,8 @@ export const onDemandRows = [
     "storage": "2 x 1900 NVMe SSD",
     "network_performance": "30 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c5a.24xlarge",
@@ -8188,7 +9353,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "20 Gigabit",
     "processor_architecture": "AMD EPYC 7R32",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m7a.16xlarge",
@@ -8198,7 +9364,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "25000 Megabit",
     "processor_architecture": "AMD EPYC 9R14 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "h1.16xlarge",
@@ -8208,7 +9375,30 @@ export const onDemandRows = [
     "storage": "8 x 2000 HDD",
     "network_performance": "25 Gigabit",
     "processor_architecture": "Intel Xeon E5-2686 v4 (Broadwell)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "r8idb.8xlarge",
+    "price_per_hour_usd": 3.75152,
+    "vcpu": 32,
+    "memory": "256.0 GiB",
+    "storage": "1 x 1900 NVMe SSD",
+    "network_performance": "33.33 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "r8idn.8xlarge",
+    "price_per_hour_usd": 3.75152,
+    "vcpu": 32,
+    "memory": "256.0 GiB",
+    "storage": "1 x 1900 NVMe SSD",
+    "network_performance": "50 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r8g.16xlarge",
@@ -8218,7 +9408,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "30 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c8gn.16xlarge",
@@ -8228,7 +9419,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "200 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c8gb.16xlarge",
@@ -8238,7 +9430,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "133.333 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m6id.16xlarge",
@@ -8248,7 +9441,8 @@ export const onDemandRows = [
     "storage": "2 x 1900 NVMe SSD",
     "network_performance": "25000 Megabit",
     "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m5n.16xlarge",
@@ -8258,7 +9452,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "75 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8259 (Cascade Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m6idn.12xlarge",
@@ -8268,7 +9463,8 @@ export const onDemandRows = [
     "storage": "2 x 1425 NVMe SSD",
     "network_performance": "75000 Megabit",
     "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c8g.24xlarge",
@@ -8278,7 +9474,19 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "40 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "c8g.metal-24xl",
+    "price_per_hour_usd": 3.82848,
+    "vcpu": 96,
+    "memory": "192 GiB",
+    "storage": "EBS only",
+    "network_performance": "40 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes",
+    "bare_metal": true
   },
   {
     "instance_type": "r8a.12xlarge",
@@ -8288,7 +9496,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "22500 Megabit",
     "processor_architecture": "AMD EPYC 9R45 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c5n.18xlarge",
@@ -8298,7 +9507,19 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "100 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8124M",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "c5n.metal",
+    "price_per_hour_usd": 3.888,
+    "vcpu": 72,
+    "memory": "192 GiB",
+    "storage": "EBS only",
+    "network_performance": "100 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8124M",
+    "current_generation": "Yes",
+    "bare_metal": true
   },
   {
     "instance_type": "m8a.16xlarge",
@@ -8308,7 +9529,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "30000 Megabit",
     "processor_architecture": "AMD EPYC 9R45 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "g4dn.12xlarge",
@@ -8318,7 +9540,8 @@ export const onDemandRows = [
     "storage": "900 GB NVMe SSD",
     "network_performance": "50 Gigabit",
     "processor_architecture": "Intel Xeon Family",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "f2.12xlarge",
@@ -8328,7 +9551,8 @@ export const onDemandRows = [
     "storage": "2 x 950 NVMe SSD",
     "network_performance": "25 Gigabit",
     "processor_architecture": "AMD EPYC 7R13 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m5zn.12xlarge",
@@ -8338,7 +9562,19 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "100 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8252",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "m5zn.metal",
+    "price_per_hour_usd": 3.9641,
+    "vcpu": 48,
+    "memory": "192 GiB",
+    "storage": "EBS only",
+    "network_performance": "100 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8252",
+    "current_generation": "Yes",
+    "bare_metal": true
   },
   {
     "instance_type": "r8id.12xlarge",
@@ -8348,7 +9584,19 @@ export const onDemandRows = [
     "storage": "1 x 2850 NVMe SSD",
     "network_performance": "22500 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "c7gn.metal",
+    "price_per_hour_usd": 3.9936,
+    "vcpu": 64,
+    "memory": "128 GiB",
+    "storage": "EBS only",
+    "network_performance": "200 Gigabit",
+    "processor_architecture": "AWS Graviton3 Processor",
+    "current_generation": "Yes",
+    "bare_metal": true
   },
   {
     "instance_type": "c7gn.16xlarge",
@@ -8358,7 +9606,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "200 Gigabit",
     "processor_architecture": "AWS Graviton3 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "d3.8xlarge",
@@ -8368,7 +9617,8 @@ export const onDemandRows = [
     "storage": "24 x 2000 HDD",
     "network_performance": "25 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8259 (Cascade Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "g7e.4xlarge",
@@ -8378,7 +9628,8 @@ export const onDemandRows = [
     "storage": "1 x 1900 NVMe SSD",
     "network_performance": "50 Gigabit",
     "processor_architecture": "Intel Xeon Scalable (Emerald Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r5dn.12xlarge",
@@ -8388,7 +9639,8 @@ export const onDemandRows = [
     "storage": "2 x 900 GB NVMe SSD",
     "network_performance": "50 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8259 (Cascade Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "x2gd.12xlarge",
@@ -8398,7 +9650,8 @@ export const onDemandRows = [
     "storage": "2 x 1425 SSD",
     "network_performance": "20 Gigabit",
     "processor_architecture": "AWS Graviton2 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m8ib.12xlarge",
@@ -8408,7 +9661,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "50 Gigabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m8in.12xlarge",
@@ -8418,7 +9672,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "75 Gigabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r6i.16xlarge",
@@ -8428,7 +9683,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "25000 Megabit",
     "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r5.16xlarge",
@@ -8438,7 +9694,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "20 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8175",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c6i.24xlarge",
@@ -8448,7 +9705,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "37500 Megabit",
     "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c5.24xlarge",
@@ -8458,7 +9716,19 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "25 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8275L",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "c5.metal",
+    "price_per_hour_usd": 4.08,
+    "vcpu": 96,
+    "memory": "192 GiB",
+    "storage": "EBS only",
+    "network_performance": "25 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8275L",
+    "current_generation": "Yes",
+    "bare_metal": true
   },
   {
     "instance_type": "c8ine.12xlarge",
@@ -8468,7 +9738,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "75 Gigabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "g5.16xlarge",
@@ -8478,7 +9749,8 @@ export const onDemandRows = [
     "storage": "1 x 1900 GB NVMe SSD",
     "network_performance": "25 Gigabit",
     "processor_architecture": "AMD EPYC 7R32",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "i4i.12xlarge",
@@ -8488,7 +9760,8 @@ export const onDemandRows = [
     "storage": "3 x 3750 NVMe SSD",
     "network_performance": "28125 Megabit",
     "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "i8g.12xlarge",
@@ -8498,7 +9771,8 @@ export const onDemandRows = [
     "storage": "3 x 3750GB",
     "network_performance": "Up to 28.125 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c5ad.24xlarge",
@@ -8508,7 +9782,8 @@ export const onDemandRows = [
     "storage": "2 x 1900 NVMe SSD",
     "network_performance": "20 Gigabit",
     "processor_architecture": "AMD EPYC 7R32",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m5a.24xlarge",
@@ -8518,7 +9793,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "20 Gigabit",
     "processor_architecture": "AMD EPYC 7571",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m6a.24xlarge",
@@ -8528,7 +9804,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "37500 Megabit",
     "processor_architecture": "AMD EPYC 7R13 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m8id.16xlarge",
@@ -8538,7 +9815,8 @@ export const onDemandRows = [
     "storage": "1 x 3800 NVMe SSD",
     "network_performance": "30000 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r6in.12xlarge",
@@ -8548,7 +9826,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "75000 Megabit",
     "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r5ad.16xlarge",
@@ -8558,7 +9837,8 @@ export const onDemandRows = [
     "storage": "4 x 600 NVMe SSD",
     "network_performance": "12 Gigabit",
     "processor_architecture": "AMD EPYC 7571",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "d3en.8xlarge",
@@ -8568,7 +9848,8 @@ export const onDemandRows = [
     "storage": "16 x 14000 HDD",
     "network_performance": "50 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8259 (Cascade Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r8i-flex.16xlarge",
@@ -8578,7 +9859,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "Up to 30000 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r7i.16xlarge",
@@ -8588,7 +9870,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "25000 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Sapphire Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r4.16xlarge",
@@ -8598,7 +9881,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "20 Gigabit",
     "processor_architecture": "Intel Xeon E5-2686 v4 (Broadwell)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c7i.24xlarge",
@@ -8608,7 +9892,19 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "37500 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Sapphire Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "c7i.metal-24xl",
+    "price_per_hour_usd": 4.284,
+    "vcpu": 96,
+    "memory": "192 GiB",
+    "storage": "EBS only",
+    "network_performance": "37500 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Sapphire Rapids)",
+    "current_generation": "Yes",
+    "bare_metal": true
   },
   {
     "instance_type": "m8g.24xlarge",
@@ -8618,7 +9914,19 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "40 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "m8g.metal-24xl",
+    "price_per_hour_usd": 4.30848,
+    "vcpu": 96,
+    "memory": "384 GiB",
+    "storage": "EBS only",
+    "network_performance": "40 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes",
+    "bare_metal": true
   },
   {
     "instance_type": "m5dn.16xlarge",
@@ -8628,7 +9936,8 @@ export const onDemandRows = [
     "storage": "4 x 600 NVMe SSD",
     "network_performance": "75 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8259 (Cascade Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "g4dn.16xlarge",
@@ -8638,7 +9947,8 @@ export const onDemandRows = [
     "storage": "900 GB NVMe SSD",
     "network_performance": "50 Gigabit",
     "processor_architecture": "Intel Xeon Family",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c8in.16xlarge",
@@ -8648,7 +9958,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "100 Gigabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c8ib.16xlarge",
@@ -8658,7 +9969,19 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "66.667 Gigabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "r7gd.metal",
+    "price_per_hour_usd": 4.3546,
+    "vcpu": 64,
+    "memory": "512 GiB",
+    "storage": "2 x 1900 NVMe SSD",
+    "network_performance": "30 Gigabit",
+    "processor_architecture": "AWS Graviton3 Processor",
+    "current_generation": "Yes",
+    "bare_metal": true
   },
   {
     "instance_type": "r7gd.16xlarge",
@@ -8668,7 +9991,8 @@ export const onDemandRows = [
     "storage": "2 x 1900 NVMe SSD",
     "network_performance": "30 Gigabit",
     "processor_architecture": "AWS Graviton3 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r8gn.12xlarge",
@@ -8678,7 +10002,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "150 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r8gb.12xlarge",
@@ -8688,7 +10013,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "100 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r8i.16xlarge",
@@ -8698,7 +10024,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "30000 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m6in.16xlarge",
@@ -8708,7 +10035,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "100000 Megabit",
     "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "z1d.12xlarge",
@@ -8718,7 +10046,8 @@ export const onDemandRows = [
     "storage": "2 x 900 NVMe SSD",
     "network_performance": "25 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8151",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r7iz.12xlarge",
@@ -8728,7 +10057,19 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "25000 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Sapphire Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "z1d.metal",
+    "price_per_hour_usd": 4.464,
+    "vcpu": 48,
+    "memory": "384 GiB",
+    "storage": "2 x 900 NVMe SSD",
+    "network_performance": "25 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8151",
+    "current_generation": "Yes",
+    "bare_metal": true
   },
   {
     "instance_type": "c8i.24xlarge",
@@ -8738,7 +10079,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "40000 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "g6e.8xlarge",
@@ -8748,7 +10090,8 @@ export const onDemandRows = [
     "storage": "1 x 900 GB NVMe SSD",
     "network_performance": "25 Gigabit",
     "processor_architecture": "AMD EPYC 7R13 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "i7i.12xlarge",
@@ -8758,7 +10101,8 @@ export const onDemandRows = [
     "storage": "3 x 3750 NVMe SSD",
     "network_performance": "Up to 28.125 Gigabit",
     "processor_architecture": "Intel Xeon Scalable (Emerald Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "g3.16xlarge",
@@ -8768,7 +10112,30 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "20 Gigabit",
     "processor_architecture": "Intel Xeon E5-2686 v4 (Broadwell)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "m8idn.12xlarge",
+    "price_per_hour_usd": 4.58256,
+    "vcpu": 48,
+    "memory": "192.0 GiB",
+    "storage": "1 x 2850 NVMe SSD",
+    "network_performance": "75 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "m8idb.12xlarge",
+    "price_per_hour_usd": 4.58256,
+    "vcpu": 48,
+    "memory": "192.0 GiB",
+    "storage": "1 x 2850 NVMe SSD",
+    "network_performance": "50 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "g6.12xlarge",
@@ -8778,7 +10145,30 @@ export const onDemandRows = [
     "storage": "4 X 940 GB NVMe SSD",
     "network_performance": "40 Gigabit",
     "processor_architecture": "AMD EPYC 7R13 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "c5d.metal",
+    "price_per_hour_usd": 4.608,
+    "vcpu": 96,
+    "memory": "192 GiB",
+    "storage": "4 x 900 NVMe SSD",
+    "network_performance": "25 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8275L",
+    "current_generation": "Yes",
+    "bare_metal": true
+  },
+  {
+    "instance_type": "m5.metal",
+    "price_per_hour_usd": 4.608,
+    "vcpu": 96,
+    "memory": "384 GiB",
+    "storage": "EBS only",
+    "network_performance": "25 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8175",
+    "current_generation": "Yes",
+    "bare_metal": true
   },
   {
     "instance_type": "m5.24xlarge",
@@ -8788,7 +10178,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "25 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8175",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m6i.24xlarge",
@@ -8798,7 +10189,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "37500 Megabit",
     "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c5d.24xlarge",
@@ -8808,7 +10200,8 @@ export const onDemandRows = [
     "storage": "4 x 900 NVMe SSD",
     "network_performance": "25 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8275L",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r5d.16xlarge",
@@ -8818,7 +10211,8 @@ export const onDemandRows = [
     "storage": "4 x 600 NVMe SSD",
     "network_performance": "20 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8175",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "is4gen.8xlarge",
@@ -8828,7 +10222,8 @@ export const onDemandRows = [
     "storage": "4 x 7500 SSD",
     "network_performance": "50 Gigabit",
     "processor_architecture": "AWS Graviton2 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m8gb.16xlarge",
@@ -8838,7 +10233,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "133.333 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m8gn.16xlarge",
@@ -8848,7 +10244,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "200 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r6idn.12xlarge",
@@ -8858,7 +10255,8 @@ export const onDemandRows = [
     "storage": "2 x 1425 NVMe SSD",
     "network_performance": "75000 Megabit",
     "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "x8g.12xlarge",
@@ -8868,7 +10266,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "22.5 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r8gd.16xlarge",
@@ -8878,7 +10277,19 @@ export const onDemandRows = [
     "storage": "2 x 1900 NVMe SSD",
     "network_performance": "30 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "c8gd.metal-24xl",
+    "price_per_hour_usd": 4.70304,
+    "vcpu": 96,
+    "memory": "192 GiB",
+    "storage": "3 x 1900 NVMe SSD",
+    "network_performance": "40 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes",
+    "bare_metal": true
   },
   {
     "instance_type": "c8gd.24xlarge",
@@ -8888,7 +10299,8 @@ export const onDemandRows = [
     "storage": "3 x 1900 NVMe SSD",
     "network_performance": "40 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "inf1.24xlarge",
@@ -8898,7 +10310,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "100 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8275CL (Cascade Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r5n.16xlarge",
@@ -8908,7 +10321,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "75 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8259 (Cascade Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r5b.16xlarge",
@@ -8918,7 +10332,19 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "20 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8259 (Cascade Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "m7i.metal-24xl",
+    "price_per_hour_usd": 4.8384,
+    "vcpu": 96,
+    "memory": "384 GiB",
+    "storage": "EBS only",
+    "network_performance": "37500 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Sapphire Rapids)",
+    "current_generation": "Yes",
+    "bare_metal": true
   },
   {
     "instance_type": "r6id.16xlarge",
@@ -8928,7 +10354,8 @@ export const onDemandRows = [
     "storage": "2 x 1900 NVMe SSD",
     "network_performance": "25000 Megabit",
     "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c6id.24xlarge",
@@ -8938,7 +10365,8 @@ export const onDemandRows = [
     "storage": "4 x 1425 NVMe SSD",
     "network_performance": "37500 Megabit",
     "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m7i.24xlarge",
@@ -8948,7 +10376,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "37500 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Sapphire Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r7a.16xlarge",
@@ -8958,7 +10387,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "25000 Megabit",
     "processor_architecture": "AMD EPYC 9R14 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c6a.32xlarge",
@@ -8968,7 +10398,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "50000 Megabit",
     "processor_architecture": "AMD EPYC 7R13 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c7a.24xlarge",
@@ -8978,7 +10409,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "37500 Megabit",
     "processor_architecture": "AMD EPYC 9R14 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "i4g.16xlarge",
@@ -8988,7 +10420,8 @@ export const onDemandRows = [
     "storage": "4 x 3750 SSD",
     "network_performance": "37500 Megabit",
     "processor_architecture": "AWS Graviton2 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m5ad.24xlarge",
@@ -8998,7 +10431,19 @@ export const onDemandRows = [
     "storage": "4 x 900 NVMe SSD",
     "network_performance": "20 Gigabit",
     "processor_architecture": "AMD EPYC 7571",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "m8azn.metal-12xl",
+    "price_per_hour_usd": 4.95504,
+    "vcpu": 48,
+    "memory": "192 GiB",
+    "storage": "EBS only",
+    "network_performance": "100 Gigabit",
+    "processor_architecture": "AMD EPYC 9575F",
+    "current_generation": "Yes",
+    "bare_metal": true
   },
   {
     "instance_type": "m8azn.12xlarge",
@@ -9008,7 +10453,19 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "100 Gigabit",
     "processor_architecture": "AMD EPYC 9575F",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "i3.metal",
+    "price_per_hour_usd": 4.992,
+    "vcpu": 64,
+    "memory": "488 GiB",
+    "storage": "8 x 1900 NVMe SSD",
+    "network_performance": "20 Gigabit",
+    "processor_architecture": "Intel Xeon E5-2686 v4 (Broadwell)",
+    "current_generation": "Yes",
+    "bare_metal": true
   },
   {
     "instance_type": "i3.16xlarge",
@@ -9018,7 +10475,8 @@ export const onDemandRows = [
     "storage": "8 x 1900 NVMe SSD",
     "network_performance": "20 Gigabit",
     "processor_architecture": "Intel Xeon E5-2686 v4 (Broadwell)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "x2iezn.6xlarge",
@@ -9028,7 +10486,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "50 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8252",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m8ine.12xlarge",
@@ -9038,7 +10497,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "75 Gigabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r8ib.12xlarge",
@@ -9048,7 +10508,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "50 Gigabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r8in.12xlarge",
@@ -9058,7 +10519,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "75 Gigabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m8i.24xlarge",
@@ -9068,7 +10530,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "40000 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m6idn.16xlarge",
@@ -9078,7 +10541,8 @@ export const onDemandRows = [
     "storage": "2 x 1900 NVMe SSD",
     "network_performance": "100000 Megabit",
     "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r8a.16xlarge",
@@ -9088,7 +10552,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "30000 Megabit",
     "processor_architecture": "AMD EPYC 9R45 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c8a.24xlarge",
@@ -9098,7 +10563,19 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "40000 Megabit",
     "processor_architecture": "AMD EPYC 9R45 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "c8a.metal-24xl",
+    "price_per_hour_usd": 5.17296,
+    "vcpu": 96,
+    "memory": "192 GiB",
+    "storage": "EBS only",
+    "network_performance": "40000 Megabit",
+    "processor_architecture": "AMD EPYC 9R45 Processor",
+    "current_generation": "Yes",
+    "bare_metal": true
   },
   {
     "instance_type": "vt1.24xlarge",
@@ -9108,7 +10585,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "25000 Megabit",
     "processor_architecture": "Intel Xeon Platinum 8259CL",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "x8i.12xlarge",
@@ -9118,7 +10596,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "22500 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "g7e.8xlarge",
@@ -9128,7 +10607,8 @@ export const onDemandRows = [
     "storage": "1 x 1900 NVMe SSD",
     "network_performance": "100 Gigabit",
     "processor_architecture": "Intel Xeon Scalable (Emerald Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c8id.24xlarge",
@@ -9138,7 +10618,8 @@ export const onDemandRows = [
     "storage": "2 x 2850 NVMe SSD",
     "network_performance": "40000 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r8id.16xlarge",
@@ -9148,7 +10629,8 @@ export const onDemandRows = [
     "storage": "1 x 3800 NVMe SSD",
     "network_performance": "30000 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r5dn.16xlarge",
@@ -9158,7 +10640,19 @@ export const onDemandRows = [
     "storage": "4 x 600 NVMe SSD",
     "network_performance": "75 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8259 (Cascade Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "x2gd.metal",
+    "price_per_hour_usd": 5.344,
+    "vcpu": 64,
+    "memory": "1024 GiB",
+    "storage": "2 x 1900 SSD",
+    "network_performance": "25 Gigabit",
+    "processor_architecture": "AWS Graviton2 Processor",
+    "current_generation": "Yes",
+    "bare_metal": true
   },
   {
     "instance_type": "x2gd.16xlarge",
@@ -9168,7 +10662,8 @@ export const onDemandRows = [
     "storage": "2 x 1900 SSD",
     "network_performance": "25 Gigabit",
     "processor_architecture": "AWS Graviton2 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m8ib.16xlarge",
@@ -9178,7 +10673,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "66.66 Gigabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m8in.16xlarge",
@@ -9188,7 +10684,19 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "100 Gigabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "m5d.metal",
+    "price_per_hour_usd": 5.424,
+    "vcpu": 96,
+    "memory": "384 GiB",
+    "storage": "4 x 900 NVMe SSD",
+    "network_performance": "25 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8175",
+    "current_generation": "Yes",
+    "bare_metal": true
   },
   {
     "instance_type": "m5d.24xlarge",
@@ -9198,7 +10706,8 @@ export const onDemandRows = [
     "storage": "4 x 900 NVMe SSD",
     "network_performance": "25 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8175",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r5a.24xlarge",
@@ -9208,7 +10717,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "20 Gigabit",
     "processor_architecture": "AMD EPYC 7571",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "i3en.12xlarge",
@@ -9218,7 +10728,8 @@ export const onDemandRows = [
     "storage": "4 x 7500 NVMe SSD",
     "network_performance": "50 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8175",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c6i.32xlarge",
@@ -9228,7 +10739,19 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "50000 Megabit",
     "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "c6i.metal",
+    "price_per_hour_usd": 5.44,
+    "vcpu": 128,
+    "memory": "256 GiB",
+    "storage": "EBS only",
+    "network_performance": "50000 Megabit",
+    "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
+    "current_generation": "Yes",
+    "bare_metal": true
   },
   {
     "instance_type": "r6a.24xlarge",
@@ -9238,7 +10761,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "37500 Megabit",
     "processor_architecture": "AMD EPYC 7R13 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c6in.24xlarge",
@@ -9248,7 +10772,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "150000 Megabit",
     "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "i4i.16xlarge",
@@ -9258,7 +10783,8 @@ export const onDemandRows = [
     "storage": "4 x 3750 NVMe SSD",
     "network_performance": "35000 Megabit",
     "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "i8g.16xlarge",
@@ -9268,7 +10794,8 @@ export const onDemandRows = [
     "storage": "4 x 3750GB",
     "network_performance": "Up to 37.5 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "d2.8xlarge",
@@ -9278,7 +10805,8 @@ export const onDemandRows = [
     "storage": "24 x 2000 HDD",
     "network_performance": "10 Gigabit",
     "processor_architecture": "Intel Xeon E5-2676 v3 (Haswell)",
-    "current_generation": "No"
+    "current_generation": "No",
+    "bare_metal": false
   },
   {
     "instance_type": "m6a.32xlarge",
@@ -9288,7 +10816,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "50000 Megabit",
     "processor_architecture": "AMD EPYC 7R13 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m8gd.24xlarge",
@@ -9298,7 +10827,19 @@ export const onDemandRows = [
     "storage": "3 x 1900 NVMe SSD",
     "network_performance": "40 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "m8gd.metal-24xl",
+    "price_per_hour_usd": 5.53536,
+    "vcpu": 96,
+    "memory": "384 GiB",
+    "storage": "3 x 1900 NVMe SSD",
+    "network_performance": "40 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes",
+    "bare_metal": true
   },
   {
     "instance_type": "m7a.24xlarge",
@@ -9308,7 +10849,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "37500 Megabit",
     "processor_architecture": "AMD EPYC 9R14 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r6in.16xlarge",
@@ -9318,7 +10860,30 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "100000 Megabit",
     "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "r8idn.12xlarge",
+    "price_per_hour_usd": 5.62728,
+    "vcpu": 48,
+    "memory": "384.0 GiB",
+    "storage": "1 x 2850 NVMe SSD",
+    "network_performance": "75 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "r8idb.12xlarge",
+    "price_per_hour_usd": 5.62728,
+    "vcpu": 48,
+    "memory": "384.0 GiB",
+    "storage": "1 x 2850 NVMe SSD",
+    "network_performance": "50 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r8g.24xlarge",
@@ -9328,7 +10893,19 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "40 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "r8g.metal-24xl",
+    "price_per_hour_usd": 5.65536,
+    "vcpu": 96,
+    "memory": "768 GiB",
+    "storage": "EBS only",
+    "network_performance": "40 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes",
+    "bare_metal": true
   },
   {
     "instance_type": "g5.12xlarge",
@@ -9338,7 +10915,8 @@ export const onDemandRows = [
     "storage": "1 x 3800 GB NVMe SSD",
     "network_performance": "40 Gigabit",
     "processor_architecture": "AMD EPYC 7R32",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c8gn.24xlarge",
@@ -9348,7 +10926,19 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "300 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "c8gb.metal-24xl",
+    "price_per_hour_usd": 5.688,
+    "vcpu": 96,
+    "memory": "192 GiB",
+    "storage": "EBS only",
+    "network_performance": "200 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes",
+    "bare_metal": true
   },
   {
     "instance_type": "c8gb.24xlarge",
@@ -9358,7 +10948,19 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "200 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "c8gn.metal-24xl",
+    "price_per_hour_usd": 5.688,
+    "vcpu": 96,
+    "memory": "192 GiB",
+    "storage": "EBS only",
+    "network_performance": "300 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes",
+    "bare_metal": true
   },
   {
     "instance_type": "i8ge.12xlarge",
@@ -9368,7 +10970,8 @@ export const onDemandRows = [
     "storage": "4 x 7500 NVMe SSD",
     "network_performance": "75 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m6id.24xlarge",
@@ -9378,7 +10981,8 @@ export const onDemandRows = [
     "storage": "4 x 1425 NVMe SSD",
     "network_performance": "37500 Megabit",
     "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m5n.24xlarge",
@@ -9388,7 +10992,19 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "100 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8259 (Cascade Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "m5n.metal",
+    "price_per_hour_usd": 5.712,
+    "vcpu": 96,
+    "memory": "384 GiB",
+    "storage": "EBS only",
+    "network_performance": "100 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8259 (Cascade Lake)",
+    "current_generation": "Yes",
+    "bare_metal": true
   },
   {
     "instance_type": "im4gn.16xlarge",
@@ -9398,7 +11014,8 @@ export const onDemandRows = [
     "storage": "4 x 7500 SSD",
     "network_performance": "100 Gigabit",
     "processor_architecture": "AWS Graviton2 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r8gb.16xlarge",
@@ -9408,7 +11025,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "133.333 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r8gn.16xlarge",
@@ -9418,7 +11036,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "200 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m8a.24xlarge",
@@ -9428,7 +11047,19 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "40000 Megabit",
     "processor_architecture": "AMD EPYC 9R45 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "m8a.metal-24xl",
+    "price_per_hour_usd": 5.84256,
+    "vcpu": 96,
+    "memory": "384 GiB",
+    "storage": "EBS only",
+    "network_performance": "40000 Megabit",
+    "processor_architecture": "AMD EPYC 9R45 Processor",
+    "current_generation": "Yes",
+    "bare_metal": true
   },
   {
     "instance_type": "r7iz.16xlarge",
@@ -9438,7 +11069,19 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "25000 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Sapphire Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "r7iz.metal-16xl",
+    "price_per_hour_usd": 5.952,
+    "vcpu": 64,
+    "memory": "512 GiB",
+    "storage": "EBS only",
+    "network_performance": "25000 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Sapphire Rapids)",
+    "current_generation": "Yes",
+    "bare_metal": true
   },
   {
     "instance_type": "c8i.32xlarge",
@@ -9448,7 +11091,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "50000 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "i7i.16xlarge",
@@ -9458,7 +11102,19 @@ export const onDemandRows = [
     "storage": "4 x 3750 NVMe SSD",
     "network_performance": "Up to 37.5 Gigabit",
     "processor_architecture": "Intel Xeon Scalable (Emerald Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "r5.metal",
+    "price_per_hour_usd": 6.048,
+    "vcpu": 96,
+    "memory": "768 GiB",
+    "storage": "EBS only",
+    "network_performance": "25 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8175",
+    "current_generation": "Yes",
+    "bare_metal": true
   },
   {
     "instance_type": "r5.24xlarge",
@@ -9468,7 +11124,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "25 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8175",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r6i.24xlarge",
@@ -9478,7 +11135,30 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "37500 Megabit",
     "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "m8idb.16xlarge",
+    "price_per_hour_usd": 6.11008,
+    "vcpu": 64,
+    "memory": "256.0 GiB",
+    "storage": "1 x 3800 NVMe SSD",
+    "network_performance": "66.66 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "m8idn.16xlarge",
+    "price_per_hour_usd": 6.11008,
+    "vcpu": 64,
+    "memory": "256.0 GiB",
+    "storage": "1 x 3800 NVMe SSD",
+    "network_performance": "100 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m6i.32xlarge",
@@ -9488,7 +11168,19 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "50000 Megabit",
     "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "m6i.metal",
+    "price_per_hour_usd": 6.144,
+    "vcpu": 128,
+    "memory": "512 GiB",
+    "storage": "EBS only",
+    "network_performance": "50000 Megabit",
+    "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
+    "current_generation": "Yes",
+    "bare_metal": true
   },
   {
     "instance_type": "i7ie.12xlarge",
@@ -9498,7 +11190,8 @@ export const onDemandRows = [
     "storage": "4 x 7500 NVMe SSD",
     "network_performance": "Up to 50 Gigabit",
     "processor_architecture": "Intel Xeon Scalable (Emerald Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r6idn.16xlarge",
@@ -9508,7 +11201,8 @@ export const onDemandRows = [
     "storage": "2 x 1900 NVMe SSD",
     "network_performance": "100000 Megabit",
     "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "x8g.16xlarge",
@@ -9518,7 +11212,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "30 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m8id.24xlarge",
@@ -9528,7 +11223,8 @@ export const onDemandRows = [
     "storage": "2 x 2850 NVMe SSD",
     "network_performance": "40000 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r5ad.24xlarge",
@@ -9538,7 +11234,8 @@ export const onDemandRows = [
     "storage": "4 x 900 NVMe SSD",
     "network_performance": "20 Gigabit",
     "processor_architecture": "AMD EPYC 7571",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "d3en.12xlarge",
@@ -9548,7 +11245,19 @@ export const onDemandRows = [
     "storage": "24 x 14000 HDD",
     "network_performance": "75 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8259 (Cascade Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "r7i.metal-24xl",
+    "price_per_hour_usd": 6.3504,
+    "vcpu": 96,
+    "memory": "768 GiB",
+    "storage": "EBS only",
+    "network_performance": "37500 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Sapphire Rapids)",
+    "current_generation": "Yes",
+    "bare_metal": true
   },
   {
     "instance_type": "r7i.24xlarge",
@@ -9558,7 +11267,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "37500 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Sapphire Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c6id.32xlarge",
@@ -9568,7 +11278,19 @@ export const onDemandRows = [
     "storage": "4 x 1900 NVMe SSD",
     "network_performance": "50000 Megabit",
     "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "c6id.metal",
+    "price_per_hour_usd": 6.4512,
+    "vcpu": 128,
+    "memory": "256 GiB",
+    "storage": "4 x 1900 NVMe SSD",
+    "network_performance": "50000 Megabit",
+    "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
+    "current_generation": "Yes",
+    "bare_metal": true
   },
   {
     "instance_type": "inf2.24xlarge",
@@ -9578,7 +11300,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "50 Gigabit",
     "processor_architecture": "AMD EPYC 7R13 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m5dn.24xlarge",
@@ -9588,7 +11311,19 @@ export const onDemandRows = [
     "storage": "4 x 900 NVMe SSD",
     "network_performance": "100 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8259 (Cascade Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "m5dn.metal",
+    "price_per_hour_usd": 6.528,
+    "vcpu": 96,
+    "memory": "384 GiB",
+    "storage": "4 x 900 NVMe SSD",
+    "network_performance": "100 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8259 (Cascade Lake)",
+    "current_generation": "Yes",
+    "bare_metal": true
   },
   {
     "instance_type": "c8ib.24xlarge",
@@ -9598,7 +11333,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "100 Gigabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c8in.24xlarge",
@@ -9608,7 +11344,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "150 Gigabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c7a.32xlarge",
@@ -9618,7 +11355,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "50000 Megabit",
     "processor_architecture": "AMD EPYC 9R14 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r8i.24xlarge",
@@ -9628,7 +11366,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "40000 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "x2idn.16xlarge",
@@ -9638,7 +11377,8 @@ export const onDemandRows = [
     "storage": "1 x 1900 NVMe SSD",
     "network_performance": "50 Gigabit",
     "processor_architecture": "Intel Xeon Scalable (Icelake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "x2iedn.8xlarge",
@@ -9648,7 +11388,8 @@ export const onDemandRows = [
     "storage": "1 x 950 NVMe SSD",
     "network_performance": "25 Gigabit",
     "processor_architecture": "Intel Xeon Scalable (Icelake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "x1.16xlarge",
@@ -9658,7 +11399,8 @@ export const onDemandRows = [
     "storage": "1 x 1920 SSD",
     "network_performance": "High",
     "processor_architecture": "High Frequency Intel Xeon E7-8880 v3 (Haswell)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "x1e.8xlarge",
@@ -9668,7 +11410,8 @@ export const onDemandRows = [
     "storage": "1 x 960 SSD",
     "network_performance": "Up to 10 Gigabit",
     "processor_architecture": "High Frequency Intel Xeon E7-8880 v3 (Haswell)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "x2iezn.8xlarge",
@@ -9678,7 +11421,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "75 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8252",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "g6.24xlarge",
@@ -9688,7 +11432,8 @@ export const onDemandRows = [
     "storage": "4 X 940 GB NVMe SSD",
     "network_performance": "50 Gigabit",
     "processor_architecture": "AMD EPYC 7R13 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m6in.24xlarge",
@@ -9698,7 +11443,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "150000 Megabit",
     "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r8ib.16xlarge",
@@ -9708,7 +11454,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "66.66 Gigabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r8in.16xlarge",
@@ -9718,7 +11465,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "100 Gigabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m8i.32xlarge",
@@ -9728,7 +11476,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "50000 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "i2.8xlarge",
@@ -9738,7 +11487,8 @@ export const onDemandRows = [
     "storage": "8 x 800 SSD",
     "network_performance": "10 Gigabit",
     "processor_architecture": "Intel Xeon E5-2670 v2 (Ivy Bridge)",
-    "current_generation": "No"
+    "current_generation": "No",
+    "bare_metal": false
   },
   {
     "instance_type": "p5.4xlarge",
@@ -9748,7 +11498,19 @@ export const onDemandRows = [
     "storage": "1 x 3840 GB SSD",
     "network_performance": "100 Gigabit",
     "processor_architecture": "AMD EPYC 7R13 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "r5d.metal",
+    "price_per_hour_usd": 6.912,
+    "vcpu": 96,
+    "memory": "768 GiB",
+    "storage": "4 x 900 NVMe SSD",
+    "network_performance": "25 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8175",
+    "current_generation": "Yes",
+    "bare_metal": true
   },
   {
     "instance_type": "r5d.24xlarge",
@@ -9758,7 +11520,8 @@ export const onDemandRows = [
     "storage": "4 x 900 NVMe SSD",
     "network_performance": "25 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8175",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m8gn.24xlarge",
@@ -9768,7 +11531,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "300 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m8gb.24xlarge",
@@ -9778,7 +11542,19 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "200 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "m8gn.metal-24xl",
+    "price_per_hour_usd": 6.984,
+    "vcpu": 96,
+    "memory": "384 GiB",
+    "storage": "EBS only",
+    "network_performance": "300 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes",
+    "bare_metal": true
   },
   {
     "instance_type": "x8i.16xlarge",
@@ -9788,7 +11564,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "30000 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r8gd.24xlarge",
@@ -9798,7 +11575,19 @@ export const onDemandRows = [
     "storage": "3 x 1900 NVMe SSD",
     "network_performance": "40 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "r8gd.metal-24xl",
+    "price_per_hour_usd": 7.05408,
+    "vcpu": 96,
+    "memory": "768 GiB",
+    "storage": "3 x 1900 NVMe SSD",
+    "network_performance": "40 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes",
+    "bare_metal": true
   },
   {
     "instance_type": "c8id.32xlarge",
@@ -9808,7 +11597,19 @@ export const onDemandRows = [
     "storage": "2 x 3800 NVMe SSD",
     "network_performance": "50000 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "r5n.metal",
+    "price_per_hour_usd": 7.152,
+    "vcpu": 96,
+    "memory": "768 GiB",
+    "storage": "EBS only",
+    "network_performance": "100 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8259 (Cascade Lake)",
+    "current_generation": "Yes",
+    "bare_metal": true
   },
   {
     "instance_type": "r5b.24xlarge",
@@ -9818,7 +11619,19 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "25 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8259 (Cascade Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "r5b.metal",
+    "price_per_hour_usd": 7.152,
+    "vcpu": 96,
+    "memory": "768 GiB",
+    "storage": "EBS only",
+    "network_performance": "25 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8259 (Cascade Lake)",
+    "current_generation": "Yes",
+    "bare_metal": true
   },
   {
     "instance_type": "r5n.24xlarge",
@@ -9828,7 +11641,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "100 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8259 (Cascade Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "p2.8xlarge",
@@ -9838,7 +11652,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "10 Gigabit",
     "processor_architecture": "Intel Xeon E5-2686 v4 (Broadwell)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r6id.24xlarge",
@@ -9848,7 +11663,8 @@ export const onDemandRows = [
     "storage": "4 x 1425 NVMe SSD",
     "network_performance": "37500 Megabit",
     "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r6a.32xlarge",
@@ -9858,7 +11674,19 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "50000 Megabit",
     "processor_architecture": "AMD EPYC 7R13 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "c6in.metal",
+    "price_per_hour_usd": 7.2576,
+    "vcpu": 128,
+    "memory": "256 GiB",
+    "storage": "EBS only",
+    "network_performance": "200000 Megabit",
+    "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
+    "current_generation": "Yes",
+    "bare_metal": true
   },
   {
     "instance_type": "c6in.32xlarge",
@@ -9868,7 +11696,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "200000 Megabit",
     "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r7a.24xlarge",
@@ -9878,7 +11707,19 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "37500 Megabit",
     "processor_architecture": "AMD EPYC 9R14 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "c6a.metal",
+    "price_per_hour_usd": 7.344,
+    "vcpu": 192,
+    "memory": "384 GiB",
+    "storage": "EBS only",
+    "network_performance": "50000 Megabit",
+    "processor_architecture": "AMD EPYC 7R13 Processor",
+    "current_generation": "Yes",
+    "bare_metal": true
   },
   {
     "instance_type": "c6a.48xlarge",
@@ -9888,7 +11729,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "50000 Megabit",
     "processor_architecture": "AMD EPYC 7R13 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m7a.32xlarge",
@@ -9898,7 +11740,30 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "50000 Megabit",
     "processor_architecture": "AMD EPYC 9R14 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "r8idb.16xlarge",
+    "price_per_hour_usd": 7.50304,
+    "vcpu": 64,
+    "memory": "512.0 GiB",
+    "storage": "1 x 3800 NVMe SSD",
+    "network_performance": "66.66 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "r8idn.16xlarge",
+    "price_per_hour_usd": 7.50304,
+    "vcpu": 64,
+    "memory": "512.0 GiB",
+    "storage": "1 x 3800 NVMe SSD",
+    "network_performance": "100 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "g6e.16xlarge",
@@ -9908,7 +11773,19 @@ export const onDemandRows = [
     "storage": "1 x 1900 GB NVMe SSD",
     "network_performance": "35 Gigabit",
     "processor_architecture": "AMD EPYC 7R13 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "m6id.metal",
+    "price_per_hour_usd": 7.5936,
+    "vcpu": 128,
+    "memory": "512 GiB",
+    "storage": "4 x 1900 NVMe SSD",
+    "network_performance": "50000 Megabit",
+    "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
+    "current_generation": "Yes",
+    "bare_metal": true
   },
   {
     "instance_type": "m6id.32xlarge",
@@ -9918,7 +11795,8 @@ export const onDemandRows = [
     "storage": "4 x 1900 NVMe SSD",
     "network_performance": "50000 Megabit",
     "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m6idn.24xlarge",
@@ -9928,7 +11806,19 @@ export const onDemandRows = [
     "storage": "4 x 1425 NVMe SSD",
     "network_performance": "150000 Megabit",
     "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "c8g.metal-48xl",
+    "price_per_hour_usd": 7.65696,
+    "vcpu": 192,
+    "memory": "384 GiB",
+    "storage": "EBS only",
+    "network_performance": "50 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes",
+    "bare_metal": true
   },
   {
     "instance_type": "c8g.48xlarge",
@@ -9938,7 +11828,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "50 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r8a.24xlarge",
@@ -9948,7 +11839,30 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "40000 Megabit",
     "processor_architecture": "AMD EPYC 9R45 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "r8a.metal-24xl",
+    "price_per_hour_usd": 7.66848,
+    "vcpu": 96,
+    "memory": "768 GiB",
+    "storage": "EBS only",
+    "network_performance": "40000 Megabit",
+    "processor_architecture": "AMD EPYC 9R45 Processor",
+    "current_generation": "Yes",
+    "bare_metal": true
+  },
+  {
+    "instance_type": "g4dn.metal",
+    "price_per_hour_usd": 7.824,
+    "vcpu": 96,
+    "memory": "384 GiB",
+    "storage": "2 x 900 GB NVMe SSD",
+    "network_performance": "100 Gigabit",
+    "processor_architecture": "Intel Xeon Family",
+    "current_generation": "Yes",
+    "bare_metal": true
   },
   {
     "instance_type": "r8id.24xlarge",
@@ -9958,7 +11872,8 @@ export const onDemandRows = [
     "storage": "2 x 2850 NVMe SSD",
     "network_performance": "40000 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r5dn.24xlarge",
@@ -9968,7 +11883,19 @@ export const onDemandRows = [
     "storage": "4 x 900 NVMe SSD",
     "network_performance": "100 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8259 (Cascade Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "r5dn.metal",
+    "price_per_hour_usd": 8.016,
+    "vcpu": 96,
+    "memory": "768 GiB",
+    "storage": "4 x 900 NVMe SSD",
+    "network_performance": "100 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8259 (Cascade Lake)",
+    "current_generation": "Yes",
+    "bare_metal": true
   },
   {
     "instance_type": "m8ib.24xlarge",
@@ -9978,7 +11905,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "100 Gigabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m8in.24xlarge",
@@ -9988,7 +11916,19 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "150 Gigabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "r6i.metal",
+    "price_per_hour_usd": 8.064,
+    "vcpu": 128,
+    "memory": "1024 GiB",
+    "storage": "EBS only",
+    "network_performance": "50000 Megabit",
+    "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
+    "current_generation": "Yes",
+    "bare_metal": true
   },
   {
     "instance_type": "r6i.32xlarge",
@@ -9998,7 +11938,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "50000 Megabit",
     "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "g5.24xlarge",
@@ -10008,7 +11949,19 @@ export const onDemandRows = [
     "storage": "1 x 3800 GB NVMe SSD",
     "network_performance": "50 Gigabit",
     "processor_architecture": "AMD EPYC 7R32",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "i8g.metal-24xl",
+    "price_per_hour_usd": 8.2368,
+    "vcpu": 96,
+    "memory": "768 GiB",
+    "storage": "6 x 3750GB",
+    "network_performance": "Up to 56.25 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes",
+    "bare_metal": true
   },
   {
     "instance_type": "i8g.24xlarge",
@@ -10018,7 +11971,8 @@ export const onDemandRows = [
     "storage": "6 x 3750GB",
     "network_performance": "Up to 56.25 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "i4i.24xlarge",
@@ -10028,7 +11982,8 @@ export const onDemandRows = [
     "storage": "6 x 3750 NVMe SSD",
     "network_performance": "56250 Megabit",
     "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "g7e.12xlarge",
@@ -10038,7 +11993,8 @@ export const onDemandRows = [
     "storage": "1 x 3800 NVMe SSD",
     "network_performance": "400 Gigabit",
     "processor_architecture": "Intel Xeon Scalable (Emerald Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m6a.48xlarge",
@@ -10048,7 +12004,19 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "50000 Megabit",
     "processor_architecture": "AMD EPYC 7R13 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "m6a.metal",
+    "price_per_hour_usd": 8.2944,
+    "vcpu": 192,
+    "memory": "768 GiB",
+    "storage": "EBS only",
+    "network_performance": "50000 Megabit",
+    "processor_architecture": "AMD EPYC 7R13 Processor",
+    "current_generation": "Yes",
+    "bare_metal": true
   },
   {
     "instance_type": "m8id.32xlarge",
@@ -10058,7 +12026,8 @@ export const onDemandRows = [
     "storage": "2 x 3800 NVMe SSD",
     "network_performance": "50000 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r6in.24xlarge",
@@ -10068,7 +12037,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "150000 Megabit",
     "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "i8ge.18xlarge",
@@ -10078,7 +12048,8 @@ export const onDemandRows = [
     "storage": "6 x 7500 NVMe SSD",
     "network_performance": "112.5 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c7i.48xlarge",
@@ -10088,7 +12059,30 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "50000 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Sapphire Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "c7i.metal-48xl",
+    "price_per_hour_usd": 8.568,
+    "vcpu": 192,
+    "memory": "384 GiB",
+    "storage": "EBS only",
+    "network_performance": "50000 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Sapphire Rapids)",
+    "current_generation": "Yes",
+    "bare_metal": true
+  },
+  {
+    "instance_type": "m8g.metal-48xl",
+    "price_per_hour_usd": 8.61696,
+    "vcpu": 192,
+    "memory": "768 GiB",
+    "storage": "EBS only",
+    "network_performance": "50 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes",
+    "bare_metal": true
   },
   {
     "instance_type": "m8g.48xlarge",
@@ -10098,7 +12092,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "50 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c8in.32xlarge",
@@ -10108,7 +12103,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "200 Gigabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c8ib.32xlarge",
@@ -10118,7 +12114,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "133.333 Gigabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r8gn.24xlarge",
@@ -10128,7 +12125,19 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "300 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "r8gn.metal-24xl",
+    "price_per_hour_usd": 8.7446,
+    "vcpu": 96,
+    "memory": "768 GiB",
+    "storage": "EBS only",
+    "network_performance": "300 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes",
+    "bare_metal": true
   },
   {
     "instance_type": "r8gb.24xlarge",
@@ -10138,7 +12147,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "200 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r8i.32xlarge",
@@ -10148,7 +12158,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "50000 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m6in.32xlarge",
@@ -10158,7 +12169,19 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "200000 Megabit",
     "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "m6in.metal",
+    "price_per_hour_usd": 8.91072,
+    "vcpu": 128,
+    "memory": "512 GiB",
+    "storage": "EBS only",
+    "network_performance": "200000 Megabit",
+    "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
+    "current_generation": "Yes",
+    "bare_metal": true
   },
   {
     "instance_type": "c8i.48xlarge",
@@ -10168,7 +12191,19 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "75000 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "c8i.metal-48xl",
+    "price_per_hour_usd": 8.99616,
+    "vcpu": 192,
+    "memory": "384 GiB",
+    "storage": "EBS only",
+    "network_performance": "75000 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes",
+    "bare_metal": true
   },
   {
     "instance_type": "i7i.24xlarge",
@@ -10178,7 +12213,41 @@ export const onDemandRows = [
     "storage": "6 x 3750 NVMe SSD",
     "network_performance": "Up to 56.25 Gigabit",
     "processor_architecture": "Intel Xeon Scalable (Emerald Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "i7i.metal-24xl",
+    "price_per_hour_usd": 9.0605,
+    "vcpu": 96,
+    "memory": "768 GiB",
+    "storage": "6 x 3750 NVMe SSD",
+    "network_performance": "Up to 56.25 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Emerald Rapids)",
+    "current_generation": "Yes",
+    "bare_metal": true
+  },
+  {
+    "instance_type": "m8idb.24xlarge",
+    "price_per_hour_usd": 9.16512,
+    "vcpu": 96,
+    "memory": "384.0 GiB",
+    "storage": "2 x 2850 NVMe SSD",
+    "network_performance": "100 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "m8idn.24xlarge",
+    "price_per_hour_usd": 9.16512,
+    "vcpu": 96,
+    "memory": "384.0 GiB",
+    "storage": "2 x 2850 NVMe SSD",
+    "network_performance": "150 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "i7ie.18xlarge",
@@ -10188,7 +12257,8 @@ export const onDemandRows = [
     "storage": "6 x 7500 NVMe SSD",
     "network_performance": "Up to 75 Gigabit",
     "processor_architecture": "Intel Xeon Scalable (Emerald Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r6idn.24xlarge",
@@ -10198,7 +12268,19 @@ export const onDemandRows = [
     "storage": "4 x 1425 NVMe SSD",
     "network_performance": "150000 Megabit",
     "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "x8g.metal-24xl",
+    "price_per_hour_usd": 9.3792,
+    "vcpu": 96,
+    "memory": "1536 GiB",
+    "storage": "EBS only",
+    "network_performance": "40 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes",
+    "bare_metal": true
   },
   {
     "instance_type": "x8g.24xlarge",
@@ -10208,7 +12290,19 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "40 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "c8gd.metal-48xl",
+    "price_per_hour_usd": 9.40608,
+    "vcpu": 192,
+    "memory": "384 GiB",
+    "storage": "6 x 1900 NVMe SSD",
+    "network_performance": "50 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes",
+    "bare_metal": true
   },
   {
     "instance_type": "c8gd.48xlarge",
@@ -10218,7 +12312,8 @@ export const onDemandRows = [
     "storage": "6 x 1900 NVMe SSD",
     "network_performance": "50 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m7i.48xlarge",
@@ -10228,7 +12323,30 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "50000 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Sapphire Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "m7i.metal-48xl",
+    "price_per_hour_usd": 9.6768,
+    "vcpu": 192,
+    "memory": "768 GiB",
+    "storage": "EBS only",
+    "network_performance": "50000 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Sapphire Rapids)",
+    "current_generation": "Yes",
+    "bare_metal": true
+  },
+  {
+    "instance_type": "r6id.metal",
+    "price_per_hour_usd": 9.6768,
+    "vcpu": 128,
+    "memory": "1024 GiB",
+    "storage": "4 x 1900 NVMe SSD",
+    "network_performance": "50000 Megabit",
+    "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
+    "current_generation": "Yes",
+    "bare_metal": true
   },
   {
     "instance_type": "r6id.32xlarge",
@@ -10238,7 +12356,8 @@ export const onDemandRows = [
     "storage": "4 x 1900 NVMe SSD",
     "network_performance": "50000 Megabit",
     "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r7a.32xlarge",
@@ -10248,7 +12367,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "50000 Megabit",
     "processor_architecture": "AMD EPYC 9R14 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c7a.48xlarge",
@@ -10258,7 +12378,30 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "50000 Megabit",
     "processor_architecture": "AMD EPYC 9R14 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "c7a.metal-48xl",
+    "price_per_hour_usd": 9.85344,
+    "vcpu": 192,
+    "memory": "384 GiB",
+    "storage": "EBS only",
+    "network_performance": "50000 Megabit",
+    "processor_architecture": "AMD EPYC 9R14 Processor",
+    "current_generation": "Yes",
+    "bare_metal": true
+  },
+  {
+    "instance_type": "m8azn.metal-24xl",
+    "price_per_hour_usd": 9.91008,
+    "vcpu": 96,
+    "memory": "384 GiB",
+    "storage": "EBS only",
+    "network_performance": "200 Gigabit",
+    "processor_architecture": "AMD EPYC 9575F",
+    "current_generation": "Yes",
+    "bare_metal": true
   },
   {
     "instance_type": "m8azn.24xlarge",
@@ -10268,7 +12411,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "200 Gigabit",
     "processor_architecture": "AMD EPYC 9575F",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "x2idn.24xlarge",
@@ -10278,7 +12422,8 @@ export const onDemandRows = [
     "storage": "2 x 1425 NVMe SSD",
     "network_performance": "75 Gigabit",
     "processor_architecture": "Intel Xeon Scalable (Icelake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "x2iezn.12xlarge",
@@ -10288,7 +12433,19 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "100 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8252",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "x2iezn.metal",
+    "price_per_hour_usd": 10.008,
+    "vcpu": 48,
+    "memory": "1536 GiB",
+    "storage": "EBS only",
+    "network_performance": "100 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8252",
+    "current_generation": "Yes",
+    "bare_metal": true
   },
   {
     "instance_type": "r8in.24xlarge",
@@ -10298,7 +12455,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "150 Gigabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r8ib.24xlarge",
@@ -10308,7 +12466,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "100 Gigabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m8i.48xlarge",
@@ -10318,7 +12477,19 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "75000 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "m8i.metal-48xl",
+    "price_per_hour_usd": 10.16064,
+    "vcpu": 192,
+    "memory": "768 GiB",
+    "storage": "EBS only",
+    "network_performance": "75000 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes",
+    "bare_metal": true
   },
   {
     "instance_type": "m6idn.32xlarge",
@@ -10328,7 +12499,30 @@ export const onDemandRows = [
     "storage": "4 x 1900 NVMe SSD",
     "network_performance": "200000 Megabit",
     "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "m6idn.metal",
+    "price_per_hour_usd": 10.18368,
+    "vcpu": 128,
+    "memory": "512 GiB",
+    "storage": "4 x 1900 NVMe SSD",
+    "network_performance": "200000 Megabit",
+    "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
+    "current_generation": "Yes",
+    "bare_metal": true
+  },
+  {
+    "instance_type": "c8a.metal-48xl",
+    "price_per_hour_usd": 10.34592,
+    "vcpu": 192,
+    "memory": "384 GiB",
+    "storage": "EBS only",
+    "network_performance": "75000 Megabit",
+    "processor_architecture": "AMD EPYC 9R45 Processor",
+    "current_generation": "Yes",
+    "bare_metal": true
   },
   {
     "instance_type": "c8a.48xlarge",
@@ -10338,7 +12532,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "75000 Megabit",
     "processor_architecture": "AMD EPYC 9R45 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "g6e.12xlarge",
@@ -10348,7 +12543,8 @@ export const onDemandRows = [
     "storage": "2 x 1900 GB NVMe SSD",
     "network_performance": "100 Gigabit",
     "processor_architecture": "AMD EPYC 7R13 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "x8i.24xlarge",
@@ -10358,7 +12554,19 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "40000 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "c8id.metal-48xl",
+    "price_per_hour_usd": 10.64448,
+    "vcpu": 192,
+    "memory": "384 GiB",
+    "storage": "3 x 3800 NVMe SSD",
+    "network_performance": "75000 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes",
+    "bare_metal": true
   },
   {
     "instance_type": "r8id.32xlarge",
@@ -10368,7 +12576,8 @@ export const onDemandRows = [
     "storage": "2 x 3800 NVMe SSD",
     "network_performance": "50000 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c8id.48xlarge",
@@ -10378,7 +12587,8 @@ export const onDemandRows = [
     "storage": "3 x 3800 NVMe SSD",
     "network_performance": "75000 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m8in.32xlarge",
@@ -10388,7 +12598,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "200 Gigabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m8ib.32xlarge",
@@ -10398,7 +12609,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "133.33 Gigabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "i3en.24xlarge",
@@ -10408,7 +12620,30 @@ export const onDemandRows = [
     "storage": "8 x 7500 NVMe SSD",
     "network_performance": "100 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8175",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "i3en.metal",
+    "price_per_hour_usd": 10.848,
+    "vcpu": 96,
+    "memory": "768 GiB",
+    "storage": "8 x 7500 NVMe SSD",
+    "network_performance": "100 Gigabit",
+    "processor_architecture": "Intel Xeon Platinum 8175",
+    "current_generation": "Yes",
+    "bare_metal": true
+  },
+  {
+    "instance_type": "r6a.metal",
+    "price_per_hour_usd": 10.8864,
+    "vcpu": 192,
+    "memory": "1536 GiB",
+    "storage": "EBS only",
+    "network_performance": "50000 Megabit",
+    "processor_architecture": "AMD EPYC 7R13 Processor",
+    "current_generation": "Yes",
+    "bare_metal": true
   },
   {
     "instance_type": "r6a.48xlarge",
@@ -10418,7 +12653,19 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "50000 Megabit",
     "processor_architecture": "AMD EPYC 7R13 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "i4i.metal",
+    "price_per_hour_usd": 10.982,
+    "vcpu": 128,
+    "memory": "1024 GiB",
+    "storage": "8 x 3750 NVMe SSD",
+    "network_performance": "75000 Megabit",
+    "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
+    "current_generation": "Yes",
+    "bare_metal": true
   },
   {
     "instance_type": "i4i.32xlarge",
@@ -10428,7 +12675,8 @@ export const onDemandRows = [
     "storage": "8 x 3750 SSD",
     "network_performance": "75000 Megabit",
     "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m8gd.48xlarge",
@@ -10438,7 +12686,30 @@ export const onDemandRows = [
     "storage": "6 x 1900 NVMe SSD",
     "network_performance": "50 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "m8gd.metal-48xl",
+    "price_per_hour_usd": 11.07072,
+    "vcpu": 192,
+    "memory": "768 GiB",
+    "storage": "6 x 1900 NVMe SSD",
+    "network_performance": "50 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes",
+    "bare_metal": true
+  },
+  {
+    "instance_type": "m7a.metal-48xl",
+    "price_per_hour_usd": 11.12832,
+    "vcpu": 192,
+    "memory": "768 GiB",
+    "storage": "EBS only",
+    "network_performance": "50000 Megabit",
+    "processor_architecture": "AMD EPYC 9R14 Processor",
+    "current_generation": "Yes",
+    "bare_metal": true
   },
   {
     "instance_type": "m7a.48xlarge",
@@ -10448,7 +12719,19 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "50000 Megabit",
     "processor_architecture": "AMD EPYC 9R14 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "r6in.metal",
+    "price_per_hour_usd": 11.15712,
+    "vcpu": 128,
+    "memory": "1024 GiB",
+    "storage": "EBS only",
+    "network_performance": "200000 Megabit",
+    "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
+    "current_generation": "Yes",
+    "bare_metal": true
   },
   {
     "instance_type": "r6in.32xlarge",
@@ -10458,7 +12741,41 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "200000 Megabit",
     "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "r8idn.24xlarge",
+    "price_per_hour_usd": 11.25456,
+    "vcpu": 96,
+    "memory": "768.0 GiB",
+    "storage": "2 x 2850 NVMe SSD",
+    "network_performance": "150 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "r8idb.24xlarge",
+    "price_per_hour_usd": 11.25456,
+    "vcpu": 96,
+    "memory": "768.0 GiB",
+    "storage": "2 x 2850 NVMe SSD",
+    "network_performance": "100 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "r8g.metal-48xl",
+    "price_per_hour_usd": 11.31072,
+    "vcpu": 192,
+    "memory": "1536 GiB",
+    "storage": "EBS only",
+    "network_performance": "50 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes",
+    "bare_metal": true
   },
   {
     "instance_type": "r8g.48xlarge",
@@ -10468,7 +12785,30 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "50 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "c8gb.metal-48xl",
+    "price_per_hour_usd": 11.376,
+    "vcpu": 192,
+    "memory": "384 GiB",
+    "storage": "EBS only",
+    "network_performance": "400 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes",
+    "bare_metal": true
+  },
+  {
+    "instance_type": "c8gn.metal-48xl",
+    "price_per_hour_usd": 11.376,
+    "vcpu": 192,
+    "memory": "384 GiB",
+    "storage": "EBS only",
+    "network_performance": "600 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes",
+    "bare_metal": true
   },
   {
     "instance_type": "c8gn.48xlarge",
@@ -10478,7 +12818,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "600 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c8gb.48xlarge",
@@ -10488,7 +12829,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "400 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "i8ge.24xlarge",
@@ -10498,7 +12840,19 @@ export const onDemandRows = [
     "storage": "8 x 7500 NVMe SSD",
     "network_performance": "150 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "i8ge.metal-24xl",
+    "price_per_hour_usd": 11.3904,
+    "vcpu": 96,
+    "memory": "768 GiB",
+    "storage": "8 x 7500 NVMe SSD",
+    "network_performance": "150 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes",
+    "bare_metal": true
   },
   {
     "instance_type": "m8a.48xlarge",
@@ -10508,7 +12862,30 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "75000 Megabit",
     "processor_architecture": "AMD EPYC 9R45 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "m8a.metal-48xl",
+    "price_per_hour_usd": 11.68512,
+    "vcpu": 192,
+    "memory": "768 GiB",
+    "storage": "EBS only",
+    "network_performance": "75000 Megabit",
+    "processor_architecture": "AMD EPYC 9R45 Processor",
+    "current_generation": "Yes",
+    "bare_metal": true
+  },
+  {
+    "instance_type": "r7iz.metal-32xl",
+    "price_per_hour_usd": 11.904,
+    "vcpu": 128,
+    "memory": "1024 GiB",
+    "storage": "EBS only",
+    "network_performance": "50000 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Sapphire Rapids)",
+    "current_generation": "Yes",
+    "bare_metal": true
   },
   {
     "instance_type": "r7iz.32xlarge",
@@ -10518,7 +12895,30 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "50000 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Sapphire Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "m8idb.32xlarge",
+    "price_per_hour_usd": 12.22016,
+    "vcpu": 128,
+    "memory": "512.0 GiB",
+    "storage": "2 x 3800 NVMe SSD",
+    "network_performance": "133.33 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "m8idn.32xlarge",
+    "price_per_hour_usd": 12.22016,
+    "vcpu": 128,
+    "memory": "512.0 GiB",
+    "storage": "2 x 3800 NVMe SSD",
+    "network_performance": "200 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "p3.8xlarge",
@@ -10528,7 +12928,19 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "10 Gigabit",
     "processor_architecture": "Intel Xeon E5-2686 v4 (Broadwell)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "i7ie.metal-24xl",
+    "price_per_hour_usd": 12.4752,
+    "vcpu": 96,
+    "memory": "768 GiB",
+    "storage": "8 x 7500 NVMe SSD",
+    "network_performance": "Up to 100 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Emerald Rapids)",
+    "current_generation": "Yes",
+    "bare_metal": true
   },
   {
     "instance_type": "i7ie.24xlarge",
@@ -10538,7 +12950,19 @@ export const onDemandRows = [
     "storage": "8 x 7500 NVMe SSD",
     "network_performance": "Up to 100 Gigabit",
     "processor_architecture": "Intel Xeon Scalable (Emerald Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "r6idn.metal",
+    "price_per_hour_usd": 12.50496,
+    "vcpu": 128,
+    "memory": "1024 GiB",
+    "storage": "4 x 1900 NVMe SSD",
+    "network_performance": "200000 Megabit",
+    "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
+    "current_generation": "Yes",
+    "bare_metal": true
   },
   {
     "instance_type": "r6idn.32xlarge",
@@ -10548,7 +12972,19 @@ export const onDemandRows = [
     "storage": "4 x 1900 NVMe SSD",
     "network_performance": "200000 Megabit",
     "processor_architecture": "Intel Xeon 8375C (Ice Lake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "m8id.metal-48xl",
+    "price_per_hour_usd": 12.52992,
+    "vcpu": 192,
+    "memory": "768 GiB",
+    "storage": "3 x 3800 NVMe SSD",
+    "network_performance": "75000 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes",
+    "bare_metal": true
   },
   {
     "instance_type": "m8id.48xlarge",
@@ -10558,7 +12994,8 @@ export const onDemandRows = [
     "storage": "3 x 3800 NVMe SSD",
     "network_performance": "75000 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r7i.48xlarge",
@@ -10568,7 +13005,19 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "50000 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Sapphire Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "r7i.metal-48xl",
+    "price_per_hour_usd": 12.7008,
+    "vcpu": 192,
+    "memory": "1536 GiB",
+    "storage": "EBS only",
+    "network_performance": "50000 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Sapphire Rapids)",
+    "current_generation": "Yes",
+    "bare_metal": true
   },
   {
     "instance_type": "inf2.48xlarge",
@@ -10578,7 +13027,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "100 Gigabit",
     "processor_architecture": "AMD EPYC 7R13 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c8ib.48xlarge",
@@ -10588,7 +13038,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "200 Gigabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c8in.48xlarge",
@@ -10598,7 +13049,30 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "300 Gigabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "c8ib.metal-48xl",
+    "price_per_hour_usd": 13.06368,
+    "vcpu": 192,
+    "memory": "384 GiB",
+    "storage": "EBS only",
+    "network_performance": "200 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes",
+    "bare_metal": true
+  },
+  {
+    "instance_type": "c8in.metal-48xl",
+    "price_per_hour_usd": 13.06368,
+    "vcpu": 192,
+    "memory": "384 GiB",
+    "storage": "EBS only",
+    "network_performance": "300 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes",
+    "bare_metal": true
   },
   {
     "instance_type": "dl1.24xlarge",
@@ -10608,7 +13082,8 @@ export const onDemandRows = [
     "storage": "4 x 1000 GB NVMe SSD",
     "network_performance": "400 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8275L",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "f1.16xlarge",
@@ -10618,7 +13093,19 @@ export const onDemandRows = [
     "storage": "4 x 940 NVMe SSD",
     "network_performance": "25 Gigabit",
     "processor_architecture": "Intel Xeon E5-2686 v4 (Broadwell)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "r8i.metal-48xl",
+    "price_per_hour_usd": 13.33632,
+    "vcpu": 192,
+    "memory": "1536 GiB",
+    "storage": "EBS only",
+    "network_performance": "75000 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes",
+    "bare_metal": true
   },
   {
     "instance_type": "r8i.48xlarge",
@@ -10628,7 +13115,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "75000 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "x1.32xlarge",
@@ -10638,7 +13126,19 @@ export const onDemandRows = [
     "storage": "2 x 1920 SSD",
     "network_performance": "High",
     "processor_architecture": "High Frequency Intel Xeon E7-8880 v3 (Haswell)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "x2idn.metal",
+    "price_per_hour_usd": 13.338,
+    "vcpu": 128,
+    "memory": "2048 GiB",
+    "storage": "2 x 1900 NVMe SSD",
+    "network_performance": "100 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Icelake)",
+    "current_generation": "Yes",
+    "bare_metal": true
   },
   {
     "instance_type": "x2idn.32xlarge",
@@ -10648,7 +13148,8 @@ export const onDemandRows = [
     "storage": "2 x 1900 NVMe SSD",
     "network_performance": "100 Gigabit",
     "processor_architecture": "Intel Xeon Scalable (Icelake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "x2iedn.16xlarge",
@@ -10658,7 +13159,8 @@ export const onDemandRows = [
     "storage": "1 x 1900 NVMe SSD",
     "network_performance": "50 Gigabit",
     "processor_architecture": "Intel Xeon Scalable (Icelake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "x1e.16xlarge",
@@ -10668,7 +13170,8 @@ export const onDemandRows = [
     "storage": "1 x 1920 SSD",
     "network_performance": "10 Gigabit",
     "processor_architecture": "High Frequency Intel Xeon E7-8880 v3 (Haswell)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "g6.48xlarge",
@@ -10678,7 +13181,8 @@ export const onDemandRows = [
     "storage": "8 x 940 NVMe SSD",
     "network_performance": "100 Gigabit",
     "processor_architecture": "AMD EPYC 7R13 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r8ib.32xlarge",
@@ -10688,7 +13192,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "133.33 Gigabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r8in.32xlarge",
@@ -10698,7 +13203,30 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "200 Gigabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "m8gb.metal-48xl",
+    "price_per_hour_usd": 13.968,
+    "vcpu": 192,
+    "memory": "768 GiB",
+    "storage": "EBS only",
+    "network_performance": "400 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes",
+    "bare_metal": true
+  },
+  {
+    "instance_type": "m8gn.metal-48xl",
+    "price_per_hour_usd": 13.968,
+    "vcpu": 192,
+    "memory": "768 GiB",
+    "storage": "EBS only",
+    "network_performance": "600 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes",
+    "bare_metal": true
   },
   {
     "instance_type": "m8gb.48xlarge",
@@ -10708,7 +13236,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "400 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m8gn.48xlarge",
@@ -10718,7 +13247,19 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "600 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "m8gb.metal-24xl",
+    "price_per_hour_usd": 13.968,
+    "vcpu": 96,
+    "memory": "384 GiB",
+    "storage": "EBS only",
+    "network_performance": "200 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes",
+    "bare_metal": true
   },
   {
     "instance_type": "x8i.32xlarge",
@@ -10728,7 +13269,19 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "50000 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "r8gd.metal-48xl",
+    "price_per_hour_usd": 14.10816,
+    "vcpu": 192,
+    "memory": "1536 GiB",
+    "storage": "6 x 1900 NVMe SSD",
+    "network_performance": "50 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes",
+    "bare_metal": true
   },
   {
     "instance_type": "r8gd.48xlarge",
@@ -10738,7 +13291,8 @@ export const onDemandRows = [
     "storage": "6 x 1900 NVMe SSD",
     "network_performance": "50 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "p2.16xlarge",
@@ -10748,7 +13302,19 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "20 Gigabit",
     "processor_architecture": "Intel Xeon E5-2686 v4 (Broadwell)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "r7a.metal-48xl",
+    "price_per_hour_usd": 14.6064,
+    "vcpu": 192,
+    "memory": "1536 GiB",
+    "storage": "EBS only",
+    "network_performance": "50000 Megabit",
+    "processor_architecture": "AMD EPYC 9R14 Processor",
+    "current_generation": "Yes",
+    "bare_metal": true
   },
   {
     "instance_type": "r7a.48xlarge",
@@ -10758,7 +13324,30 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "50000 Megabit",
     "processor_architecture": "AMD EPYC 9R14 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "r8idb.32xlarge",
+    "price_per_hour_usd": 15.00608,
+    "vcpu": 128,
+    "memory": "1024.0 GiB",
+    "storage": "2 x 3800 NVMe SSD",
+    "network_performance": "133.33 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "r8idn.32xlarge",
+    "price_per_hour_usd": 15.00608,
+    "vcpu": 128,
+    "memory": "1024.0 GiB",
+    "storage": "2 x 3800 NVMe SSD",
+    "network_performance": "200 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "g6e.24xlarge",
@@ -10768,7 +13357,19 @@ export const onDemandRows = [
     "storage": "2 x 1900 GB NVMe SSD",
     "network_performance": "200 Gigabit",
     "processor_architecture": "AMD EPYC 7R13 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "r8a.metal-48xl",
+    "price_per_hour_usd": 15.33696,
+    "vcpu": 192,
+    "memory": "1536 GiB",
+    "storage": "EBS only",
+    "network_performance": "75000 Megabit",
+    "processor_architecture": "AMD EPYC 9R45 Processor",
+    "current_generation": "Yes",
+    "bare_metal": true
   },
   {
     "instance_type": "r8a.48xlarge",
@@ -10778,7 +13379,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "75000 Megabit",
     "processor_architecture": "AMD EPYC 9R45 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "f2.48xlarge",
@@ -10788,7 +13390,19 @@ export const onDemandRows = [
     "storage": "8 x 950 NVMe SSD",
     "network_performance": "100 Gigabit",
     "processor_architecture": "AMD EPYC 7R13 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "r8id.metal-48xl",
+    "price_per_hour_usd": 15.96672,
+    "vcpu": 192,
+    "memory": "1536 GiB",
+    "storage": "3 x 3800 NVMe SSD",
+    "network_performance": "75000 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes",
+    "bare_metal": true
   },
   {
     "instance_type": "r8id.48xlarge",
@@ -10798,7 +13412,8 @@ export const onDemandRows = [
     "storage": "3 x 3800 NVMe SSD",
     "network_performance": "75000 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m8in.48xlarge",
@@ -10808,7 +13423,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "300 Gigabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m8ib.48xlarge",
@@ -10818,7 +13434,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "200 Gigabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "g5.48xlarge",
@@ -10828,7 +13445,8 @@ export const onDemandRows = [
     "storage": "2 x 3800 GB NVMe SSD",
     "network_performance": "100 Gigabit",
     "processor_architecture": "AMD EPYC 7R32",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "i8g.48xlarge",
@@ -10838,7 +13456,19 @@ export const onDemandRows = [
     "storage": "12 x 3750GB",
     "network_performance": "Up to 100 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "i8g.metal-48xl",
+    "price_per_hour_usd": 16.4736,
+    "vcpu": 192,
+    "memory": "1536 GiB",
+    "storage": "12 x 3750GB",
+    "network_performance": "Up to 100 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes",
+    "bare_metal": true
   },
   {
     "instance_type": "g7e.24xlarge",
@@ -10848,7 +13478,19 @@ export const onDemandRows = [
     "storage": "2 x 3800 NVMe SSD",
     "network_performance": "800 Gigabit",
     "processor_architecture": "Intel Xeon Scalable (Emerald Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "r8gb.metal-48xl",
+    "price_per_hour_usd": 17.48928,
+    "vcpu": 192,
+    "memory": "1536 GiB",
+    "storage": "EBS only",
+    "network_performance": "400 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes",
+    "bare_metal": true
   },
   {
     "instance_type": "r8gb.48xlarge",
@@ -10858,7 +13500,19 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "400 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "r8gb.metal-24xl",
+    "price_per_hour_usd": 17.48928,
+    "vcpu": 96,
+    "memory": "768 GiB",
+    "storage": "EBS only",
+    "network_performance": "200 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes",
+    "bare_metal": true
   },
   {
     "instance_type": "r8gn.48xlarge",
@@ -10868,7 +13522,19 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "600 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "r8gn.metal-48xl",
+    "price_per_hour_usd": 17.4893,
+    "vcpu": 192,
+    "memory": "1536 GiB",
+    "storage": "EBS only",
+    "network_performance": "600 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes",
+    "bare_metal": true
   },
   {
     "instance_type": "c8i.96xlarge",
@@ -10878,7 +13544,19 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "100000 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "c8i.metal-96xl",
+    "price_per_hour_usd": 17.99232,
+    "vcpu": 384,
+    "memory": "768 GiB",
+    "storage": "EBS only",
+    "network_performance": "100000 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes",
+    "bare_metal": true
   },
   {
     "instance_type": "i7i.48xlarge",
@@ -10888,7 +13566,41 @@ export const onDemandRows = [
     "storage": "12 x 3750 NVMe SSD",
     "network_performance": "Up to 100 Gigabit",
     "processor_architecture": "Intel Xeon Scalable (Emerald Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "i7i.metal-48xl",
+    "price_per_hour_usd": 18.121,
+    "vcpu": 192,
+    "memory": "1536 GiB",
+    "storage": "12 x 3750 NVMe SSD",
+    "network_performance": "Up to 100 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Emerald Rapids)",
+    "current_generation": "Yes",
+    "bare_metal": true
+  },
+  {
+    "instance_type": "m8idb.48xlarge",
+    "price_per_hour_usd": 18.33024,
+    "vcpu": 192,
+    "memory": "768.0 GiB",
+    "storage": "3 x 3800 NVMe SSD",
+    "network_performance": "200 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "m8idn.48xlarge",
+    "price_per_hour_usd": 18.33024,
+    "vcpu": 192,
+    "memory": "768.0 GiB",
+    "storage": "3 x 3800 NVMe SSD",
+    "network_performance": "300 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "x8g.48xlarge",
@@ -10898,7 +13610,19 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "50 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "x8g.metal-48xl",
+    "price_per_hour_usd": 18.7584,
+    "vcpu": 192,
+    "memory": "3072 GiB",
+    "storage": "EBS only",
+    "network_performance": "50 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes",
+    "bare_metal": true
   },
   {
     "instance_type": "x2iedn.24xlarge",
@@ -10908,7 +13632,8 @@ export const onDemandRows = [
     "storage": "2 x 1425 NVMe SSD",
     "network_performance": "75 Gigabit",
     "processor_architecture": "Intel Xeon Scalable (Icelake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r8ib.48xlarge",
@@ -10918,7 +13643,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "200 Gigabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r8in.48xlarge",
@@ -10928,7 +13654,19 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "300 Gigabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "m8i.metal-96xl",
+    "price_per_hour_usd": 20.32128,
+    "vcpu": 384,
+    "memory": "1536 GiB",
+    "storage": "EBS only",
+    "network_performance": "100000 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes",
+    "bare_metal": true
   },
   {
     "instance_type": "m8i.96xlarge",
@@ -10938,7 +13676,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "100000 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "x8i.48xlarge",
@@ -10948,7 +13687,30 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "75000 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "x8i.metal-48xl",
+    "price_per_hour_usd": 21.00768,
+    "vcpu": 192,
+    "memory": "3072 GiB",
+    "storage": "EBS only",
+    "network_performance": "75000 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes",
+    "bare_metal": true
+  },
+  {
+    "instance_type": "c8id.metal-96xl",
+    "price_per_hour_usd": 21.28896,
+    "vcpu": 384,
+    "memory": "768 GiB",
+    "storage": "6 x 3800 NVMe SSD",
+    "network_performance": "100000 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes",
+    "bare_metal": true
   },
   {
     "instance_type": "c8id.96xlarge",
@@ -10958,7 +13720,8 @@ export const onDemandRows = [
     "storage": "6 x 3800 NVMe SSD",
     "network_performance": "100000 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "trn1.32xlarge",
@@ -10968,7 +13731,8 @@ export const onDemandRows = [
     "storage": "4 x 1900 NVMe SSD",
     "network_performance": "800 Gigabit",
     "processor_architecture": "Intel Xeon Scalable (Icelake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "p4d.24xlarge",
@@ -10978,7 +13742,30 @@ export const onDemandRows = [
     "storage": "8 x 1000 SSD",
     "network_performance": "400 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8275L",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "r8idb.48xlarge",
+    "price_per_hour_usd": 22.50912,
+    "vcpu": 192,
+    "memory": "1536.0 GiB",
+    "storage": "3 x 3800 NVMe SSD",
+    "network_performance": "200 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "r8idn.48xlarge",
+    "price_per_hour_usd": 22.50912,
+    "vcpu": 192,
+    "memory": "1536.0 GiB",
+    "storage": "3 x 3800 NVMe SSD",
+    "network_performance": "300 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "i8ge.48xlarge",
@@ -10988,7 +13775,19 @@ export const onDemandRows = [
     "storage": "16 x 7500 NVMe SSD",
     "network_performance": "300 Gigabit",
     "processor_architecture": "AWS Graviton4 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "i8ge.metal-48xl",
+    "price_per_hour_usd": 22.7808,
+    "vcpu": 192,
+    "memory": "1536 GiB",
+    "storage": "16 x 7500 NVMe SSD",
+    "network_performance": "300 Gigabit",
+    "processor_architecture": "AWS Graviton4 Processor",
+    "current_generation": "Yes",
+    "bare_metal": true
   },
   {
     "instance_type": "p3.16xlarge",
@@ -10998,7 +13797,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "25 Gigabit",
     "processor_architecture": "Intel Xeon E5-2686 v4 (Broadwell)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "trn1n.32xlarge",
@@ -11008,7 +13808,19 @@ export const onDemandRows = [
     "storage": "4 x 1900 NVMe SSD",
     "network_performance": "1600 Gigabit",
     "processor_architecture": "Intel Xeon Scalable (Icelake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "i7ie.metal-48xl",
+    "price_per_hour_usd": 24.9504,
+    "vcpu": 192,
+    "memory": "1536 GiB",
+    "storage": "16 x 7500 NVMe SSD",
+    "network_performance": "100 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Emerald Rapids)",
+    "current_generation": "Yes",
+    "bare_metal": true
   },
   {
     "instance_type": "i7ie.48xlarge",
@@ -11018,7 +13830,19 @@ export const onDemandRows = [
     "storage": "16 x 7500 NVMe SSD",
     "network_performance": "100 Gigabit",
     "processor_architecture": "Intel Xeon Scalable (Emerald Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "m8id.metal-96xl",
+    "price_per_hour_usd": 25.05984,
+    "vcpu": 384,
+    "memory": "1536 GiB",
+    "storage": "6 x 3800 NVMe SSD",
+    "network_performance": "100000 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes",
+    "bare_metal": true
   },
   {
     "instance_type": "m8id.96xlarge",
@@ -11028,7 +13852,19 @@ export const onDemandRows = [
     "storage": "6 x 3800 NVMe SSD",
     "network_performance": "100000 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "c8ib.metal-96xl",
+    "price_per_hour_usd": 26.12736,
+    "vcpu": 384,
+    "memory": "768 GiB",
+    "storage": "EBS only",
+    "network_performance": "400 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes",
+    "bare_metal": true
   },
   {
     "instance_type": "c8ib.96xlarge",
@@ -11038,7 +13874,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "400 Gigabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "c8in.96xlarge",
@@ -11048,7 +13885,30 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "600 Gigabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "c8in.metal-96xl",
+    "price_per_hour_usd": 26.12736,
+    "vcpu": 384,
+    "memory": "768 GiB",
+    "storage": "EBS only",
+    "network_performance": "600 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes",
+    "bare_metal": true
+  },
+  {
+    "instance_type": "r8i.metal-96xl",
+    "price_per_hour_usd": 26.67264,
+    "vcpu": 384,
+    "memory": "3072 GiB",
+    "storage": "EBS only",
+    "network_performance": "100000 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes",
+    "bare_metal": true
   },
   {
     "instance_type": "r8i.96xlarge",
@@ -11058,7 +13918,19 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "100000 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "x2iedn.metal",
+    "price_per_hour_usd": 26.676,
+    "vcpu": 128,
+    "memory": "4096 GiB",
+    "storage": "2 x 1900 NVMe SSD",
+    "network_performance": "100 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Icelake)",
+    "current_generation": "Yes",
+    "bare_metal": true
   },
   {
     "instance_type": "x2iedn.32xlarge",
@@ -11068,7 +13940,8 @@ export const onDemandRows = [
     "storage": "2 x 1900 NVMe SSD",
     "network_performance": "100 Gigabit",
     "processor_architecture": "Intel Xeon Scalable (Icelake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "x1e.32xlarge",
@@ -11078,7 +13951,8 @@ export const onDemandRows = [
     "storage": "2 x 1920 SSD",
     "network_performance": "25 Gigabit",
     "processor_architecture": "High Frequency Intel Xeon E7-8880 v3 (Haswell)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "u-3tb1.56xlarge",
@@ -11088,7 +13962,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "50 Gigabit",
     "processor_architecture": "Intel Xeon Scalable (Skylake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "p4de.24xlarge",
@@ -11098,7 +13973,8 @@ export const onDemandRows = [
     "storage": "8 x 1000 SSD",
     "network_performance": "400 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8275L",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "x8i.64xlarge",
@@ -11108,7 +13984,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "80000 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "g6e.48xlarge",
@@ -11118,7 +13995,8 @@ export const onDemandRows = [
     "storage": "4 x 1900 GB NVMe SSD",
     "network_performance": "400 Gigabit",
     "processor_architecture": "AMD EPYC 7R13 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "p3dn.24xlarge",
@@ -11128,7 +14006,8 @@ export const onDemandRows = [
     "storage": "2 x 900 NVMe SSD",
     "network_performance": "100 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8175 (Skylake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r8id.96xlarge",
@@ -11138,7 +14017,19 @@ export const onDemandRows = [
     "storage": "6 x 3800 NVMe SSD",
     "network_performance": "100000 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "r8id.metal-96xl",
+    "price_per_hour_usd": 31.93344,
+    "vcpu": 384,
+    "memory": "3072 GiB",
+    "storage": "6 x 3800 NVMe SSD",
+    "network_performance": "100000 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes",
+    "bare_metal": true
   },
   {
     "instance_type": "m8in.96xlarge",
@@ -11148,7 +14039,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "600 Gigabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "m8ib.96xlarge",
@@ -11158,7 +14050,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "400 Gigabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "g7e.48xlarge",
@@ -11168,7 +14061,30 @@ export const onDemandRows = [
     "storage": "4 x 3800 NVMe SSD",
     "network_performance": "1600 Gigabit",
     "processor_architecture": "Intel Xeon Scalable (Emerald Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "m8idn.96xlarge",
+    "price_per_hour_usd": 36.66048,
+    "vcpu": 384,
+    "memory": "1536.0 GiB",
+    "storage": "6 x 3800 NVMe SSD",
+    "network_performance": "600 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "m8idb.96xlarge",
+    "price_per_hour_usd": 36.66048,
+    "vcpu": 384,
+    "memory": "1536.0 GiB",
+    "storage": "6 x 3800 NVMe SSD",
+    "network_performance": "400 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r8in.96xlarge",
@@ -11178,7 +14094,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "600 Gigabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "r8ib.96xlarge",
@@ -11188,7 +14105,30 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "400 Gigabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "r8idb.96xlarge",
+    "price_per_hour_usd": 45.01824,
+    "vcpu": 384,
+    "memory": "3072.0 GiB",
+    "storage": "6 x 3800 NVMe SSD",
+    "network_performance": "400 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "r8idn.96xlarge",
+    "price_per_hour_usd": 45.01824,
+    "vcpu": 384,
+    "memory": "3072.0 GiB",
+    "storage": "6 x 3800 NVMe SSD",
+    "network_performance": "600 Gigabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "u-6tb1.56xlarge",
@@ -11198,7 +14138,19 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "100 Gigabit",
     "processor_architecture": "Intel Xeon Scalable (Skylake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
+  },
+  {
+    "instance_type": "x8i.metal-96xl",
+    "price_per_hour_usd": 48.74438,
+    "vcpu": 384,
+    "memory": "6144 GiB",
+    "storage": "EBS only",
+    "network_performance": "100000 Megabit",
+    "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
+    "current_generation": "Yes",
+    "bare_metal": true
   },
   {
     "instance_type": "x8i.96xlarge",
@@ -11208,7 +14160,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "100000 Megabit",
     "processor_architecture": "Intel Xeon Scalable (Granite Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "u-6tb1.112xlarge",
@@ -11218,7 +14171,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "100 Gigabit",
     "processor_architecture": "Intel Xeon Scalable (Skylake)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "p5.48xlarge",
@@ -11228,7 +14182,8 @@ export const onDemandRows = [
     "storage": "8 x 3840 GB SSD",
     "network_performance": "3200 Gigabit",
     "processor_architecture": "AMD EPYC 7R13 Processor",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "u7i-6tb.112xlarge",
@@ -11238,7 +14193,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "100 Gigabit",
     "processor_architecture": "Intel Xeon Scalable (Sapphire Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "p5en.48xlarge",
@@ -11248,7 +14204,8 @@ export const onDemandRows = [
     "storage": "8 x 3840 NVMe SSD",
     "network_performance": "3200 Gigabit",
     "processor_architecture": "Intel Xeon Scalable (Sapphire Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "u-9tb1.112xlarge",
@@ -11258,7 +14215,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "100 Gigabit",
     "processor_architecture": "Intel Xeon Scalable (Skylake)",
-    "current_generation": "No"
+    "current_generation": "No",
+    "bare_metal": false
   },
   {
     "instance_type": "u7i-8tb.112xlarge",
@@ -11268,7 +14226,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "100 Gigabit",
     "processor_architecture": "Intel Xeon Scalable (Sapphire Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "u-12tb1.112xlarge",
@@ -11278,7 +14237,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "100 Gigabit",
     "processor_architecture": "Intel Xeon Scalable (Skylake)",
-    "current_generation": "No"
+    "current_generation": "No",
+    "bare_metal": false
   },
   {
     "instance_type": "p6-b200.48xlarge",
@@ -11288,7 +14248,8 @@ export const onDemandRows = [
     "storage": "8 x 3840 NVMe SSD",
     "network_performance": "3200 Gigabit",
     "processor_architecture": "Intel Xeon Scalable (Emerald Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "u7i-12tb.224xlarge",
@@ -11298,7 +14259,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "100 Gigabit",
     "processor_architecture": "Intel Xeon Scalable (Sapphire Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "p6-b300.48xlarge",
@@ -11308,7 +14270,8 @@ export const onDemandRows = [
     "storage": "8 x 3840 NVMe SSD",
     "network_performance": "6400 Gigabit",
     "processor_architecture": "Intel Xeon Scalable (Emerald Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "u-18tb1.112xlarge",
@@ -11318,7 +14281,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "100 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8280L (Cascade Lake)",
-    "current_generation": "No"
+    "current_generation": "No",
+    "bare_metal": false
   },
   {
     "instance_type": "u7in-16tb.224xlarge",
@@ -11328,7 +14292,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "200 Gigabit",
     "processor_architecture": "Intel Xeon Scalable (Sapphire Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "u-24tb1.112xlarge",
@@ -11338,7 +14303,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "100 Gigabit",
     "processor_architecture": "Intel Xeon Platinum 8280L (Cascade Lake)",
-    "current_generation": "No"
+    "current_generation": "No",
+    "bare_metal": false
   },
   {
     "instance_type": "u7in-24tb.224xlarge",
@@ -11348,7 +14314,8 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "200 Gigabit",
     "processor_architecture": "Intel Xeon Scalable (Sapphire Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   },
   {
     "instance_type": "u7in-32tb.224xlarge",
@@ -11358,6 +14325,7 @@ export const onDemandRows = [
     "storage": "EBS only",
     "network_performance": "200 Gigabit",
     "processor_architecture": "Intel Xeon Scalable (Sapphire Rapids)",
-    "current_generation": "Yes"
+    "current_generation": "Yes",
+    "bare_metal": false
   }
 ];

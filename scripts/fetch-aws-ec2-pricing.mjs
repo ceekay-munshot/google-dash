@@ -54,11 +54,26 @@ const F = {
   CapacityStatus: 'Used',                     // billed running compute (not Reserved/Allocated/UnusedCapacityReservation)
   Unit: 'Hrs',                                // hourly rate (skip per-second / per-request rows)
   Location: 'US East (N. Virginia)',
-  ProductFamily: 'Compute Instance',
+  // EC2 instance pricing is split across two ProductFamily values in the
+  // bulk CSV: 'Compute Instance' (regular VMs) and 'Compute Instance
+  // (bare metal)' (the .metal* SKUs — c5.metal, m7i.metal-48xl, etc.).
+  // Both are on-demand Linux Shared rows, both appear in AWS's marketing
+  // pricing widget. The set of bare-metal types adds ~284 distinct
+  // instance types in us-east-1.
+  ProductFamilies: ['Compute Instance', 'Compute Instance (bare metal)'],
   // License Model 'No License required' (Linux default — Bring-your-own
   // and License-included rows are excluded).
   License_Model: 'No License required',
 };
+
+// Reference count from the AWS marketing pricing page widget for the same
+// filter combination (US East / Linux / Shared / No license required, all
+// instance types, all vCPU). Sourced manually from
+// https://aws.amazon.com/ec2/pricing/on-demand/ — kept here so the
+// dashboard can flag a count drift between the official bulk CSV (our
+// source) and the widget. Update by hand if AWS changes the widget total.
+const AWS_REFERENCE_COUNT_USEAST_LINUX_SHARED = 1256;
+const AWS_REFERENCE_COUNT_DATE = '2026-05-08';
 
 async function main() {
   console.log('— Resolving AWS Price List region index…');
@@ -106,7 +121,7 @@ async function main() {
     if (get('Operating System') !== F.OperatingSystem) return;
     if (get('Pre Installed S/W') !== F.PreInstalled_SW) return;
     if (get('CapacityStatus') !== F.CapacityStatus) return;
-    if (get('Product Family') !== F.ProductFamily) return;
+    if (!F.ProductFamilies.includes(get('Product Family'))) return;
     if (get('License Model') !== F.License_Model) return;
     const instanceType = get('Instance Type');
     if (!instanceType) return;
@@ -121,6 +136,7 @@ async function main() {
       network_performance: get('Network Performance') || null,
       processor_architecture: get('Physical Processor') || null,
       current_generation: get('Current Generation') || null,
+      bare_metal: get('Product Family') === 'Compute Instance (bare metal)',
     });
   }
 
@@ -158,19 +174,35 @@ async function main() {
   }
   const compact = Array.from(byType.values()).sort((a, b) => a.price_per_hour_usd - b.price_per_hour_usd);
   console.log('  Deduped to', compact.length, 'unique instance types');
+  const drift = compact.length - AWS_REFERENCE_COUNT_USEAST_LINUX_SHARED;
+  if (drift !== 0) {
+    console.log('  AWS marketing-widget reference (' + AWS_REFERENCE_COUNT_DATE + '):',
+      AWS_REFERENCE_COUNT_USEAST_LINUX_SHARED,
+      '— captured count drifts by', (drift > 0 ? '+' : '') + drift,
+      '(this is expected: bulk CSV vs widget data sources are not always identical)');
+  } else {
+    console.log('  Captured count matches AWS marketing-widget reference exactly.');
+  }
 
   const generatedAt = new Date().toISOString();
   const moduleSrc = `// AUTO-GENERATED — do not edit by hand.
 // Source: AWS Price List bulk CSV — https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/AmazonEC2/current/us-east-1/index.csv
 // Generated: ${generatedAt}
 // Filters applied: TermType=OnDemand, OS=Linux, Tenancy=Shared, PreInstalled_SW=NA,
-//                  CapacityStatus=Used, License=No License required, Location=US East (N. Virginia)
+//                  CapacityStatus=Used, License=No License required, Location=US East (N. Virginia),
+//                  ProductFamily ∈ {Compute Instance, Compute Instance (bare metal)}
 // Regenerate with: node scripts/fetch-aws-ec2-pricing.mjs
 export const generatedAt = ${JSON.stringify(generatedAt)};
 export const region = ${JSON.stringify(TARGET_REGION)};
 export const regionLabel = ${JSON.stringify(F.Location)};
 export const operatingSystem = ${JSON.stringify(F.OperatingSystem)};
 export const tenancy = ${JSON.stringify(F.Tenancy)};
+// AWS marketing-page widget instance count for the same filter combo,
+// captured manually on AWS_REFERENCE_COUNT_DATE. Used to flag drift
+// between the official bulk CSV and the widget — the two data sources
+// don't always match exactly.
+export const awsReferenceCount = ${AWS_REFERENCE_COUNT_USEAST_LINUX_SHARED};
+export const awsReferenceCountDate = ${JSON.stringify(AWS_REFERENCE_COUNT_DATE)};
 export const onDemandRows = ${JSON.stringify(compact, null, 2)};
 `;
   fs.writeFileSync(OUT_FILE, moduleSrc, 'utf8');

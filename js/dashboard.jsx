@@ -4740,7 +4740,7 @@ function AmazonTab(){
       <div style={{display:"flex",gap:4,marginBottom:14,borderBottom:"0.5px solid #e5e7eb"}}>
         {[
           {id:"capacity",label:"Capacity Footprint",sub:"public IPv4 capacity · daily snapshots"},
-          {id:"pricing", label:"Pricing Trends",    sub:"live AWS EC2 on-demand pricing"},
+          {id:"pricing", label:"Pricing Trends",    sub:"last captured AWS EC2 on-demand pricing snapshot"},
         ].map(t=>{
           const active=awsSubtab===t.id;
           return(
@@ -5090,6 +5090,36 @@ function AwsPricingTrendsSection(){
           </div>
         </div>
       </div>
+
+      {/* Count-drift banner — bulk Price List CSV (our source) and the
+          AWS marketing-page widget can disagree on instance count. We
+          surface the delta rather than silently match either number. */}
+      {od.phase==="ready" && od.data?.aws_reference_count && od.data?.matched_rows!==od.data.aws_reference_count && !query && (
+        (()=>{
+          const delta = od.data.matched_rows - od.data.aws_reference_count;
+          const isShort = delta < 0;
+          return (
+            <div style={{
+              marginBottom:10,
+              padding:"9px 12px",
+              borderRadius:8,
+              border:"0.5px solid " + (isShort?"#fecaca":"#fde68a"),
+              background:isShort?"#fef2f2":"#fffbeb",
+              color:isShort?"#991b1b":"#92400e",
+              fontSize:11.5,
+              lineHeight:1.5,
+            }}>
+              <span style={{fontWeight:600}}>Row-count drift:</span>
+              {" "}AWS page count (widget): {od.data.aws_reference_count.toLocaleString()};
+              {" "}captured count: {od.data.matched_rows.toLocaleString()};
+              {" "}{isShort?"missing":"extra"} {Math.abs(delta).toLocaleString()} {Math.abs(delta)===1?"row":"rows"}.
+              {" "}<span style={{color:isShort?"#7f1d1d":"#78350f",fontWeight:400}}>
+                The bulk Price List CSV (our source) and the marketing-page widget are different data feeds and don't always match exactly.
+              </span>
+            </div>
+          );
+        })()
+      )}
 
       {/* ── Table 1: EC2 On-Demand Instance Pricing ── */}
       <PricingTableCard

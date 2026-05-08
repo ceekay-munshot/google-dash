@@ -28,6 +28,8 @@ import {
   operatingSystem,
   tenancy,
   generatedAt,
+  awsReferenceCount,
+  awsReferenceCountDate,
 } from './_on-demand-data.js';
 
 const CORS = {
@@ -66,6 +68,8 @@ export async function onRequestGet({ request }) {
     generated_at: generatedAt,
     total_rows: onDemandRows.length,
     matched_rows: total,
+    aws_reference_count: awsReferenceCount,
+    aws_reference_count_date: awsReferenceCountDate,
     offset,
     limit,
     rows: slice,
