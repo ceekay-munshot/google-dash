@@ -4985,13 +4985,12 @@ function AwsCapacityProxySection(){
              a crowded shared axis). */}
           <ServiceTrendsGrid ts={ts} fmtN={fmtN} fmtCompact={fmtCompact}/>
 
-          {/* Region-level ranking driven by the latest snapshot. */}
+          {/* Region-level ranking driven by the latest snapshot. The
+             previous Top Services / Top Regions cards were removed
+             from here — they duplicated information already shown in
+             the per-service trend grid above and the Region-Level
+             ranking just below it. */}
           <RegionCapacityTrend snap={s} ts={ts} fmtN={fmtN} fmtCompact={fmtCompact}/>
-
-          {/* Top services / top regions tables driven by the latest
-             snapshot. Quick-reference view of the largest IPv4 footprint
-             holders today; complements the per-service trend grid. */}
-          <TopByCapacity snap={s} fmtN={fmtN} fmtCompact={fmtCompact}/>
         </>
       )}
     </>
@@ -5608,58 +5607,6 @@ function RegionCapacityTrend({snap,ts,fmtN,fmtCompact}){
           </div>
         );
       })}
-    </div>
-  );
-}
-
-/* Top services / regions by latest IPv4 capacity. Two side-by-side
-   horizontal-bar tables driven by the latest snapshot's by_service /
-   by_region payloads. Compact, single-screen, complements the trend
-   chart as the "what's biggest right now" reference. */
-const TOP_PALETTE=["#0e7490","#059669","#2563eb","#7c3aed","#d97706","#dc2626","#0891b2","#6b7280"];
-
-function TopByCapacity({snap,fmtN,fmtCompact}){
-  const services=Array.isArray(snap?.by_service)?snap.by_service.slice(0,8):[];
-  const regions =Array.isArray(snap?.by_region) ?snap.by_region.slice(0,8) :[];
-
-  const renderList=(rows,keyField,title,subtitle,pillText)=>{
-    const max=Math.max(...rows.map(r=>r.ipv4_addresses||0))||1;
-    return(
-      <div style={{background:"#fff",border:"0.5px solid #e5e7eb",borderRadius:12,padding:"14px 16px"}}>
-        <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:12,flexWrap:"wrap",marginBottom:10}}>
-          <div style={{minWidth:0,flex:"1 1 220px"}}>
-            <div style={{fontSize:13.5,fontWeight:700,color:"#111827",lineHeight:1.3}}>{title}</div>
-            <div style={{fontSize:11,color:"#6b7280",marginTop:3,lineHeight:1.45}}>{subtitle}</div>
-          </div>
-          <span style={{fontSize:10,padding:"3px 9px",borderRadius:999,fontWeight:600,background:"#ecfeff",color:"#0e7490",border:"0.5px solid #a5f3fc",whiteSpace:"nowrap"}}>{pillText}</span>
-        </div>
-        {rows.length===0?(
-          <div style={{fontSize:11.5,color:"#6b7280"}}>No data in the latest snapshot.</div>
-        ):(
-          <div style={{display:"grid",gap:6}}>
-            {rows.map((r,i)=>{
-              const v=r.ipv4_addresses||0;
-              const w=Math.max(2,Math.round((v/max)*100));
-              return(
-                <div key={r[keyField]} style={{display:"grid",gridTemplateColumns:"140px 1fr 90px",alignItems:"center",gap:10,fontSize:11}}>
-                  <div style={{color:"#374151",fontWeight:600,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{r[keyField]}</div>
-                  <div style={{background:"#f3f4f6",borderRadius:4,height:10,overflow:"hidden"}}>
-                    <div style={{width:w+"%",height:"100%",background:TOP_PALETTE[i%TOP_PALETTE.length],borderRadius:4}}/>
-                  </div>
-                  <div style={{textAlign:"right",fontFamily:"ui-monospace,SFMono-Regular,Menlo,monospace",color:"#111827"}}>{fmtCompact(v)}</div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
-    );
-  };
-
-  return(
-    <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit, minmax(320px, 1fr))",gap:10,marginBottom:14}}>
-      {renderList(services,"service","Top Services by IPv4 Capacity","Top 8 AWS services by latest public IPv4 address capacity.","Latest snapshot · top services")}
-      {renderList(regions,"region","Top Regions by IPv4 Capacity","Top 8 AWS regions by latest public IPv4 address capacity.","Latest snapshot · top regions")}
     </div>
   );
 }
