@@ -6101,7 +6101,14 @@ function CurrentBreakdown(){
           </div>
         </div>
         <div style={{overflowX:"auto"}}>
-          <table style={{width:"100%",borderCollapse:"separate",borderSpacing:0,background:STICKY_BG,minWidth:FIRST_COL_W+COL_W*Math.max(periods.length,1)}}>
+          {/* Width:"auto" so the table sizes to its column content rather than
+             stretching to fill the card. Without this, a single-period view
+             leaves a huge horizontal blank between the label column and the
+             one period column (the period header expands to take the
+             remaining space). minWidth still kicks in once there are enough
+             period columns to overflow, and the overflowX:"auto" parent
+             handles horizontal scroll for that case. */}
+          <table style={{borderCollapse:"separate",borderSpacing:0,background:STICKY_BG,minWidth:FIRST_COL_W+COL_W*Math.max(periods.length,1)}}>
             <thead>
               <tr>
                 <th style={thFirst}></th>
