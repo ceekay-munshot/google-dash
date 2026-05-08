@@ -4732,10 +4732,6 @@ function AmazonTab(){
             AWS usage, pricing, and capacity signals — built from public market proxies.
           </div>
         </div>
-        <div style={{display:"flex",alignItems:"center",gap:6,flexShrink:0}}>
-          <span style={{width:6,height:6,borderRadius:"50%",background:"#9ca3af",display:"inline-block"}}/>
-          <span style={{fontSize:10,padding:"3px 9px",borderRadius:999,fontWeight:600,background:"#f3f4f6",color:"#4b5563",border:"0.5px solid #e5e7eb"}}>Design preview · no live data yet</span>
-        </div>
       </div>
 
       {/* Inner tab bar — Capacity Footprint and the new Pricing Trends pill,
