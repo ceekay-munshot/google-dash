@@ -4979,18 +4979,18 @@ function AwsCapacityProxySection(){
 
       {inner==="graphs"&&(
         <>
-          {/* Service-Level Public IPv4 Capacity Trend — moved from the
-             default Overview into Graph Trends per customer feedback. */}
-          <ServiceCapacityTrend ts={ts} fmtN={fmtN} fmtCompact={fmtCompact}/>
+          {/* Service-Level IPv4 Capacity Trends — one chart per top
+             service. Replaces the previous combined multi-line chart
+             per customer feedback (individual charts read better than
+             a crowded shared axis). */}
+          <ServiceTrendsGrid ts={ts} fmtN={fmtN} fmtCompact={fmtCompact}/>
 
-          {/* Detailed breakdown trends — region-level and prefix-count
-             trends rendered from the same /history daily points. */}
+          {/* Region-level ranking driven by the latest snapshot. */}
           <RegionCapacityTrend snap={s} ts={ts} fmtN={fmtN} fmtCompact={fmtCompact}/>
-          <PrefixCountTrend histDaily={histDaily} fmtN={fmtN} fmtCompact={fmtCompact}/>
 
           {/* Top services / top regions tables driven by the latest
              snapshot. Quick-reference view of the largest IPv4 footprint
-             holders today; complements the breakdown trend charts. */}
+             holders today; complements the per-service trend grid. */}
           <TopByCapacity snap={s} fmtN={fmtN} fmtCompact={fmtCompact}/>
         </>
       )}
@@ -5612,71 +5612,6 @@ function RegionCapacityTrend({snap,ts,fmtN,fmtCompact}){
   );
 }
 
-/* IPv4 / IPv6 Prefix Count Trend (Graph Trends only). Two lines from
-   /history daily points: total_ipv4_prefixes and total_ipv6_prefixes.
-   Rendered with a dual axis so prefix counts (~3K-15K) are readable on
-   one line while still showing IPv6 prefix scale. With <2 snapshots
-   we render a readiness state — same convention as the service trend. */
-function PrefixCountTrend({histDaily,fmtN,fmtCompact}){
-  const points=histDaily?.data?.points||[];
-  const header=(
-    <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:12,flexWrap:"wrap",marginBottom:10}}>
-      <div style={{minWidth:0,flex:"1 1 320px"}}>
-        <div style={{fontSize:15,fontWeight:700,color:"#111827",lineHeight:1.3}}>Prefix Count Trend</div>
-        <div style={{fontSize:11.5,color:"#6b7280",marginTop:3,lineHeight:1.5,maxWidth:760}}>
-          Total IPv4 and IPv6 prefix counts published in AWS ip-ranges.json.
-        </div>
-      </div>
-      <span style={{fontSize:10,padding:"3px 9px",borderRadius:999,fontWeight:600,background:"#ecfeff",color:"#0e7490",border:"0.5px solid #a5f3fc",whiteSpace:"nowrap"}}>Daily snapshots · prefix counts</span>
-    </div>
-  );
-  const card=(inner)=>(
-    <div style={{background:"#fff",border:"0.5px solid #e5e7eb",borderRadius:12,padding:"14px 16px",marginBottom:14}}>
-      {header}{inner}
-    </div>
-  );
-
-  if(histDaily?.phase==="loading")return card(<Shimmer rows={3}/>);
-  if(histDaily?.phase==="error")return card(
-    <div style={{background:"#fffbeb",border:"0.5px solid #fde68a",borderRadius:8,padding:"10px 14px",fontSize:11.5,color:"#78350f"}}>
-      Prefix-count history unavailable.
-    </div>
-  );
-
-  if(points.length<2){
-    return card(
-      <div style={{padding:"6px 0"}}>
-        <div style={{fontSize:12,color:"#374151",lineHeight:1.55}}>
-          Prefix-count trend will appear once at least two daily snapshots are available.
-        </div>
-      </div>
-    );
-  }
-
-  const data=points.map(p=>({
-    date:p.date,
-    ipv4:p.total_ipv4_prefixes,
-    ipv6:p.total_ipv6_prefixes,
-  }));
-
-  return card(
-    <div style={{width:"100%",height:280}}>
-      <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={data} margin={{top:8,right:16,bottom:0,left:0}}>
-          <CartesianGrid stroke="#f3f4f6" strokeDasharray="3 3"/>
-          <XAxis dataKey="date" tick={{fontSize:10,fill:"#6b7280"}} stroke="#e5e7eb"/>
-          <YAxis yAxisId="left" tick={{fontSize:10,fill:"#6b7280"}} tickFormatter={fmtCompact} stroke="#e5e7eb" width={56}/>
-          <YAxis yAxisId="right" orientation="right" tick={{fontSize:10,fill:"#6b7280"}} tickFormatter={fmtCompact} stroke="#e5e7eb" width={56}/>
-          <Tooltip formatter={(v)=>fmtN(v)} labelStyle={{fontSize:11,fontWeight:600}} contentStyle={{fontSize:11,borderRadius:8,border:"0.5px solid #e5e7eb"}}/>
-          <Legend wrapperStyle={{fontSize:10,paddingTop:6}}/>
-          <Line yAxisId="left"  type="monotone" dataKey="ipv4" name="IPv4 prefixes" stroke="#0e7490" strokeWidth={1.75} dot={{r:2}} activeDot={{r:4}} isAnimationActive={false}/>
-          <Line yAxisId="right" type="monotone" dataKey="ipv6" name="IPv6 prefixes" stroke="#7c3aed" strokeWidth={1.75} dot={{r:2}} activeDot={{r:4}} isAnimationActive={false}/>
-        </LineChart>
-      </ResponsiveContainer>
-    </div>
-  );
-}
-
 /* Top services / regions by latest IPv4 capacity. Two side-by-side
    horizontal-bar tables driven by the latest snapshot's by_service /
    by_region payloads. Compact, single-screen, complements the trend
@@ -5729,133 +5664,220 @@ function TopByCapacity({snap,fmtN,fmtCompact}){
   );
 }
 
-/* Service-Level Public IPv4 Capacity Trend — main analytical module.
-   With ≥2 snapshots, renders a multi-line recharts chart on a log
-   Y-axis (AMAZON / EC2 dwarf the rest by orders of magnitude). With
-   one snapshot, renders an empty-state card; never a fake chart.
-   On time-series fetch failure, shows a small inline warning and
-   leaves the rest of the section intact. */
+/* Service-Level IPv4 Capacity Trends — one chart per top service.
+   Replaces the previous combined multi-line chart. The combined chart
+   was customer-wrong: AMAZON / EC2 dwarf the smaller services so a
+   shared axis either hides the small ones or forces a log scale that
+   investors don't intuitively read. Splitting into one card per service
+   gives each its own axis and reads cleanly even with mixed-scale
+   capacity values (101M → 64K). */
 const SERVICE_TREND_PALETTE=["#0e7490","#059669","#2563eb","#7c3aed","#d97706","#dc2626","#0891b2","#6b7280"];
 
-function ServiceCapacityTrend({ts,fmtN,fmtCompact}){
-  const isDemo = ts?.data?.demo === true;
-  // Series-visibility state. Click a legend entry to toggle that service's
-  // line on the chart; the entry keeps its slot in the legend (just dimmed
-  // and strike-through) so the layout doesn't reflow as you toggle.
-  const[hidden,setHidden]=useState(()=>new Set());
-  const toggleSeries=name=>{
-    if(!name)return;
-    setHidden(prev=>{
-      const next=new Set(prev);
-      if(next.has(name))next.delete(name);else next.add(name);
-      return next;
-    });
-  };
-  const header=(
+function ServiceTrendsGrid({ts,fmtN,fmtCompact}){
+  const sectionHeader=(
     <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:12,flexWrap:"wrap",marginBottom:10}}>
       <div style={{minWidth:0,flex:"1 1 320px"}}>
-        <div style={{fontSize:15,fontWeight:700,color:"#111827",lineHeight:1.3}}>Service-Level Public IPv4 Capacity Trend</div>
+        <div style={{fontSize:15,fontWeight:700,color:"#111827",lineHeight:1.3}}>Service-Level IPv4 Capacity Trends</div>
         <div style={{fontSize:11.5,color:"#6b7280",marginTop:3,lineHeight:1.5,maxWidth:760}}>
-          Daily captured AWS public IPv4 capacity by service from AWS ip-ranges.json.
+          Individual AWS public IPv4 capacity trends by service, computed from AWS ip-ranges.json daily snapshots.
         </div>
       </div>
-      <span style={{fontSize:10,padding:"3px 9px",borderRadius:999,fontWeight:600,background:"#ecfeff",color:"#0e7490",border:"0.5px solid #a5f3fc",whiteSpace:"nowrap"}}>Daily snapshots · service footprint</span>
-    </div>
-  );
-
-  const card=(inner)=>(
-    <div style={{background:"#fff",border:"0.5px solid #e5e7eb",borderRadius:12,padding:"14px 16px",marginBottom:14}}>
-      {header}
-      {inner}
+      <span style={{fontSize:10,padding:"3px 9px",borderRadius:999,fontWeight:600,background:"#ecfeff",color:"#0e7490",border:"0.5px solid #a5f3fc",whiteSpace:"nowrap"}}>Daily snapshots · per-service capacity</span>
     </div>
   );
 
   if(ts.phase==="loading"){
-    return card(<Shimmer rows={4}/>);
+    return(
+      <div style={{marginBottom:14}}>
+        {sectionHeader}
+        <div style={{background:"#fff",border:"0.5px solid #e5e7eb",borderRadius:12,padding:"14px 16px"}}>
+          <Shimmer rows={4}/>
+        </div>
+      </div>
+    );
   }
-
   if(ts.phase==="error"){
-    return card(
-      <div style={{background:"#fffbeb",border:"0.5px solid #fde68a",borderRadius:8,padding:"10px 14px",fontSize:11.5,color:"#78350f",lineHeight:1.55}}>
-        Service-level capacity trend unavailable. Latest snapshot is still shown.
+    return(
+      <div style={{marginBottom:14}}>
+        {sectionHeader}
+        <div style={{background:"#fffbeb",border:"0.5px solid #fde68a",borderRadius:8,padding:"10px 14px",fontSize:11.5,color:"#78350f",lineHeight:1.55}}>
+          Service-level capacity trends unavailable. Latest snapshot is still shown in the breakdown tables below.
+        </div>
       </div>
     );
   }
 
   const d=ts.data||{};
   const series=Array.isArray(d.series)?d.series:[];
-  const count=d.snapshot_count||0;
 
-  // Empty-state: one snapshot — no fake chart, just the readiness copy.
-  if(count<2){
-    return card(
-      <div style={{padding:"6px 0"}}>
-        <div style={{fontSize:13,fontWeight:600,color:"#111827",lineHeight:1.3}}>Trend has started</div>
-        <div style={{fontSize:12,color:"#374151",marginTop:6,lineHeight:1.55,maxWidth:680}}>
-          One daily snapshot has been captured. The service-level line chart will appear once at least two daily snapshots are available.
-        </div>
-        <div style={{fontSize:10.5,color:"#9ca3af",marginTop:6}}>
-          Current service ranking is shown below in Current Breakdown.
+  if(series.length===0){
+    return(
+      <div style={{marginBottom:14}}>
+        {sectionHeader}
+        <div style={{fontSize:11.5,color:"#6b7280",lineHeight:1.55}}>
+          No per-service capacity data in the latest snapshot.
         </div>
       </div>
     );
   }
 
-  // ── Multi-snapshot: pivot series → recharts data, render log-scale chart.
-  // Build a date axis from all distinct dates across all series. Each row
-  // carries one column per service; missing values are intentionally null
-  // so the line breaks rather than reads as a fake zero.
-  const dateSet=new Set();
-  for(const s of series) for(const p of (s.points||[])) dateSet.add(p.date);
-  const dates=Array.from(dateSet).sort();
-  const chartData=dates.map(date=>{
-    const row={date};
-    for(const s of series){
-      const pt=(s.points||[]).find(p=>p.date===date);
-      row[s.name] = pt && typeof pt.value==="number" ? pt.value : null;
-    }
-    return row;
+  return(
+    <div style={{marginBottom:14}}>
+      {sectionHeader}
+      {/* Responsive grid: 2 cards per row on desktop (≥720px wide
+         container), 1 per row otherwise. minmax 320px keeps each chart
+         readable on tablet portrait and mobile. */}
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit, minmax(340px, 1fr))",gap:10}}>
+        {series.map((s,i)=>(
+          <ServiceTrendCard key={s.name} svc={s} color={SERVICE_TREND_PALETTE[i%SERVICE_TREND_PALETTE.length]} fmtN={fmtN} fmtCompact={fmtCompact}/>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* One per-service trend card. Built from the /timeseries series payload
+   for a single service. Computes per-point deltas client-side from the
+   asc-sorted points array; renders a readiness state when only one
+   captured value exists. */
+function ServiceTrendCard({svc,color,fmtN,fmtCompact}){
+  const name=svc?.name||"";
+  // Filter out null-valued points; we never want to draw fake gaps.
+  const validPoints=(svc?.points||[]).filter(p=>typeof p.value==="number");
+  const realPoints=validPoints.filter(p=>p.synthetic!==true);
+  const realCount=realPoints.length;
+
+  const fmtSigned=n=>{
+    if(typeof n!=="number"||!isFinite(n))return "—";
+    const sign=n>0?"+":n<0?"−":"";
+    return sign+Math.abs(n).toLocaleString("en-US");
+  };
+  const fmtPct=p=>{
+    if(typeof p!=="number"||!isFinite(p))return "—";
+    const sign=p>0?"+":p<0?"−":"";
+    return sign+(Math.abs(p)*100).toFixed(2)+"%";
+  };
+  const changeColor=n=>(typeof n==="number"&&n!==0)?(n>0?"#059669":"#dc2626"):"#6b7280";
+
+  // Latest / first / last-vs-prev derived from the real (non-synthetic)
+  // points. With one real snapshot, the change badges show "—" not 0%.
+  const realFirst = realPoints.length ? realPoints[0] : null;
+  const realLast  = realPoints.length ? realPoints[realPoints.length-1] : null;
+  const realPrev  = realPoints.length>=2 ? realPoints[realPoints.length-2] : null;
+  const latestVal = realLast ? realLast.value : null;
+
+  let absSinceFirst=null, pctSinceFirst=null;
+  if(realFirst&&realLast&&realFirst.date!==realLast.date&&typeof realFirst.value==="number"&&typeof realLast.value==="number"){
+    absSinceFirst = realLast.value - realFirst.value;
+    pctSinceFirst = realFirst.value>0 ? absSinceFirst/realFirst.value : null;
+  }
+  let absVsPrev=null, pctVsPrev=null;
+  if(realPrev&&realLast&&typeof realPrev.value==="number"&&typeof realLast.value==="number"){
+    absVsPrev = realLast.value - realPrev.value;
+    pctVsPrev = realPrev.value>0 ? absVsPrev/realPrev.value : null;
+  }
+
+  const header=(
+    <div style={{marginBottom:10}}>
+      <div style={{fontSize:13.5,fontWeight:700,color:"#111827",lineHeight:1.3}}>{name} Public IPv4 Capacity Trend</div>
+      <div style={{fontSize:11,color:"#6b7280",marginTop:2,lineHeight:1.45}}>
+        Daily captured public IPv4 capacity for {name}.
+      </div>
+    </div>
+  );
+
+  // Latest-value mini-row inside the card. Three small stats: latest
+  // capacity, change since first snapshot, latest daily change. "—" for
+  // unavailable comparisons (per spec).
+  const stat=(label,value,valueColor,hint)=>(
+    <div style={{minWidth:0,flex:"1 1 0"}}>
+      <div style={{fontSize:9,textTransform:"uppercase",letterSpacing:".08em",color:"#9ca3af",fontWeight:600}}>{label}</div>
+      <div style={{fontSize:13,fontWeight:700,color:valueColor||"#111827",fontFamily:"ui-monospace,SFMono-Regular,Menlo,monospace",marginTop:2,lineHeight:1.1,wordBreak:"break-all"}}>{value}</div>
+      {hint&&<div style={{fontSize:10,color:"#6b7280",marginTop:1,fontFamily:"ui-monospace,SFMono-Regular,Menlo,monospace"}}>{hint}</div>}
+    </div>
+  );
+  const statsRow=(
+    <div style={{display:"flex",gap:10,marginBottom:10,padding:"8px 10px",background:"#f9fafb",border:"0.5px solid #e5e7eb",borderRadius:8}}>
+      {stat("Latest IPv4", typeof latestVal==="number" ? fmtN(latestVal) : "—", "#111827", typeof latestVal==="number" ? fmtCompact(latestVal) : null)}
+      {stat("Since First", realCount>=2 && typeof absSinceFirst==="number" ? fmtSigned(absSinceFirst) : "—", changeColor(absSinceFirst), realCount>=2 && typeof pctSinceFirst==="number" ? fmtPct(pctSinceFirst) : null)}
+      {stat("Daily Δ",     realCount>=2 && typeof absVsPrev==="number"     ? fmtSigned(absVsPrev)     : "—", changeColor(absVsPrev),     realCount>=2 && typeof pctVsPrev==="number"     ? fmtPct(pctVsPrev)     : null)}
+    </div>
+  );
+
+  const card=(inner)=>(
+    <div style={{background:"#fff",border:"0.5px solid #e5e7eb",borderRadius:12,padding:"14px 16px"}}>
+      {header}
+      {statsRow}
+      {inner}
+    </div>
+  );
+
+  // Empty-state: only one captured snapshot → no fake trend. Show the
+  // readiness copy under the stats row.
+  if(realCount<2){
+    return card(
+      <div style={{padding:"6px 0"}}>
+        <div style={{fontSize:11.5,color:"#374151",lineHeight:1.55}}>
+          Trend has started. More movement will appear as daily snapshots accumulate.
+        </div>
+      </div>
+    );
+  }
+
+  // Build chart data with per-point deltas so the tooltip can render
+  // them directly. Points are already asc-sorted by /timeseries.
+  const chartData=realPoints.map((p,i)=>{
+    const prev = i>0 ? realPoints[i-1] : null;
+    const ap = (prev&&typeof prev.value==="number"&&typeof p.value==="number") ? p.value-prev.value : null;
+    const pp = (prev&&typeof prev.value==="number"&&prev.value>0&&typeof p.value==="number") ? (p.value-prev.value)/prev.value : null;
+    const af = (realFirst&&typeof realFirst.value==="number"&&typeof p.value==="number") ? p.value-realFirst.value : null;
+    const pf = (realFirst&&typeof realFirst.value==="number"&&realFirst.value>0&&typeof p.value==="number") ? (p.value-realFirst.value)/realFirst.value : null;
+    return {
+      date: p.date,
+      value: p.value,
+      abs_vs_prev: ap, pct_vs_prev: pp,
+      abs_vs_first: af, pct_vs_first: pf,
+    };
   });
 
-  // Tooltip — formatted via recharts' Tooltip formatter prop. Tighter and
-  // monospace-aligned so multi-line readings stay readable.
-  const tooltipFmt=(value,name)=>{
-    if(value==null)return [<span style={{fontFamily:"monospace",color:"#9ca3af"}}>—</span>,name];
-    return [<span style={{fontFamily:"monospace"}}>{fmtN(value)}</span>,name];
+  // Y-axis padding so a small absolute swing actually reads as a
+  // visible slope rather than a flat horizontal line.
+  const vals=chartData.map(d=>d.value);
+  const minV=Math.min(...vals);
+  const maxV=Math.max(...vals);
+  const span=Math.max(maxV-minV,1);
+  const yDomain=[Math.max(0,Math.floor(minV-span*0.5)),Math.ceil(maxV+span*0.5)];
+
+  const renderTooltip=({active,payload})=>{
+    if(!active||!payload||!payload.length)return null;
+    const d=payload[0].payload;
+    return(
+      <div style={{background:"#fff",border:"0.5px solid #e5e7eb",borderRadius:8,padding:"8px 10px",fontSize:11,fontFamily:"ui-monospace,SFMono-Regular,Menlo,monospace",lineHeight:1.55,color:"#111827",boxShadow:"0 4px 12px rgba(17,24,39,0.06)",minWidth:180}}>
+        <div style={{fontWeight:600,marginBottom:4}}>{d.date}</div>
+        <div style={{color:"#6b7280",fontSize:10,marginBottom:2}}>{name}</div>
+        <div>IPv4: <span style={{fontWeight:600}}>{fmtN(d.value)}</span></div>
+        <div style={{color:"#6b7280",marginTop:4,fontSize:10}}>vs prev (DoD)</div>
+        <div>Δ {fmtSigned(d.abs_vs_prev)}</div>
+        <div>{fmtPct(d.pct_vs_prev)}</div>
+        <div style={{color:"#6b7280",marginTop:4,fontSize:10}}>vs first snapshot</div>
+        <div>Δ {fmtSigned(d.abs_vs_first)}</div>
+        <div>{fmtPct(d.pct_vs_first)}</div>
+      </div>
+    );
   };
 
   return card(
-    <>
-      <div style={{width:"100%",height:320}}>
-        <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={chartData} margin={{top:8,right:16,bottom:0,left:0}}>
-            <CartesianGrid stroke="#f3f4f6" strokeDasharray="3 3"/>
-            <XAxis dataKey="date" tick={{fontSize:10,fill:"#6b7280"}} stroke="#e5e7eb"/>
-            <YAxis scale="log" domain={["auto","auto"]} tick={{fontSize:10,fill:"#6b7280"}} tickFormatter={fmtCompact} stroke="#e5e7eb" width={48}/>
-            <Tooltip formatter={tooltipFmt} labelStyle={{fontSize:11,fontWeight:600,color:"#111827"}} contentStyle={{fontSize:11,borderRadius:8,border:"0.5px solid #e5e7eb"}}/>
-            <Legend
-              wrapperStyle={{fontSize:10,paddingTop:6,cursor:"pointer",userSelect:"none"}}
-              onClick={(entry)=>toggleSeries(entry?.dataKey||entry?.value)}
-              formatter={(value)=>{
-                const off=hidden.has(value);
-                return(
-                  <span style={{
-                    cursor:"pointer",
-                    color: off ? "#9ca3af" : "#374151",
-                    textDecoration: off ? "line-through" : "none",
-                    fontWeight: off ? 400 : 500,
-                    userSelect:"none",
-                  }}>{value}</span>
-                );
-              }}
-            />
-            {series.map((s,i)=>(
-              <Line key={s.name} type="monotone" dataKey={s.name} stroke={SERVICE_TREND_PALETTE[i%SERVICE_TREND_PALETTE.length]} strokeWidth={1.5} dot={{r:2}} activeDot={{r:4}} connectNulls={false} isAnimationActive={false} hide={hidden.has(s.name)}/>
-            ))}
-          </LineChart>
-        </ResponsiveContainer>
-      </div>
-    </>
+    <div style={{width:"100%",height:200}}>
+      <ResponsiveContainer width="100%" height="100%">
+        <LineChart data={chartData} margin={{top:6,right:10,bottom:0,left:0}}>
+          <CartesianGrid stroke="#f3f4f6" strokeDasharray="3 3"/>
+          <XAxis dataKey="date" tick={{fontSize:9.5,fill:"#6b7280"}} stroke="#e5e7eb"/>
+          <YAxis domain={yDomain} tick={{fontSize:9.5,fill:"#6b7280"}} tickFormatter={fmtCompact} stroke="#e5e7eb" width={56} allowDecimals={false}/>
+          <Tooltip content={renderTooltip}/>
+          <Line type="monotone" dataKey="value" name={name} stroke={color} strokeWidth={2} dot={{r:2.5,strokeWidth:1,stroke:color,fill:"#fff"}} activeDot={{r:4.5}} isAnimationActive={false}/>
+        </LineChart>
+      </ResponsiveContainer>
+    </div>
   );
 }
 
@@ -6158,9 +6180,9 @@ function CapacityMethodologyCard(){
       </div>
 
       <details className="ipr-meth-row" style={{borderTop:"0.5px solid #e5e7eb"}}>
-        <summary style={summaryStyle}>How to read the service trend chart</summary>
+        <summary style={summaryStyle}>How to read the per-service trend charts</summary>
         <div style={bodyStyle}>
-          Each line represents one AWS service from the public AWS IP-range file.
+          Graph Trends renders one chart per top AWS service from the public AWS IP-range file.
           <ul style={{margin:"6px 0 0 18px",padding:0}}>
             <li style={liStyle}>{code("AMAZON")}: broad AWS-owned public IP ranges that are not always tied to one specific product.</li>
             <li style={liStyle}>{code("EC2")}: public IPv4 capacity associated with Elastic Compute Cloud.</li>
@@ -6174,14 +6196,14 @@ function CapacityMethodologyCard(){
           <div style={{marginTop:8}}>Axes:</div>
           <ul style={{margin:"4px 0 0 18px",padding:0}}>
             <li style={liStyle}>X-axis: capture date.</li>
-            <li style={liStyle}>Y-axis: public IPv4 address capacity.</li>
+            <li style={liStyle}>Y-axis: public IPv4 address capacity for that service. Each chart has its own axis so smaller services stay readable.</li>
             <li style={liStyle}>Each point: the calculated IPv4 address count for that service on that captured date.</li>
             <li style={liStyle}>Flat line: no change in that service's published public IPv4 capacity during the captured period.</li>
             <li style={liStyle}>Upward line: AWS added public IPv4 capacity for that service.</li>
             <li style={liStyle}>Downward line: AWS removed or reclassified public IPv4 capacity for that service.</li>
           </ul>
           <div style={{marginTop:8,color:"#6b7280"}}>
-            The chart uses a log scale because {code("AMAZON")} and {code("EC2")} are much larger than smaller services. Log scale makes smaller services visible instead of flattening them near zero.
+            Each card also shows a small stat row with latest IPv4 capacity, change since first snapshot, and the latest daily change. Comparisons that aren't yet possible render {code("—")}.
           </div>
         </div>
       </details>
