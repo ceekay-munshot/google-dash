@@ -1,0 +1,142 @@
+name: AWS EC2 Pricing Daily Capture
+
+# Mon-Fri only. Three UTC slots that bracket the 10:00-12:00 ET
+# business window across DST so at least one slot lands inside the
+# window. The endpoint enforces the window in handler — the cron is
+# just the trigger fan-out, not the gate.
+#   14:17 UTC = 10:17 EST / 09:17 EDT
+#   15:08 UTC = 11:08 EST / 10:08 EDT
+#   15:42 UTC = 11:42 EST / 10:42 EDT
+on:
+  schedule:
+    - cron: '17 14 * * 1-5'
+    - cron: '8 15 * * 1-5'
+    - cron: '42 15 * * 1-5'
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 'prod | preview (default: prod)'
+        required: false
+        default: 'prod'
+      force:
+        description: "true = overwrite today's run + bypass ET-window check"
+        required: false
+        default: 'false'
+
+concurrency:
+  group: aws-ec2-pricing-capture-${{ inputs.target || 'prod' }}
+  cancel-in-progress: false
+
+jobs:
+  capture:
+    name: Capture EC2 on-demand pricing
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    permissions:
+      contents: read
+      issues: write
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+
+      - name: Resolve dashboard URL by target
+        id: target
+        env:
+          TARGET:        ${{ inputs.target || 'prod' }}
+          PROD_URL:      ${{ secrets.HISTORY_CAPTURE_URL_PROD }}
+          PREVIEW_URL:   ${{ secrets.HISTORY_CAPTURE_URL_PREVIEW }}
+          LEGACY_URL:    ${{ secrets.HISTORY_CAPTURE_URL }}
+        run: |
+          if [ "$TARGET" = "preview" ]; then
+            URL="$PREVIEW_URL"
+          else
+            URL="${PROD_URL:-$LEGACY_URL}"  # fall back to legacy secret for prod if PROD_URL not set yet
+          fi
+          if [ -z "$URL" ]; then
+            echo "::error::No dashboard URL configured for target=$TARGET"
+            echo "  Set HISTORY_CAPTURE_URL_PROD or HISTORY_CAPTURE_URL_PREVIEW (and HISTORY_CAPTURE_URL as a legacy fallback)."
+            exit 1
+          fi
+          echo "url=$URL" >> "$GITHUB_OUTPUT"
+
+      - name: Validate auth secret
+        env:
+          CAPTURE_SECRET: ${{ secrets.HISTORY_CAPTURE_SECRET }}
+        run: |
+          if [ -z "$CAPTURE_SECRET" ]; then
+            echo "::error::HISTORY_CAPTURE_SECRET secret is not set"
+            exit 1
+          fi
+
+      - name: Fetch + parse AWS Price List CSV → JSON
+        id: parse
+        run: |
+          PAYLOAD="${RUNNER_TEMP}/payload.json"
+          node scripts/fetch-aws-ec2-pricing.mjs --stdout > "$PAYLOAD"
+          ROWS=$(node -e "console.log(JSON.parse(require('fs').readFileSync('$PAYLOAD')).rows.length)")
+          BYTES=$(wc -c < "$PAYLOAD")
+          echo "Parsed $ROWS rows ($BYTES bytes)"
+          echo "payload=$PAYLOAD" >> "$GITHUB_OUTPUT"
+          echo "rows=$ROWS" >> "$GITHUB_OUTPUT"
+
+      - name: Multi-phase capture (begin → rows → finalize)
+        id: capture
+        env:
+          DASHBOARD_URL: ${{ steps.target.outputs.url }}
+          SECRET:        ${{ secrets.HISTORY_CAPTURE_SECRET }}
+          PAYLOAD:       ${{ steps.parse.outputs.payload }}
+          FORCE:         ${{ inputs.force || 'false' }}
+        run: node scripts/aws-ec2-capture-multiphase.mjs
+
+      - name: Open / update issue on failure
+        if: failure()
+        uses: actions/github-script@v7
+        env:
+          RUN_URL:   ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          TRIGGER:   ${{ github.event_name }}
+          TARGET:    ${{ inputs.target || 'prod' }}
+        with:
+          script: |
+            const TITLE = '🔴 AWS EC2 pricing capture failing (' + process.env.TARGET + ')';
+            const nowUTC = new Date().toISOString().replace('T', ' ').slice(0, 19) + ' UTC';
+            const summary = [
+              '**Run:** ' + process.env.RUN_URL,
+              '**When:** ' + nowUTC,
+              '**Trigger:** ' + process.env.TRIGGER,
+              '**Target:** ' + process.env.TARGET,
+              '',
+              '---',
+              'This issue auto-opens when the daily AWS EC2 pricing capture fails ' +
+              'and auto-comments on each subsequent failure. Close it once the ' +
+              'underlying issue is fixed; the next failure will open a fresh one.',
+            ].join('\n');
+
+            const { data: openIssues } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo:  context.repo.repo,
+              state: 'open',
+              labels: 'aws-ec2-pricing-capture-failure',
+              per_page: 50,
+            });
+            const existing = openIssues.find(i => i.title === TITLE);
+            if (existing) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo:  context.repo.repo,
+                issue_number: existing.number,
+                body: '### New failure\n\n' + summary,
+              });
+              core.notice('Posted comment on existing issue #' + existing.number);
+            } else {
+              const { data: created } = await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo:  context.repo.repo,
+                title: TITLE,
+                body:  '### Initial failure\n\n' + summary,
+                labels: ['aws-ec2-pricing-capture-failure'],
+              });
+              core.notice('Opened new issue #' + created.number);
+            }

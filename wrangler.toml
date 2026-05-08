@@ -30,3 +30,34 @@ pages_build_output_dir = "./"
 binding = "HISTORY_KV"
 id = "322b0ca12e874e6a8568126e182e59f5"
 preview_id = "322b0ca12e874e6a8568126e182e59f5"
+
+# ─────────────────────────────────────────────────────────────────────
+# AWS EC2 pricing time-series (Cloudflare D1)
+#
+# This block is intentionally COMMENTED OUT until two D1 databases have
+# been created and their real UUIDs pasted in below. Cloudflare Pages
+# silently freezes deploys at an older build when wrangler.toml has
+# placeholder/invalid UUIDs (same hazard the HISTORY_KV comment block
+# documents above) — keeping the block commented avoids that.
+#
+# Setup steps (one-time):
+#   1. npx wrangler d1 create gdash-aws-ec2-pricing            # → prints prod database_id
+#   2. npx wrangler d1 create gdash-aws-ec2-pricing-preview    # → prints preview database_id
+#   3. Paste both UUIDs into the placeholders below.
+#   4. Uncomment the entire `[[d1_databases]]` block.
+#   5. npx wrangler d1 migrations apply gdash-aws-ec2-pricing-preview --local
+#      npx wrangler d1 migrations apply gdash-aws-ec2-pricing-preview --remote
+#      npx wrangler d1 migrations apply gdash-aws-ec2-pricing         --remote
+#   6. git commit + push wrangler.toml so prod + preview deploys both
+#      bind EC2_PRICING_DB on the next Cloudflare Pages build.
+#
+# DO NOT collapse prod + preview onto one database_id (the way HISTORY_KV
+# does above). Forward daily captures and historical backfill writes
+# from a preview deploy MUST NOT corrupt the production trend data.
+#
+# [[d1_databases]]
+# binding             = "EC2_PRICING_DB"
+# database_name       = "gdash-aws-ec2-pricing"
+# database_id         = "<paste prod UUID from step 1>"
+# preview_database_id = "<paste preview UUID from step 2>"
+# migrations_dir      = "migrations"

@@ -1,47 +1,56 @@
 #!/usr/bin/env node
 /**
- * One-shot build script — generates a small JSON snapshot of AWS EC2
- * on-demand pricing from the official AWS Price List bulk files.
+ * Builds an on-demand EC2 pricing snapshot from AWS's official Price
+ * List bulk files. Two output modes (mutually exclusive):
  *
- * Why this script exists:
- *   The previous Pricing Trends tab was an iframe of aws.amazon.com/ec2/
- *   pricing/on-demand/. AWS's pricing widget calls a token-gated data API
- *   that returns 403 outside aws.amazon.com, so the iframe rendered
- *   "Something went wrong / Reload" inside the widget areas. This script
- *   replaces that broken live embed with source-backed pricing tables
- *   built from AWS's officially published Price List CSVs.
+ *   (default) — writes the static module
+ *               functions/api/aws/ec2-pricing/_on-demand-data.js used
+ *               by /api/aws/ec2-pricing/on-demand. Same behavior the
+ *               script has always had.
+ *
+ *   --stdout   — emits a single-line JSON document to stdout shaped
+ *               for /api/aws/ec2-pricing/history/capture. Used by the
+ *               GH Actions daily capture workflow. All log output is
+ *               redirected to stderr so stdout stays clean.
+ *
+ * Optional flags:
+ *
+ *   --version=<TS>
+ *               Fetches a historical snapshot from
+ *               /offers/v1.0/aws/AmazonEC2/<TS>/us-east-1/index.csv
+ *               instead of /current/.... <TS> is a 14-character
+ *               version ID like "20260507192915" pulled from
+ *               https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/AmazonEC2/index.json.
+ *               Used by the historical-backfill workflow.
  *
  * Sources (official, public, no auth):
  *   - https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/AmazonEC2/current/region_index.json
- *     → resolves to https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/AmazonEC2/<ts>/us-east-1/index.csv
+ *   - https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/AmazonEC2/<TS>/us-east-1/index.csv
+ *   - https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/AmazonEC2/index.json (historical version index)
  *
  * Why a build script and not a runtime fetch:
  *   The us-east-1 EC2 CSV is ~295MB. Fetching + stream-parsing per
  *   request would blow the Cloudflare Pages Function CPU budget. The
- *   filtered output is ~80KB; pre-building it once and committing the
- *   result is the cheapest reliable path that still uses official data.
- *
- * Usage:
- *   node scripts/fetch-aws-ec2-pricing.mjs
- *
- *   Re-run this when AWS publishes price changes (typically quarterly).
- *   The output is committed at:
- *     functions/api/aws/ec2-pricing/_on-demand-data.js
- *
- * What this script DOES NOT do:
- *   - capture pricing history (per spec — no time-series),
- *   - run on a cron (per spec — no automation),
- *   - touch HISTORY_KV or any other storage backend.
+ *   filtered output is ~80KB; pre-building once is cheaper.
  */
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { pipeline } from 'node:stream/promises';
-import readline from 'node:readline';
 
-const REGION_INDEX = 'https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/AmazonEC2/current/region_index.json';
+// Mode flags
+const ARGS = process.argv.slice(2);
+const STDOUT_MODE  = ARGS.includes('--stdout');
+const VERSION_FLAG = ARGS.find(a => a.startsWith('--version='));
+const VERSION_ID   = VERSION_FLAG ? VERSION_FLAG.slice('--version='.length) : null;
+
+// In stdout mode, route logs to stderr so they don't pollute the
+// JSON payload that the GH Actions runner pipes downstream.
+const log = STDOUT_MODE ? (...a) => console.error(...a) : (...a) => console.log(...a);
+
+const REGION_INDEX  = 'https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/AmazonEC2/current/region_index.json';
+const VERSION_INDEX = 'https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/AmazonEC2/index.json';
 const TARGET_REGION = 'us-east-1';
-const OUT_FILE = path.resolve('functions/api/aws/ec2-pricing/_on-demand-data.js');
+const OUT_FILE      = path.resolve('functions/api/aws/ec2-pricing/_on-demand-data.js');
 
 // Filters — the canonical "default visible setting" the AWS marketing
 // page shows to a user landing on N. Virginia / Linux without changes:
@@ -75,15 +84,50 @@ const F = {
 const AWS_REFERENCE_COUNT_USEAST_LINUX_SHARED = 1256;
 const AWS_REFERENCE_COUNT_DATE = '2026-05-08';
 
-async function main() {
-  console.log('— Resolving AWS Price List region index…');
+async function resolveCsvUrl() {
+  if (VERSION_ID) {
+    // Historical: derive both source_publication_date and source_url
+    // from versionIndex (cheap; ~30KB) so callers can record metadata
+    // without us inferring it.
+    log('— Resolving historical version index…');
+    const versionIndex = await (await fetch(VERSION_INDEX)).json();
+    const v = versionIndex.versions?.[VERSION_ID];
+    if (!v) throw new Error('Version not found in index: ' + VERSION_ID);
+    const csvUrl = `https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/AmazonEC2/${VERSION_ID}/${TARGET_REGION}/index.csv`;
+    return {
+      csvUrl,
+      versionId: VERSION_ID,
+      effectiveBegin: v.versionEffectiveBeginDate || null,
+      effectiveEnd:   v.versionEffectiveEndDate   || null,
+      // Historical versions don't expose publicationDate at the version-index level.
+      publicationDate: null,
+    };
+  }
+
+  log('— Resolving AWS Price List region index…');
   const idx = await (await fetch(REGION_INDEX)).json();
   const region = idx.regions[TARGET_REGION];
   if (!region) throw new Error('Region not in index: ' + TARGET_REGION);
   const csvUrl = 'https://pricing.us-east-1.amazonaws.com' + region.currentVersionUrl.replace(/\.json$/, '.csv');
-  console.log('  CSV URL:', csvUrl);
+  // The current version's publication date lives one level up in the
+  // current/index.json — fetch the lightweight index to read it.
+  const currentIdxUrl = 'https://pricing.us-east-1.amazonaws.com' + region.currentVersionUrl;
+  let publicationDate = null;
+  let versionId = 'current';
+  try {
+    const head = await fetch(currentIdxUrl, { method: 'HEAD' });
+    // index.json is large; we instead derive versionId from the CSV URL's path segment.
+    const m = csvUrl.match(/AmazonEC2\/(\d{14})\//);
+    if (m) versionId = m[1];
+  } catch (_) { /* ignore */ }
+  return { csvUrl, versionId, publicationDate, effectiveBegin: null, effectiveEnd: null };
+}
 
-  console.log('— Fetching CSV (this is ~295MB and may take 60-180s)…');
+async function main() {
+  const { csvUrl, versionId, publicationDate, effectiveBegin, effectiveEnd } = await resolveCsvUrl();
+  log('  CSV URL:', csvUrl);
+
+  log('— Fetching CSV (this is ~295MB and may take 60-180s)…');
   const t0 = Date.now();
   const resp = await fetch(csvUrl);
   if (!resp.ok) throw new Error('Fetch failed: HTTP ' + resp.status);
@@ -108,7 +152,7 @@ async function main() {
       header = parseCsvLine(line);
       columnIdx = Object.fromEntries(header.map((h, i) => [h, i]));
       lineNo++;
-      console.log('  CSV columns parsed:', header.length);
+      log('  CSV columns parsed:', header.length);
       return;
     }
     const cells = parseCsvLine(line);
@@ -153,8 +197,8 @@ async function main() {
   }
   if (buf.length > 0) processLine(buf);
 
-  console.log('— Streamed', totalLines.toLocaleString(), 'CSV lines in', ((Date.now() - t0) / 1000).toFixed(1), 's');
-  console.log('  Filtered down to', rows.length, 'on-demand Linux Shared rows');
+  log('— Streamed', totalLines.toLocaleString(), 'CSV lines in', ((Date.now() - t0) / 1000).toFixed(1), 's');
+  log('  Filtered down to', rows.length, 'on-demand Linux Shared rows');
 
   if (rows.length === 0) {
     throw new Error('No rows matched the filters — AWS may have changed CSV column names.');
@@ -173,15 +217,53 @@ async function main() {
     }
   }
   const compact = Array.from(byType.values()).sort((a, b) => a.price_per_hour_usd - b.price_per_hour_usd);
-  console.log('  Deduped to', compact.length, 'unique instance types');
+  log('  Deduped to', compact.length, 'unique instance types');
   const drift = compact.length - AWS_REFERENCE_COUNT_USEAST_LINUX_SHARED;
   if (drift !== 0) {
-    console.log('  AWS marketing-widget reference (' + AWS_REFERENCE_COUNT_DATE + '):',
+    log('  AWS marketing-widget reference (' + AWS_REFERENCE_COUNT_DATE + '):',
       AWS_REFERENCE_COUNT_USEAST_LINUX_SHARED,
       '— captured count drifts by', (drift > 0 ? '+' : '') + drift,
       '(this is expected: bulk CSV vs widget data sources are not always identical)');
   } else {
-    console.log('  Captured count matches AWS marketing-widget reference exactly.');
+    log('  Captured count matches AWS marketing-widget reference exactly.');
+  }
+
+  if (STDOUT_MODE) {
+    // Single-line JSON payload shaped for /api/aws/ec2-pricing/history/capture.
+    // Keep field names aligned with the D1 schema in
+    // migrations/0001_aws_ec2_pricing.sql so the capture endpoint can
+    // map directly without renaming.
+    const payload = {
+      source: VERSION_ID ? 'aws_bulk_pricelist_historical' : 'aws_bulk_pricelist_current',
+      source_url: csvUrl,
+      source_publication_date: publicationDate || effectiveBegin || null,
+      source_version_id: versionId,
+      effective_begin_date: effectiveBegin,
+      effective_end_date:   effectiveEnd,
+      region_code: TARGET_REGION,
+      region_label: F.Location,
+      operating_system: F.OperatingSystem,
+      tenancy: F.Tenancy,
+      license_model: F.License_Model,
+      aws_reference_count: AWS_REFERENCE_COUNT_USEAST_LINUX_SHARED,
+      aws_reference_count_date: AWS_REFERENCE_COUNT_DATE,
+      // Renamed for capture-endpoint clarity. memory → memory_label;
+      // processor_architecture stays. bare_metal becomes 0/1 int.
+      rows: compact.map(r => ({
+        instance_type: r.instance_type,
+        price_per_hour_usd: r.price_per_hour_usd,
+        vcpu: r.vcpu,
+        memory_label: r.memory,
+        storage: r.storage,
+        network_performance: r.network_performance,
+        processor_architecture: r.processor_architecture,
+        current_generation: r.current_generation,
+        bare_metal: r.bare_metal ? 1 : 0,
+        product_family: r.bare_metal ? 'Compute Instance (bare metal)' : 'Compute Instance',
+      })),
+    };
+    process.stdout.write(JSON.stringify(payload));
+    return;
   }
 
   const generatedAt = new Date().toISOString();
@@ -206,7 +288,7 @@ export const awsReferenceCountDate = ${JSON.stringify(AWS_REFERENCE_COUNT_DATE)}
 export const onDemandRows = ${JSON.stringify(compact, null, 2)};
 `;
   fs.writeFileSync(OUT_FILE, moduleSrc, 'utf8');
-  console.log('— Wrote', OUT_FILE, '(' + (moduleSrc.length / 1024).toFixed(1) + 'KB)');
+  log('— Wrote', OUT_FILE, '(' + (moduleSrc.length / 1024).toFixed(1) + 'KB)');
 }
 
 /**

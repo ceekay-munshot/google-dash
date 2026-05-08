@@ -1,0 +1,93 @@
+name: AWS EC2 Pricing Historical Backfill (one-shot, staged)
+
+# Manual-only. Iterates AWS's published historical EC2 price-list
+# versions (versionIndexUrl, May 2018+), parses each via
+# scripts/fetch-aws-ec2-pricing.mjs --version=<TS> --stdout, and
+# multi-phase POSTs to /api/aws/ec2-pricing/history/capture.
+#
+# Modes (mutually exclusive):
+#   dry_run — parse only, no DB writes (use to verify CSV reachability)
+#   sample  — 3 versions (oldest, midpoint, newest in window)
+#   recent  — last 12 months
+#   full    — everything from `since` to today
+#
+# Resume strategy: D1-based. The runner queries
+# /api/aws/ec2-pricing/history/status-by-date before each version and
+# skips it if a successful capture already exists. No GitHub cache —
+# the source of truth is D1 itself.
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 'preview | prod (default: preview — backfill prod only after preview is green)'
+        required: true
+        default: 'preview'
+      mode:
+        description: 'dry_run | sample | recent | full'
+        required: true
+        default: 'dry_run'
+      since:
+        description: 'YYYY-MM-DD lower bound (default: 2018-05-01)'
+        required: false
+        default: '2018-05-01'
+      until:
+        description: 'YYYY-MM-DD upper bound (default: today)'
+        required: false
+        default: ''
+
+concurrency:
+  group: aws-ec2-pricing-historical-backfill-${{ inputs.target }}
+  cancel-in-progress: false
+
+jobs:
+  backfill:
+    name: Backfill EC2 pricing (${{ inputs.target }} / ${{ inputs.mode }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    permissions:
+      contents: read
+      issues: write
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+
+      - name: Resolve dashboard URL by target
+        id: target
+        env:
+          TARGET:      ${{ inputs.target }}
+          PROD_URL:    ${{ secrets.HISTORY_CAPTURE_URL_PROD }}
+          PREVIEW_URL: ${{ secrets.HISTORY_CAPTURE_URL_PREVIEW }}
+          LEGACY_URL:  ${{ secrets.HISTORY_CAPTURE_URL }}
+        run: |
+          if [ "$TARGET" = "prod" ]; then
+            URL="${PROD_URL:-$LEGACY_URL}"
+          else
+            URL="$PREVIEW_URL"
+          fi
+          if [ -z "$URL" ]; then
+            echo "::error::No dashboard URL configured for target=$TARGET"
+            exit 1
+          fi
+          echo "url=$URL" >> "$GITHUB_OUTPUT"
+
+      - name: Validate auth secret
+        env:
+          CAPTURE_SECRET: ${{ secrets.HISTORY_CAPTURE_SECRET }}
+        run: |
+          if [ -z "$CAPTURE_SECRET" ]; then
+            echo "::error::HISTORY_CAPTURE_SECRET secret is not set"
+            exit 1
+          fi
+
+      - name: Build version list per mode
+        run: node scripts/aws-ec2-historical-plan.mjs --mode="${{ inputs.mode }}" --since="${{ inputs.since }}" --until="${{ inputs.until }}"
+
+      - name: Run backfill (D1-skip resume)
+        env:
+          MODE:          ${{ inputs.mode }}
+          DASHBOARD_URL: ${{ steps.target.outputs.url }}
+          SECRET:        ${{ secrets.HISTORY_CAPTURE_SECRET }}
+        run: node scripts/aws-ec2-historical-run.mjs

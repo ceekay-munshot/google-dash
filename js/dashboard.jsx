@@ -5017,57 +5017,55 @@ function AwsCapacityProxySection(){
        us-east-1 bulk CSV (~480KB) at /api/aws/ec2-pricing/data-transfer
        with edge cache.
    No fake values, no estimated rows, no broken widget reload buttons. */
+// Mirror of functions/api/aws/ec2-pricing/_family.js — keep in sync.
+// Single source of truth for instance-family classification on the
+// frontend. Used by Graph Trends to color-code lines and to label
+// family rows in the Family Summary table.
+const EC2_FAMILY_RULES=[
+  {test:/\.metal/i,                  family_class:'baremetal'},
+  {test:/^(p|g|inf|dl|trn|f|vt)\d/i, family_class:'gpu'      },
+  {test:/^(r|x|z)\d/i,               family_class:'memory'   },
+  {test:/^(d|h|i|im|is)\d/i,         family_class:'storage'  },
+  {test:/^(c|hpc)\d/i,               family_class:'compute'  },
+  {test:/^(t|m|a|mac)\d/i,           family_class:'general'  },
+];
+const FAMILY_CLASS_LABEL={
+  general:"General Purpose", compute:"Compute Optimized", memory:"Memory Optimized",
+  storage:"Storage Optimized", gpu:"GPU / Accelerated", baremetal:"Bare Metal", other:"Other",
+};
+const FAMILY_CLASS_COLOR={
+  general:"#0e7490", compute:"#0891b2", memory:"#7c3aed",
+  storage:"#059669", gpu:"#dc2626", baremetal:"#1f2937", other:"#6b7280",
+};
+const FAMILY_CLASS_ORDER=["general","compute","memory","storage","gpu","baremetal","other"];
+
+/* AWS Pricing Trends — D1-backed time-series with four sub-tabs.
+   • Latest Table  — most recent captured snapshot (D1 first, falls back
+                     to the static /on-demand snapshot when D1 is empty).
+   • Price Change  — WTD / MTD / QTD KPI tiles + biggest movers tables.
+   • Graph Trends  — line charts per instance-family with bucket toggle.
+   • Methodology   — sources, caveats, and the math behind the trends.
+
+   No fake values, no estimated rows, no fabricated baselines: every
+   sub-tab gates on /api/aws/ec2-pricing/history/status fields and
+   shows an honest empty-state message when there isn't enough history
+   yet to populate the view. */
 function AwsPricingTrendsSection(){
-  // Two independent fetches so a transient hiccup on one endpoint
-  // doesn't blank both tables.
-  const[od,setOd]=useState({phase:"loading",data:null,error:null});
-  const[dt,setDt]=useState({phase:"loading",data:null,error:null});
-  const[query,setQuery]=useState("");
-  const[odLimit,setOdLimit]=useState(50);
+  const[pricingSubtab,setPricingSubtab]=useState("latest");
+  const[status,setStatus]=useState({phase:"loading",data:null,error:null});
 
   useEffect(()=>{
     let cancelled=false;
     const v=Math.floor(Date.now()/3e5);
-    const params=new URLSearchParams();
-    if(query) params.set("q",query);
-    params.set("limit", String(odLimit));
-    params.set("v", String(v));
-    fetch("/api/aws/ec2-pricing/on-demand?"+params)
+    fetch("/api/aws/ec2-pricing/history/status?v="+v)
       .then(r=>r.ok?r.json():Promise.reject(new Error("HTTP "+r.status)))
       .then(d=>{
         if(cancelled) return;
-        if(!d||d.success===false){setOd({phase:"error",data:null,error:d?.error||"Empty response"});return;}
-        setOd({phase:"ready",data:d,error:null});
+        setStatus({phase:"ready",data:d,error:null});
       })
-      .catch(e=>{if(!cancelled)setOd({phase:"error",data:null,error:e.message||"Fetch failed"});});
-    return()=>{cancelled=true;};
-  },[query,odLimit]);
-
-  useEffect(()=>{
-    let cancelled=false;
-    const v=Math.floor(Date.now()/3e5);
-    fetch("/api/aws/ec2-pricing/data-transfer?v="+v)
-      .then(r=>r.ok?r.json():Promise.reject(new Error("HTTP "+r.status)))
-      .then(d=>{
-        if(cancelled) return;
-        if(!d||d.success===false){setDt({phase:"error",data:null,error:d?.error||d?.detail||"Empty response"});return;}
-        setDt({phase:"ready",data:d,error:null});
-      })
-      .catch(e=>{if(!cancelled)setDt({phase:"error",data:null,error:e.message||"Fetch failed"});});
+      .catch(e=>{if(!cancelled)setStatus({phase:"error",data:null,error:e.message||"Fetch failed"});});
     return()=>{cancelled=true;};
   },[]);
-
-  // Format helpers — investor-grade decimals: hourly rates can be as
-  // small as $0.0042 so 4 decimals is the right resolution.
-  const fmtUsdHr4=v=>(typeof v==="number"&&isFinite(v))
-    ? "$" + v.toFixed(4)
-    : "—";
-  const fmtPerGB=v=>{
-    if(typeof v!=="number"||!isFinite(v)) return "—";
-    if(v===0) return "$0.00";
-    if(v<0.01) return "$" + v.toFixed(4).replace(/\.?0+$/,"");
-    return "$" + v.toFixed(2);
-  };
 
   return(
     <div style={{marginTop:18}}>
@@ -5081,7 +5079,7 @@ function AwsPricingTrendsSection(){
           <div style={{minWidth:0,flex:"1 1 320px"}}>
             <div style={{fontSize:18,fontWeight:700,color:"#111827",lineHeight:1.3}}>AWS EC2 On-Demand Pricing</div>
             <div style={{fontSize:12,color:"#6b7280",marginTop:4,lineHeight:1.5,maxWidth:760}}>
-              Official AWS-published EC2 on-demand and data-transfer pricing for US East (N. Virginia).
+              Official AWS-published EC2 on-demand pricing for US East (N. Virginia), captured daily during US East-coast business hours from the AWS Price List Bulk API.
             </div>
           </div>
           <div style={{display:"flex",alignItems:"center",gap:6,flexShrink:0}}>
@@ -5091,44 +5089,120 @@ function AwsPricingTrendsSection(){
         </div>
       </div>
 
-      {/* Count-drift banner — bulk Price List CSV (our source) and the
-          AWS marketing-page widget can disagree on instance count. We
-          surface the delta rather than silently match either number. */}
-      {od.phase==="ready" && od.data?.aws_reference_count && od.data?.matched_rows!==od.data.aws_reference_count && !query && (
-        (()=>{
-          const delta = od.data.matched_rows - od.data.aws_reference_count;
-          const isShort = delta < 0;
-          return (
-            <div style={{
-              marginBottom:10,
-              padding:"9px 12px",
-              borderRadius:8,
-              border:"0.5px solid " + (isShort?"#fecaca":"#fde68a"),
-              background:isShort?"#fef2f2":"#fffbeb",
-              color:isShort?"#991b1b":"#92400e",
-              fontSize:11.5,
-              lineHeight:1.5,
-            }}>
-              <span style={{fontWeight:600}}>Row-count drift:</span>
-              {" "}AWS page count (widget): {od.data.aws_reference_count.toLocaleString()};
-              {" "}captured count: {od.data.matched_rows.toLocaleString()};
-              {" "}{isShort?"missing":"extra"} {Math.abs(delta).toLocaleString()} {Math.abs(delta)===1?"row":"rows"}.
-              {" "}<span style={{color:isShort?"#7f1d1d":"#78350f",fontWeight:400}}>
-                The bulk Price List CSV (our source) and the marketing-page widget are different data feeds and don't always match exactly.
-              </span>
-            </div>
+      {/* Inner sub-tab pill bar — replicates the AWS section's outer
+          Capacity / Pricing pattern at js/dashboard.jsx:4740 so the
+          look is consistent across nesting levels. */}
+      <div style={{display:"flex",gap:4,marginBottom:14,borderBottom:"0.5px solid #e5e7eb",flexWrap:"wrap"}}>
+        {[
+          {id:"latest",      label:"Latest Table", sub:"most recent captured snapshot"},
+          {id:"changes",     label:"Price Change", sub:"WTD · MTD · QTD movers"},
+          {id:"graphs",      label:"Graph Trends", sub:"family + instance time series"},
+          {id:"methodology", label:"Methodology",  sub:"sources, caveats, math"},
+        ].map(t=>{
+          const active=pricingSubtab===t.id;
+          return(
+            <button key={t.id} onClick={()=>setPricingSubtab(t.id)}
+              style={{fontSize:12,padding:"8px 16px",border:"none",borderBottom:active?"2px solid #111827":"2px solid transparent",marginBottom:-1,background:"transparent",color:active?"#111827":"#6b7280",cursor:"pointer",fontFamily:"inherit",fontWeight:active?600:500,display:"flex",flexDirection:"column",alignItems:"flex-start",gap:1}}>
+              <span>{t.label}</span>
+              <span style={{fontSize:9,fontWeight:400,color:active?"#6b7280":"#9ca3af",textTransform:"lowercase"}}>{t.sub}</span>
+            </button>
           );
-        })()
-      )}
+        })}
+      </div>
 
-      {/* ── Table 1: EC2 On-Demand Instance Pricing ── */}
-      <PricingTableCard
-        title="EC2 On-Demand Instance Pricing"
-        subtitle={od.phase==="ready"
-          ? "Linux · Shared tenancy · No license required · " + (od.data?.matched_rows||0).toLocaleString() + (od.data?.matched_rows===1?" instance type":" instance types") + (od.data?.generated_at?(" · snapshot " + od.data.generated_at.slice(0,10)):"")
-          : "Linux · Shared tenancy · No license required"}>
-        {/* Search bar — filters server-side via ?q=. Lightweight pagination
-            via Show more so a 1k-row table doesn't bloat first paint. */}
+      {pricingSubtab==="latest"     &&<EC2LatestTableSubtab     status={status}/>}
+      {pricingSubtab==="changes"    &&<EC2PriceChangeSubtab     status={status}/>}
+      {pricingSubtab==="graphs"     &&<EC2GraphTrendsSubtab     status={status}/>}
+      {pricingSubtab==="methodology"&&<EC2MethodologySubtab     status={status}/>}
+    </div>
+  );
+}
+
+// Investor-grade decimals: hourly rates can be as small as $0.0042 so
+// 4 decimals is the right resolution.
+const fmtUsdHr4=v=>(typeof v==="number"&&isFinite(v))?"$"+v.toFixed(4):"—";
+const fmtPctChange=v=>{
+  if(typeof v!=="number"||!isFinite(v)) return "—";
+  if(v===0) return "0.00%";
+  const sign=v>0?"+":"−";
+  return sign+(Math.abs(v)*100).toFixed(2)+"%";
+};
+const changeColor=v=>{
+  if(typeof v!=="number"||!isFinite(v)||v===0) return "#6b7280";
+  return v>0?"#dc2626":"#059669"; // price increase = red, decrease = green
+};
+
+function HistoryEmptyState({status, message, hint}){
+  return(
+    <div style={{padding:"18px 20px",border:"0.5px dashed #d1d5db",borderRadius:10,background:"#fafafa",color:"#6b7280",fontSize:12,lineHeight:1.6}}>
+      <div style={{fontWeight:500,color:"#374151"}}>{message}</div>
+      {hint&&<div style={{marginTop:4,color:"#6b7280"}}>{hint}</div>}
+      {status?.data&&(
+        <div style={{marginTop:8,fontSize:10.5,color:"#9ca3af"}}>
+          {status.data.first_capture_date_et&&<span>First capture: <code>{status.data.first_capture_date_et}</code></span>}
+          {status.data.first_capture_date_et&&" · "}
+          <span>Daily captures: <code>{status.data.daily_capture_runs||0}</code></span>
+          {status.data.historical_capture_runs>0&&<span> · Historical (monthly): <code>{status.data.historical_capture_runs}</code></span>}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ── Sub-tab 1: Latest Table ────────────────────────────────────── */
+
+function EC2LatestTableSubtab({status}){
+  const[od,setOd]=useState({phase:"loading",data:null,error:null,from_d1:false});
+  const[query,setQuery]=useState("");
+  const[odLimit,setOdLimit]=useState(50);
+
+  useEffect(()=>{
+    if(status.phase!=="ready") return;
+    let cancelled=false;
+    const v=Math.floor(Date.now()/3e5);
+    const params=new URLSearchParams();
+    if(query) params.set("q",query);
+    params.set("limit", String(odLimit));
+    params.set("v", String(v));
+
+    // Prefer D1-backed /history/latest; fall back to static /on-demand
+    // when D1 hasn't been seeded yet. Same response shape (rows array
+    // with the same fields) so the table render is identical.
+    const path = status.data?.is_seeded
+      ? "/api/aws/ec2-pricing/history/latest?"
+      : "/api/aws/ec2-pricing/on-demand?";
+    fetch(path+params)
+      .then(r=>r.ok?r.json():Promise.reject(new Error("HTTP "+r.status)))
+      .then(d=>{
+        if(cancelled) return;
+        if(!d||d.success===false){setOd({phase:"error",data:null,error:d?.error||"Empty response",from_d1:status.data?.is_seeded});return;}
+        setOd({phase:"ready",data:d,error:null,from_d1:status.data?.is_seeded});
+      })
+      .catch(e=>{if(!cancelled)setOd({phase:"error",data:null,error:e.message||"Fetch failed",from_d1:status.data?.is_seeded});});
+    return()=>{cancelled=true;};
+  },[status.phase,status.data?.is_seeded,query,odLimit]);
+
+  // Subtitle: capture date/time + row count + source.
+  let subtitle="Linux · Shared tenancy · No license required";
+  if(od.phase==="ready"&&od.data){
+    const parts=["Linux · Shared tenancy · No license required"];
+    parts.push((od.data.matched_rows||od.data.total_rows||0).toLocaleString()+" instance types");
+    if(od.data.captured_date_et){
+      parts.push("captured "+od.data.captured_date_et+(od.data.captured_time_et?" "+od.data.captured_time_et+" ET":"")+(od.data.source==='aws_bulk_pricelist_historical'?" · historical":""));
+    }else if(od.data.generated_at){
+      parts.push("static snapshot "+od.data.generated_at.slice(0,10));
+    }
+    subtitle=parts.join(" · ");
+  }
+
+  return(
+    <>
+      {!od.from_d1&&od.phase==="ready"&&(
+        <div style={{marginBottom:10,padding:"9px 12px",borderRadius:8,border:"0.5px solid #e5e7eb",background:"#fafafa",color:"#6b7280",fontSize:11.5,lineHeight:1.5}}>
+          <span style={{fontWeight:600,color:"#374151"}}>Static fallback in use.</span> D1 history is not yet seeded; showing the committed snapshot. Once the daily capture runs, this table will read from the live D1 store.
+        </div>
+      )}
+      <PricingTableCard title="EC2 On-Demand Instance Pricing" subtitle={subtitle}>
         <div style={{padding:"8px 12px",borderBottom:"1px solid #f3f4f6",display:"flex",gap:8,flexWrap:"wrap",alignItems:"center"}}>
           <input
             type="text"
@@ -5140,7 +5214,7 @@ function AwsPricingTrendsSection(){
           {query&&<button onClick={()=>{setQuery("");setOdLimit(50);}} style={{fontSize:11,padding:"5px 10px",border:"0.5px solid #d1d5db",borderRadius:6,background:"#fff",color:"#374151",cursor:"pointer",fontFamily:"inherit"}}>Clear</button>}
           {od.phase==="ready"&&od.data&&(
             <span style={{fontSize:10.5,color:"#9ca3af",marginLeft:"auto"}}>
-              Showing {Math.min(od.data.rows.length, od.data.matched_rows).toLocaleString()} of {od.data.matched_rows.toLocaleString()}
+              Showing {Math.min((od.data.rows||[]).length, od.data.matched_rows||0).toLocaleString()} of {(od.data.matched_rows||0).toLocaleString()}
             </span>
           )}
         </div>
@@ -5163,14 +5237,14 @@ function AwsPricingTrendsSection(){
                   </tr>
                 </thead>
                 <tbody>
-                  {od.data.rows.length===0?(
+                  {(od.data.rows||[]).length===0?(
                     <tr><td colSpan={6} style={{padding:"14px 12px",fontSize:11,color:"#9ca3af",textAlign:"center"}}>No instance types match this filter.</td></tr>
                   ):od.data.rows.map(r=>(
                     <tr key={r.instance_type}>
                       <td style={{padding:"8px 12px",borderBottom:"1px solid #f9fafb",fontFamily:"ui-monospace,SFMono-Regular,Menlo,monospace",fontWeight:600,color:"#111827",whiteSpace:"nowrap"}}>{r.instance_type}</td>
                       <td style={{padding:"8px 12px",borderBottom:"1px solid #f9fafb",fontFamily:"ui-monospace,SFMono-Regular,Menlo,monospace",color:"#111827",textAlign:"right",whiteSpace:"nowrap"}}>{fmtUsdHr4(r.price_per_hour_usd)}</td>
                       <td style={{padding:"8px 12px",borderBottom:"1px solid #f9fafb",fontFamily:"ui-monospace,SFMono-Regular,Menlo,monospace",color:"#111827",textAlign:"right",whiteSpace:"nowrap"}}>{r.vcpu??"—"}</td>
-                      <td style={{padding:"8px 12px",borderBottom:"1px solid #f9fafb",color:"#374151",whiteSpace:"nowrap"}}>{r.memory||"—"}</td>
+                      <td style={{padding:"8px 12px",borderBottom:"1px solid #f9fafb",color:"#374151",whiteSpace:"nowrap"}}>{r.memory_label||r.memory||"—"}</td>
                       <td style={{padding:"8px 12px",borderBottom:"1px solid #f9fafb",color:"#374151",whiteSpace:"nowrap"}}>{r.storage||"—"}</td>
                       <td style={{padding:"8px 12px",borderBottom:"1px solid #f9fafb",color:"#374151",whiteSpace:"nowrap"}}>{r.network_performance||"—"}</td>
                     </tr>
@@ -5178,58 +5252,361 @@ function AwsPricingTrendsSection(){
                 </tbody>
               </table>
             </div>
-            {od.data.matched_rows > od.data.rows.length && (
+            {od.data.matched_rows>od.data.rows.length&&(
               <div style={{padding:"10px 12px",borderTop:"1px solid #f3f4f6",textAlign:"center"}}>
                 <button onClick={()=>setOdLimit(l=>l+100)}
                   style={{fontSize:11,padding:"6px 14px",border:"0.5px solid #d1d5db",borderRadius:6,background:"#fff",color:"#374151",cursor:"pointer",fontFamily:"inherit"}}>
-                  Show more ({(od.data.matched_rows - od.data.rows.length).toLocaleString()} remaining)
+                  Show more ({(od.data.matched_rows-od.data.rows.length).toLocaleString()} remaining)
                 </button>
               </div>
             )}
           </>
         )}
       </PricingTableCard>
+    </>
+  );
+}
 
-      {/* ── Table 2: EC2 Data Transfer Pricing ── */}
-      <PricingTableCard
-        title="EC2 Data Transfer Pricing"
-        subtitle="Per-GB rates for traffic in / out of EC2 in US East (N. Virginia)"
-        marginTop={14}>
-        {dt.phase==="loading"&&<div style={{padding:"14px"}}><Shimmer rows={6}/></div>}
-        {dt.phase==="error"&&(
-          <div style={{padding:"14px",fontSize:12,color:"#991b1b"}}>
-            AWS data-transfer pricing temporarily unavailable. <span style={{color:"#6b7280"}}>{dt.error}</span>
-          </div>
-        )}
-        {dt.phase==="ready"&&dt.data?.groups?.map((g,gi)=>(
-          <div key={gi} style={{borderBottom: gi < dt.data.groups.length - 1 ? "1px solid #f3f4f6" : "none"}}>
-            <div style={{padding:"10px 12px 6px"}}>
-              <div style={{fontSize:12,fontWeight:600,color:"#111827"}}>{g.title}</div>
-              {g.note&&<div style={{fontSize:10.5,color:"#9ca3af",marginTop:3,lineHeight:1.45}}>{g.note}</div>}
-            </div>
-            <div style={{overflowX:"auto"}}>
-              <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
-                <tbody>
-                  {g.rows.length===0?(
-                    <tr><td colSpan={2} style={{padding:"10px 12px",fontSize:11,color:"#9ca3af",textAlign:"center"}}>No published rows.</td></tr>
-                  ):g.rows.map((r,ri)=>(
-                    <tr key={ri}>
-                      <td style={{padding:"6px 12px",borderTop:"1px solid #f9fafb",color:"#374151",whiteSpace:"nowrap"}}>{r.label}</td>
-                      <td style={{padding:"6px 12px",borderTop:"1px solid #f9fafb",fontFamily:"ui-monospace,SFMono-Regular,Menlo,monospace",color:r.price===0?"#6b7280":"#111827",textAlign:"right",whiteSpace:"nowrap"}}>{fmtPerGB(r.price)} <span style={{color:"#9ca3af"}}>per GB</span></td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        ))}
-      </PricingTableCard>
+/* ── Sub-tab 2: Price Change ─────────────────────────────────────── */
 
-      {/* Source note */}
-      <div style={{fontSize:10,color:"#9ca3af",marginTop:8,lineHeight:1.55,maxWidth:760}}>
-        Source: AWS EC2 On-Demand Pricing / AWS public pricing files. Values are shown as published by AWS in the official Price List CSV (us-east-1, Linux, Shared tenancy). Instance pricing is a snapshot rebuilt manually when AWS publishes price changes; data-transfer pricing is fetched live per request and edge-cached.
+function EC2PriceChangeSubtab({status}){
+  const[wtd,setWtd]=useState({phase:"loading",data:null});
+  const[mtd,setMtd]=useState({phase:"loading",data:null});
+  const[qtd,setQtd]=useState({phase:"loading",data:null});
+
+  useEffect(()=>{
+    if(status.phase!=="ready"||!status.data?.is_seeded_daily) return;
+    let cancelled=false;
+    const v=Math.floor(Date.now()/3e5);
+    const load=(p,setter)=>fetch("/api/aws/ec2-pricing/history/changes?period="+p+"&v="+v)
+      .then(r=>r.ok?r.json():Promise.reject(new Error("HTTP "+r.status)))
+      .then(d=>{if(!cancelled)setter({phase:"ready",data:d});})
+      .catch(e=>{if(!cancelled)setter({phase:"error",data:{hint:e.message}});});
+    load("wtd",setWtd); load("mtd",setMtd); load("qtd",setQtd);
+    return()=>{cancelled=true;};
+  },[status.phase,status.data?.is_seeded_daily]);
+
+  if(status.phase!=="ready") return <div style={{padding:"14px"}}><Shimmer rows={6}/></div>;
+  if(!status.data?.is_seeded_daily){
+    return <HistoryEmptyState
+      status={status}
+      message="Pricing history is being collected from today."
+      hint="WTD / MTD / QTD will populate as daily captures accumulate. The first daily capture lands during US East business hours (Mon-Fri 10:00–12:00 ET)."/>;
+  }
+
+  const periods=[
+    {id:"wtd",label:"WTD",state:wtd},
+    {id:"mtd",label:"MTD",state:mtd},
+    {id:"qtd",label:"QTD",state:qtd},
+  ];
+  const latest = wtd.data?.current_capture_date || mtd.data?.current_capture_date || qtd.data?.current_capture_date || status.data.latest_daily_capture_date_et;
+
+  return(
+    <div>
+      {/* KPI tiles row */}
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit, minmax(160px, 1fr))",gap:8,marginBottom:14}}>
+        <KBox label="Latest Captured Rows" value={(status.data.latest_run?.row_count||0).toLocaleString()} sub={"as of "+latest} bg="#f9fafb" fg="#374151"/>
+        {periods.map(p=>{
+          const d=p.state.data;
+          const median=d?.median_change_pct;
+          return <KBox key={p.id} label={p.label+" Median Change"}
+            value={p.state.phase==="ready"?fmtPctChange(median):"…"}
+            sub={d?.baseline_capture_date?("vs "+d.baseline_capture_date):(d?.hint?"history collecting":"")}
+            bg="#f9fafb" fg={changeColor(median)}/>;
+        })}
+        <KBox label="Price Cuts (WTD)" value={wtd.data?.instances_down??"…"}
+          sub={wtd.data?(wtd.data.total_instances_compared+" compared"):""}
+          bg="#ecfdf5" fg="#059669"/>
+        <KBox label="Price Increases (WTD)" value={wtd.data?.instances_up??"…"}
+          sub={wtd.data?(wtd.data.total_instances_compared+" compared"):""}
+          bg="#fef2f2" fg="#dc2626"/>
       </div>
+
+      {/* Per-period detail tables */}
+      {periods.map(p=>(
+        <PricingTableCard
+          key={p.id}
+          title={p.label+" Movers"}
+          subtitle={p.state.data?.baseline_capture_date
+            ? `Baseline ${p.state.data.baseline_capture_date} → Latest ${p.state.data.current_capture_date} · ${p.state.data.total_instances_compared} matched · ${p.state.data.instances_up} up · ${p.state.data.instances_down} down`
+            : (p.state.data?.hint||"history collecting")}
+          marginTop={p.id==="wtd"?0:14}>
+          {p.state.phase==="loading"&&<div style={{padding:"14px"}}><Shimmer rows={4}/></div>}
+          {p.state.data&&!p.state.data.baseline_capture_date&&(
+            <div style={{padding:"14px",fontSize:12,color:"#6b7280"}}>{p.state.data.hint||"No baseline available yet."}</div>
+          )}
+          {p.state.data?.baseline_capture_date&&(
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:0}}>
+              <MoversTable title="Biggest Increases" rows={p.state.data.biggest_increases} positive/>
+              <MoversTable title="Biggest Decreases" rows={p.state.data.biggest_decreases}/>
+            </div>
+          )}
+          {p.state.data?.new_instances?.length>0&&(
+            <div style={{padding:"10px 12px",borderTop:"1px solid #f3f4f6"}}>
+              <div style={{fontSize:11,fontWeight:600,color:"#111827",marginBottom:4}}>New instance types ({p.state.data.new_instances.length})</div>
+              <div style={{fontSize:11,color:"#6b7280",lineHeight:1.7}}>
+                {p.state.data.new_instances.slice(0,40).map(r=>r.instance_type).join(", ")}{p.state.data.new_instances.length>40?", …":""}
+              </div>
+            </div>
+          )}
+          {p.state.data?.removed_instances?.length>0&&(
+            <div style={{padding:"10px 12px",borderTop:"1px solid #f3f4f6"}}>
+              <div style={{fontSize:11,fontWeight:600,color:"#111827",marginBottom:4}}>Removed instance types ({p.state.data.removed_instances.length})</div>
+              <div style={{fontSize:11,color:"#6b7280",lineHeight:1.7}}>
+                {p.state.data.removed_instances.slice(0,40).map(r=>r.instance_type).join(", ")}{p.state.data.removed_instances.length>40?", …":""}
+              </div>
+            </div>
+          )}
+          {p.state.data?.family_summary?.length>0&&(
+            <div style={{borderTop:"1px solid #f3f4f6"}}>
+              <div style={{padding:"10px 12px 4px",fontSize:11,fontWeight:600,color:"#111827"}}>Family summary</div>
+              <div style={{overflowX:"auto"}}>
+                <table style={{width:"100%",borderCollapse:"collapse",fontSize:11.5}}>
+                  <thead>
+                    <tr>
+                      {["Family","Instances","Median Δ","Avg Δ","Up","Down"].map((h,i)=>(
+                        <th key={h} style={{...S.lbl,textAlign:i===0?"left":"right",padding:"6px 12px",borderBottom:"1px solid #f3f4f6",background:"#fafafa",whiteSpace:"nowrap"}}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {[...p.state.data.family_summary].sort((a,b)=>FAMILY_CLASS_ORDER.indexOf(a.family_class)-FAMILY_CLASS_ORDER.indexOf(b.family_class)).map(f=>(
+                      <tr key={f.family_class}>
+                        <td style={{padding:"6px 12px",borderBottom:"1px solid #f9fafb",color:"#111827",whiteSpace:"nowrap"}}>
+                          <span style={{display:"inline-block",width:8,height:8,borderRadius:"50%",background:FAMILY_CLASS_COLOR[f.family_class]||"#6b7280",marginRight:6,verticalAlign:"middle"}}/>
+                          {FAMILY_CLASS_LABEL[f.family_class]||f.family_class}
+                        </td>
+                        <td style={{padding:"6px 12px",borderBottom:"1px solid #f9fafb",fontFamily:"ui-monospace,Menlo,monospace",color:"#111827",textAlign:"right",whiteSpace:"nowrap"}}>{f.instance_count}</td>
+                        <td style={{padding:"6px 12px",borderBottom:"1px solid #f9fafb",fontFamily:"ui-monospace,Menlo,monospace",color:changeColor(f.median_change_pct),textAlign:"right",whiteSpace:"nowrap"}}>{fmtPctChange(f.median_change_pct)}</td>
+                        <td style={{padding:"6px 12px",borderBottom:"1px solid #f9fafb",fontFamily:"ui-monospace,Menlo,monospace",color:changeColor(f.average_change_pct),textAlign:"right",whiteSpace:"nowrap"}}>{fmtPctChange(f.average_change_pct)}</td>
+                        <td style={{padding:"6px 12px",borderBottom:"1px solid #f9fafb",fontFamily:"ui-monospace,Menlo,monospace",color:"#dc2626",textAlign:"right",whiteSpace:"nowrap"}}>{f.n_increased}</td>
+                        <td style={{padding:"6px 12px",borderBottom:"1px solid #f9fafb",fontFamily:"ui-monospace,Menlo,monospace",color:"#059669",textAlign:"right",whiteSpace:"nowrap"}}>{f.n_decreased}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </PricingTableCard>
+      ))}
     </div>
+  );
+}
+
+function MoversTable({title,rows,positive}){
+  return(
+    <div style={{borderRight:positive?"1px solid #f3f4f6":"none"}}>
+      <div style={{padding:"10px 12px 4px",fontSize:11,fontWeight:600,color:"#111827"}}>{title}</div>
+      <table style={{width:"100%",borderCollapse:"collapse",fontSize:11.5}}>
+        <tbody>
+          {(rows||[]).length===0?(
+            <tr><td colSpan={4} style={{padding:"10px 12px",color:"#9ca3af",fontSize:11,textAlign:"center"}}>None.</td></tr>
+          ):rows.map(r=>(
+            <tr key={r.instance_type}>
+              <td style={{padding:"5px 12px",borderTop:"1px solid #f9fafb",fontFamily:"ui-monospace,Menlo,monospace",fontWeight:600,color:"#111827",whiteSpace:"nowrap"}}>{r.instance_type}</td>
+              <td style={{padding:"5px 12px",borderTop:"1px solid #f9fafb",fontFamily:"ui-monospace,Menlo,monospace",color:"#6b7280",textAlign:"right",whiteSpace:"nowrap"}}>{fmtUsdHr4(r.baseline_price)}</td>
+              <td style={{padding:"5px 12px",borderTop:"1px solid #f9fafb",fontFamily:"ui-monospace,Menlo,monospace",color:"#111827",textAlign:"right",whiteSpace:"nowrap"}}>{fmtUsdHr4(r.latest_price)}</td>
+              <td style={{padding:"5px 12px",borderTop:"1px solid #f9fafb",fontFamily:"ui-monospace,Menlo,monospace",color:positive?"#dc2626":"#059669",textAlign:"right",whiteSpace:"nowrap",fontWeight:600}}>{fmtPctChange(r.pct_change)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+/* ── Sub-tab 3: Graph Trends ─────────────────────────────────────── */
+
+function EC2GraphTrendsSubtab({status}){
+  const[bucket,setBucket]=useState("monthly"); // overridden by status once loaded
+  const[series,setSeries]=useState({phase:"loading",data:null});
+
+  // Default bucket: monthly if any historical capture exists; otherwise daily.
+  useEffect(()=>{
+    if(status.phase==="ready"&&status.data){
+      const def = (status.data.historical_capture_runs||0)>=1 ? "monthly" : "daily";
+      setBucket(def);
+    }
+  },[status.phase,status.data]);
+
+  useEffect(()=>{
+    if(status.phase!=="ready"||!status.data?.is_seeded) return;
+    let cancelled=false;
+    const v=Math.floor(Date.now()/3e5);
+    setSeries({phase:"loading",data:null});
+    fetch("/api/aws/ec2-pricing/history/series?bucket="+bucket+"&group=family&v="+v)
+      .then(r=>r.ok?r.json():Promise.reject(new Error("HTTP "+r.status)))
+      .then(d=>{if(!cancelled)setSeries({phase:"ready",data:d});})
+      .catch(e=>{if(!cancelled)setSeries({phase:"error",data:{hint:e.message}});});
+    return()=>{cancelled=true;};
+  },[status.phase,status.data?.is_seeded,bucket]);
+
+  if(status.phase!=="ready") return <div style={{padding:"14px"}}><Shimmer rows={6}/></div>;
+  if(!status.data?.is_seeded){
+    return <HistoryEmptyState
+      status={status}
+      message="Pricing history is being collected from today."
+      hint="Time-series charts will populate after additional captures."/>;
+  }
+
+  const points = series.data?.points || [];
+  const enoughForBucket =
+    (bucket==="daily"  && (status.data.daily_capture_runs||0)>=2) ||
+    (bucket==="weekly" && (status.data.daily_capture_runs||0)>=2) ||
+    ((bucket==="monthly"||bucket==="quarterly") && (status.data.total_capture_runs||0)>=2);
+
+  // Build per-family series for charting (Recharts expects an array of
+  // {bucket_key, <family>: avg_price, ...}).
+  const byBucket = new Map();
+  for (const p of points) {
+    const k = p.bucket_key;
+    const row = byBucket.get(k) || { bucket_key: k, rep_date: p.rep_date };
+    row[p.family_class] = p.average_price;
+    row[p.family_class+"_count"] = p.instance_count;
+    row[p.family_class+"_source"] = p.source;
+    byBucket.set(k, row);
+  }
+  const chartData = [...byBucket.values()].sort((a,b)=>a.bucket_key.localeCompare(b.bucket_key));
+  const familiesPresent = FAMILY_CLASS_ORDER.filter(fc => points.some(p => p.family_class === fc));
+
+  const charts = [
+    { id:"all",       label:"All EC2",            families: familiesPresent },
+    { id:"general",   label:"General Purpose",    families:["general"]    },
+    { id:"compute",   label:"Compute Optimized",  families:["compute"]    },
+    { id:"memory",    label:"Memory Optimized",   families:["memory"]     },
+    { id:"storage",   label:"Storage Optimized",  families:["storage"]    },
+    { id:"gpu",       label:"GPU / Accelerated",  families:["gpu"]        },
+    { id:"baremetal", label:"Bare Metal",         families:["baremetal"]  },
+  ];
+
+  return(
+    <div>
+      {/* Bucket toggle */}
+      <div style={{display:"flex",gap:6,marginBottom:12,alignItems:"center",flexWrap:"wrap"}}>
+        <span style={{fontSize:11,color:"#6b7280",marginRight:4}}>Bucket:</span>
+        {["daily","weekly","monthly","quarterly"].map(b=>{
+          const active=bucket===b;
+          return <button key={b} onClick={()=>setBucket(b)}
+            style={{fontSize:11,padding:"5px 11px",border:"0.5px solid "+(active?"#111827":"#d1d5db"),borderRadius:6,background:active?"#111827":"#fff",color:active?"#fff":"#374151",cursor:"pointer",fontFamily:"inherit",fontWeight:active?600:500,textTransform:"capitalize"}}>{b}</button>;
+        })}
+        {series.data?.points&&(
+          <span style={{fontSize:10.5,color:"#9ca3af",marginLeft:"auto"}}>
+            {chartData.length} {bucket} bucket{chartData.length===1?"":"s"}
+          </span>
+        )}
+      </div>
+
+      {!enoughForBucket&&(
+        <HistoryEmptyState
+          status={status}
+          message={(bucket==="daily"||bucket==="weekly")
+            ? "Daily / weekly granularity begins from the first daily capture forward."
+            : "Monthly / quarterly trends will populate once at least two captures exist."}
+          hint={(bucket==="daily"||bucket==="weekly")&&(status.data.historical_capture_runs||0)>=1
+            ? "Historical backfill is monthly granularity only — switch to Monthly to see history back to "+(status.data.first_historical_capture_date_et||"2018").slice(0,10)+"."
+            : null}/>
+      )}
+
+      {enoughForBucket&&(
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit, minmax(360px, 1fr))",gap:14}}>
+          {charts.map(c=>{
+            const fams = c.families.filter(f => familiesPresent.includes(f));
+            if (fams.length === 0) return null;
+            return(
+              <PricingTableCard key={c.id} title={c.label} subtitle={c.id==="all"?"average price per instance, by family":"average price per instance"}>
+                <div style={{padding:"12px",height:240}}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={chartData} margin={{top:8,right:8,bottom:0,left:0}}>
+                      <CartesianGrid stroke="#f3f4f6" strokeDasharray="3 3"/>
+                      <XAxis dataKey="bucket_key" tick={{fontSize:9,fill:"#6b7280"}} stroke="#e5e7eb" interval="preserveStartEnd"/>
+                      <YAxis tick={{fontSize:9,fill:"#6b7280"}} stroke="#e5e7eb" tickFormatter={v=>"$"+v.toFixed(v<1?3:2)} width={56}/>
+                      <Tooltip
+                        contentStyle={{fontSize:11,padding:"6px 8px"}}
+                        formatter={(v,name,p)=>[fmtUsdHr4(v),(FAMILY_CLASS_LABEL[name]||name)+" · "+(p?.payload?.[name+"_source"]==='aws_bulk_pricelist_historical'?"historical":"current")]}
+                        labelFormatter={l=>"Bucket: "+l}/>
+                      {c.id==="all"&&<Legend wrapperStyle={{fontSize:10}}/>}
+                      {fams.map(f=>(
+                        <Line key={f} type="monotone" dataKey={f} name={f}
+                          stroke={FAMILY_CLASS_COLOR[f]||"#6b7280"} strokeWidth={1.75}
+                          dot={{r:2,strokeWidth:1,stroke:FAMILY_CLASS_COLOR[f]||"#6b7280",fill:"#fff"}}
+                          activeDot={{r:4}} isAnimationActive={false}
+                          connectNulls/>
+                      ))}
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              </PricingTableCard>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ── Sub-tab 4: Methodology ──────────────────────────────────────── */
+
+function EC2MethodologySubtab({status}){
+  return(
+    <PricingTableCard title="Methodology" subtitle="how we capture, filter, and reason about AWS EC2 prices">
+      <div style={{padding:"14px 16px",fontSize:12,color:"#374151",lineHeight:1.7,maxWidth:880}}>
+        <p style={{marginBottom:10}}>
+          <strong>Source.</strong> AWS official Price List / Bulk API. The current snapshot comes from
+          {" "}<code>pricing.us-east-1.amazonaws.com/offers/v1.0/aws/AmazonEC2/current/us-east-1/index.csv</code>.
+          Historical monthly snapshots come from the same host's <code>versionIndexUrl</code>
+          ({" "}<code>/offers/v1.0/aws/AmazonEC2/index.json</code>{" "}), which exposes ~118 dated
+          price-list versions back to <strong>May 2018</strong>, subject to versions available in AWS's
+          AmazonEC2 version index. No web scraping; no reverse-proxy.
+        </p>
+        <p style={{marginBottom:10}}>
+          <strong>Region.</strong> us-east-1 / US East (N. Virginia).
+        </p>
+        <p style={{marginBottom:10}}>
+          <strong>Filters.</strong> OnDemand · Hrs · Linux · Shared tenancy · No license required ·
+          ProductFamily ∈ {"{"} Compute Instance, Compute Instance (bare metal) {"}"}. Bare metal is
+          included alongside virtualized instances — the previous bug that excluded the bare-metal
+          ProductFamily was fixed in <a href="https://github.com/ceekay-munshot/google-dash/commit/f668efe" style={{color:"#0e7490"}}>f668efe</a>.
+        </p>
+        <p style={{marginBottom:10}}>
+          <strong>Two history streams, kept separate.</strong>
+        </p>
+        <ul style={{marginBottom:10,paddingLeft:24}}>
+          <li><strong>Daily / WTD / weekly</strong> starts from our first forward daily capture
+            ({status.data?.first_daily_capture_date_et?<code>{status.data.first_daily_capture_date_et}</code>:"date pending"}).
+            AWS's monthly archive cannot synthesize sub-monthly resolution. These buckets only contain
+            <code> source: aws_bulk_pricelist_current</code> rows.</li>
+          <li><strong>Monthly / quarterly / yearly</strong> backfilled from AWS historical price-list versions
+            (effective dates May 2018 onward, subject to versions available in AWS's AmazonEC2 version index).
+            For the current ET month / quarter, the latest forward daily capture is used <em>only if it is newer</em>
+            than the latest historical version in that bucket. Tooltip shows the chosen source per point.</li>
+        </ul>
+        <p style={{marginBottom:10}}>
+          <strong>Trends begin from first captured snapshot.</strong> No fake backfill. WTD/MTD/QTD
+          return an honest empty-state when no baseline exists in the period (e.g. on the first
+          captured day in any week, month, or quarter).
+        </p>
+        <p style={{marginBottom:10}}>
+          <strong>New / removed instance types</strong> are reported separately from price changes. They are
+          never reported as "price change from zero" or "price change to zero". They appear in their own
+          lists under Price Change.
+        </p>
+        <p style={{marginBottom:10}}>
+          <strong>AWS pricing-page widget vs bulk feed.</strong> The marketing widget on
+          {" "}<code>aws.amazon.com/ec2/pricing/on-demand</code>{" "} and the bulk price list can disagree by ~3–5% on
+          instance count (the widget filters out some retired / preview families). The bulk feed is our source
+          of truth; the AWS pricing page remains final if AWS has discrepancies. The dashboard surfaces
+          captured-vs-widget drift via a banner when the counts differ.
+        </p>
+        <p style={{marginBottom:10}}>
+          <strong>Capture cadence.</strong> Mon–Fri, between 10:00 AM and 12:00 PM America/New_York,
+          scheduled via GitHub Actions cron (three UTC slots that bracket the window across DST).
+          The capture endpoint validates the ET window inside the handler, so out-of-window manual
+          POSTs are rejected unless <code>?force=true</code> is set. One canonical run per ET business
+          date per source; matched-instance percentage changes only.
+        </p>
+      </div>
+    </PricingTableCard>
   );
 }
 
