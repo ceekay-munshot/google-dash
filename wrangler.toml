@@ -54,10 +54,10 @@ preview_id = "322b0ca12e874e6a8568126e182e59f5"
 # DO NOT collapse prod + preview onto one database_id (the way HISTORY_KV
 # does above). Forward daily captures and historical backfill writes
 # from a preview deploy MUST NOT corrupt the production trend data.
-#
-# [[d1_databases]]
-# binding             = "EC2_PRICING_DB"
-# database_name       = "gdash-aws-ec2-pricing"
-# database_id         = "<paste prod UUID from step 1>"
-# preview_database_id = "<paste preview UUID from step 2>"
-# migrations_dir      = "migrations"
+
+[[d1_databases]]
+binding             = "EC2_PRICING_DB"
+database_name       = "gdash-aws-ec2-pricing"
+database_id         = "af366d21-719f-4eb4-b5f1-08ed6d40ce4e"
+preview_database_id = "9fa19185-1bc8-4f6a-9848-88c1ecf60399"
+migrations_dir      = "migrations"
