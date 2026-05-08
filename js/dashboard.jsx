@@ -4781,6 +4781,16 @@ function AwsCapacityProxySection(){
   // Breakdown (which still reads from /latest's by_service / by_region).
   const[summary,setSummary]=useState({phase:"loading",data:null,error:null});
   const[ts,setTs]=useState({phase:"loading",data:null,error:null});
+  // Aggregate Total IPv4 capacity history — daily + weekly grains.
+  // Both fetched at mount; the toggle above the chart picks which one
+  // renders. Loading both up front keeps the toggle instantaneous and
+  // the implementation small (response is tiny — one number per point).
+  const[histDaily,setHistDaily]=useState({phase:"loading",data:null,error:null});
+  const[histWeekly,setHistWeekly]=useState({phase:"loading",data:null,error:null});
+
+  // Inner Capacity Footprint pill: "overview" (investor view — KPIs +
+  // total aggregate trend) vs "graphs" (detailed breakdown trends).
+  const[inner,setInner]=useState("overview");
 
   useEffect(()=>{
     let cancelled=false;
@@ -4827,6 +4837,37 @@ function AwsCapacityProxySection(){
         setTs({phase:"ready",data:d,error:null});
       })
       .catch(e=>{if(!cancelled)setTs({phase:"error",data:null,error:e.message||"Fetch failed"});});
+    return()=>{cancelled=true;};
+  },[]);
+
+  // Aggregate Total IPv4 capacity history — daily + weekly. Each point
+  // already carries abs/pct vs prev and vs first, so the chart and
+  // tooltip render directly from the response without re-deriving.
+  useEffect(()=>{
+    let cancelled=false;
+    const v=Math.floor(Date.now()/3e5);
+    fetch("/api/aws/ip-ranges/history?grain=daily&v="+v)
+      .then(r=>r.ok?r.json():Promise.reject(new Error("HTTP "+r.status)))
+      .then(d=>{
+        if(cancelled)return;
+        if(!d||d.success===false){setHistDaily({phase:"error",data:null,error:d?.error||"Empty response"});return;}
+        setHistDaily({phase:"ready",data:d,error:null});
+      })
+      .catch(e=>{if(!cancelled)setHistDaily({phase:"error",data:null,error:e.message||"Fetch failed"});});
+    return()=>{cancelled=true;};
+  },[]);
+
+  useEffect(()=>{
+    let cancelled=false;
+    const v=Math.floor(Date.now()/3e5);
+    fetch("/api/aws/ip-ranges/history?grain=weekly&v="+v)
+      .then(r=>r.ok?r.json():Promise.reject(new Error("HTTP "+r.status)))
+      .then(d=>{
+        if(cancelled)return;
+        if(!d||d.success===false){setHistWeekly({phase:"error",data:null,error:d?.error||"Empty response"});return;}
+        setHistWeekly({phase:"ready",data:d,error:null});
+      })
+      .catch(e=>{if(!cancelled)setHistWeekly({phase:"error",data:null,error:e.message||"Fetch failed"});});
     return()=>{cancelled=true;};
   },[]);
 
@@ -4891,22 +4932,68 @@ function AwsCapacityProxySection(){
 
   const s=state.snap;
 
+  // Inner pill bar — "Overview" (default investor view) vs "Graph
+  // Trends" (detailed breakdown charts). Same underline-pill pattern as
+  // the AWS-subtab pill, scoped one level deeper.
+  const innerPills=(
+    <div style={{display:"flex",gap:4,marginBottom:14,borderBottom:"0.5px solid #e5e7eb"}}>
+      {[
+        {id:"overview",label:"Overview",sub:"aggregate aws public ipv4 capacity"},
+        {id:"graphs",  label:"Graph Trends",sub:"service / region / prefix breakdowns"},
+      ].map(t=>{
+        const active=inner===t.id;
+        return(
+          <button key={t.id} onClick={()=>setInner(t.id)}
+            style={{fontSize:12,padding:"8px 16px",border:"none",borderBottom:active?"2px solid #111827":"2px solid transparent",marginBottom:-1,background:"transparent",color:active?"#111827":"#6b7280",cursor:"pointer",fontFamily:"inherit",fontWeight:active?600:500,display:"flex",flexDirection:"column",alignItems:"flex-start",gap:1}}>
+            <span>{t.label}</span>
+            <span style={{fontSize:9,fontWeight:400,color:active?"#6b7280":"#9ca3af",textTransform:"lowercase"}}>{t.sub}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+
   return sectionWrap(
     <>
-      {/* Trend-driven hero KPI row */}
-      <CapacityKpiRow latest={s} summary={summary} fmtN={fmtN} fmtCompact={fmtCompact}/>
+      {innerPills}
 
-      {/* Service-Level Public IPv4 Capacity Trend — main analytical module */}
-      <ServiceCapacityTrend ts={ts} fmtN={fmtN} fmtCompact={fmtCompact}/>
+      {inner==="overview"&&(
+        <>
+          {/* Aggregate KPI row — five investor-facing cards */}
+          <CapacityKpiRow latest={s} summary={summary} histDaily={histDaily} histWeekly={histWeekly} fmtN={fmtN} fmtCompact={fmtCompact}/>
 
-      {/* Current Breakdown — OpenRouter-style period matrix */}
-      <CurrentBreakdown/>
+          {/* Total AWS Public IPv4 Capacity Trend — single aggregate line.
+             Daily / Weekly toggle inside the chart card. */}
+          <TotalCapacityTrend histDaily={histDaily} histWeekly={histWeekly} fmtN={fmtN} fmtCompact={fmtCompact}/>
 
-      {/* Single methodology card with two collapsed disclosures. Native
-         <details> keeps the bundle small, the default-collapsed state
-         keeps the section short, and the chevron rotation makes the
-         affordance obvious without icons. */}
-      <CapacityMethodologyCard/>
+          {/* Current Breakdown stays on Overview as a compact ranked
+             reference — investors expect a "what's biggest right now"
+             view alongside the aggregate trend. */}
+          <CurrentBreakdown/>
+
+          {/* Methodology card with the public-network-capacity-proxy
+             wording and the two collapsed disclosures. */}
+          <CapacityMethodologyCard/>
+        </>
+      )}
+
+      {inner==="graphs"&&(
+        <>
+          {/* Service-Level Public IPv4 Capacity Trend — moved from the
+             default Overview into Graph Trends per customer feedback. */}
+          <ServiceCapacityTrend ts={ts} fmtN={fmtN} fmtCompact={fmtCompact}/>
+
+          {/* Detailed breakdown trends — region-level and prefix-count
+             trends rendered from the same /history daily points. */}
+          <RegionCapacityTrend snap={s} ts={ts} fmtN={fmtN} fmtCompact={fmtCompact}/>
+          <PrefixCountTrend histDaily={histDaily} fmtN={fmtN} fmtCompact={fmtCompact}/>
+
+          {/* Top services / top regions tables driven by the latest
+             snapshot. Quick-reference view of the largest IPv4 footprint
+             holders today; complements the breakdown trend charts. */}
+          <TopByCapacity snap={s} fmtN={fmtN} fmtCompact={fmtCompact}/>
+        </>
+      )}
     </>
   );
 }
@@ -5135,24 +5222,17 @@ function PricingTableCard({title,subtitle,marginTop,children}){
   );
 }
 
-/* Trend-driven KPI hero row. Five cards driven by /api/aws/ip-ranges/summary:
-     1. Latest Public IPv4 Capacity   (anchor — always available once
-                                       /latest resolves)
-     2. QTD Capacity Change           (Pending until ≥2 same-quarter snapshots)
-     3. 30D Capacity Change           (or "since first snapshot" fallback when
-                                       the captured window is shorter than 30
-                                       days; Pending with only 1 snapshot)
-     4. Services Expanding            (count / total tracked, same period as 30D)
-     5. Regions Expanding             (count / total tracked, same period as 30D)
+/* Aggregate KPI row above the Total IPv4 chart. Five cards driven by
+   /api/aws/ip-ranges/summary + /api/aws/ip-ranges/history:
+     1. Latest Public IPv4 Capacity     (anchor — total_ipv4_addresses)
+     2. Change Since First Snapshot     (latest − first; pending until ≥2 snapshots)
+     3. Latest Daily Change             (latest day − previous day; "—" if no prev)
+     4. Latest Weekly Change            (latest week − previous week; "—" if no prev)
+     5. Snapshot Count                  (total stored daily snapshots)
 
-   No card ever fakes a 0 for a missing change — when data is insufficient
-   the value reads "Pending" and the subtitle explains why.
-
-   The row stays visible even when /summary is still loading or has
-   errored — the latest-value anchor card always shows, and the change
-   cards render Pending so the layout doesn't jump as fetches resolve. */
-function CapacityKpiRow({latest,summary,fmtN,fmtCompact}){
-  const sumPhase=summary?.phase||"loading";
+   Per spec: no card ever fabricates 0% when no comparison is available.
+   Missing comparison values render "—" not "Pending 0%". */
+function CapacityKpiRow({latest,summary,histDaily,histWeekly,fmtN,fmtCompact}){
   const sum=summary?.data||null;
 
   const fmtSigned=n=>{
@@ -5177,70 +5257,106 @@ function CapacityKpiRow({latest,summary,fmtN,fmtCompact}){
     sub:"Latest AWS-published public IPv4 address pool",
   };
 
-  // Helper: build a Pending or change-block card. periodLabel becomes the
-  // suffix on the percentage line (e.g. "+0.27% QTD") and on the subtitle
-  // when present.
-  function changeCard({label, block, pendingSub, periodSuffix}){
-    if(!block||!block.available){
-      return {
-        label,
-        value:"Pending",
-        valueColor:"#6b7280",
-        hint:null,
-        sub:pendingSub,
-      };
+  // Card 2 — Change Since First Snapshot. Use /summary's thirty_day
+  // block when its period_label === "since first snapshot", otherwise
+  // recompute from history. summary already runs a "since first
+  // snapshot" fallback when <30 days exist, so the typical young-history
+  // case is covered without an extra fetch.
+  const sinceFirstAvail = sum?.snapshot_count >= 2 && typeof latestCap==="number" && (sum?.thirty_day?.period_label==="since first snapshot"||sum?.thirty_day?.available);
+  let absSinceFirst=null, pctSinceFirst=null, baselineDate=null;
+  if(sum?.thirty_day?.period_label==="since first snapshot"&&sum.thirty_day.available){
+    absSinceFirst=sum.thirty_day.absolute_change;
+    pctSinceFirst=sum.thirty_day.pct_change;
+    baselineDate=sum.thirty_day.baseline_date;
+  } else if(histDaily?.data?.points?.length){
+    // Fall back to the daily history's first-vs-latest precomputed pair.
+    const pts=histDaily.data.points;
+    const first=pts[0], last=pts[pts.length-1];
+    if(first&&last&&first.date!==last.date){
+      absSinceFirst=last.abs_vs_first;
+      pctSinceFirst=last.pct_vs_first;
+      baselineDate=first.date;
     }
-    const abs=block.absolute_change;
-    const pct=block.pct_change;
-    return {
-      label,
-      value: fmtSigned(abs),
-      valueColor: changeColor(abs),
-      hint: typeof abs==="number" ? (fmtSigned(abs)+" addresses") : null,
-      // Override hint with absolute formatted phrase; primary value already shows the signed integer.
-      // Use it as a tighter restatement: the primary is the same number — keep this slot for context.
-      sub: (typeof pct==="number" ? (fmtPct(pct)+ (periodSuffix?(" "+periodSuffix):"")) : "") +
-           (block.baseline_date?(" · baseline "+block.baseline_date):""),
+  }
+  const card2 = (sinceFirstAvail && typeof absSinceFirst==="number")
+    ? {
+      label:"Change Since First Snapshot",
+      value: fmtSigned(absSinceFirst),
+      valueColor: changeColor(absSinceFirst),
+      hint: fmtSigned(absSinceFirst)+" addresses",
+      sub: (typeof pctSinceFirst==="number"?(fmtPct(pctSinceFirst)+" since first"):"—") + (baselineDate?(" · baseline "+baselineDate):""),
+    }
+    : {
+      label:"Change Since First Snapshot",
+      value:"—",
+      valueColor:"#9ca3af",
+      hint:null,
+      sub:"Appears after the second daily snapshot",
+    };
+
+  // Card 3 — Latest Daily Change. From the last point of the daily
+  // history; "—" when we only have one snapshot.
+  let card3;
+  const dailyPts=histDaily?.data?.points||[];
+  const dailyLast=dailyPts.length?dailyPts[dailyPts.length-1]:null;
+  if(dailyLast&&typeof dailyLast.abs_vs_prev==="number"){
+    card3={
+      label:"Latest Daily Change",
+      value: fmtSigned(dailyLast.abs_vs_prev),
+      valueColor: changeColor(dailyLast.abs_vs_prev),
+      hint: fmtSigned(dailyLast.abs_vs_prev)+" addresses",
+      sub: (typeof dailyLast.pct_vs_prev==="number"?(fmtPct(dailyLast.pct_vs_prev)+" DoD"):"—")+(" · "+dailyLast.date),
+    };
+  } else {
+    card3={
+      label:"Latest Daily Change",
+      value:"—",
+      valueColor:"#9ca3af",
+      hint:null,
+      sub:"Appears after the second daily snapshot",
     };
   }
 
-  // Card 2 — QTD.
-  const card2 = changeCard({
-    label:"QTD Capacity Change",
-    block: sum?.qtd,
-    pendingSub:"Appears once quarter baseline is available",
-    periodSuffix:"QTD",
-  });
-
-  // Card 3 — 30D (or since-first fallback).
-  const td = sum?.thirty_day;
-  const tdLabel = td?.period_label === "30D" ? "30D" : (td?.period_label==="since first snapshot" ? "since first" : "");
-  const card3 = changeCard({
-    label: td?.period_label==="since first snapshot" ? "Capacity Change · Since First" : "30D Capacity Change",
-    block: td,
-    pendingSub:"Appears after more daily snapshots",
-    periodSuffix: tdLabel,
-  });
-
-  // Cards 4 & 5 — breadth counts. Display "k / N" only when available.
-  function breadthCard(label, expandingCount, totalTracked, periodLabel){
-    if(typeof expandingCount!=="number"||typeof totalTracked!=="number"){
-      return {label,value:"Pending",valueColor:"#6b7280",hint:null,sub:"Needs at least 2 daily snapshots"};
-    }
-    const periodNote = periodLabel==="30D" ? "Period: 30D" : (periodLabel==="since first snapshot" ? "Period: since first snapshot" : "Period: captured window");
-    return {
-      label,
-      value: expandingCount + " / " + totalTracked,
-      valueColor: expandingCount>0 ? "#059669" : "#6b7280",
-      hint: null,
-      sub: periodNote,
+  // Card 4 — Latest Weekly Change. From the last point of the weekly
+  // history; "—" until at least two ISO weeks of data exist.
+  let card4;
+  const weeklyPts=histWeekly?.data?.points||[];
+  const weeklyLast=weeklyPts.length?weeklyPts[weeklyPts.length-1]:null;
+  if(weeklyLast&&typeof weeklyLast.abs_vs_prev==="number"){
+    card4={
+      label:"Latest Weekly Change",
+      value: fmtSigned(weeklyLast.abs_vs_prev),
+      valueColor: changeColor(weeklyLast.abs_vs_prev),
+      hint: fmtSigned(weeklyLast.abs_vs_prev)+" addresses",
+      sub: (typeof weeklyLast.pct_vs_prev==="number"?(fmtPct(weeklyLast.pct_vs_prev)+" WoW"):"—")+(" · "+(weeklyLast.week_label||weeklyLast.week_key||"")),
+    };
+  } else {
+    card4={
+      label:"Latest Weekly Change",
+      value:"—",
+      valueColor:"#9ca3af",
+      hint:null,
+      sub:"Weekly trend will build as daily snapshots accumulate",
     };
   }
-  const card4 = breadthCard("Services Expanding", sum?.breadth?.services_expanding, sum?.breadth?.total_services_tracked, sum?.breadth?.period_label);
-  const card5 = breadthCard("Regions Expanding",  sum?.breadth?.regions_expanding,  sum?.breadth?.total_regions_tracked,  sum?.breadth?.period_label);
+
+  // Card 5 — Snapshot Count. Pulls from /summary first (authoritative),
+  // falls back to the daily history points length so the card never sits
+  // empty during a transient summary error.
+  const snapshotCount = (typeof sum?.snapshot_count==="number")
+    ? sum.snapshot_count
+    : (histDaily?.data?.points?.length||null);
+  const firstDate = sum?.first_snapshot_date || (histDaily?.data?.points?.[0]?.date) || null;
+  const card5 = {
+    label:"Snapshot Count",
+    value: typeof snapshotCount==="number" ? snapshotCount.toLocaleString("en-US") : "—",
+    valueColor:"#111827",
+    hint: typeof snapshotCount==="number" ? (snapshotCount===1?"1 daily snapshot":snapshotCount+" daily snapshots") : null,
+    sub: firstDate ? ("First snapshot · "+firstDate) : "Captures since module went live",
+  };
 
   // Render. Five cards with a consistent layout — same height regardless
-  // of Pending vs change vs anchor — so the row reads cleanly.
+  // of unavailable vs change vs anchor — so the row reads cleanly.
   const cards=[card1,card2,card3,card4,card5];
   return(
     <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit, minmax(180px, 1fr))",gap:10,marginBottom:10}}>
@@ -5252,6 +5368,363 @@ function CapacityKpiRow({latest,summary,fmtN,fmtCompact}){
           <div style={{fontSize:10.5,color:"#6b7280",marginTop:6,lineHeight:1.45}}>{k.sub}</div>
         </div>
       ))}
+    </div>
+  );
+}
+
+/* Total AWS Public IPv4 Capacity Trend — primary aggregate chart.
+   Single line with daily/weekly toggle. Y-axis stays in millions
+   (no log scale) so the small absolute movement on the AWS public IP
+   pool reads as a real number, not a flat horizontal line. Tooltip
+   shows the full address total plus DoD/WoW absolute and percentage
+   change and change since first snapshot. Never fakes history — if
+   only one snapshot exists, renders a clear empty-state. */
+function TotalCapacityTrend({histDaily,histWeekly,fmtN,fmtCompact}){
+  // Default Weekly when ≥2 weeks of data exist; otherwise Daily.
+  const weeklyPoints=histWeekly?.data?.points||[];
+  const dailyPoints=histDaily?.data?.points||[];
+  const weeklyReady=weeklyPoints.length>=2;
+  const[mode,setMode]=useState(()=>weeklyReady?"weekly":"daily");
+  // Re-evaluate the default once the weekly fetch resolves — only the
+  // first time, so a user toggle isn't clobbered by the effect later.
+  const initialized=useRef(false);
+  useEffect(()=>{
+    if(initialized.current)return;
+    if(histWeekly?.phase==="ready"||histDaily?.phase==="ready"){
+      initialized.current=true;
+      if((histWeekly?.data?.points?.length||0)>=2)setMode("weekly");
+      else setMode("daily");
+    }
+  },[histWeekly?.phase,histDaily?.phase,histWeekly?.data,histDaily?.data]);
+
+  const header=(
+    <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:12,flexWrap:"wrap",marginBottom:10}}>
+      <div style={{minWidth:0,flex:"1 1 320px"}}>
+        <div style={{fontSize:15,fontWeight:700,color:"#111827",lineHeight:1.3}}>Total AWS Public IPv4 Capacity Trend</div>
+        <div style={{fontSize:11.5,color:"#6b7280",marginTop:3,lineHeight:1.5,maxWidth:760}}>
+          Aggregate public IPv4 address capacity computed from AWS ip-ranges.json. History builds from daily snapshots.
+        </div>
+      </div>
+      <div style={{display:"flex",alignItems:"center",gap:6,flexShrink:0}}>
+        {/* Daily / Weekly pill toggle. Same compact pill pattern used
+           elsewhere; visually scoped to this card. */}
+        <div style={{display:"flex",gap:4}}>
+          {[["daily","Daily"],["weekly","Weekly"]].map(([id,label])=>{
+            const active=mode===id;
+            return(
+              <button key={id} onClick={()=>setMode(id)}
+                style={{fontSize:11,padding:"4px 11px",border:"0.5px solid "+(active?"#111827":"#e5e7eb"),borderRadius:999,background:active?"#111827":"#fff",color:active?"#fff":"#374151",cursor:"pointer",fontFamily:"inherit",fontWeight:active?600:500}}>
+                {label}
+              </button>
+            );
+          })}
+        </div>
+        <span style={{fontSize:10,padding:"3px 9px",borderRadius:999,fontWeight:600,background:"#ecfeff",color:"#0e7490",border:"0.5px solid #a5f3fc",whiteSpace:"nowrap"}}>Aggregate · public ipv4 capacity</span>
+      </div>
+    </div>
+  );
+
+  const card=(inner)=>(
+    <div style={{background:"#fff",border:"0.5px solid #e5e7eb",borderRadius:12,padding:"14px 16px",marginBottom:14}}>
+      {header}
+      {inner}
+    </div>
+  );
+
+  // Loading / error states. We treat daily as the primary source of
+  // truth — the chart has at least *some* shape from daily even when
+  // weekly hasn't accumulated yet.
+  if(histDaily?.phase==="loading"){
+    return card(<Shimmer rows={4}/>);
+  }
+  if(histDaily?.phase==="error"){
+    return card(
+      <div style={{background:"#fffbeb",border:"0.5px solid #fde68a",borderRadius:8,padding:"10px 14px",fontSize:11.5,color:"#78350f",lineHeight:1.55}}>
+        Aggregate public IPv4 capacity trend unavailable. KPI cards above still reflect the latest snapshot.
+      </div>
+    );
+  }
+
+  // Empty-state: <2 daily snapshots — no fake chart, just readiness copy.
+  if(dailyPoints.length<2){
+    return card(
+      <div style={{padding:"6px 0"}}>
+        <div style={{fontSize:13,fontWeight:600,color:"#111827",lineHeight:1.3}}>Aggregate trend has started</div>
+        <div style={{fontSize:12,color:"#374151",marginTop:6,lineHeight:1.55,maxWidth:680}}>
+          {dailyPoints.length===0
+            ? "No daily snapshots captured yet. The aggregate Total IPv4 capacity line will appear after the first capture."
+            : "One daily snapshot has been captured. The aggregate Total IPv4 capacity line will appear once at least two daily snapshots are available."}
+        </div>
+      </div>
+    );
+  }
+
+  const points = mode==="weekly" ? weeklyPoints : dailyPoints;
+  const showWeeklyNote = mode==="weekly" && weeklyPoints.length<2;
+
+  // Recharts data — keep it simple: { date, total } + auxiliary fields
+  // for the tooltip. Y-axis displays compact (e.g. 182.19M) but the
+  // tooltip uses the full comma-formatted number for precision.
+  const chartData = points.map(p=>({
+    date: mode==="weekly" ? (p.week_label||p.week_key||p.date) : p.date,
+    raw_date: p.date,
+    week_start: p.week_start||null,
+    week_end: p.week_end||null,
+    total: p.total_ipv4_addresses,
+    abs_vs_prev: p.abs_vs_prev,
+    pct_vs_prev: p.pct_vs_prev,
+    abs_vs_first: p.abs_vs_first,
+    pct_vs_first: p.pct_vs_first,
+    snapshot_count: p.snapshot_count,
+  }));
+
+  // Y-axis domain is computed manually so a tiny absolute swing (e.g.
+  // +41,220 on 182M) actually shows as a visible slope rather than a
+  // flat line. Buffer 5% above/below the observed range, but anchor
+  // the bottom at 0 if the data is itself near zero.
+  const totals=chartData.map(d=>d.total).filter(v=>typeof v==="number");
+  const minTotal=Math.min(...totals);
+  const maxTotal=Math.max(...totals);
+  const span=Math.max(maxTotal-minTotal,1);
+  const yDomain=[Math.max(0,Math.floor(minTotal-span*0.5)),Math.ceil(maxTotal+span*0.5)];
+
+  const fmtSigned=n=>{
+    if(typeof n!=="number"||!isFinite(n))return "—";
+    const sign=n>0?"+":n<0?"−":"";
+    return sign+Math.abs(n).toLocaleString("en-US");
+  };
+  const fmtPct=p=>{
+    if(typeof p!=="number"||!isFinite(p))return "—";
+    const sign=p>0?"+":p<0?"−":"";
+    return sign+(Math.abs(p)*100).toFixed(2)+"%";
+  };
+
+  // Custom tooltip — date, total IPv4, change vs prev (abs + %),
+  // change since first (abs + %). Values formatted to investor-grade
+  // precision; missing comparisons render "—" not 0%.
+  const renderTooltip=({active,payload})=>{
+    if(!active||!payload||!payload.length)return null;
+    const d=payload[0].payload;
+    const prevLabel=mode==="weekly"?"WoW":"DoD";
+    const dateLine = mode==="weekly"
+      ? (d.date + (d.week_start&&d.week_end?(" ("+d.week_start+" → "+d.week_end+")"):""))
+      : d.raw_date;
+    return(
+      <div style={{background:"#fff",border:"0.5px solid #e5e7eb",borderRadius:8,padding:"8px 10px",fontSize:11,fontFamily:"ui-monospace,SFMono-Regular,Menlo,monospace",lineHeight:1.55,color:"#111827",boxShadow:"0 4px 12px rgba(17,24,39,0.06)",minWidth:180}}>
+        <div style={{fontWeight:600,marginBottom:4}}>{dateLine}</div>
+        <div>Total: <span style={{fontWeight:600}}>{fmtN(d.total)}</span></div>
+        <div style={{color:"#6b7280",marginTop:4,fontSize:10}}>vs prev ({prevLabel})</div>
+        <div>Δ {fmtSigned(d.abs_vs_prev)}</div>
+        <div>{fmtPct(d.pct_vs_prev)}</div>
+        <div style={{color:"#6b7280",marginTop:4,fontSize:10}}>vs first snapshot</div>
+        <div>Δ {fmtSigned(d.abs_vs_first)}</div>
+        <div>{fmtPct(d.pct_vs_first)}</div>
+        {mode==="weekly"&&typeof d.snapshot_count==="number"&&(
+          <div style={{color:"#9ca3af",marginTop:4,fontSize:10}}>{d.snapshot_count} snapshot{d.snapshot_count===1?"":"s"} this week</div>
+        )}
+      </div>
+    );
+  };
+
+  return card(
+    <>
+      {showWeeklyNote&&(
+        <div style={{fontSize:10.5,color:"#9ca3af",lineHeight:1.5,marginBottom:6}}>
+          Weekly trend will build as daily snapshots accumulate.
+        </div>
+      )}
+      <div style={{width:"100%",height:300}}>
+        <ResponsiveContainer width="100%" height="100%">
+          <LineChart data={chartData} margin={{top:8,right:16,bottom:0,left:8}}>
+            <CartesianGrid stroke="#f3f4f6" strokeDasharray="3 3"/>
+            <XAxis dataKey="date" tick={{fontSize:10,fill:"#6b7280"}} stroke="#e5e7eb"/>
+            <YAxis domain={yDomain} tick={{fontSize:10,fill:"#6b7280"}} tickFormatter={fmtCompact} stroke="#e5e7eb" width={64} allowDecimals={false}/>
+            <Tooltip content={renderTooltip}/>
+            <Line type="monotone" dataKey="total" name="Total Public IPv4 Addresses" stroke="#0e7490" strokeWidth={2.25} dot={{r:3,strokeWidth:1,stroke:"#0e7490",fill:"#fff"}} activeDot={{r:5}} isAnimationActive={false}/>
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
+    </>
+  );
+}
+
+/* Region-Level Public IPv4 Capacity Trend (Graph Trends only).
+   Pivots the existing /timeseries response shape but maps top regions
+   from the *latest* snapshot instead of services. Renders one line
+   per top-N region. We approximate the trend by reusing the daily
+   /history aggregate combined with the latest snapshot's by_region
+   ranks — the underlying historical by_region payloads aren't shipped
+   by /history (it's intentionally compact), so when only the latest
+   snapshot is available we render a flat ranking-only chart and let
+   the chart fill out as more daily captures are made. */
+const REGION_TREND_PALETTE=["#0e7490","#059669","#2563eb","#7c3aed","#d97706","#dc2626","#0891b2","#6b7280","#a16207","#1e3a8a"];
+
+function RegionCapacityTrend({snap,ts,fmtN,fmtCompact}){
+  // We don't have a region-dimension /timeseries endpoint yet; render
+  // the latest snapshot's top-10 regions as a horizontal-bar style
+  // ranking that complements the service-level chart. The visual
+  // affordance is intentionally different from the service line chart
+  // so a viewer immediately sees this is a *current* rank, not a
+  // historical trend.
+  const header=(
+    <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:12,flexWrap:"wrap",marginBottom:10}}>
+      <div style={{minWidth:0,flex:"1 1 320px"}}>
+        <div style={{fontSize:15,fontWeight:700,color:"#111827",lineHeight:1.3}}>Region-Level Public IPv4 Capacity</div>
+        <div style={{fontSize:11.5,color:"#6b7280",marginTop:3,lineHeight:1.5,maxWidth:760}}>
+          Top regions by AWS-published public IPv4 address capacity from the latest snapshot. Top 10 shown.
+        </div>
+      </div>
+      <span style={{fontSize:10,padding:"3px 9px",borderRadius:999,fontWeight:600,background:"#ecfeff",color:"#0e7490",border:"0.5px solid #a5f3fc",whiteSpace:"nowrap"}}>Latest snapshot · region ranking</span>
+    </div>
+  );
+  const card=(inner)=>(
+    <div style={{background:"#fff",border:"0.5px solid #e5e7eb",borderRadius:12,padding:"14px 16px",marginBottom:14}}>
+      {header}{inner}
+    </div>
+  );
+
+  const rows=Array.isArray(snap?.by_region)?snap.by_region.slice(0,10):[];
+  if(!rows.length){
+    return card(
+      <div style={{fontSize:11.5,color:"#6b7280",lineHeight:1.55}}>
+        No region capacity data in the latest snapshot.
+      </div>
+    );
+  }
+  const max=Math.max(...rows.map(r=>r.ipv4_addresses||0))||1;
+
+  return card(
+    <div style={{display:"grid",gap:6}}>
+      {rows.map((r,i)=>{
+        const v=r.ipv4_addresses||0;
+        const w=Math.max(2,Math.round((v/max)*100));
+        return(
+          <div key={r.region} style={{display:"grid",gridTemplateColumns:"160px 1fr 110px",alignItems:"center",gap:10,fontSize:11}}>
+            <div style={{color:"#374151",fontWeight:600,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{r.region}</div>
+            <div style={{background:"#f3f4f6",borderRadius:4,height:10,overflow:"hidden"}}>
+              <div style={{width:w+"%",height:"100%",background:REGION_TREND_PALETTE[i%REGION_TREND_PALETTE.length],borderRadius:4}}/>
+            </div>
+            <div style={{textAlign:"right",fontFamily:"ui-monospace,SFMono-Regular,Menlo,monospace",color:"#111827"}}>{fmtCompact(v)}</div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/* IPv4 / IPv6 Prefix Count Trend (Graph Trends only). Two lines from
+   /history daily points: total_ipv4_prefixes and total_ipv6_prefixes.
+   Rendered with a dual axis so prefix counts (~3K-15K) are readable on
+   one line while still showing IPv6 prefix scale. With <2 snapshots
+   we render a readiness state — same convention as the service trend. */
+function PrefixCountTrend({histDaily,fmtN,fmtCompact}){
+  const points=histDaily?.data?.points||[];
+  const header=(
+    <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:12,flexWrap:"wrap",marginBottom:10}}>
+      <div style={{minWidth:0,flex:"1 1 320px"}}>
+        <div style={{fontSize:15,fontWeight:700,color:"#111827",lineHeight:1.3}}>Prefix Count Trend</div>
+        <div style={{fontSize:11.5,color:"#6b7280",marginTop:3,lineHeight:1.5,maxWidth:760}}>
+          Total IPv4 and IPv6 prefix counts published in AWS ip-ranges.json.
+        </div>
+      </div>
+      <span style={{fontSize:10,padding:"3px 9px",borderRadius:999,fontWeight:600,background:"#ecfeff",color:"#0e7490",border:"0.5px solid #a5f3fc",whiteSpace:"nowrap"}}>Daily snapshots · prefix counts</span>
+    </div>
+  );
+  const card=(inner)=>(
+    <div style={{background:"#fff",border:"0.5px solid #e5e7eb",borderRadius:12,padding:"14px 16px",marginBottom:14}}>
+      {header}{inner}
+    </div>
+  );
+
+  if(histDaily?.phase==="loading")return card(<Shimmer rows={3}/>);
+  if(histDaily?.phase==="error")return card(
+    <div style={{background:"#fffbeb",border:"0.5px solid #fde68a",borderRadius:8,padding:"10px 14px",fontSize:11.5,color:"#78350f"}}>
+      Prefix-count history unavailable.
+    </div>
+  );
+
+  if(points.length<2){
+    return card(
+      <div style={{padding:"6px 0"}}>
+        <div style={{fontSize:12,color:"#374151",lineHeight:1.55}}>
+          Prefix-count trend will appear once at least two daily snapshots are available.
+        </div>
+      </div>
+    );
+  }
+
+  const data=points.map(p=>({
+    date:p.date,
+    ipv4:p.total_ipv4_prefixes,
+    ipv6:p.total_ipv6_prefixes,
+  }));
+
+  return card(
+    <div style={{width:"100%",height:280}}>
+      <ResponsiveContainer width="100%" height="100%">
+        <LineChart data={data} margin={{top:8,right:16,bottom:0,left:0}}>
+          <CartesianGrid stroke="#f3f4f6" strokeDasharray="3 3"/>
+          <XAxis dataKey="date" tick={{fontSize:10,fill:"#6b7280"}} stroke="#e5e7eb"/>
+          <YAxis yAxisId="left" tick={{fontSize:10,fill:"#6b7280"}} tickFormatter={fmtCompact} stroke="#e5e7eb" width={56}/>
+          <YAxis yAxisId="right" orientation="right" tick={{fontSize:10,fill:"#6b7280"}} tickFormatter={fmtCompact} stroke="#e5e7eb" width={56}/>
+          <Tooltip formatter={(v)=>fmtN(v)} labelStyle={{fontSize:11,fontWeight:600}} contentStyle={{fontSize:11,borderRadius:8,border:"0.5px solid #e5e7eb"}}/>
+          <Legend wrapperStyle={{fontSize:10,paddingTop:6}}/>
+          <Line yAxisId="left"  type="monotone" dataKey="ipv4" name="IPv4 prefixes" stroke="#0e7490" strokeWidth={1.75} dot={{r:2}} activeDot={{r:4}} isAnimationActive={false}/>
+          <Line yAxisId="right" type="monotone" dataKey="ipv6" name="IPv6 prefixes" stroke="#7c3aed" strokeWidth={1.75} dot={{r:2}} activeDot={{r:4}} isAnimationActive={false}/>
+        </LineChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
+/* Top services / regions by latest IPv4 capacity. Two side-by-side
+   horizontal-bar tables driven by the latest snapshot's by_service /
+   by_region payloads. Compact, single-screen, complements the trend
+   chart as the "what's biggest right now" reference. */
+const TOP_PALETTE=["#0e7490","#059669","#2563eb","#7c3aed","#d97706","#dc2626","#0891b2","#6b7280"];
+
+function TopByCapacity({snap,fmtN,fmtCompact}){
+  const services=Array.isArray(snap?.by_service)?snap.by_service.slice(0,8):[];
+  const regions =Array.isArray(snap?.by_region) ?snap.by_region.slice(0,8) :[];
+
+  const renderList=(rows,keyField,title,subtitle,pillText)=>{
+    const max=Math.max(...rows.map(r=>r.ipv4_addresses||0))||1;
+    return(
+      <div style={{background:"#fff",border:"0.5px solid #e5e7eb",borderRadius:12,padding:"14px 16px"}}>
+        <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:12,flexWrap:"wrap",marginBottom:10}}>
+          <div style={{minWidth:0,flex:"1 1 220px"}}>
+            <div style={{fontSize:13.5,fontWeight:700,color:"#111827",lineHeight:1.3}}>{title}</div>
+            <div style={{fontSize:11,color:"#6b7280",marginTop:3,lineHeight:1.45}}>{subtitle}</div>
+          </div>
+          <span style={{fontSize:10,padding:"3px 9px",borderRadius:999,fontWeight:600,background:"#ecfeff",color:"#0e7490",border:"0.5px solid #a5f3fc",whiteSpace:"nowrap"}}>{pillText}</span>
+        </div>
+        {rows.length===0?(
+          <div style={{fontSize:11.5,color:"#6b7280"}}>No data in the latest snapshot.</div>
+        ):(
+          <div style={{display:"grid",gap:6}}>
+            {rows.map((r,i)=>{
+              const v=r.ipv4_addresses||0;
+              const w=Math.max(2,Math.round((v/max)*100));
+              return(
+                <div key={r[keyField]} style={{display:"grid",gridTemplateColumns:"140px 1fr 90px",alignItems:"center",gap:10,fontSize:11}}>
+                  <div style={{color:"#374151",fontWeight:600,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{r[keyField]}</div>
+                  <div style={{background:"#f3f4f6",borderRadius:4,height:10,overflow:"hidden"}}>
+                    <div style={{width:w+"%",height:"100%",background:TOP_PALETTE[i%TOP_PALETTE.length],borderRadius:4}}/>
+                  </div>
+                  <div style={{textAlign:"right",fontFamily:"ui-monospace,SFMono-Regular,Menlo,monospace",color:"#111827"}}>{fmtCompact(v)}</div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  return(
+    <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit, minmax(320px, 1fr))",gap:10,marginBottom:14}}>
+      {renderList(services,"service","Top Services by IPv4 Capacity","Top 8 AWS services by latest public IPv4 address capacity.","Latest snapshot · top services")}
+      {renderList(regions,"region","Top Regions by IPv4 Capacity","Top 8 AWS regions by latest public IPv4 address capacity.","Latest snapshot · top regions")}
     </div>
   );
 }
@@ -5681,7 +6154,7 @@ function CapacityMethodologyCard(){
       <style>{chevronCss}</style>
       <div style={{...S.lbl,color:"#6b7280",marginBottom:6}}>Methodology</div>
       <div style={{fontSize:11.5,color:"#4b5563",lineHeight:1.55,marginBottom:8}}>
-        AWS publishes current public IP ranges in {code("ip-ranges.json")}. We compute IPv4 address capacity from CIDR ranges and save daily snapshots to build history. Hero cards show latest public IPv4 capacity plus period changes from captured daily snapshots; change metrics remain pending until enough history exists. Quarterly and monthly breakdowns use the latest captured snapshot in each period; growth rows compare against the prior period or same period last year when available.
+        AWS publishes current public IP ranges through {code("ip-ranges.json")}. We compute public IPv4 capacity from CIDR prefix lengths and save daily snapshots to build history. This is a public network capacity proxy, not a direct measure of AWS customer usage. Hero cards show latest public IPv4 capacity plus daily, weekly, and since-first changes from captured daily snapshots; change metrics remain unavailable until enough history exists. Quarterly, monthly, and weekly breakdowns use the latest captured snapshot in each period; growth rows compare against the prior period or same period last year when available.
       </div>
 
       <details className="ipr-meth-row" style={{borderTop:"0.5px solid #e5e7eb"}}>
@@ -5716,7 +6189,7 @@ function CapacityMethodologyCard(){
       <details className="ipr-meth-row" style={{borderTop:"0.5px solid #e5e7eb"}}>
         <summary style={summaryStyle}>What this signal means</summary>
         <div style={bodyStyle}>
-          This is a public network capacity signal, not exact AWS usage.
+          This is a public network capacity signal — a proxy for the AWS-published public IPv4 footprint, not a direct measure of AWS customer usage.
           <div style={{marginTop:6}}>It can help answer:</div>
           <ul style={{margin:"4px 0 0 18px",padding:0}}>
             <li style={liStyle}>Is AWS's published public network footprint expanding?</li>
