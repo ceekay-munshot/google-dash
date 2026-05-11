@@ -1,0 +1,173 @@
+name: AWS EC2 Spot Pricing Dry Run
+
+# Manual-only one-click probe of the AWS EC2 Spot Pricing API. Fetches a
+# single window of DescribeSpotPriceHistory data for the v1 institutional
+# basket, uploads the JSON payload as a workflow artifact, and logs a
+# summary. This workflow performs ZERO writes:
+#   - does NOT POST to /api/aws/ec2-pricing/spot/capture
+#   - does NOT write to D1
+#   - does NOT run the 90-day backfill
+#   - does NOT modify the on-demand pipeline
+#   - does NOT change UI
+#   - does NOT touch production data
+#
+# Use this to confirm the IAM principal has ec2:DescribeSpotPriceHistory
+# in the target region before authorizing any real capture run.
+#
+# Required GitHub Actions secrets:
+#   AWS_ACCESS_KEY_ID      — IAM access key with ec2:DescribeSpotPriceHistory
+#   AWS_SECRET_ACCESS_KEY  — matching secret
+# Optional:
+#   AWS_SESSION_TOKEN      — only when (1) and (2) are STS temporary creds
+#
+# Add them at: repo Settings → Secrets and variables → Actions → New secret.
+
+on:
+  workflow_dispatch:
+    inputs:
+      region:
+        description: 'AWS region (default: us-east-1)'
+        required: false
+        default: 'us-east-1'
+      product_description:
+        description: 'AWS Spot product description (default: Linux/UNIX)'
+        required: false
+        default: 'Linux/UNIX'
+      lookback_hours:
+        description: 'Hours back from now for the probe window (default: 24, max: 2160 = AWS 90-day Spot history cap)'
+        required: false
+        default: '24'
+      summary_only:
+        description: 'Trim the row dump in the artifact to the first 5 rows (default: true)'
+        required: false
+        type: boolean
+        default: true
+
+concurrency:
+  group: aws-ec2-spot-pricing-dry-run
+  cancel-in-progress: false
+
+jobs:
+  dry_run:
+    name: AWS EC2 Spot Pricing dry-run probe
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    permissions:
+      contents: read
+
+    env:
+      REGION:              ${{ inputs.region }}
+      PRODUCT_DESCRIPTION: ${{ inputs.product_description }}
+      LOOKBACK_HOURS:      ${{ inputs.lookback_hours }}
+      SUMMARY_ONLY:        ${{ inputs.summary_only }}
+      AWS_ACCESS_KEY_ID:     ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_SESSION_TOKEN:     ${{ secrets.AWS_SESSION_TOKEN }}
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Validate AWS credentials (fail-fast before any AWS call)
+        run: |
+          if [ -z "$AWS_ACCESS_KEY_ID" ]; then
+            echo "::error::AWS_ACCESS_KEY_ID secret is not set on this repo. Add it at Settings → Secrets and variables → Actions → New repository secret."
+            exit 1
+          fi
+          if [ -z "$AWS_SECRET_ACCESS_KEY" ]; then
+            echo "::error::AWS_SECRET_ACCESS_KEY secret is not set on this repo. Add it at Settings → Secrets and variables → Actions → New repository secret."
+            exit 1
+          fi
+          echo "::notice::AWS_ACCESS_KEY_ID present (length ${#AWS_ACCESS_KEY_ID})"
+          echo "::notice::AWS_SECRET_ACCESS_KEY present (length ${#AWS_SECRET_ACCESS_KEY})"
+          if [ -n "$AWS_SESSION_TOKEN" ]; then
+            echo "::notice::AWS_SESSION_TOKEN also present — using STS temporary credentials."
+          else
+            echo "::notice::AWS_SESSION_TOKEN not set — using long-lived IAM keys (fine for this probe)."
+          fi
+
+      - name: Validate inputs
+        run: |
+          if ! echo "$LOOKBACK_HOURS" | grep -Eq '^[0-9]+$'; then
+            echo "::error::lookback_hours must be a positive integer (got '$LOOKBACK_HOURS')"
+            exit 1
+          fi
+          if [ "$LOOKBACK_HOURS" -lt 1 ] || [ "$LOOKBACK_HOURS" -gt 2160 ]; then
+            echo "::error::lookback_hours must be between 1 and 2160 (AWS rolling 90-day Spot history cap)"
+            exit 1
+          fi
+          if [ -z "$REGION" ]; then
+            echo "::error::region input is empty"
+            exit 1
+          fi
+          if [ -z "$PRODUCT_DESCRIPTION" ]; then
+            echo "::error::product_description input is empty"
+            exit 1
+          fi
+
+      - name: Install dependencies (@aws-sdk/client-ec2)
+        run: npm ci
+
+      - name: Compute probe window (start-time / end-time, ISO 8601 UTC)
+        id: window
+        run: |
+          END_TIME=$(node -e "console.log(new Date().toISOString())")
+          START_TIME=$(node -e "console.log(new Date(Date.now() - ${LOOKBACK_HOURS} * 3600 * 1000).toISOString())")
+          echo "start_time=$START_TIME" >> "$GITHUB_OUTPUT"
+          echo "end_time=$END_TIME"     >> "$GITHUB_OUTPUT"
+          echo "::notice::Probe window: $START_TIME → $END_TIME (lookback ${LOOKBACK_HOURS}h)"
+
+      - name: Run Spot dry-run probe (stdout → /tmp/spot-probe.json, NO API write)
+        env:
+          START_TIME: ${{ steps.window.outputs.start_time }}
+          END_TIME:   ${{ steps.window.outputs.end_time }}
+        run: |
+          SUMMARY_FLAG=""
+          if [ "$SUMMARY_ONLY" = "true" ]; then
+            SUMMARY_FLAG="--summary-only"
+          fi
+          echo "::notice::Invoking scripts/fetch-aws-ec2-spot-history.mjs (read-only, no D1 write, no /spot/capture POST)"
+          node scripts/fetch-aws-ec2-spot-history.mjs \
+            "--region=${REGION}" \
+            "--product-description=${PRODUCT_DESCRIPTION}" \
+            "--start-time=${START_TIME}" \
+            "--end-time=${END_TIME}" \
+            ${SUMMARY_FLAG} \
+            > /tmp/spot-probe.json
+          BYTES=$(wc -c < /tmp/spot-probe.json)
+          echo "::notice::Wrote /tmp/spot-probe.json (${BYTES} bytes)"
+
+      - name: Log probe summary
+        run: |
+          echo "::group::Dry-run summary (parsed from /tmp/spot-probe.json)"
+          jq -r '
+            "region:                  \(.region)",
+            "product_description:    \(.productDescription)",
+            "window_start:            \(.startTime)",
+            "window_end:              \(.endTime)",
+            "instance_scope:          \(.instanceScope)",
+            "rowCount:                \(.rowCount)",
+            "uniqueInstanceTypes:     \(.uniqueInstanceTypes | length) total — \(.uniqueInstanceTypes | join(", "))",
+            "uniqueAvailabilityZones: \(.uniqueAvailabilityZones | length) total — \(.uniqueAvailabilityZones | join(", "))",
+            "minTimestamp:            \(.minTimestamp)",
+            "maxTimestamp:            \(.maxTimestamp)",
+            "missingInstanceTypes:    \(.missingInstanceTypes | length) total — \(.missingInstanceTypes | join(", "))",
+            "summaryOnly:             \(.summaryOnly)"
+          ' /tmp/spot-probe.json
+          echo "::endgroup::"
+
+          echo "::group::Sample rows (first 5 from payload)"
+          jq '.rows[:5]' /tmp/spot-probe.json
+          echo "::endgroup::"
+
+      - name: Upload probe artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: aws-ec2-spot-probe-${{ github.run_id }}
+          path: /tmp/spot-probe.json
+          if-no-files-found: error
+          retention-days: 14
