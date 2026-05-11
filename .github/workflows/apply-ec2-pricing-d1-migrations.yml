@@ -1,0 +1,97 @@
+name: Apply EC2 Pricing D1 Migrations (prod)
+
+# Manual-only one-click migration runner for the production EC2_PRICING_DB.
+# Applies any UNAPPLIED migrations from migrations/ and reports the
+# before/after migration list. Safe to run repeatedly:
+#   - our migrations use CREATE TABLE IF NOT EXISTS / CREATE INDEX IF NOT EXISTS
+#     so they are idempotent at the SQL level
+#   - wrangler skips migrations already recorded in the d1_migrations table
+#     so unrelated old migrations are NOT re-run
+#   - this workflow performs ZERO destructive operations:
+#     no DROP / DELETE / UPDATE / wipe / capture / backfill — only the
+#     declarative DDL in the migrations folder is sent to D1, and a
+#     handful of read-only SELECTs for the sanity-check step.
+#
+# Required GitHub Actions secrets:
+#   CLOUDFLARE_API_TOKEN   — D1:Edit scoped token for this account
+#   CLOUDFLARE_ACCOUNT_ID  — the Cloudflare account UUID that owns the D1
+#
+# Add them at: repo Settings → Secrets and variables → Actions → New secret.
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: ec2-pricing-d1-migrate-prod
+  cancel-in-progress: false
+
+jobs:
+  migrate:
+    name: Apply pending migrations to production EC2_PRICING_DB
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    permissions:
+      contents: read
+
+    env:
+      CLOUDFLARE_API_TOKEN:  ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+
+      - name: Validate Cloudflare credentials
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ]; then
+            echo "::error::CLOUDFLARE_API_TOKEN secret is not set"
+            exit 1
+          fi
+          if [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            echo "::error::CLOUDFLARE_ACCOUNT_ID secret is not set"
+            exit 1
+          fi
+          echo "::notice::Cloudflare credentials present (token + account_id)"
+          echo "  account_id length: ${#CLOUDFLARE_ACCOUNT_ID}"
+          echo "  token length:      ${#CLOUDFLARE_API_TOKEN}"
+
+      - name: Migration status BEFORE (production)
+        run: |
+          echo "::group::Pending and applied migrations BEFORE apply"
+          npx -y wrangler@4.83.0 d1 migrations list EC2_PRICING_DB --remote
+          echo "::endgroup::"
+
+      - name: Apply pending migrations to production EC2_PRICING_DB
+        # wrangler auto-detects non-TTY CI environments and skips the
+        # interactive "are you sure?" prompt. The flag set is identical
+        # to the local manual command: `wrangler d1 migrations apply
+        # EC2_PRICING_DB --remote`.
+        run: |
+          echo "::group::Applying pending migrations"
+          npx -y wrangler@4.83.0 d1 migrations apply EC2_PRICING_DB --remote
+          echo "::endgroup::"
+
+      - name: Migration status AFTER (production)
+        run: |
+          echo "::group::Applied migrations AFTER apply"
+          npx -y wrangler@4.83.0 d1 migrations list EC2_PRICING_DB --remote
+          echo "::endgroup::"
+
+      - name: Sanity — existing on-demand data must be unchanged
+        run: |
+          echo "::group::On-demand row counts (must match pre-migration baseline)"
+          npx -y wrangler@4.83.0 d1 execute EC2_PRICING_DB --remote \
+            --command "SELECT COUNT(*) AS run_count, COUNT(CASE WHEN status='success' THEN 1 END) AS success_runs, MAX(captured_date_et) AS latest_date, SUM(row_count) AS total_pricing_rows FROM aws_ec2_pricing_capture_runs"
+          echo "::endgroup::"
+
+          echo "::group::All tables present (should now include aws_ec2_spot_*)"
+          npx -y wrangler@4.83.0 d1 execute EC2_PRICING_DB --remote \
+            --command "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name"
+          echo "::endgroup::"
+
+          echo "::group::New spot tables must be empty (no rows captured yet)"
+          npx -y wrangler@4.83.0 d1 execute EC2_PRICING_DB --remote \
+            --command "SELECT (SELECT COUNT(*) FROM aws_ec2_spot_price_capture_runs) AS spot_runs, (SELECT COUNT(*) FROM aws_ec2_spot_price_rows) AS spot_rows"
+          echo "::endgroup::"
