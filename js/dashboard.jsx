@@ -5096,6 +5096,7 @@ function AwsPricingTrendsSection(){
         {[
           {id:"latest",      label:"Latest Table", sub:"most recent captured snapshot"},
           {id:"changes",     label:"Price Change", sub:"WTD · MTD · QTD movers"},
+          {id:"spot",        label:"Spot Pricing", sub:"spare-capacity market prices"},
           {id:"graphs",      label:"Graph Trends", sub:"family + instance time series"},
           {id:"methodology", label:"Methodology",  sub:"sources, caveats, math"},
         ].map(t=>{
@@ -5112,6 +5113,7 @@ function AwsPricingTrendsSection(){
 
       {pricingSubtab==="latest"     &&<EC2LatestTableSubtab     status={status}/>}
       {pricingSubtab==="changes"    &&<EC2PriceChangeSubtab     status={status}/>}
+      {pricingSubtab==="spot"       &&<EC2SpotPricingSubtab     status={status}/>}
       {pricingSubtab==="graphs"     &&<EC2GraphTrendsSubtab     status={status}/>}
       {pricingSubtab==="methodology"&&<EC2MethodologySubtab     status={status}/>}
     </div>
@@ -5416,6 +5418,243 @@ function MoversTable({title,rows,positive}){
   );
 }
 
+/* ── Sub-tab 2.5: Spot Pricing ───────────────────────────────────────
+   AWS EC2 Spot Pricing — a different dataset from on-demand list prices.
+   Source: DescribeSpotPriceHistory (rolling 90-day source window). Spot
+   rows record the spare-capacity market price by (instance_type, AZ,
+   product_description, timestamp). Captured forward so the internal
+   series can exceed AWS's 90-day window. v1 starts with a small
+   institutional basket; expansion to full instance universe and 90-day
+   backfill comes after volume/quality is verified. */
+function EC2SpotPricingSubtab(){
+  const[spotStatus,setSpotStatus]=useState({phase:"loading",data:null,error:null});
+  const[series,setSeries]=useState({phase:"loading",data:null});
+  const[disc,setDisc]=useState({phase:"loading",data:null});
+
+  useEffect(()=>{
+    let cancelled=false;
+    const v=Math.floor(Date.now()/3e5);
+    fetch("/api/aws/ec2-pricing/spot/status?v="+v)
+      .then(r=>r.ok?r.json():Promise.reject(new Error("HTTP "+r.status)))
+      .then(d=>{if(!cancelled)setSpotStatus({phase:"ready",data:d,error:null});})
+      .catch(e=>{if(!cancelled)setSpotStatus({phase:"error",data:null,error:e.message||"Fetch failed"});});
+    return()=>{cancelled=true;};
+  },[]);
+
+  // Only fetch series + discounts once we know the spot data is seeded.
+  useEffect(()=>{
+    if(spotStatus.phase!=="ready"||!spotStatus.data?.is_seeded) return;
+    let cancelled=false;
+    const v=Math.floor(Date.now()/3e5);
+    fetch("/api/aws/ec2-pricing/spot/series?bucket=daily&family=all&v="+v)
+      .then(r=>r.ok?r.json():Promise.reject(new Error("HTTP "+r.status)))
+      .then(d=>{if(!cancelled)setSeries({phase:"ready",data:d});})
+      .catch(e=>{if(!cancelled)setSeries({phase:"error",data:{hint:e.message}});});
+    fetch("/api/aws/ec2-pricing/spot/discounts?family=all&v="+v)
+      .then(r=>r.ok?r.json():Promise.reject(new Error("HTTP "+r.status)))
+      .then(d=>{if(!cancelled)setDisc({phase:"ready",data:d});})
+      .catch(e=>{if(!cancelled)setDisc({phase:"error",data:{hint:e.message}});});
+    return()=>{cancelled=true;};
+  },[spotStatus.phase,spotStatus.data?.is_seeded]);
+
+  if(spotStatus.phase==="loading") return <div style={{padding:"14px"}}><Shimmer rows={6}/></div>;
+  if(spotStatus.phase==="error") return (
+    <div style={{padding:"18px 20px",border:"0.5px dashed #d1d5db",borderRadius:10,background:"#fafafa",color:"#6b7280",fontSize:12,lineHeight:1.6}}>
+      <div style={{fontWeight:500,color:"#dc2626"}}>Spot status fetch failed</div>
+      <div style={{marginTop:4}}>{spotStatus.error}</div>
+    </div>
+  );
+
+  if(!spotStatus.data?.is_seeded){
+    return (
+      <div style={{padding:"18px 20px",border:"0.5px dashed #d1d5db",borderRadius:10,background:"#fafafa",color:"#6b7280",fontSize:12,lineHeight:1.6}}>
+        <div style={{fontWeight:500,color:"#374151"}}>Spot pricing is not captured yet.</div>
+        <div style={{marginTop:4}}>Run a dry-run probe first, then capture a 24-hour sample.</div>
+        <div style={{marginTop:8,fontSize:10.5,color:"#9ca3af"}}>
+          Source: AWS DescribeSpotPriceHistory. Rolling source history limit: 90 days.
+          {spotStatus.data?.reason==="spot_tables_not_migrated"&&<>
+            {" · "}<code>spot_tables_not_migrated</code> — apply
+            {" "}<code>migrations/0002_aws_ec2_spot_pricing.sql</code>{" "}
+            to this D1 first.
+          </>}
+        </div>
+      </div>
+    );
+  }
+
+  // Populated state.
+  const d         = spotStatus.data;
+  const latestObs = d?.latest_observed_timestamp_utc || "—";
+  const totalRows = d?.total_rows || 0;
+  const distTypes = d?.distinct_instance_types || 0;
+  const distAZs   = d?.distinct_availability_zones || 0;
+  const window    = d?.latest_run ? (d.latest_run.source_window_start_utc + " → " + d.latest_run.source_window_end_utc) : null;
+
+  // Volatility proxy: count of distinct observation timestamps.
+  const points = series.data?.points || [];
+  const volatilityEvents = points.reduce((acc,p)=>acc+(p.event_count||0),0);
+  const avgAzDispersion = points.length
+    ? points.reduce((acc,p)=>acc+(p.unique_azs||0),0)/points.length
+    : 0;
+
+  // Median discount across all families (only on rows that have a
+  // matched on-demand price).
+  const discRows = disc.data?.rows || [];
+  const discountVals = discRows
+    .map(r=>r.spot_discount_pct)
+    .filter(v=>typeof v==="number"&&isFinite(v));
+  const medianDiscount = discountVals.length
+    ? (() => {
+        const s = discountVals.slice().sort((a,b)=>a-b);
+        const m = Math.floor(s.length/2);
+        return s.length%2 ? s[m] : (s[m-1]+s[m])/2;
+      })()
+    : null;
+
+  // Build family table from /spot/series (one row per family_class).
+  const familyAgg = new Map();
+  for(const p of points){
+    const k = p.family_class;
+    let g = familyAgg.get(k);
+    if(!g){
+      g = {family_class:k, instanceTypes:new Set(), azs:new Set(),
+           medianPrices:[], p10Prices:[], p90Prices:[], events:0};
+      familyAgg.set(k,g);
+    }
+    g.events += p.event_count||0;
+    if(typeof p.median_spot_price==="number") g.medianPrices.push(p.median_spot_price);
+    if(typeof p.p10_spot_price==="number")    g.p10Prices.push(p.p10_spot_price);
+    if(typeof p.p90_spot_price==="number")    g.p90Prices.push(p.p90_spot_price);
+    g.instanceTypes.add(p.instance_family);
+    // unique_azs in spot/series is a per-bucket count; use the max we
+    // saw across buckets as a coarse proxy.
+    if((p.unique_azs||0) > (g.azDispersion||0)) g.azDispersion = p.unique_azs;
+  }
+
+  // For each family, attach median on-demand price + median discount
+  // by looking up the matching family from /spot/discounts.
+  const discByFamily = new Map();
+  for(const r of discRows){
+    let arr = discByFamily.get(r.family_class);
+    if(!arr){arr=[];discByFamily.set(r.family_class,arr);}
+    if(typeof r.latest_on_demand_price==="number") arr.push({od:r.latest_on_demand_price, disc:r.spot_discount_pct});
+  }
+  const median = arr => {
+    if(!arr.length) return null;
+    const s = arr.slice().sort((a,b)=>a-b);
+    const m = Math.floor(s.length/2);
+    return s.length%2 ? s[m] : (s[m-1]+s[m])/2;
+  };
+
+  const familyRows = [...familyAgg.values()].map(g=>{
+    const dArr = discByFamily.get(g.family_class) || [];
+    const odArr = dArr.map(x=>x.od);
+    const discArr = dArr.map(x=>x.disc).filter(v=>typeof v==="number"&&isFinite(v));
+    return {
+      family_class:        g.family_class,
+      instance_families:   g.instanceTypes.size,
+      az_dispersion:       g.azDispersion || 0,
+      median_spot:         median(g.medianPrices),
+      median_p10:          median(g.p10Prices),
+      median_p90:          median(g.p90Prices),
+      median_on_demand:    median(odArr),
+      median_discount_pct: median(discArr),
+      event_count:         g.events,
+    };
+  }).sort((a,b)=>FAMILY_CLASS_ORDER.indexOf(a.family_class)-FAMILY_CLASS_ORDER.indexOf(b.family_class));
+
+  const interpretation = row => {
+    if(row.family_class==="gpu" && typeof row.median_discount_pct==="number" && row.median_discount_pct < 30){
+      return "Narrow GPU discount — capacity tightening (AI / GPU pressure).";
+    }
+    if(typeof row.median_discount_pct==="number" && row.median_discount_pct > 70){
+      return "Wide stable discount — spare capacity abundant.";
+    }
+    if(typeof row.median_discount_pct==="number" && row.median_discount_pct < 40){
+      return "Narrowing discount vs on-demand — capacity tightening.";
+    }
+    if(row.az_dispersion>=3){
+      return "High AZ dispersion — localized capacity imbalance possible.";
+    }
+    return "—";
+  };
+
+  return (
+    <div>
+      {/* Hero KPI tiles. */}
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit, minmax(160px, 1fr))",gap:8,marginBottom:14}}>
+        <KBox label="Latest Spot Observation" value={latestObs!=="—"?latestObs.slice(0,19).replace("T"," "):"—"}
+              sub={window||"window pending"} bg="#f9fafb" fg="#374151"/>
+        <KBox label="Spot Rows Captured" value={totalRows.toLocaleString()}
+              sub={distTypes+" types · "+distAZs+" AZs"} bg="#f9fafb" fg="#374151"/>
+        <KBox label="Median Spot Discount" value={typeof medianDiscount==="number"?medianDiscount.toFixed(1)+"%":"—"}
+              sub={discountVals.length?("across "+discountVals.length+" matched rows"):"pending on-demand join"}
+              bg={typeof medianDiscount==="number"&&medianDiscount<40?"#fef2f2":"#ecfdf5"}
+              fg={typeof medianDiscount==="number"&&medianDiscount<40?"#991b1b":"#065f46"}/>
+        <KBox label="Spot Volatility Events" value={volatilityEvents.toLocaleString()}
+              sub={"distinct observations"} bg="#f9fafb" fg="#374151"/>
+        <KBox label="AZ Dispersion (avg)" value={avgAzDispersion?avgAzDispersion.toFixed(1):"—"}
+              sub={"unique AZs per family-bucket"} bg="#f9fafb" fg="#374151"/>
+      </div>
+
+      {/* Family table. */}
+      <PricingTableCard title="Spot by family" subtitle="median spot · p10/p90 · median on-demand · discount · AZ dispersion · interpretation">
+        <div style={{overflowX:"auto"}}>
+          <table style={{width:"100%",borderCollapse:"collapse",fontSize:11.5,minWidth:760}}>
+            <thead>
+              <tr style={{background:"#f9fafb",color:"#6b7280"}}>
+                <th style={{textAlign:"left",  padding:"8px 12px",fontWeight:600}}>Family</th>
+                <th style={{textAlign:"right", padding:"8px 12px",fontWeight:600}}>Families</th>
+                <th style={{textAlign:"right", padding:"8px 12px",fontWeight:600}}>Max AZs</th>
+                <th style={{textAlign:"right", padding:"8px 12px",fontWeight:600}}>Median spot</th>
+                <th style={{textAlign:"right", padding:"8px 12px",fontWeight:600}}>p10 spot</th>
+                <th style={{textAlign:"right", padding:"8px 12px",fontWeight:600}}>p90 spot</th>
+                <th style={{textAlign:"right", padding:"8px 12px",fontWeight:600}}>Median on-demand</th>
+                <th style={{textAlign:"right", padding:"8px 12px",fontWeight:600}}>Discount vs OD</th>
+                <th style={{textAlign:"right", padding:"8px 12px",fontWeight:600}}>Events</th>
+                <th style={{textAlign:"left",  padding:"8px 12px",fontWeight:600}}>Interpretation</th>
+              </tr>
+            </thead>
+            <tbody>
+              {familyRows.length===0&&(
+                <tr><td colSpan={10} style={{padding:"14px",color:"#9ca3af",textAlign:"center"}}>No family rollups yet.</td></tr>
+              )}
+              {familyRows.map(r=>(
+                <tr key={r.family_class} style={{borderTop:"0.5px solid #f3f4f6"}}>
+                  <td style={{padding:"7px 12px",fontWeight:600,color:"#111827"}}>{r.family_class}</td>
+                  <td style={{padding:"7px 12px",textAlign:"right"}}>{r.instance_families}</td>
+                  <td style={{padding:"7px 12px",textAlign:"right"}}>{r.az_dispersion}</td>
+                  <td style={{padding:"7px 12px",textAlign:"right"}}>{typeof r.median_spot==="number"?"$"+r.median_spot.toFixed(4):"—"}</td>
+                  <td style={{padding:"7px 12px",textAlign:"right",color:"#6b7280"}}>{typeof r.median_p10==="number"?"$"+r.median_p10.toFixed(4):"—"}</td>
+                  <td style={{padding:"7px 12px",textAlign:"right",color:"#6b7280"}}>{typeof r.median_p90==="number"?"$"+r.median_p90.toFixed(4):"—"}</td>
+                  <td style={{padding:"7px 12px",textAlign:"right"}}>{typeof r.median_on_demand==="number"?"$"+r.median_on_demand.toFixed(4):"—"}</td>
+                  <td style={{padding:"7px 12px",textAlign:"right",fontWeight:600,
+                              color: typeof r.median_discount_pct==="number"
+                                ? (r.median_discount_pct<40?"#dc2626":r.median_discount_pct>70?"#059669":"#374151")
+                                : "#9ca3af"}}>
+                    {typeof r.median_discount_pct==="number"?r.median_discount_pct.toFixed(1)+"%":"—"}
+                  </td>
+                  <td style={{padding:"7px 12px",textAlign:"right",color:"#6b7280"}}>{r.event_count.toLocaleString()}</td>
+                  <td style={{padding:"7px 12px",color:"#6b7280",fontSize:11}}>{interpretation(r)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </PricingTableCard>
+
+      <div style={{marginTop:10,fontSize:10.5,color:"#9ca3af",lineHeight:1.5}}>
+        Source: AWS DescribeSpotPriceHistory · {d.source}. Rolling source history limit: 90 days.
+        Internal series can exceed 90 days because we capture forward.
+        On-demand baseline: latest captured on-demand price per instance type from the AWS Price List Bulk API.
+        {disc.data?.latest_on_demand_capture_date_et&&<>
+          {" "}On-demand baseline as of <code>{disc.data.latest_on_demand_capture_date_et}</code>.
+        </>}
+      </div>
+    </div>
+  );
+}
+
 /* ── Sub-tab 3: Graph Trends ─────────────────────────────────────── */
 
 function EC2GraphTrendsSubtab({status}){
@@ -5599,11 +5838,48 @@ function EC2MethodologySubtab({status}){
           captured-vs-widget drift via a banner when the counts differ.
         </p>
         <p style={{marginBottom:10}}>
-          <strong>Capture cadence.</strong> Mon–Fri, between 10:00 AM and 12:00 PM America/New_York,
-          scheduled via GitHub Actions cron (three UTC slots that bracket the window across DST).
-          The capture endpoint validates the ET window inside the handler, so out-of-window manual
-          POSTs are rejected unless <code>?force=true</code> is set. One canonical run per ET business
-          date per source; matched-instance percentage changes only.
+          <strong>Capture cadence.</strong> Every calendar day (including weekends), between 10:00 AM
+          and 12:00 PM America/New_York, scheduled via GitHub Actions cron (three UTC slots that bracket
+          the window across DST). The capture endpoint validates the ET time-of-day window inside the
+          handler, so out-of-window manual POSTs are rejected unless <code>?force=true</code> is set.
+          One canonical run per ET calendar date per source; matched-instance percentage changes only.
+        </p>
+
+        <p style={{marginTop:16,marginBottom:10,fontSize:13,fontWeight:600,color:"#111827"}}>
+          Spot Pricing
+        </p>
+        <p style={{marginBottom:10}}>
+          On-Demand pricing tracks AWS's official EC2 list prices. Spot pricing tracks market prices
+          for spare EC2 capacity. Spot prices can move even when On-Demand prices are unchanged. We use
+          Spot discount vs On-Demand, volatility, and availability-zone dispersion as capacity-tightness
+          indicators.
+        </p>
+        <p style={{marginBottom:10}}>
+          <strong>Source.</strong> AWS EC2 <code>DescribeSpotPriceHistory</code> via the AWS SDK.
+          Spot history is paginated and returns one row per
+          (instance_type, availability_zone, product_description, timestamp). AWS Spot Price History
+          provides rolling 90-day official source history. Captured data is stored going forward to
+          preserve a longer internal time series.
+        </p>
+        <p style={{marginBottom:10}}>
+          <strong>v1 scope.</strong> Representative institutional basket only —
+          <code> m7i.large / m7i.2xlarge, c7i.large / c7i.2xlarge, r7i.large / r7i.2xlarge,
+          g5.xlarge / g5.2xlarge, p4d.24xlarge, p5.48xlarge, i4i.large / i4i.2xlarge</code>.
+          Region us-east-1, product description Linux/UNIX. Expansion to more families and full
+          on-demand instance universe is sequenced after volume/quality validation. No 90-day
+          historical backfill is performed automatically.
+        </p>
+        <p style={{marginBottom:10}}>
+          <strong>Idempotency.</strong> Rows are deduped on the unique tuple
+          (observed_timestamp_utc, region, availability_zone, instance_type, product_description,
+          spot_price_usd). Re-sending an overlapping window is safe and never duplicates rows.
+        </p>
+        <p style={{marginBottom:10}}>
+          <strong>Auth isolation.</strong> Spot capture accepts either
+          <code> AWS_EC2_SPOT_CAPTURE_SECRET</code> (dedicated) or
+          <code> AWS_EC2_PRICING_CAPTURE_SECRET</code> (shared with on-demand daily capture).
+          The legacy generic <code>HISTORY_CAPTURE_SECRET</code> is deliberately not accepted on the
+          Spot endpoint — Spot stays isolated from unrelated dashboard flows.
         </p>
       </div>
     </PricingTableCard>
