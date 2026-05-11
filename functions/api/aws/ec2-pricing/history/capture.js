@@ -20,8 +20,12 @@
 //                  body:  {}
 //                  → { success, run_id, row_count, changed_vs_prior_capture }
 //
-// Auth: HISTORY_CAPTURE_SECRET. STRICT on prod/preview hostnames —
-// missing secret on a non-localhost host returns HTTP 500 capture_misconfigured.
+// Auth: AWS EC2 pricing capture uses AWS_EC2_PRICING_CAPTURE_SECRET.
+// HISTORY_CAPTURE_SECRET is accepted as a backward-compat fallback so the
+// historical-backfill workflow (which still presents the legacy secret)
+// keeps working. When both env vars are bound, either value is accepted.
+// STRICT on prod/preview hostnames — if neither secret is bound, a non-
+// localhost host returns HTTP 500 capture_misconfigured.
 
 import { classifyInstance } from '../_family.js';
 import { nowInEasternTime, isInsideCaptureWindow } from '../_et.js';
@@ -40,21 +44,29 @@ export async function onRequestPost({ request, env }) {
   // prod/preview MUST be authenticated.
   const isLocal = ['localhost', '127.0.0.1', '0.0.0.0'].includes(url.hostname);
 
-  // Auth gate
-  const secret = env?.HISTORY_CAPTURE_SECRET;
-  if (!isLocal && !secret) {
+  // Auth gate. Accept EITHER the dedicated AWS EC2 pricing secret or the
+  // legacy generic capture secret. Both may be bound concurrently with
+  // different values during migration — e.g., the daily-capture workflow
+  // rotates onto AWS_EC2_PRICING_CAPTURE_SECRET while the historical
+  // backfill workflow still presents HISTORY_CAPTURE_SECRET. Once every
+  // caller is on the dedicated secret, the legacy fallback can be dropped.
+  const acceptedSecrets = [
+    env?.AWS_EC2_PRICING_CAPTURE_SECRET,
+    env?.HISTORY_CAPTURE_SECRET,
+  ].filter(Boolean);
+  if (!isLocal && acceptedSecrets.length === 0) {
     return jsonResp({
       success: false, error: 'capture_misconfigured',
-      detail: 'HISTORY_CAPTURE_SECRET is not set on this environment. Production and preview deploys must require auth; refusing to capture.',
+      detail: 'Neither AWS_EC2_PRICING_CAPTURE_SECRET nor HISTORY_CAPTURE_SECRET is set on this environment. Production and preview deploys must require auth; refusing to capture.',
     }, 500);
   }
-  if (secret) {
+  if (acceptedSecrets.length > 0) {
     const auth = request.headers.get('authorization') || '';
     const bearer = auth.replace(/^Bearer\s+/i, '').trim();
     const headerSecret = request.headers.get('x-history-capture-secret') || '';
     const querySecret  = url.searchParams.get('key') || '';
     const provided = bearer || headerSecret || querySecret;
-    if (provided !== secret) {
+    if (!acceptedSecrets.includes(provided)) {
       return jsonResp({ success: false, error: 'unauthorized' }, 403);
     }
   }

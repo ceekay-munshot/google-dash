@@ -62,12 +62,17 @@ jobs:
           fi
           echo "url=$URL" >> "$GITHUB_OUTPUT"
 
+      # AWS EC2 pricing capture uses AWS_EC2_PRICING_CAPTURE_SECRET (dedicated
+      # to this workflow). HISTORY_CAPTURE_SECRET is a backward-compat fallback
+      # so prod keeps working until the dedicated secret is set in both GitHub
+      # Actions and the Cloudflare Pages env vars. Once both sides are wired
+      # up, the legacy fallback can be dropped.
       - name: Validate auth secret
         env:
-          CAPTURE_SECRET: ${{ secrets.HISTORY_CAPTURE_SECRET }}
+          CAPTURE_SECRET: ${{ secrets.AWS_EC2_PRICING_CAPTURE_SECRET || secrets.HISTORY_CAPTURE_SECRET }}
         run: |
           if [ -z "$CAPTURE_SECRET" ]; then
-            echo "::error::HISTORY_CAPTURE_SECRET secret is not set"
+            echo "::error::Neither AWS_EC2_PRICING_CAPTURE_SECRET nor HISTORY_CAPTURE_SECRET is set"
             exit 1
           fi
 
@@ -86,7 +91,7 @@ jobs:
         id: capture
         env:
           DASHBOARD_URL: ${{ steps.target.outputs.url }}
-          SECRET:        ${{ secrets.HISTORY_CAPTURE_SECRET }}
+          SECRET:        ${{ secrets.AWS_EC2_PRICING_CAPTURE_SECRET || secrets.HISTORY_CAPTURE_SECRET }}
           PAYLOAD:       ${{ steps.parse.outputs.payload }}
           FORCE:         ${{ inputs.force || 'false' }}
         run: node scripts/aws-ec2-capture-multiphase.mjs
