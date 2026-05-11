@@ -5079,7 +5079,7 @@ function AwsPricingTrendsSection(){
           <div style={{minWidth:0,flex:"1 1 320px"}}>
             <div style={{fontSize:18,fontWeight:700,color:"#111827",lineHeight:1.3}}>AWS EC2 On-Demand Pricing</div>
             <div style={{fontSize:12,color:"#6b7280",marginTop:4,lineHeight:1.5,maxWidth:760}}>
-              Official AWS-published EC2 on-demand pricing for US East (N. Virginia), captured daily during US East-coast business hours from the AWS Price List Bulk API.
+              Official AWS-published EC2 on-demand pricing for US East (N. Virginia), captured every calendar day during 10:00–12:00 ET from the AWS Price List Bulk API.
             </div>
           </div>
           <div style={{display:"flex",alignItems:"center",gap:6,flexShrink:0}}>
@@ -5291,7 +5291,7 @@ function EC2PriceChangeSubtab({status}){
     return <HistoryEmptyState
       status={status}
       message="Pricing history is being collected from today."
-      hint="WTD / MTD / QTD will populate as daily captures accumulate. The first daily capture lands during US East business hours (Mon-Fri 10:00–12:00 ET)."/>;
+      hint="WTD / MTD / QTD will populate as daily captures accumulate. Daily captures land between 10:00–12:00 ET every calendar day."/>;
   }
 
   const periods=[

@@ -21,9 +21,10 @@ export function nowInEasternTime(now = new Date()) {
   };
 }
 
-// Mon–Fri, 10:00 ≤ hour < 12:00 in America/New_York.
-export function isInsideBusinessWindow(et) {
-  if (!['Mon','Tue','Wed','Thu','Fri'].includes(et.weekday)) return false;
+// 10:00 ≤ hour < 12:00 in America/New_York. Day-of-week is NOT gated —
+// captures run every calendar day; the time-of-day window only ensures
+// consistent timestamps across cron-slot drift and DST.
+export function isInsideCaptureWindow(et) {
   const hh = parseInt(et.time.slice(0, 2), 10);
   return hh >= 10 && hh < 12;
 }

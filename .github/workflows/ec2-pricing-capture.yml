@@ -1,17 +1,17 @@
 name: AWS EC2 Pricing Daily Capture
 
-# Mon-Fri only. Three UTC slots that bracket the 10:00-12:00 ET
-# business window across DST so at least one slot lands inside the
-# window. The endpoint enforces the window in handler — the cron is
+# Runs every calendar day. Three UTC slots that bracket the 10:00-12:00 ET
+# capture window across DST so at least one slot lands inside the window.
+# The endpoint enforces the time-of-day window in handler — the cron is
 # just the trigger fan-out, not the gate.
-#   14:17 UTC = 10:17 EST / 09:17 EDT
-#   15:08 UTC = 11:08 EST / 10:08 EDT
-#   15:42 UTC = 11:42 EST / 10:42 EDT
+#   14:17 UTC = 09:17 EST / 10:17 EDT  (inside window during EDT only)
+#   15:08 UTC = 10:08 EST / 11:08 EDT  (inside window year-round)
+#   15:42 UTC = 10:42 EST / 11:42 EDT  (inside window year-round)
 on:
   schedule:
-    - cron: '17 14 * * 1-5'
-    - cron: '8 15 * * 1-5'
-    - cron: '42 15 * * 1-5'
+    - cron: '17 14 * * *'
+    - cron: '8 15 * * *'
+    - cron: '42 15 * * *'
   workflow_dispatch:
     inputs:
       target:

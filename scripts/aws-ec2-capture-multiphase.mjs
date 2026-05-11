@@ -83,8 +83,14 @@ async function main() {
     console.error('Run already exists for this date; idempotent success.');
     process.exit(0);
   }
-  if (begin.action === 'skipped_outside_business_window') {
-    console.error('Outside ET business window; capture skipped (this is normal for off-window cron slots).');
+  // Accept both names during a deploy-order window where the worker script
+  // and the Pages endpoint may not be in lockstep. Remove the legacy name
+  // once both sides have rolled out the rename.
+  if (
+    begin.action === 'skipped_outside_capture_window' ||
+    begin.action === 'skipped_outside_business_window'
+  ) {
+    console.error('Outside ET capture window; capture skipped (this is normal for off-window cron slots).');
     process.exit(0);
   }
   if (!begin.run_id) {

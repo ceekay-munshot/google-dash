@@ -24,7 +24,7 @@
 // missing secret on a non-localhost host returns HTTP 500 capture_misconfigured.
 
 import { classifyInstance } from '../_family.js';
-import { nowInEasternTime, isInsideBusinessWindow } from '../_et.js';
+import { nowInEasternTime, isInsideCaptureWindow } from '../_et.js';
 import { COLS, insertPricingRowsChunked, rowHashSummary, jsonResp, corsPreflight } from '../_d1-chunk.js';
 
 const VALID_SOURCES = new Set(['aws_bulk_pricelist_current', 'aws_bulk_pricelist_historical']);
@@ -100,11 +100,11 @@ async function phaseBegin({ url, db, body, force }) {
     captured_date_et = et.date;
     captured_time_et = et.time;
     // ET-window validation (skipped on force=true, on overrides, and for historical source).
-    if (!force && !isHistorical && !isInsideBusinessWindow(et)) {
+    if (!force && !isHistorical && !isInsideCaptureWindow(et)) {
       return jsonResp({
         success: true,
-        action:  'skipped_outside_business_window',
-        reason:  `weekday=${et.weekday} time=${et.time} not in Mon-Fri 10:00-12:00 America/New_York`,
+        action:  'skipped_outside_capture_window',
+        reason:  `time=${et.time} weekday=${et.weekday} not in 10:00-12:00 America/New_York`,
       });
     }
   }
