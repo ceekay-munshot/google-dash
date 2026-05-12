@@ -66,6 +66,8 @@ jobs:
 
     permissions:
       contents: read
+      issues: write   # needed to open / comment on the auto-failure issue
+      actions: read   # needed to list job steps so we can name the failed step in the issue body
 
     env:
       REGION:              ${{ inputs.region || 'us-east-1' }}
@@ -340,3 +342,142 @@ jobs:
           path: /tmp/spot-artifacts/
           if-no-files-found: error
           retention-days: 30
+
+      # Mirrors the auto-issue pattern from ec2-pricing-capture.yml:99-148.
+      # Differences: a separate label scoped to spot, idempotent label
+      # creation (the on-demand workflow assumes the label already exists),
+      # and a body that names the failed step(s) and tells the operator
+      # NOT to reach for a 90-day backfill as a recovery move.
+      - name: Open / update issue on failure
+        if: failure()
+        uses: actions/github-script@v7
+        env:
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          TRIGGER: ${{ github.event_name }}
+          BRANCH:  ${{ github.ref_name }}
+        with:
+          script: |
+            const TITLE = '🔴 AWS EC2 Spot pricing capture failing';
+            const LABEL = 'aws-ec2-spot-pricing-capture-failure';
+
+            // 1. Ensure the label exists. createLabel returns 422 if it
+            //    already exists, which we treat as success. Anything else
+            //    we let propagate so a real auth issue is visible.
+            try {
+              await github.rest.issues.createLabel({
+                owner: context.repo.owner,
+                repo:  context.repo.repo,
+                name:  LABEL,
+                color: 'b60205',
+                description: 'Auto-applied when the AWS EC2 Spot daily capture workflow fails.',
+              });
+              core.notice('Created label: ' + LABEL);
+            } catch (e) {
+              if (e.status === 422) {
+                core.info('Label already exists: ' + LABEL);
+              } else {
+                core.warning('Could not create label (' + e.status + '): ' + e.message + ' — continuing without label.');
+              }
+            }
+
+            // 2. Resolve which step(s) failed so the issue body names them
+            //    directly. If the API is unavailable, fall back to a link.
+            let failedStepLine = '_See the run linked above for the failed step._';
+            try {
+              const { data } = await github.rest.actions.listJobsForWorkflowRun({
+                owner:  context.repo.owner,
+                repo:   context.repo.repo,
+                run_id: context.runId,
+              });
+              const failed = [];
+              for (const job of data.jobs || []) {
+                for (const step of job.steps || []) {
+                  if (step.conclusion === 'failure') {
+                    failed.push('`' + step.name + '` (in job `' + job.name + '`)');
+                  }
+                }
+              }
+              if (failed.length > 0) failedStepLine = failed.join('; ');
+            } catch (e) {
+              core.warning('Could not list job steps: ' + e.message);
+            }
+
+            const nowUTC = new Date().toISOString().replace('T', ' ').slice(0, 19) + ' UTC';
+            const summary = [
+              '**Workflow:**     ' + context.workflow,
+              '**Run:**          ' + process.env.RUN_URL,
+              '**Branch:**       ' + (process.env.BRANCH || context.ref),
+              '**Event:**        ' + process.env.TRIGGER,
+              '**When:**         ' + nowUTC,
+              '**Failed step:**  ' + failedStepLine,
+              '',
+              '---',
+              '',
+              '#### ⚠️ Do NOT trigger a 90-day Spot backfill to "recover" from this failure',
+              '',
+              'The daily capture is idempotent: rows are INSERTed OR IGNOREd against',
+              'the unique index `(observed_timestamp_utc, region_code, availability_zone,`',
+              '`instance_type, product_description, spot_price_usd)`. Once the underlying',
+              'issue is fixed, just re-running the daily workflow will pick up any missed',
+              'observations via its 48-hour lookback window. A blind 90-day backfill is',
+              'destructive of basket-scope assumptions and throughput, and is not the',
+              'right recovery move here.',
+              '',
+              'Investigate the run linked above. Close this issue once the underlying',
+              'problem is fixed; the next failure will auto-open a fresh issue.',
+            ].join('\n');
+
+            // 3. List open issues by label so we can append a comment to an
+            //    existing one instead of spamming a new issue per failure.
+            //    If the label couldn't be created above we still try to
+            //    find an existing issue by title.
+            let openIssues = [];
+            try {
+              const { data } = await github.rest.issues.listForRepo({
+                owner:  context.repo.owner,
+                repo:   context.repo.repo,
+                state:  'open',
+                labels: LABEL,
+                per_page: 50,
+              });
+              openIssues = data;
+            } catch (e) {
+              core.warning('listForRepo by label failed (' + e.status + '): ' + e.message + ' — falling back to title search.');
+              const { data } = await github.rest.issues.listForRepo({
+                owner: context.repo.owner,
+                repo:  context.repo.repo,
+                state: 'open',
+                per_page: 100,
+              });
+              openIssues = data;
+            }
+
+            const existing = openIssues.find(i => i.title === TITLE);
+            if (existing) {
+              await github.rest.issues.createComment({
+                owner:        context.repo.owner,
+                repo:         context.repo.repo,
+                issue_number: existing.number,
+                body:         '### New failure\n\n' + summary,
+              });
+              core.notice('Posted comment on existing issue #' + existing.number);
+            } else {
+              const createParams = {
+                owner: context.repo.owner,
+                repo:  context.repo.repo,
+                title: TITLE,
+                body:  '### Initial failure\n\n' + summary,
+                labels: [LABEL],
+              };
+              try {
+                const { data: created } = await github.rest.issues.create(createParams);
+                core.notice('Opened new issue #' + created.number);
+              } catch (e) {
+                // If the label-attachment failed (e.g. label still missing),
+                // retry without labels rather than swallowing the alert.
+                core.warning('Issue create with label failed (' + e.status + '): ' + e.message + ' — retrying without labels.');
+                delete createParams.labels;
+                const { data: created } = await github.rest.issues.create(createParams);
+                core.notice('Opened new issue #' + created.number + ' (no label attached).');
+              }
+            }
