@@ -5586,16 +5586,14 @@ function EC2SpotPricingSubtab(){
     if(typeof row.median_discount_pct==="number" && row.median_discount_pct < 40){
       return "Narrowing discount vs on-demand — capacity tightening.";
     }
-    // True intra-family price dispersion: (p90 - p10) / median. Only
-    // surface the "localized imbalance" line when the price spread is
-    // wide — a high AZ count by itself is just coverage, not dispersion.
-    if(typeof row.median_spot==="number" && row.median_spot > 0
-       && typeof row.median_p10==="number" && typeof row.median_p90==="number"
-       && (row.median_p90 - row.median_p10) / row.median_spot > 0.5){
-      return "High AZ dispersion — localized capacity imbalance possible.";
-    }
+    // Until we have a proper dispersion metric (the obvious (p90-p10)/median
+    // proxy fires for every family in this dataset, which makes it useless
+    // as a discriminator), default to a coverage-oriented interpretation
+    // for any family with broad AZ presence. Stronger dispersion signals
+    // (intra-AZ price spread, instance-level percentile divergence) can
+    // re-introduce a "localized imbalance" branch above this fallback.
     if(row.az_dispersion>=3){
-      return "Broad AZ coverage; monitor discount/price spread for capacity pressure.";
+      return "Broad AZ coverage; monitor discount and price spread for capacity pressure.";
     }
     return "—";
   };
