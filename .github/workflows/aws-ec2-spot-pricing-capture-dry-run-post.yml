@@ -1,0 +1,298 @@
+name: AWS EC2 Spot Pricing Capture Dry Run POST
+
+# Manual-only validation that the full Spot capture payload is accepted
+# by the production /api/aws/ec2-pricing/spot/capture endpoint, using
+# dry_run=true so NO D1 write occurs. Performs ZERO mutations:
+#   - dry_run=true is hard-wired into the payload; the handler returns
+#     before any INSERT (see functions/api/aws/ec2-pricing/spot/capture.js
+#     lines 115-126)
+#   - after the POST, the workflow reads /spot/status and asserts that
+#     total_capture_runs and total_rows are still 0
+#   - does NOT call /spot/capture with dry_run=false
+#   - does NOT run the 90-day backfill
+#   - does NOT modify on-demand pipeline, UI, or any other production data
+#
+# Required GitHub Actions secrets:
+#   AWS_ACCESS_KEY_ID                — IAM access key with ec2:DescribeSpotPriceHistory
+#   AWS_SECRET_ACCESS_KEY            — matching secret
+#   AWS_EC2_PRICING_CAPTURE_SECRET   — capture endpoint auth (shared with on-demand)
+# Optional:
+#   AWS_SESSION_TOKEN                — STS session token, only for temporary creds
+#   AWS_EC2_SPOT_CAPTURE_SECRET      — dedicated spot secret; if present, used instead
+
+on:
+  workflow_dispatch:
+    inputs:
+      region:
+        description: 'AWS region (default: us-east-1)'
+        required: false
+        default: 'us-east-1'
+      product_description:
+        description: 'AWS Spot product description (default: Linux/UNIX)'
+        required: false
+        default: 'Linux/UNIX'
+      lookback_hours:
+        description: 'Hours back from now for the probe window (default: 24, max: 2160)'
+        required: false
+        default: '24'
+
+concurrency:
+  group: aws-ec2-spot-pricing-capture-dry-run-post
+  cancel-in-progress: false
+
+jobs:
+  capture_dry_run_post:
+    name: Spot capture dry_run=true POST validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    permissions:
+      contents: read
+
+    env:
+      REGION:              ${{ inputs.region }}
+      PRODUCT_DESCRIPTION: ${{ inputs.product_description }}
+      LOOKBACK_HOURS:      ${{ inputs.lookback_hours }}
+      AWS_ACCESS_KEY_ID:     ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_SESSION_TOKEN:     ${{ secrets.AWS_SESSION_TOKEN }}
+      AWS_EC2_PRICING_CAPTURE_SECRET: ${{ secrets.AWS_EC2_PRICING_CAPTURE_SECRET }}
+      AWS_EC2_SPOT_CAPTURE_SECRET:    ${{ secrets.AWS_EC2_SPOT_CAPTURE_SECRET }}
+      DASHBOARD_URL: 'https://google-dash-git.pages.dev'
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Validate AWS credentials (fail-fast before any AWS call)
+        run: |
+          if [ -z "$AWS_ACCESS_KEY_ID" ]; then
+            echo "::error::AWS_ACCESS_KEY_ID secret is not set. Add it at Settings → Secrets and variables → Actions."
+            exit 1
+          fi
+          if [ -z "$AWS_SECRET_ACCESS_KEY" ]; then
+            echo "::error::AWS_SECRET_ACCESS_KEY secret is not set. Add it at Settings → Secrets and variables → Actions."
+            exit 1
+          fi
+          echo "::notice::AWS_ACCESS_KEY_ID present (length ${#AWS_ACCESS_KEY_ID})"
+          echo "::notice::AWS_SECRET_ACCESS_KEY present (length ${#AWS_SECRET_ACCESS_KEY})"
+          if [ -n "$AWS_SESSION_TOKEN" ]; then
+            echo "::notice::AWS_SESSION_TOKEN also present — using STS temporary credentials."
+          fi
+
+      - name: Select capture secret (prefer dedicated spot secret)
+        id: secret
+        run: |
+          if [ -n "$AWS_EC2_SPOT_CAPTURE_SECRET" ]; then
+            echo "::notice::Using AWS_EC2_SPOT_CAPTURE_SECRET (dedicated)."
+            echo "use_dedicated=true" >> "$GITHUB_OUTPUT"
+          elif [ -n "$AWS_EC2_PRICING_CAPTURE_SECRET" ]; then
+            echo "::notice::Using AWS_EC2_PRICING_CAPTURE_SECRET (shared with on-demand, accepted by spot endpoint as fallback)."
+            echo "use_dedicated=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "::error::Neither AWS_EC2_SPOT_CAPTURE_SECRET nor AWS_EC2_PRICING_CAPTURE_SECRET is set. The capture endpoint will reject auth."
+            exit 1
+          fi
+
+      - name: Validate inputs
+        run: |
+          if ! echo "$LOOKBACK_HOURS" | grep -Eq '^[0-9]+$'; then
+            echo "::error::lookback_hours must be a positive integer (got '$LOOKBACK_HOURS')"
+            exit 1
+          fi
+          if [ "$LOOKBACK_HOURS" -lt 1 ] || [ "$LOOKBACK_HOURS" -gt 2160 ]; then
+            echo "::error::lookback_hours must be between 1 and 2160 (AWS rolling 90-day Spot history cap)"
+            exit 1
+          fi
+          if [ -z "$REGION" ]; then
+            echo "::error::region input is empty"
+            exit 1
+          fi
+          if [ -z "$PRODUCT_DESCRIPTION" ]; then
+            echo "::error::product_description input is empty"
+            exit 1
+          fi
+
+      - name: Install dependencies (@aws-sdk/client-ec2)
+        run: npm ci
+
+      - name: Compute probe window (start-time / end-time, ISO 8601 UTC)
+        id: window
+        run: |
+          END_TIME=$(node -e "console.log(new Date().toISOString())")
+          START_TIME=$(node -e "console.log(new Date(Date.now() - ${LOOKBACK_HOURS} * 3600 * 1000).toISOString())")
+          echo "start_time=$START_TIME" >> "$GITHUB_OUTPUT"
+          echo "end_time=$END_TIME"     >> "$GITHUB_OUTPUT"
+          echo "::notice::Probe window: $START_TIME → $END_TIME (lookback ${LOOKBACK_HOURS}h)"
+
+      - name: Fetch full Spot payload (NO --summary-only — need every row)
+        env:
+          START_TIME: ${{ steps.window.outputs.start_time }}
+          END_TIME:   ${{ steps.window.outputs.end_time }}
+        run: |
+          mkdir -p /tmp/spot-artifacts
+          echo "::notice::Invoking scripts/fetch-aws-ec2-spot-history.mjs (read-only AWS call, no /spot/capture POST yet)"
+          node scripts/fetch-aws-ec2-spot-history.mjs \
+            "--region=${REGION}" \
+            "--product-description=${PRODUCT_DESCRIPTION}" \
+            "--start-time=${START_TIME}" \
+            "--end-time=${END_TIME}" \
+            > /tmp/spot-artifacts/spot-fetch.json
+          RAW_BYTES=$(wc -c < /tmp/spot-artifacts/spot-fetch.json)
+          ROW_COUNT=$(jq '.rowCount' /tmp/spot-artifacts/spot-fetch.json)
+          ROWS_IN_PAYLOAD=$(jq '.rows | length' /tmp/spot-artifacts/spot-fetch.json)
+          echo "::notice::Fetched payload: ${RAW_BYTES} bytes, rowCount=${ROW_COUNT}, rows in array=${ROWS_IN_PAYLOAD}"
+          if [ "$ROW_COUNT" != "$ROWS_IN_PAYLOAD" ]; then
+            echo "::error::rowCount (${ROW_COUNT}) and rows.length (${ROWS_IN_PAYLOAD}) disagree — payload is partial (was --summary-only forgotten in script?). Aborting."
+            exit 1
+          fi
+          if [ "$ROW_COUNT" -le 0 ]; then
+            echo "::error::Fetcher returned 0 rows — cannot validate the capture endpoint with an empty body."
+            exit 1
+          fi
+
+      - name: Build snake_case capture payload (dry_run=true hard-wired)
+        run: |
+          jq '{
+            region:                   .region,
+            product_description:      .productDescription,
+            start_time:               .startTime,
+            end_time:                 .endTime,
+            instance_scope:           .instanceScope,
+            requested_instance_types: .requestedInstanceTypes,
+            rows:                     .rows,
+            dry_run:                  true
+          }' /tmp/spot-artifacts/spot-fetch.json > /tmp/spot-artifacts/spot-capture-payload.json
+          BYTES=$(wc -c < /tmp/spot-artifacts/spot-capture-payload.json)
+          POST_ROWS=$(jq '.rows | length' /tmp/spot-artifacts/spot-capture-payload.json)
+          DRY_RUN_FLAG=$(jq -r '.dry_run' /tmp/spot-artifacts/spot-capture-payload.json)
+          echo "::notice::Capture payload: ${BYTES} bytes, rows in payload=${POST_ROWS}, dry_run=${DRY_RUN_FLAG}"
+          if [ "$DRY_RUN_FLAG" != "true" ]; then
+            echo "::error::dry_run flag in built payload is not true — refusing to POST."
+            exit 1
+          fi
+
+      - name: POST to /spot/capture (dry_run=true ONLY — endpoint short-circuits before any D1 INSERT)
+        id: post
+        run: |
+          if [ "${{ steps.secret.outputs.use_dedicated }}" = "true" ]; then
+            SECRET="$AWS_EC2_SPOT_CAPTURE_SECRET"
+          else
+            SECRET="$AWS_EC2_PRICING_CAPTURE_SECRET"
+          fi
+          HTTP_CODE=$(curl -sS -o /tmp/spot-artifacts/spot-capture-response.json -w "%{http_code}" \
+            -X POST "${DASHBOARD_URL}/api/aws/ec2-pricing/spot/capture" \
+            -H "Authorization: Bearer ${SECRET}" \
+            -H "Content-Type: application/json" \
+            --data-binary @/tmp/spot-artifacts/spot-capture-payload.json)
+          echo "http_code=$HTTP_CODE" >> "$GITHUB_OUTPUT"
+          echo "::notice::POST returned HTTP ${HTTP_CODE}"
+          echo "::group::Response body"
+          if jq empty /tmp/spot-artifacts/spot-capture-response.json 2>/dev/null; then
+            jq '.' /tmp/spot-artifacts/spot-capture-response.json
+          else
+            echo "(response is not valid JSON — raw body follows)"
+            cat /tmp/spot-artifacts/spot-capture-response.json
+          fi
+          echo "::endgroup::"
+
+      - name: Assert response shape (HTTP 200, success=true, action=validated, basket coverage)
+        env:
+          HTTP_CODE: ${{ steps.post.outputs.http_code }}
+        run: |
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "::error::Expected HTTP 200, got ${HTTP_CODE}"
+            exit 1
+          fi
+
+          if ! jq empty /tmp/spot-artifacts/spot-capture-response.json 2>/dev/null; then
+            echo "::error::Response body is not valid JSON"
+            exit 1
+          fi
+
+          SUCCESS=$(jq -r '.success' /tmp/spot-artifacts/spot-capture-response.json)
+          DRY_RUN=$(jq -r '.dry_run' /tmp/spot-artifacts/spot-capture-response.json)
+          ACTION=$(jq -r '.action' /tmp/spot-artifacts/spot-capture-response.json)
+          RECEIVED=$(jq -r '.received_row_count' /tmp/spot-artifacts/spot-capture-response.json)
+          DIT=$(jq -r '.distinct_instance_types' /tmp/spot-artifacts/spot-capture-response.json)
+          DAZ=$(jq -r '.distinct_availability_zones' /tmp/spot-artifacts/spot-capture-response.json)
+
+          FAIL=0
+          if [ "$SUCCESS" != "true" ]; then
+            echo "::error::Assertion failed: success != true (got '$SUCCESS')"
+            FAIL=1
+          fi
+          if [ "$DRY_RUN" != "true" ]; then
+            echo "::error::Assertion failed: dry_run != true in response (got '$DRY_RUN')"
+            FAIL=1
+          fi
+          if [ "$ACTION" != "validated" ]; then
+            echo "::error::Assertion failed: action != 'validated' (got '$ACTION')"
+            FAIL=1
+          fi
+          if [ -z "$RECEIVED" ] || [ "$RECEIVED" = "null" ] || [ "$RECEIVED" -le 0 ] 2>/dev/null; then
+            echo "::error::Assertion failed: received_row_count must be > 0 (got '$RECEIVED')"
+            FAIL=1
+          fi
+          if [ "$DIT" != "12" ]; then
+            echo "::error::Assertion failed: distinct_instance_types != 12 (got '$DIT') — basket coverage regression?"
+            FAIL=1
+          fi
+          if [ -z "$DAZ" ] || [ "$DAZ" = "null" ] || [ "$DAZ" -lt 1 ] 2>/dev/null; then
+            echo "::error::Assertion failed: distinct_availability_zones must be >= 1 (got '$DAZ')"
+            FAIL=1
+          fi
+
+          if [ "$FAIL" = "1" ]; then exit 1; fi
+          echo "::notice::All response assertions passed."
+          echo "::notice::  HTTP:                          200"
+          echo "::notice::  success:                       true"
+          echo "::notice::  action:                        validated"
+          echo "::notice::  dry_run (echoed by endpoint):  true"
+          echo "::notice::  received_row_count:            $RECEIVED"
+          echo "::notice::  distinct_instance_types:       $DIT"
+          echo "::notice::  distinct_availability_zones:   $DAZ"
+
+      - name: Confirm no D1 write — /spot/status must still show 0 runs / 0 rows
+        run: |
+          curl -sS "${DASHBOARD_URL}/api/aws/ec2-pricing/spot/status" > /tmp/spot-artifacts/spot-status-after.json
+          echo "::group::/spot/status after dry_run=true POST"
+          jq '.' /tmp/spot-artifacts/spot-status-after.json
+          echo "::endgroup::"
+          RUNS=$(jq -r '.total_capture_runs' /tmp/spot-artifacts/spot-status-after.json)
+          ROWS=$(jq -r '.total_rows' /tmp/spot-artifacts/spot-status-after.json)
+          FAIL=0
+          if [ "$RUNS" != "0" ]; then
+            echo "::error::total_capture_runs != 0 after dry-run POST (got '$RUNS') — POST may have written to D1. Investigate immediately."
+            FAIL=1
+          fi
+          if [ "$ROWS" != "0" ]; then
+            echo "::error::total_rows != 0 after dry-run POST (got '$ROWS') — POST may have written to D1. Investigate immediately."
+            FAIL=1
+          fi
+          if [ "$FAIL" = "1" ]; then exit 1; fi
+          echo "::notice::Confirmed: /spot/status still shows total_capture_runs=0, total_rows=0. No D1 write occurred."
+
+      - name: Final summary
+        run: |
+          echo "::group::Spot capture dry_run=true POST — final summary"
+          echo "Fetched payload rowCount:           $(jq -r '.rowCount' /tmp/spot-artifacts/spot-fetch.json)"
+          echo "Rows in POST payload:               $(jq -r '.rows | length' /tmp/spot-artifacts/spot-capture-payload.json)"
+          echo "Endpoint received_row_count:        $(jq -r '.received_row_count' /tmp/spot-artifacts/spot-capture-response.json)"
+          echo "Endpoint distinct_instance_types:   $(jq -r '.distinct_instance_types' /tmp/spot-artifacts/spot-capture-response.json)"
+          echo "Endpoint distinct_availability_zones: $(jq -r '.distinct_availability_zones' /tmp/spot-artifacts/spot-capture-response.json)"
+          echo "Endpoint action:                    $(jq -r '.action' /tmp/spot-artifacts/spot-capture-response.json) (dry_run=true)"
+          echo "/spot/status after POST: total_capture_runs=$(jq -r '.total_capture_runs' /tmp/spot-artifacts/spot-status-after.json), total_rows=$(jq -r '.total_rows' /tmp/spot-artifacts/spot-status-after.json)"
+          echo "::endgroup::"
+
+      - name: Upload artifacts (fetch + payload + response + post-POST status)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: aws-ec2-spot-capture-dry-run-post-${{ github.run_id }}
+          path: /tmp/spot-artifacts/
+          if-no-files-found: error
+          retention-days: 14
