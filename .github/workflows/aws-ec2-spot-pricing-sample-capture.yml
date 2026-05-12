@@ -1,0 +1,353 @@
+name: AWS EC2 Spot Pricing Sample Capture
+
+# Manual-only first-real-capture workflow. POSTs the full Spot payload
+# to /api/aws/ec2-pricing/spot/capture with dry_run=false so the rows
+# land in D1 (aws_ec2_spot_price_capture_runs + aws_ec2_spot_price_rows).
+#
+# Scoped to a single sample run:
+#   - workflow_dispatch only (no schedule, no auto-trigger on push)
+#   - asserts pre-state is the EMPTY spot tables (total_capture_runs == 0,
+#     total_rows == 0). Refuses to proceed if already seeded — re-runs of
+#     this workflow are not safe; build a separate scheduled capture
+#     workflow for ongoing collection
+#   - asserts the on-demand /history/status snapshot is byte-identical
+#     before and after the POST. Any change would indicate either an
+#     overlap with the daily on-demand cron or, worse, a leak — both are
+#     worth investigating before authorizing further captures
+#
+# What this workflow does NOT do:
+#   - does NOT run the 90-day backfill
+#   - does NOT modify the on-demand pipeline (it only reads /history/status)
+#   - does NOT change UI
+#   - does NOT touch any tables besides aws_ec2_spot_price_* via the
+#     capture endpoint
+#
+# Required GitHub Actions secrets:
+#   AWS_ACCESS_KEY_ID                — IAM access key with ec2:DescribeSpotPriceHistory
+#   AWS_SECRET_ACCESS_KEY            — matching secret
+#   AWS_EC2_PRICING_CAPTURE_SECRET   — capture endpoint auth (shared with on-demand)
+# Optional:
+#   AWS_SESSION_TOKEN                — STS session token
+#   AWS_EC2_SPOT_CAPTURE_SECRET      — dedicated spot secret; if present, used instead
+
+on:
+  workflow_dispatch:
+    inputs:
+      region:
+        description: 'AWS region (default: us-east-1)'
+        required: false
+        default: 'us-east-1'
+      product_description:
+        description: 'AWS Spot product description (default: Linux/UNIX)'
+        required: false
+        default: 'Linux/UNIX'
+      lookback_hours:
+        description: 'Hours back from now for the capture window (default: 24, max: 2160)'
+        required: false
+        default: '24'
+
+concurrency:
+  group: aws-ec2-spot-pricing-sample-capture
+  cancel-in-progress: false
+
+jobs:
+  sample_capture:
+    name: First real 24-hour Spot sample capture (dry_run=false)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    permissions:
+      contents: read
+
+    env:
+      REGION:              ${{ inputs.region }}
+      PRODUCT_DESCRIPTION: ${{ inputs.product_description }}
+      LOOKBACK_HOURS:      ${{ inputs.lookback_hours }}
+      AWS_ACCESS_KEY_ID:     ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_SESSION_TOKEN:     ${{ secrets.AWS_SESSION_TOKEN }}
+      AWS_EC2_PRICING_CAPTURE_SECRET: ${{ secrets.AWS_EC2_PRICING_CAPTURE_SECRET }}
+      AWS_EC2_SPOT_CAPTURE_SECRET:    ${{ secrets.AWS_EC2_SPOT_CAPTURE_SECRET }}
+      DASHBOARD_URL: 'https://google-dash-git.pages.dev'
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Validate AWS credentials
+        run: |
+          if [ -z "$AWS_ACCESS_KEY_ID" ]; then
+            echo "::error::AWS_ACCESS_KEY_ID secret is not set."
+            exit 1
+          fi
+          if [ -z "$AWS_SECRET_ACCESS_KEY" ]; then
+            echo "::error::AWS_SECRET_ACCESS_KEY secret is not set."
+            exit 1
+          fi
+          echo "::notice::AWS credentials present."
+          if [ -n "$AWS_SESSION_TOKEN" ]; then
+            echo "::notice::AWS_SESSION_TOKEN present — using STS temporary credentials."
+          fi
+
+      - name: Select capture secret (prefer dedicated spot secret)
+        id: secret
+        run: |
+          if [ -n "$AWS_EC2_SPOT_CAPTURE_SECRET" ]; then
+            echo "::notice::Using AWS_EC2_SPOT_CAPTURE_SECRET (dedicated)."
+            echo "use_dedicated=true" >> "$GITHUB_OUTPUT"
+          elif [ -n "$AWS_EC2_PRICING_CAPTURE_SECRET" ]; then
+            echo "::notice::Using AWS_EC2_PRICING_CAPTURE_SECRET (shared fallback)."
+            echo "use_dedicated=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "::error::Neither AWS_EC2_SPOT_CAPTURE_SECRET nor AWS_EC2_PRICING_CAPTURE_SECRET is set."
+            exit 1
+          fi
+
+      - name: Validate inputs
+        run: |
+          if ! echo "$LOOKBACK_HOURS" | grep -Eq '^[0-9]+$'; then
+            echo "::error::lookback_hours must be a positive integer (got '$LOOKBACK_HOURS')"
+            exit 1
+          fi
+          if [ "$LOOKBACK_HOURS" -lt 1 ] || [ "$LOOKBACK_HOURS" -gt 2160 ]; then
+            echo "::error::lookback_hours must be between 1 and 2160"
+            exit 1
+          fi
+          if [ -z "$REGION" ]; then
+            echo "::error::region input is empty"; exit 1
+          fi
+          if [ -z "$PRODUCT_DESCRIPTION" ]; then
+            echo "::error::product_description input is empty"; exit 1
+          fi
+
+      - name: Pre-flight — snapshot /spot/status and /history/status, refuse if spot is already seeded
+        run: |
+          mkdir -p /tmp/spot-artifacts
+          curl -sS "${DASHBOARD_URL}/api/aws/ec2-pricing/spot/status"    > /tmp/spot-artifacts/spot-status-before.json
+          curl -sS "${DASHBOARD_URL}/api/aws/ec2-pricing/history/status" > /tmp/spot-artifacts/on-demand-status-before.json
+
+          echo "::group::/spot/status BEFORE"
+          jq '.' /tmp/spot-artifacts/spot-status-before.json
+          echo "::endgroup::"
+          echo "::group::/history/status BEFORE (on-demand)"
+          jq '.' /tmp/spot-artifacts/on-demand-status-before.json
+          echo "::endgroup::"
+
+          PRE_SPOT_RUNS=$(jq -r '.total_capture_runs' /tmp/spot-artifacts/spot-status-before.json)
+          PRE_SPOT_ROWS=$(jq -r '.total_rows'         /tmp/spot-artifacts/spot-status-before.json)
+          if [ "$PRE_SPOT_RUNS" != "0" ] || [ "$PRE_SPOT_ROWS" != "0" ]; then
+            echo "::error::Spot tables are NOT empty before this run (total_capture_runs=$PRE_SPOT_RUNS, total_rows=$PRE_SPOT_ROWS). This workflow is designed for the FIRST real capture only. Re-running it would invalidate the post-state assertion (total_capture_runs==1). If you need ongoing captures, build a separate scheduled workflow."
+            exit 1
+          fi
+          echo "::notice::Pre-state OK: spot tables empty (0 runs, 0 rows)."
+
+          PRE_OD_LATEST_DATE=$(jq -r '.latest_capture_date_et' /tmp/spot-artifacts/on-demand-status-before.json)
+          PRE_OD_LATEST_ROWS=$(jq -r '.latest_run.row_count'   /tmp/spot-artifacts/on-demand-status-before.json)
+          echo "::notice::On-demand pre-state: latest_capture_date_et=$PRE_OD_LATEST_DATE, latest_run.row_count=$PRE_OD_LATEST_ROWS"
+
+      - name: Install dependencies (@aws-sdk/client-ec2)
+        run: npm ci
+
+      - name: Compute capture window (start-time / end-time, ISO 8601 UTC)
+        id: window
+        run: |
+          END_TIME=$(node -e "console.log(new Date().toISOString())")
+          START_TIME=$(node -e "console.log(new Date(Date.now() - ${LOOKBACK_HOURS} * 3600 * 1000).toISOString())")
+          echo "start_time=$START_TIME" >> "$GITHUB_OUTPUT"
+          echo "end_time=$END_TIME"     >> "$GITHUB_OUTPUT"
+          echo "::notice::Capture window: $START_TIME → $END_TIME (lookback ${LOOKBACK_HOURS}h)"
+
+      - name: Fetch full Spot payload (NO --summary-only)
+        env:
+          START_TIME: ${{ steps.window.outputs.start_time }}
+          END_TIME:   ${{ steps.window.outputs.end_time }}
+        run: |
+          node scripts/fetch-aws-ec2-spot-history.mjs \
+            "--region=${REGION}" \
+            "--product-description=${PRODUCT_DESCRIPTION}" \
+            "--start-time=${START_TIME}" \
+            "--end-time=${END_TIME}" \
+            > /tmp/spot-artifacts/spot-fetch.json
+          ROW_COUNT=$(jq '.rowCount' /tmp/spot-artifacts/spot-fetch.json)
+          ROWS_IN_PAYLOAD=$(jq '.rows | length' /tmp/spot-artifacts/spot-fetch.json)
+          echo "::notice::Fetched $(wc -c < /tmp/spot-artifacts/spot-fetch.json) bytes, rowCount=${ROW_COUNT}, rows in array=${ROWS_IN_PAYLOAD}"
+          if [ "$ROW_COUNT" != "$ROWS_IN_PAYLOAD" ]; then
+            echo "::error::rowCount (${ROW_COUNT}) and rows.length (${ROWS_IN_PAYLOAD}) disagree — payload is partial. Aborting."
+            exit 1
+          fi
+          if [ "$ROW_COUNT" -le 0 ]; then
+            echo "::error::Fetcher returned 0 rows — refusing to POST an empty capture."
+            exit 1
+          fi
+
+      - name: Build snake_case capture payload (dry_run=false — REAL CAPTURE)
+        run: |
+          jq '{
+            region:                   .region,
+            product_description:      .productDescription,
+            start_time:               .startTime,
+            end_time:                 .endTime,
+            instance_scope:           .instanceScope,
+            requested_instance_types: .requestedInstanceTypes,
+            rows:                     .rows,
+            dry_run:                  false
+          }' /tmp/spot-artifacts/spot-fetch.json > /tmp/spot-artifacts/spot-capture-payload.json
+          BYTES=$(wc -c < /tmp/spot-artifacts/spot-capture-payload.json)
+          POST_ROWS=$(jq '.rows | length' /tmp/spot-artifacts/spot-capture-payload.json)
+          DRY_RUN_FLAG=$(jq -r '.dry_run' /tmp/spot-artifacts/spot-capture-payload.json)
+          echo "::notice::Capture payload: ${BYTES} bytes, rows=${POST_ROWS}, dry_run=${DRY_RUN_FLAG}"
+
+      - name: POST to /spot/capture (dry_run=false — writes to D1)
+        id: post
+        run: |
+          if [ "${{ steps.secret.outputs.use_dedicated }}" = "true" ]; then
+            SECRET="$AWS_EC2_SPOT_CAPTURE_SECRET"
+          else
+            SECRET="$AWS_EC2_PRICING_CAPTURE_SECRET"
+          fi
+          HTTP_CODE=$(curl -sS -o /tmp/spot-artifacts/spot-capture-response.json -w "%{http_code}" \
+            -X POST "${DASHBOARD_URL}/api/aws/ec2-pricing/spot/capture" \
+            -H "Authorization: Bearer ${SECRET}" \
+            -H "Content-Type: application/json" \
+            --data-binary @/tmp/spot-artifacts/spot-capture-payload.json)
+          echo "http_code=$HTTP_CODE" >> "$GITHUB_OUTPUT"
+          echo "::notice::POST returned HTTP ${HTTP_CODE}"
+          echo "::group::Response body"
+          if jq empty /tmp/spot-artifacts/spot-capture-response.json 2>/dev/null; then
+            jq '.' /tmp/spot-artifacts/spot-capture-response.json
+          else
+            echo "(response is not valid JSON — raw body follows)"
+            cat /tmp/spot-artifacts/spot-capture-response.json
+          fi
+          echo "::endgroup::"
+
+      - name: Assert capture response (HTTP 200, success, action=captured, basket coverage)
+        env:
+          HTTP_CODE: ${{ steps.post.outputs.http_code }}
+        run: |
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "::error::Expected HTTP 200, got ${HTTP_CODE}"
+            exit 1
+          fi
+          if ! jq empty /tmp/spot-artifacts/spot-capture-response.json 2>/dev/null; then
+            echo "::error::Response body is not valid JSON"
+            exit 1
+          fi
+
+          SUCCESS=$(jq -r '.success'                     /tmp/spot-artifacts/spot-capture-response.json)
+          ACTION=$(jq  -r '.action'                      /tmp/spot-artifacts/spot-capture-response.json)
+          INSERTED=$(jq -r '.inserted_row_count'         /tmp/spot-artifacts/spot-capture-response.json)
+          RECEIVED=$(jq -r '.received_row_count'         /tmp/spot-artifacts/spot-capture-response.json)
+          DEDUPED=$(jq  -r '.deduped_row_count'          /tmp/spot-artifacts/spot-capture-response.json)
+          DIT=$(jq      -r '.distinct_instance_types'    /tmp/spot-artifacts/spot-capture-response.json)
+          DAZ=$(jq      -r '.distinct_availability_zones' /tmp/spot-artifacts/spot-capture-response.json)
+          RUN_ID=$(jq   -r '.run_id'                     /tmp/spot-artifacts/spot-capture-response.json)
+
+          FAIL=0
+          if [ "$SUCCESS" != "true" ]; then
+            echo "::error::success != true (got '$SUCCESS')"; FAIL=1
+          fi
+          if [ "$ACTION" != "captured" ]; then
+            echo "::error::action != 'captured' (got '$ACTION')"; FAIL=1
+          fi
+          if [ -z "$INSERTED" ] || [ "$INSERTED" = "null" ] || [ "$INSERTED" -le 0 ] 2>/dev/null; then
+            echo "::error::inserted_row_count must be > 0 (got '$INSERTED')"; FAIL=1
+          fi
+          if [ "$DIT" != "12" ]; then
+            echo "::error::distinct_instance_types != 12 (got '$DIT')"; FAIL=1
+          fi
+          if [ -z "$DAZ" ] || [ "$DAZ" = "null" ] || [ "$DAZ" -lt 1 ] 2>/dev/null; then
+            echo "::error::distinct_availability_zones must be >= 1 (got '$DAZ')"; FAIL=1
+          fi
+          if [ -z "$RUN_ID" ] || [ "$RUN_ID" = "null" ]; then
+            echo "::error::run_id missing from response"; FAIL=1
+          fi
+
+          if [ "$FAIL" = "1" ]; then exit 1; fi
+          echo "::notice::Capture response OK."
+          echo "::notice::  run_id:                       $RUN_ID"
+          echo "::notice::  action:                       captured"
+          echo "::notice::  received_row_count:           $RECEIVED"
+          echo "::notice::  inserted_row_count:           $INSERTED"
+          echo "::notice::  deduped_row_count:            $DEDUPED"
+          echo "::notice::  distinct_instance_types:      $DIT"
+          echo "::notice::  distinct_availability_zones:  $DAZ"
+          if [ "$DAZ" != "6" ]; then
+            echo "::warning::distinct_availability_zones is $DAZ (expected 6 for us-east-1 Linux/UNIX over 24h). Capture is still valid but coverage drifted."
+          fi
+
+      - name: Post-flight — re-read /spot/status and /history/status
+        run: |
+          curl -sS "${DASHBOARD_URL}/api/aws/ec2-pricing/spot/status"    > /tmp/spot-artifacts/spot-status-after.json
+          curl -sS "${DASHBOARD_URL}/api/aws/ec2-pricing/history/status" > /tmp/spot-artifacts/on-demand-status-after.json
+          echo "::group::/spot/status AFTER"
+          jq '.' /tmp/spot-artifacts/spot-status-after.json
+          echo "::endgroup::"
+          echo "::group::/history/status AFTER (on-demand)"
+          jq '.' /tmp/spot-artifacts/on-demand-status-after.json
+          echo "::endgroup::"
+
+      - name: Assert /spot/status now shows total_capture_runs=1 and total_rows>0
+        run: |
+          POST_RUNS=$(jq -r '.total_capture_runs' /tmp/spot-artifacts/spot-status-after.json)
+          POST_ROWS=$(jq -r '.total_rows'         /tmp/spot-artifacts/spot-status-after.json)
+          FAIL=0
+          if [ "$POST_RUNS" != "1" ]; then
+            echo "::error::total_capture_runs != 1 after capture (got '$POST_RUNS')"; FAIL=1
+          fi
+          if [ -z "$POST_ROWS" ] || [ "$POST_ROWS" = "null" ] || [ "$POST_ROWS" -le 0 ] 2>/dev/null; then
+            echo "::error::total_rows must be > 0 after capture (got '$POST_ROWS')"; FAIL=1
+          fi
+          if [ "$FAIL" = "1" ]; then exit 1; fi
+          echo "::notice::Spot post-state OK: total_capture_runs=$POST_RUNS, total_rows=$POST_ROWS"
+
+      - name: Assert on-demand /history/status is byte-identical before vs after
+        run: |
+          if diff -u \
+              <(jq -S '.' /tmp/spot-artifacts/on-demand-status-before.json) \
+              <(jq -S '.' /tmp/spot-artifacts/on-demand-status-after.json) > /tmp/spot-artifacts/on-demand-diff.txt; then
+            echo "::notice::On-demand /history/status is byte-identical before and after. On-demand pipeline untouched."
+          else
+            echo "::error::On-demand /history/status changed between before and after the spot capture POST. This could be the daily on-demand cron firing concurrently (benign) OR a leak (bug). Inspect the diff and rerun if benign."
+            cat /tmp/spot-artifacts/on-demand-diff.txt
+            exit 1
+          fi
+
+          POST_OD_LATEST_DATE=$(jq -r '.latest_capture_date_et' /tmp/spot-artifacts/on-demand-status-after.json)
+          POST_OD_LATEST_ROWS=$(jq -r '.latest_run.row_count'   /tmp/spot-artifacts/on-demand-status-after.json)
+          echo "::notice::On-demand AFTER: latest_capture_date_et=$POST_OD_LATEST_DATE, latest_run.row_count=$POST_OD_LATEST_ROWS"
+          if [ "$POST_OD_LATEST_DATE" = "2026-05-11" ] && [ "$POST_OD_LATEST_ROWS" = "1301" ]; then
+            echo "::notice::On-demand baseline matches the documented values (2026-05-11 / 1,301)."
+          else
+            echo "::warning::On-demand baseline has drifted from 2026-05-11 / 1,301. This is expected if the daily capture has produced new rows since the original validation — the byte-identical before/after diff above is the load-bearing assertion."
+          fi
+
+      - name: Final summary
+        run: |
+          echo "::group::First real Spot sample capture — final summary"
+          echo "Run ID:                                $(jq -r '.run_id'                     /tmp/spot-artifacts/spot-capture-response.json)"
+          echo "Captured at (UTC):                     $(jq -r '.captured_at_utc'            /tmp/spot-artifacts/spot-capture-response.json)"
+          echo "Window:                                $(jq -r '.window.start'               /tmp/spot-artifacts/spot-capture-response.json) → $(jq -r '.window.end' /tmp/spot-artifacts/spot-capture-response.json)"
+          echo "Region / product_description:          $(jq -r '.region_code'                /tmp/spot-artifacts/spot-capture-response.json) / $(jq -r '.product_description' /tmp/spot-artifacts/spot-capture-response.json)"
+          echo "received_row_count:                    $(jq -r '.received_row_count'         /tmp/spot-artifacts/spot-capture-response.json)"
+          echo "inserted_row_count:                    $(jq -r '.inserted_row_count'         /tmp/spot-artifacts/spot-capture-response.json)"
+          echo "deduped_row_count:                     $(jq -r '.deduped_row_count'          /tmp/spot-artifacts/spot-capture-response.json)"
+          echo "distinct_instance_types / AZs:         $(jq -r '.distinct_instance_types'    /tmp/spot-artifacts/spot-capture-response.json) / $(jq -r '.distinct_availability_zones' /tmp/spot-artifacts/spot-capture-response.json)"
+          echo
+          echo "/spot/status before:                   runs=$(jq -r '.total_capture_runs' /tmp/spot-artifacts/spot-status-before.json), rows=$(jq -r '.total_rows' /tmp/spot-artifacts/spot-status-before.json)"
+          echo "/spot/status after:                    runs=$(jq -r '.total_capture_runs' /tmp/spot-artifacts/spot-status-after.json), rows=$(jq -r '.total_rows' /tmp/spot-artifacts/spot-status-after.json)"
+          echo
+          echo "On-demand untouched:                   $(if diff -q <(jq -S '.' /tmp/spot-artifacts/on-demand-status-before.json) <(jq -S '.' /tmp/spot-artifacts/on-demand-status-after.json) > /dev/null; then echo "YES (byte-identical)"; else echo "NO — inspect on-demand-diff.txt"; fi)"
+          echo "::endgroup::"
+
+      - name: Upload artifacts (fetch + payload + response + before/after status snapshots)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: aws-ec2-spot-sample-capture-${{ github.run_id }}
+          path: /tmp/spot-artifacts/
+          if-no-files-found: error
+          retention-days: 30
