@@ -5077,9 +5077,11 @@ function AwsPricingTrendsSection(){
         </div>
         <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:12,flexWrap:"wrap"}}>
           <div style={{minWidth:0,flex:"1 1 320px"}}>
-            <div style={{fontSize:18,fontWeight:700,color:"#111827",lineHeight:1.3}}>AWS EC2 On-Demand Pricing</div>
+            <div style={{fontSize:18,fontWeight:700,color:"#111827",lineHeight:1.3}}>{pricingSubtab==="spot"?"AWS EC2 Spot Pricing":"AWS EC2 On-Demand Pricing"}</div>
             <div style={{fontSize:12,color:"#6b7280",marginTop:4,lineHeight:1.5,maxWidth:760}}>
-              Official AWS-published EC2 on-demand pricing for US East (N. Virginia), captured every calendar day during 10:00–12:00 ET from the AWS Price List Bulk API.
+              {pricingSubtab==="spot"
+                ? "Spare-capacity market prices for EC2, compared with On-Demand baselines."
+                : "Official AWS-published EC2 on-demand pricing for US East (N. Virginia), captured every calendar day during 10:00–12:00 ET from the AWS Price List Bulk API."}
             </div>
           </div>
           <div style={{display:"flex",alignItems:"center",gap:6,flexShrink:0}}>
@@ -5132,6 +5134,17 @@ const fmtPctChange=v=>{
 const changeColor=v=>{
   if(typeof v!=="number"||!isFinite(v)||v===0) return "#6b7280";
   return v>0?"#dc2626":"#059669"; // price increase = red, decrease = green
+};
+// "May 12, 2026 · 19:01 UTC" — the Spot "Latest observation" hero tile
+// reads from the raw API ISO string; render in UTC so the label matches
+// what the on-demand timestamps elsewhere on the dashboard convey.
+const fmtSpotObsDate=iso=>{
+  if(!iso||iso==="—") return "—";
+  const d=new Date(iso);
+  if(isNaN(d.getTime())) return "—";
+  const months=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  return months[d.getUTCMonth()]+" "+d.getUTCDate()+", "+d.getUTCFullYear()+" · "+
+    String(d.getUTCHours()).padStart(2,"0")+":"+String(d.getUTCMinutes()).padStart(2,"0")+" UTC";
 };
 
 function HistoryEmptyState({status, message, hint}){
@@ -5573,8 +5586,16 @@ function EC2SpotPricingSubtab(){
     if(typeof row.median_discount_pct==="number" && row.median_discount_pct < 40){
       return "Narrowing discount vs on-demand — capacity tightening.";
     }
-    if(row.az_dispersion>=3){
+    // True intra-family price dispersion: (p90 - p10) / median. Only
+    // surface the "localized imbalance" line when the price spread is
+    // wide — a high AZ count by itself is just coverage, not dispersion.
+    if(typeof row.median_spot==="number" && row.median_spot > 0
+       && typeof row.median_p10==="number" && typeof row.median_p90==="number"
+       && (row.median_p90 - row.median_p10) / row.median_spot > 0.5){
       return "High AZ dispersion — localized capacity imbalance possible.";
+    }
+    if(row.az_dispersion>=3){
+      return "Broad AZ coverage; monitor discount/price spread for capacity pressure.";
     }
     return "—";
   };
@@ -5583,7 +5604,7 @@ function EC2SpotPricingSubtab(){
     <div>
       {/* Hero KPI tiles. */}
       <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit, minmax(160px, 1fr))",gap:8,marginBottom:14}}>
-        <KBox label="Latest Spot Observation" value={latestObs!=="—"?latestObs.slice(0,19).replace("T"," "):"—"}
+        <KBox label="Latest Spot Observation" value={fmtSpotObsDate(latestObs)}
               sub={window||"window pending"} bg="#f9fafb" fg="#374151"/>
         <KBox label="Spot Rows Captured" value={totalRows.toLocaleString()}
               sub={distTypes+" types · "+distAZs+" AZs"} bg="#f9fafb" fg="#374151"/>
@@ -5591,10 +5612,10 @@ function EC2SpotPricingSubtab(){
               sub={discountVals.length?("across "+discountVals.length+" matched rows"):"pending on-demand join"}
               bg={typeof medianDiscount==="number"&&medianDiscount<40?"#fef2f2":"#ecfdf5"}
               fg={typeof medianDiscount==="number"&&medianDiscount<40?"#991b1b":"#065f46"}/>
-        <KBox label="Spot Volatility Events" value={volatilityEvents.toLocaleString()}
-              sub={"distinct observations"} bg="#f9fafb" fg="#374151"/>
-        <KBox label="AZ Dispersion (avg)" value={avgAzDispersion?avgAzDispersion.toFixed(1):"—"}
-              sub={"unique AZs per family-bucket"} bg="#f9fafb" fg="#374151"/>
+        <KBox label="Spot Observations" value={volatilityEvents.toLocaleString()}
+              sub={"distinct spot price observations"} bg="#f9fafb" fg="#374151"/>
+        <KBox label="Avg AZ Coverage" value={avgAzDispersion?avgAzDispersion.toFixed(1):"—"}
+              sub={"unique AZs per family bucket"} bg="#f9fafb" fg="#374151"/>
       </div>
 
       {/* Family table. */}
