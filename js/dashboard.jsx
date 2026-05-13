@@ -3995,6 +3995,132 @@ function PPTHistoryIframe(){
   );
 }
 
+/* ═══════════════════════════════════════════════════════
+   UBS AI App Downloads Monitor — D1-backed trend chart.
+   Reads only from /api/ubs/snapshots/global_app_downloads_ai/trend
+   (D1 → no live UBS call from the browser). Capture into D1 happens
+   server-side via POST /api/ubs/capture; secrets stay on the worker.
+═══════════════════════════════════════════════════════ */
+const UBS_METRICS = [
+  {key:"downloadsShare",   label:"Download Share"},
+  {key:"downloadsRank",    label:"Download Rank"},
+  {key:"indexedDownloads", label:"Indexed Downloads"},
+];
+const UBS_LINE_COLORS = ["#3b82f6","#10b981","#f59e0b","#ef4444","#8b5cf6","#06b6d4","#ec4899","#14b8a6","#f97316","#6366f1"];
+
+function UBSAppDownloadsTrendChart(){
+  const [metric, setMetric] = useState("downloadsShare");
+  const [state,  setState]  = useState({busy:true, error:null, data:null});
+
+  useEffect(()=>{
+    let cancelled = false;
+    setState(s => ({...s, busy:true, error:null}));
+    fetch("/api/ubs/snapshots/global_app_downloads_ai/trend?metric="+encodeURIComponent(metric)+"&geography=Global_90&period=week&topN=10")
+      .then(r => r.json().then(j => ({status:r.status, json:j})).catch(()=>({status:r.status, json:null})))
+      .then(({status, json})=>{
+        if (cancelled) return;
+        if (status >= 400 || !json || json.ok !== true) {
+          setState({busy:false, data:null, error:(json && (json.detail || json.error)) || ("HTTP "+status)});
+        } else {
+          setState({busy:false, data:json, error:null});
+        }
+      })
+      .catch(err => {
+        if (cancelled) return;
+        setState({busy:false, data:null, error:(err && err.message) || "fetch failed"});
+      });
+    return () => { cancelled = true; };
+  }, [metric]);
+
+  // Pivot { series: [{ app, points: [{snapshot_date, value}] }] }
+  // into wide-format rows: [{ snapshot_date, app1, app2, ... }]
+  const wideRows = (() => {
+    if (!state.data || !state.data.series) return [];
+    const m = new Map();
+    for (const s of state.data.series) {
+      for (const p of s.points || []) {
+        if (!m.has(p.snapshot_date)) m.set(p.snapshot_date, {snapshot_date: p.snapshot_date});
+        m.get(p.snapshot_date)[s.app] = p.value;
+      }
+    }
+    return [...m.values()].sort((a,b)=>a.snapshot_date.localeCompare(b.snapshot_date));
+  })();
+  const apps   = (state.data && state.data.topApps) || [];
+  const unit   = state.data && state.data.unit;
+  const isRank = metric === "downloadsRank";
+  const isEmpty = !state.busy && !state.error && wideRows.length === 0;
+
+  return(
+    <div style={{marginTop:20, marginBottom:8}}>
+      <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:4}}>
+        <Pill text="UBS Evidence Lab · /api/ubs/snapshots/global_app_downloads_ai/trend" bg="#ede9fe" color="#5b21b6"/>
+      </div>
+      <div style={{fontSize:16,fontWeight:700,color:"#111827",lineHeight:1.3}}>UBS AI App Downloads Monitor</div>
+      <div style={{fontSize:11,color:"#9ca3af",marginTop:3}}>
+        UBS Evidence Lab app-download share and rank trends for the AI app cohort.
+      </div>
+
+      {/* Metric toggle */}
+      <div style={{display:"flex",gap:4,marginTop:10,marginBottom:4}}>
+        {UBS_METRICS.map(m=>(
+          <button key={m.key} onClick={()=>setMetric(m.key)} disabled={state.busy}
+            style={{fontSize:11,padding:"5px 12px",border:"0.5px solid "+(metric===m.key?"#111827":"#e5e7eb"),borderRadius:6,background:metric===m.key?"#111827":"#fff",color:metric===m.key?"#fff":"#374151",cursor:state.busy?"wait":"pointer",fontFamily:"inherit",fontWeight:500}}>
+            {m.label}
+          </button>
+        ))}
+      </div>
+      {isRank&&(
+        <div style={{fontSize:10,color:"#9ca3af",marginTop:2}}>Lower rank is better.</div>
+      )}
+
+      {/* Chart container */}
+      <div style={{marginTop:10,borderRadius:8,border:"0.5px solid #e5e7eb",padding:14,background:"#fff"}}>
+        {state.busy&&(
+          <div style={{display:"flex",alignItems:"center",justifyContent:"center",height:300,gap:8,color:"#6b7280",fontSize:12}}>
+            <Spin size={12}/> Loading UBS trend…
+          </div>
+        )}
+        {state.error&&(
+          <div style={{height:300,display:"flex",alignItems:"center",justifyContent:"center",color:"#991b1b",fontSize:12,fontWeight:500,padding:"0 16px",textAlign:"center"}}>
+            UBS trend temporarily unavailable · {String(state.error).slice(0,200)}
+          </div>
+        )}
+        {isEmpty&&(
+          <div style={{height:300,display:"flex",alignItems:"center",justifyContent:"center",color:"#6b7280",fontSize:12}}>
+            No rows for this filter combination.
+          </div>
+        )}
+        {!state.busy&&!state.error&&!isEmpty&&(
+          <ResponsiveContainer width="100%" height={300}>
+            <LineChart data={wideRows} margin={{top:8,right:14,left:-6,bottom:6}}>
+              <CartesianGrid stroke="#f3f4f6" strokeDasharray="3 3" vertical={false}/>
+              <XAxis dataKey="snapshot_date" tick={{fontSize:9,fill:"#6b7280"}} tickLine={false} axisLine={false} minTickGap={50}/>
+              <YAxis tick={{fontSize:9,fill:"#6b7280"}} tickLine={false} axisLine={false}
+                reversed={isRank}
+                tickFormatter={v=>isRank?String(Math.round(v)):Number(v).toFixed(unit==="share"?3:1)}
+                width={56}/>
+              <Tooltip
+                contentStyle={{fontSize:11,padding:"6px 8px",border:"0.5px solid #e5e7eb"}}
+                labelFormatter={l=>"Week of "+l}
+                formatter={(v,name)=>[isRank?Math.round(v):Number(v).toFixed(unit==="share"?4:2), name]}/>
+              <Legend wrapperStyle={{fontSize:10,paddingTop:6}}/>
+              {apps.map((app,i)=>(
+                <Line key={app} type="monotone" dataKey={app} name={app}
+                  stroke={UBS_LINE_COLORS[i%UBS_LINE_COLORS.length]} strokeWidth={1.5}
+                  dot={false} activeDot={{r:4}} isAnimationActive={false} connectNulls/>
+              ))}
+            </LineChart>
+          </ResponsiveContainer>
+        )}
+      </div>
+
+      <div style={{fontSize:10,color:"#9ca3af",marginTop:6,fontStyle:"italic",lineHeight:1.5}}>
+        The first live UBS slice currently covers the Global_90 weekly cohort. More geographies are available in D1 and can be added as filters.
+      </div>
+    </div>
+  );
+}
+
 function ORTab({data,busy,ts,live,refresh,refreshTick,bumpRefreshTick}){
   const trunc=(s,n)=>s&&s.length>n?s.slice(0,n-1)+"…":(s||"");
   const best=data.find(m=>m.isGemini),top=data[0];
@@ -4112,6 +4238,9 @@ function ORTab({data,busy,ts,live,refresh,refreshTick,bumpRefreshTick}){
             Source: radar.cloudflare.com · DNS traffic-based popularity · updates automatically
           </div>
         </div>
+
+        {/* UBS Evidence Lab — AI app downloads trend (D1-backed read endpoint) */}
+        <UBSAppDownloadsTrendChart/>
       </>)}
     </>
   );
