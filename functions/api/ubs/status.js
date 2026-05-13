@@ -3,12 +3,25 @@
  * Route: GET /api/ubs/status
  *
  * Safe to open in the browser. Never returns or echoes UBS_API_KEY.
- * Reports whether the catalogue endpoint is reachable and (when the
- * response can be parsed) a rough dataset count.
+ *
+ * Returns:
+ *   {
+ *     ok, catalogueReachable, checkedAt, catalogueUrl, source,
+ *     upstreamStatus?,
+ *     datasetCount?,                 — total items in the catalogue
+ *     apiAccessibleCount?,           — items with strict apiAccessible === true
+ *     apiAccessibleUnknownCount?,    — items with apiAccessible === null
+ *                                     (i.e. no boolean signal found)
+ *     error?, errorCode?, errorBody?
+ *   }
+ *
+ * `ok` is driven solely by catalogue reachability. Zero apiAccessible
+ * hits is NOT a failure — UBS may not expose a direct API boolean, in
+ * which case every item flows into apiAccessibleUnknownCount instead.
  */
 
 import { fetchUbsCatalogue, UBS_CATALOGUE_URL } from './_client.js';
-import { extractDatasetArray } from './catalogue.js';
+import { extractDatasetArray, mapCatalogueItem } from './_parser.js';
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -63,21 +76,25 @@ export async function onRequestGet({ env }) {
     });
   }
 
-  // 2xx — derive a dataset count + API-accessible count defensively.
   let datasetCount = null;
   let apiAccessibleCount = null;
+  let apiAccessibleUnknownCount = null;
   try {
     const items = extractDatasetArray(result.json);
     if (Array.isArray(items)) {
       datasetCount = items.length;
-      apiAccessibleCount = items.reduce((acc, it) => {
-        const flag = pickApiAccessFlag(it);
-        return acc + (flag === true ? 1 : 0);
-      }, 0);
+      let trueCount = 0;
+      let unknownCount = 0;
+      for (const it of items) {
+        const m = mapCatalogueItem(it);
+        if (m.apiAccessible === true) trueCount += 1;
+        else if (m.apiAccessible === null) unknownCount += 1;
+      }
+      apiAccessibleCount = trueCount;
+      apiAccessibleUnknownCount = unknownCount;
     }
   } catch {
-    // Parser failures here are non-fatal for a status probe — the
-    // catalogue is reachable; the count just couldn't be derived.
+    // Non-fatal — catalogue is reachable; counts just couldn't be derived.
   }
 
   return jsonResp({
@@ -87,26 +104,6 @@ export async function onRequestGet({ env }) {
     ...base,
     ...(datasetCount != null ? { datasetCount } : {}),
     ...(apiAccessibleCount != null ? { apiAccessibleCount } : {}),
+    ...(apiAccessibleUnknownCount != null ? { apiAccessibleUnknownCount } : {}),
   });
-}
-
-// Local copy of the API-accessibility heuristic so /status doesn't import
-// internals from /catalogue. Kept aligned with mapCatalogueItem().
-function pickApiAccessFlag(it) {
-  if (!it || typeof it !== 'object') return null;
-  const candidates = [
-    it.apiAccessible, it.api_accessible,
-    it.apiAvailable, it.api_available,
-    it.hasApi, it.has_api,
-    it.api,
-  ];
-  for (const c of candidates) {
-    if (typeof c === 'boolean') return c;
-    if (typeof c === 'string') {
-      const v = c.toLowerCase();
-      if (v === 'true' || v === 'yes' || v === 'available') return true;
-      if (v === 'false' || v === 'no' || v === 'unavailable') return false;
-    }
-  }
-  return null;
 }
