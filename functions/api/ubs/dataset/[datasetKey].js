@@ -55,14 +55,19 @@ const STATIC_FILTER_ALLOWLIST = new Set([
 const FORBIDDEN_PARAMS = new Set(['dataAssetKey']);
 
 // Consumed by this handler — never forwarded to UBS.
-const HANDLER_PARAMS = new Set(['mode', 'viewId']);
+const HANDLER_PARAMS = new Set(['mode', 'viewId', 'debug']);
 
 // Distinct-field aliases accepted on the inbound request.
 const DISTINCT_FIELD_ALIASES = ['distinctField', 'fieldName', 'field', 'column'];
 
-// Upstream param name order — try fieldName first, then field, then
-// column on 400. Matches the spec.
-const DISTINCT_UPSTREAM_PARAM_ORDER = ['fieldName', 'field', 'column'];
+// Upstream param-name strategies for mode=distinct, tried in order.
+// We continue past a strategy when EITHER UBS returns HTTP 400 OR the
+// JSON body contains a logical error (e.g. "Data Field/Column Not Found
+// [fieldName]"). Non-400 HTTP errors short-circuit the loop.
+const DISTINCT_UPSTREAM_PARAM_ORDER = [
+  'fieldName', 'field', 'column',
+  'fields', 'columns', 'distinctField',
+];
 
 // Defensive redaction list for upstreamUrlRedacted. UBS_API_KEY only
 // ever travels in the Authorization header so this is belt-and-braces.
@@ -242,47 +247,198 @@ function getDistinctFieldRequested(searchParams) {
   return null;
 }
 
+/* ──────────────────────── logical-error detection ──────────────────────── */
+
+function isNonEmptyErrorValue(v) {
+  if (v == null) return false;
+  if (typeof v === 'string') return v.trim().length > 0;
+  if (Array.isArray(v)) return v.length > 0;
+  if (typeof v === 'object') return Object.keys(v).length > 0;
+  return false;
+}
+
 /**
- * Call UBS distinct URL with fieldName → field → column fallback on
- * HTTP 400. Returns the first 2xx response, or the last response when
- * all three variants fail.
+ * Detect a UBS-embedded logical error in a 2xx response. UBS returns
+ * HTTP 200 with messages like
+ *   "Data Field/Column Not Found [fieldName] for table ..."
+ * placed at one of several locations in the payload.
+ */
+export function hasUbsLogicalError(payload) {
+  if (!payload || typeof payload !== 'object') return false;
+  return [
+    payload.errors,
+    payload.error,
+    payload.meta && payload.meta.errors,
+    payload.metadata && payload.metadata.errors,
+    payload.data && payload.data.errors,
+  ].some(isNonEmptyErrorValue);
+}
+
+function stringifyErrorItem(item) {
+  if (item == null) return null;
+  if (typeof item === 'string') return item.slice(0, 300);
+  if (typeof item === 'number' || typeof item === 'boolean') return String(item);
+  if (typeof item === 'object') {
+    const msg = item.message ?? item.detail ?? item.error ?? item.text ?? item.description ?? null;
+    if (msg != null) return String(msg).slice(0, 300);
+    try { return JSON.stringify(item).slice(0, 300); }
+    catch { return '[unstringifiable error]'; }
+  }
+  return String(item).slice(0, 300);
+}
+
+/**
+ * Compact { at, message } list for the embedded-error locations.
+ * Caps each location at 5 items, each message at 300 chars. Returns
+ * null when nothing was found.
+ */
+export function summarizeUbsLogicalError(payload) {
+  if (!payload || typeof payload !== 'object') return null;
+  const out = [];
+  const candidates = [
+    ['errors',          payload.errors],
+    ['error',           payload.error],
+    ['meta.errors',     payload.meta && payload.meta.errors],
+    ['metadata.errors', payload.metadata && payload.metadata.errors],
+    ['data.errors',     payload.data && payload.data.errors],
+  ];
+  for (const [at, val] of candidates) {
+    if (val == null) continue;
+    if (typeof val === 'string' && val.trim()) {
+      out.push({ at, message: val.trim().slice(0, 300) });
+    } else if (Array.isArray(val) && val.length > 0) {
+      for (const item of val.slice(0, 5)) {
+        const msg = stringifyErrorItem(item);
+        if (msg) out.push({ at, message: msg });
+      }
+      if (val.length > 5) out.push({ at, message: `…(${val.length - 5} more)` });
+    } else if (typeof val === 'object' && Object.keys(val).length > 0) {
+      const msg = stringifyErrorItem(val);
+      if (msg) out.push({ at, message: msg });
+    }
+  }
+  return out.length > 0 ? out : null;
+}
+
+/* ──────────────────────── distinct call helpers ──────────────────────── */
+
+/**
+ * Make one UBS distinct call and return both the raw result and a
+ * structured summary. A 2xx response with embedded errors is NOT
+ * considered a success here — the caller (callDistinctWithFallback)
+ * inspects summary.hadLogicalError to decide whether to continue.
+ */
+async function callDistinctAttempt(env, urlStr) {
+  const res = await ubsGet(env, urlStr, { timeoutMs: 30000 });
+  const summary = {
+    paramName: null,
+    upstreamStatus: res.status || 0,
+    hadLogicalError: false,
+    logicalErrorSummary: null,
+    rowCount: null,
+    upstreamUrlRedacted: redactUrlSecrets(urlStr),
+  };
+  if (res.ok) {
+    try {
+      const parsed = extractDataRows(res.json);
+      summary.rowCount = parsed.rows.length;
+    } catch { /* leave null */ }
+    const logical = summarizeUbsLogicalError(res.json);
+    if (logical && logical.length > 0) {
+      summary.hadLogicalError = true;
+      summary.logicalErrorSummary = logical;
+    }
+  }
+  return { res, summary };
+}
+
+/**
+ * Call UBS distinct URL with the configured param-name strategies
+ * (fieldName → field → column → fields → columns → distinctField).
  *
- * Non-400 errors short-circuit (we treat 4xx-not-400 / 5xx / network
- * errors as "the field name isn't the problem" and stop retrying).
+ * A strategy counts as a CONTINUATION condition (i.e. try the next
+ * one) when:
+ *   - UBS returns HTTP 400, OR
+ *   - UBS returns 2xx but the body carries an embedded logical error
+ *     (UBS does this when the field name isn't recognised; the body
+ *     looks like { errors: ["Data Field/Column Not Found [fieldName]"] }).
+ *
+ * A strategy counts as a HARD STOP (return immediately) when:
+ *   - UBS returns 2xx with no logical errors → success
+ *   - UBS returns a non-400 HTTP error → short-circuit (the param name
+ *     isn't the problem; further retries would be noise)
+ *
+ * Returns either a successful UBS response augmented with attempted[]
+ * and usedDistinctParam, or an error object with allFailed: true and
+ * allLogicalErrors: true|false.
  */
 async function callDistinctWithFallback(env, distinctUrl, fieldValue, extraParams) {
   const attempted = [];
-  let lastResult = null;
+  let lastRes = null;
   let lastUrl = distinctUrl;
 
   for (const paramName of DISTINCT_UPSTREAM_PARAM_ORDER) {
-    attempted.push(paramName);
-    let u;
+    let urlStr = distinctUrl;
     try {
-      u = new URL(distinctUrl);
+      const u = new URL(distinctUrl);
+      u.searchParams.set(paramName, fieldValue);
+      for (const [ek, ev] of Object.entries(extraParams || {})) {
+        u.searchParams.set(ek, ev);
+      }
+      urlStr = u.toString();
     } catch {
+      attempted.push({
+        paramName, upstreamStatus: 0,
+        hadLogicalError: false, logicalErrorSummary: null,
+        rowCount: null,
+        upstreamUrlRedacted: redactUrlSecrets(distinctUrl),
+      });
       return {
         ok: false, status: 0, code: 'invalid_distinct_url',
         error: 'Catalogue distinctUrl is not a valid URL',
-        usedDistinctParam: paramName, attempted, upstreamUrl: distinctUrl,
+        usedDistinctParam: paramName,
+        attempted, upstreamUrl: distinctUrl,
+        allFailed: true, allLogicalErrors: false,
       };
     }
-    u.searchParams.set(paramName, fieldValue);
-    for (const [ek, ev] of Object.entries(extraParams || {})) {
-      u.searchParams.set(ek, ev);
-    }
-    lastUrl = u.toString();
+    lastUrl = urlStr;
 
-    const res = await ubsGet(env, lastUrl, { timeoutMs: 30000 });
-    if (res.ok) {
-      return { ...res, usedDistinctParam: paramName, attempted, upstreamUrl: lastUrl };
+    const { res, summary } = await callDistinctAttempt(env, urlStr);
+    summary.paramName = paramName;
+    attempted.push(summary);
+    lastRes = res;
+
+    if (res.ok && !summary.hadLogicalError) {
+      // True success — 2xx and no embedded errors.
+      return { ...res, usedDistinctParam: paramName, attempted, upstreamUrl: urlStr };
     }
-    lastResult = { ...res, usedDistinctParam: paramName, upstreamUrl: lastUrl };
-    if (res.status !== 400) {
-      return { ...lastResult, attempted, shortCircuitedOnNon400: true };
+    if (!res.ok && res.status !== 400) {
+      // Non-400 HTTP — short-circuit. Param name isn't the issue.
+      return {
+        ...res, usedDistinctParam: paramName,
+        attempted, upstreamUrl: urlStr,
+        shortCircuitedOnNon400: true,
+      };
     }
+    // HTTP 400 OR 2xx-with-logical-error — continue to the next strategy.
   }
-  return { ...lastResult, attempted, allFailed: true };
+
+  // Every strategy failed. Decide which kind of failure dominates.
+  const allLogical = attempted.length > 0 && attempted.every((a) => a.hadLogicalError);
+  return {
+    ok: false,
+    status: lastRes && lastRes.status ? lastRes.status : 0,
+    code: 'distinct_lookup_failed',
+    error: allLogical
+      ? 'All distinct strategies returned UBS logical errors — field name not recognised under any param alias'
+      : 'All distinct strategies failed (mixed HTTP errors and/or UBS logical errors)',
+    errorBody: lastRes ? lastRes.errorBody : undefined,
+    usedDistinctParam: DISTINCT_UPSTREAM_PARAM_ORDER[DISTINCT_UPSTREAM_PARAM_ORDER.length - 1],
+    attempted,
+    upstreamUrl: lastUrl,
+    allFailed: true,
+    allLogicalErrors: allLogical,
+  };
 }
 
 export async function onRequestGet({ request, env, params }) {
@@ -398,6 +554,7 @@ export async function onRequestGet({ request, env, params }) {
   // ── mode=distinct branch ──────────────────────────────────────────
   if (mode === 'distinct') {
     const distinctReq = getDistinctFieldRequested(url.searchParams);
+    const debug = url.searchParams.get('debug') === '1';
 
     // Forward only limit/offset; everything else is dropped for distinct.
     const distinctForwarded = {};
@@ -410,6 +567,9 @@ export async function onRequestGet({ request, env, params }) {
     let upstreamUrlUsed = modeUrl;
     let usedDistinctParam = null;
     let attempted = [];
+    let allFailed = false;
+    let allLogicalErrors = false;
+    let shortCircuitedOnNon400 = false;
 
     if (distinctReq) {
       const r = await callDistinctWithFallback(env, modeUrl, distinctReq.value, distinctForwarded);
@@ -417,9 +577,13 @@ export async function onRequestGet({ request, env, params }) {
       upstreamUrlUsed = r.upstreamUrl || modeUrl;
       usedDistinctParam = r.usedDistinctParam || null;
       attempted = r.attempted || [];
+      allFailed = !!r.allFailed;
+      allLogicalErrors = !!r.allLogicalErrors;
+      shortCircuitedOnNon400 = !!r.shortCircuitedOnNon400;
     } else {
-      // No field requested — call distinctUrl with whatever passthrough
-      // we have. If UBS requires a field, it will 400 and surface here.
+      // No field requested — single call to distinctUrl. Still validate
+      // the 2xx body for embedded UBS logical errors before declaring
+      // success.
       try {
         const u = new URL(modeUrl);
         for (const [k, v] of Object.entries(distinctForwarded)) u.searchParams.set(k, v);
@@ -427,18 +591,55 @@ export async function onRequestGet({ request, env, params }) {
       } catch {
         upstreamUrlUsed = modeUrl;
       }
-      dataRes = await ubsGet(env, upstreamUrlUsed, { timeoutMs: 30000 });
+      const single = await callDistinctAttempt(env, upstreamUrlUsed);
+      attempted = [single.summary];
+      if (single.res.ok && !single.summary.hadLogicalError) {
+        dataRes = single.res;
+      } else if (single.res.ok && single.summary.hadLogicalError) {
+        dataRes = {
+          ok: false, status: 200,
+          code: 'distinct_lookup_failed',
+          error: 'UBS returned an embedded logical error and no distinct field was specified',
+        };
+        allFailed = true;
+        allLogicalErrors = true;
+      } else {
+        dataRes = single.res;
+      }
     }
 
-    const distinctForwardedFinal = {
-      ...(usedDistinctParam && distinctReq ? { [usedDistinctParam]: distinctReq.value } : {}),
-      ...distinctForwarded,
-    };
+    // On true success we report the param-name UBS accepted; on failure
+    // we don't pretend a "used" param exists.
+    const distinctForwardedFinal = dataRes.ok && usedDistinctParam && distinctReq
+      ? { [usedDistinctParam]: distinctReq.value, ...distinctForwarded }
+      : { ...distinctForwarded };
+
+    // attempted shape gating:
+    //   debug=1  → full structured summaries (paramName, upstreamStatus,
+    //              hadLogicalError, logicalErrorSummary, rowCount,
+    //              upstreamUrlRedacted)
+    //   default  → slim records (no logicalErrorSummary, no per-attempt
+    //              upstreamUrlRedacted) to keep payloads tight in the
+    //              success path. The failure path always carries the
+    //              full summaries regardless of debug so the caller can
+    //              diagnose without re-requesting.
+    const slimAttempted = (a) => ({
+      paramName: a.paramName,
+      upstreamStatus: a.upstreamStatus,
+      hadLogicalError: a.hadLogicalError,
+      rowCount: a.rowCount,
+    });
+    const attemptedOutput = (debug || !dataRes.ok)
+      ? attempted
+      : attempted.map(slimAttempted);
 
     if (!dataRes.ok) {
+      const isLogicalFailure = (dataRes.code === 'distinct_lookup_failed') || allLogicalErrors;
       return jsonResp({
-        ok: false, error: 'upstream_fetch_failed',
-        detail: dataRes.error, errorCode: dataRes.code,
+        ok: false,
+        error: isLogicalFailure ? 'distinct_lookup_failed' : 'upstream_fetch_failed',
+        detail: dataRes.error,
+        errorCode: dataRes.code,
         ...(dataRes.errorBody ? { errorBody: dataRes.errorBody } : {}),
         upstreamStatus: dataRes.status || null,
         mode, view: safeView,
@@ -447,8 +648,14 @@ export async function onRequestGet({ request, env, params }) {
         forwardedParams: distinctForwardedFinal,
         droppedParams,
         upstreamUrlRedacted: redactUrlSecrets(upstreamUrlUsed),
-        ...(usedDistinctParam || attempted.length > 0 ? { usedDistinctParam, attempted } : {}),
-        ...(distinctReq ? { distinctFieldRequested: distinctReq.value, distinctFieldSource: distinctReq.source } : {}),
+        ...(attempted.length > 0 ? { attempted: attemptedOutput } : {}),
+        ...(distinctReq ? {
+          distinctFieldRequested: distinctReq.value,
+          distinctFieldSource: distinctReq.source,
+        } : {}),
+        ...(allFailed ? { allFailed: true } : {}),
+        ...(allLogicalErrors ? { allLogicalErrors: true } : {}),
+        ...(shortCircuitedOnNon400 ? { shortCircuitedOnNon400: true } : {}),
       }, 502);
     }
 
@@ -466,8 +673,12 @@ export async function onRequestGet({ request, env, params }) {
       forwardedParams: distinctForwardedFinal,
       droppedParams,
       upstreamUrlRedacted: redactUrlSecrets(upstreamUrlUsed),
-      ...(usedDistinctParam || attempted.length > 0 ? { usedDistinctParam, attempted } : {}),
-      ...(distinctReq ? { distinctFieldRequested: distinctReq.value, distinctFieldSource: distinctReq.source } : {}),
+      ...(usedDistinctParam ? { usedDistinctParam } : {}),
+      ...(attempted.length > 0 ? { attempted: attemptedOutput } : {}),
+      ...(distinctReq ? {
+        distinctFieldRequested: distinctReq.value,
+        distinctFieldSource: distinctReq.source,
+      } : {}),
       ...(pagination ? { pagination } : {}),
     });
   }
