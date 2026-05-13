@@ -3187,14 +3187,37 @@ function OpenRouterProviderRollupChart({refreshTick=0}={}){
             <XAxis dataKey="label" tick={{fontSize:10,fill:"#6b7280"}} tickLine={false} axisLine={{stroke:"#e5e7eb"}}/>
             <YAxis yAxisId="share" orientation="left" domain={[0,100]} tick={{fontSize:10,fill:"#6b7280"}} tickLine={false} axisLine={{stroke:"#e5e7eb"}} tickFormatter={v=>v+"%"} width={42}/>
             <YAxis yAxisId="tokens" orientation="right" tick={{fontSize:10,fill:"#6b7280"}} tickLine={false} axisLine={{stroke:"#e5e7eb"}} tickFormatter={_fmtTokensShort} width={46}/>
-            <Tooltip
-              contentStyle={{fontSize:11,borderRadius:6,border:"0.5px solid #e5e7eb"}}
-              labelStyle={{fontWeight:600,color:"#111827"}}
-              formatter={(v,name)=>{
-                if(name.endsWith("Share"))return[(typeof v==="number"?v.toFixed(1):"—")+"%",(PROV_ROLLUP_COLORS[name.replace("Share","")]||{}).label+" Share"];
-                const lab=(PROV_ROLLUP_COLORS[name]||{}).label||name;
-                return[_fmtTokensShort(v),lab+" Tokens"];
-              }}/>
+            <Tooltip content={({active,label,payload})=>{
+              if(!active||!payload||!payload.length)return null;
+              const byKey=Object.fromEntries(payload.map(p=>[p.dataKey,p]));
+              // Same lines-first / bars-second order as the legend.
+              const order=["anthropicShare","googleShare","openaiShare","anthropic","google","openai"];
+              const rows=order.map(k=>byKey[k]).filter(Boolean);
+              return(
+                <div style={{background:"#fff",border:"0.5px solid #e5e7eb",borderRadius:6,padding:"8px 10px",fontSize:11,boxShadow:"0 1px 3px rgba(0,0,0,0.08)",lineHeight:1.45}}>
+                  <div style={{fontWeight:600,color:"#111827",marginBottom:4}}>{label}</div>
+                  {rows.map((p,i)=>{
+                    const isLine=/Share$/.test(p.dataKey);
+                    const key=p.dataKey.replace("Share","");
+                    const meta=PROV_ROLLUP_COLORS[key]||{};
+                    const swatch=isLine?meta.line:meta.bar;
+                    const lab=meta.label+(isLine?" Share":" Tokens");
+                    const val=isLine
+                      ?(typeof p.value==="number"?p.value.toFixed(1):"—")+"%"
+                      :_fmtTokensShort(p.value);
+                    return(
+                      <div key={i} style={{display:"flex",alignItems:"center",gap:6,color:"#374151"}}>
+                        {isLine
+                          ?<svg width="12" height="6" style={{flexShrink:0}}><line x1="0" y1="3" x2="12" y2="3" stroke={swatch} strokeWidth="2"/></svg>
+                          :<svg width="10" height="8" style={{flexShrink:0}}><rect width="10" height="8" fill={swatch}/></svg>}
+                        <span style={{flex:1}}>{lab}</span>
+                        <span style={{fontWeight:600,color:"#111827"}}>{val}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            }}/>
             <Legend
               wrapperStyle={{fontSize:10,paddingTop:4}}
               content={renderLegend}/>
