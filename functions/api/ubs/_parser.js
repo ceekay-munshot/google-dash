@@ -14,17 +14,20 @@
 
 /* ──────────────────────── field candidates ──────────────────────── */
 
+// Live UBS catalogue items expose dataAssetKey as the canonical id and
+// heading as the canonical display name, so those lead each list.
 export const ID_KEYS = [
+  'dataAssetKey', 'data_asset_key',
   'id', 'uid', 'uuid',
   'assetId', 'asset_id',
   'dataAssetId', 'data_asset_id',
-  'dataAssetKey', 'data_asset_key',
   'datasetId', 'dataset_id',
   'productId', 'product_id',
   'slug', 'code', 'key', 'identifier',
 ];
 
 export const NAME_KEYS = [
+  'heading',
   'name', 'title', 'label',
   'displayName', 'display_name',
   'dataAssetName', 'data_asset_name',
@@ -33,18 +36,20 @@ export const NAME_KEYS = [
 ];
 
 export const CATEGORY_KEYS = [
+  'frameworkName', 'apiFrameworkName',
   'category', 'productArea', 'product_area',
   'sector', 'vertical', 'taxonomy',
   'family', 'group', 'theme',
 ];
 
 export const DESCRIPTION_KEYS = [
+  'shortDescription', 'short_description',
   'description', 'summary', 'abstract',
-  'longDescription', 'shortDescription',
-  'long_description', 'short_description',
+  'longDescription', 'long_description',
 ];
 
 export const FREQUENCY_KEYS = [
+  'dataFrequencyCode', 'deliveryFrequencyCode',
   'frequency', 'cadence',
   'updateFrequency', 'update_frequency',
   'refreshFrequency', 'refresh_frequency',
@@ -52,6 +57,7 @@ export const FREQUENCY_KEYS = [
 ];
 
 export const GEOGRAPHY_KEYS = [
+  'countryIsoAlpha3List',
   'geography', 'geo',
   'region', 'country', 'countries',
   'coverage', 'market', 'markets',
@@ -191,12 +197,110 @@ export function formatFieldValue(v) {
   return String(v);
 }
 
+/* ──────────────────────── view helpers ──────────────────────── */
+
+const VIEW_URL_KEYS = ['dataUrl', 'modelUrl', 'countUrl', 'distinctUrl'];
+
+/**
+ * Reduce one UBS catalogue view to the safe subset we expose.
+ * Anything else on the raw view (entitlement metadata, etc.) is
+ * intentionally dropped so we never surface unknown UBS fields to
+ * downstream consumers without review.
+ */
+export function safeViewSubset(v) {
+  if (!v || typeof v !== 'object') return null;
+  return {
+    id:               v.id ?? null,
+    name:             v.name ?? null,
+    version:          v.version ?? null,
+    dataLastUpdated:  v.dataLastUpdated ?? null,
+    modelUrl:         v.modelUrl ?? null,
+    dataUrl:          v.dataUrl ?? null,
+    countUrl:         v.countUrl ?? null,
+    distinctUrl:      v.distinctUrl ?? null,
+  };
+}
+
+/**
+ * Apply the API-accessibility rule:
+ *   - true  if any view in the item carries a usable view URL
+ *           (dataUrl|modelUrl|countUrl|distinctUrl)
+ *   - false ONLY if UBS explicitly returned a boolean-false signal
+ *   - null  otherwise (no signal — never inferred)
+ */
+export function inferApiAccessible(raw) {
+  const views = raw && Array.isArray(raw.views) ? raw.views : null;
+  if (views) {
+    for (const v of views) {
+      if (v && typeof v === 'object') {
+        for (const k of VIEW_URL_KEYS) {
+          const u = v[k];
+          if (typeof u === 'string' && u.trim()) return true;
+        }
+      }
+    }
+  }
+  const explicit = asTriBool(deepPick(raw, API_BOOL_KEYS, 3).value);
+  if (explicit === true) return true;
+  if (explicit === false) return false;
+  return null;
+}
+
 /* ──────────────────────── per-item mapping ──────────────────────── */
+
+// Raw UBS keys that we pass straight through to the API consumer.
+// Read at the top level only — these are documented UBS fields, so we
+// don't want to accidentally pick up a same-named key from a deeper
+// nested object.
+const PASSTHROUGH_KEYS = [
+  'apiFrameworkName',
+  'frameworkKey',
+  'frameworkName',
+  'dataAssetKey',
+  'publicationId',
+  'dataStartDate',
+  'dataEndDate',
+  'dataFrequencyCode',
+  'deliveryFrequencyCode',
+  'tickerList',
+  'countryIsoAlpha3List',
+];
+
+function emptyMapped() {
+  return {
+    id: null, name: null, category: null, description: null,
+    frequency: null, geography: null,
+    apiAccessible: null, entitlementStatus: null,
+    apiFrameworkName: null, frameworkKey: null, frameworkName: null,
+    dataAssetKey: null, publicationId: null,
+    dataStartDate: null, dataEndDate: null,
+    dataFrequencyCode: null, deliveryFrequencyCode: null,
+    tickerList: null, countryIsoAlpha3List: null,
+    views: null,
+  };
+}
 
 /**
  * Map one raw UBS catalogue entry to the safe metadata shape we expose
- * to the dashboard backend. Recursively searches up to depth 3 for each
- * field.
+ * to the dashboard backend.
+ *
+ * Output:
+ *   - id / name / category / description / frequency / geography
+ *       Resolved via deepPick over their candidate lists (depth ≤ 3),
+ *       formatted to a compact display value.
+ *   - apiAccessible
+ *       Strict — true only if views carry a usable URL or UBS gives
+ *       an explicit boolean. Otherwise null.
+ *   - entitlementStatus
+ *       Free-form entitlement/delivery/permission, deepPicked.
+ *   - apiFrameworkName / frameworkKey / frameworkName / dataAssetKey /
+ *     publicationId / dataStartDate / dataEndDate / dataFrequencyCode /
+ *     deliveryFrequencyCode / tickerList / countryIsoAlpha3List
+ *       Raw passthrough from the UBS item top level — preserved as-is
+ *       (arrays stay as arrays, strings stay as strings).
+ *   - views
+ *       Sanitized to the safe per-view subset (id, name, version,
+ *       dataLastUpdated, modelUrl, dataUrl, countUrl, distinctUrl).
  *
  * @param {*} raw                       raw UBS item
  * @param {{ includeTrace?: boolean }} [opts]
@@ -205,11 +309,7 @@ export function formatFieldValue(v) {
  */
 export function mapCatalogueItem(raw, opts = {}) {
   if (!raw || typeof raw !== 'object') {
-    const empty = {
-      id: null, name: null, category: null, description: null,
-      frequency: null, geography: null,
-      apiAccessible: null, entitlementStatus: null,
-    };
+    const empty = emptyMapped();
     if (opts.includeTrace) empty._trace = {};
     return empty;
   }
@@ -223,7 +323,7 @@ export function mapCatalogueItem(raw, opts = {}) {
     ['geography',   GEOGRAPHY_KEYS],
   ];
 
-  const out = {};
+  const out = emptyMapped();
   const trace = {};
 
   for (const [name, keys] of fields) {
@@ -232,16 +332,29 @@ export function mapCatalogueItem(raw, opts = {}) {
     trace[name] = { found: value != null, path };
   }
 
-  // Strict tri-bool only for apiAccessible.
-  const apiHit = deepPick(raw, API_BOOL_KEYS, 3);
-  const apiBool = asTriBool(apiHit.value);
+  // apiAccessible: view URLs first, then explicit boolean, else null.
+  const apiBool = inferApiAccessible(raw);
   out.apiAccessible = apiBool;
-  trace.apiAccessible = { found: apiBool !== null, path: apiHit.path };
+  trace.apiAccessible = {
+    found: apiBool !== null,
+    path: apiBool === null ? null : (Array.isArray(raw.views) && raw.views.some((v) => v && VIEW_URL_KEYS.some((k) => typeof v[k] === 'string' && v[k].trim()))
+      ? 'views[].url'
+      : deepPick(raw, API_BOOL_KEYS, 3).path),
+  };
 
-  // Free-form entitlement / delivery / permission.
+  // entitlementStatus — free-form delivery/permission signal.
   const entHit = deepPick(raw, ENTITLEMENT_KEYS, 3);
   out.entitlementStatus = formatFieldValue(entHit.value);
   trace.entitlementStatus = { found: out.entitlementStatus != null, path: entHit.path };
+
+  // Raw passthrough — top-level only.
+  for (const k of PASSTHROUGH_KEYS) {
+    const v = raw[k];
+    out[k] = v === undefined ? null : v;
+  }
+
+  // views — sanitized.
+  out.views = Array.isArray(raw.views) ? raw.views.map(safeViewSubset) : null;
 
   if (opts.includeTrace) out._trace = trace;
   return out;

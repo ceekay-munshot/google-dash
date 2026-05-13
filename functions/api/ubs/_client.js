@@ -15,7 +15,8 @@
  *   different scheme (e.g. an `apikey:` header), flip AUTH_MODE here.
  */
 
-export const UBS_BASE = 'https://neo.ubs.com/api/evidence-lab/api-framework';
+export const UBS_HOST = 'https://neo.ubs.com';
+export const UBS_BASE = `${UBS_HOST}/api/evidence-lab/api-framework`;
 export const UBS_CATALOGUE_URL = `${UBS_BASE}/catalogue/data-asset/v2`;
 
 // 'bearer' → Authorization: Bearer <key>
