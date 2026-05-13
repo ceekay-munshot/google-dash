@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from "react";
-import { BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, PieChart, Pie, CartesianGrid, Legend } from "recharts";
+import { BarChart, Bar, LineChart, Line, ComposedChart, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, PieChart, Pie, CartesianGrid, Legend } from "recharts";
 
 /* ─── Live data fetched by me right now (Apr 11 2026) ───────
    Sources:
@@ -3033,6 +3033,159 @@ function buildMonthlyPeriods(weeks){
     g.coverageUnit="d";
   }
   return out;
+}
+
+/* ═══════════════════════════════════════════════════════
+   HERO — OpenRouter Token Demand by Provider (monthly chart)
+   Sits in the always-visible hero zone (below the live Top
+   Models embed, above the tab row). Reuses buildMonthlyPeriods
+   and bucketProviderFromSlug so the rollup is identical to the
+   AI Adoption table's monthly view — just visualized as
+   stacked bars (absolute tokens) + provider-share lines.
+   Partial (MTD) months are excluded so the rightmost bar always
+   represents a full calendar month.
+═══════════════════════════════════════════════════════ */
+const PROV_ROLLUP_COLORS={
+  anthropic:{line:"#ef4444",bar:"#fda4af",label:"Claude"},
+  google:   {line:"#10b981",bar:"#86efac",label:"Google"},
+  openai:   {line:"#1e293b",bar:"#94a3b8",label:"OpenAI"},
+  other:    {line:"#f59e0b",bar:"#fbbf24",label:"Other"},
+};
+
+function _fmtTokensShort(v){
+  if(v==null||!isFinite(v))return"";
+  const a=Math.abs(v);
+  if(a>=1e12)return(v/1e12).toFixed(a>=1e13?0:1).replace(/\.0$/,"")+"T";
+  if(a>=1e9) return(v/1e9 ).toFixed(a>=1e10?0:1).replace(/\.0$/,"")+"B";
+  if(a>=1e6) return(v/1e6 ).toFixed(a>=1e7 ?0:1).replace(/\.0$/,"")+"M";
+  if(a>=1e3) return(v/1e3 ).toFixed(0)+"K";
+  return Math.round(v).toString();
+}
+
+function OpenRouterProviderRollupChart({refreshTick=0}={}){
+  const[state,setState]=useState({phase:"loading",data:null,error:null});
+
+  useEffect(()=>{
+    let cancelled=false;
+    fetch("/api/openrouter-chart-weekly?full=1&_="+(refreshTick||Date.now()),{cache:"no-store"})
+      .then(r=>r.ok?r.json():Promise.reject(new Error("HTTP "+r.status)))
+      .then(d=>{
+        if(cancelled)return;
+        if(!d||d.success===false){setState({phase:"error",data:null,error:d?.error||"Unknown error"});return;}
+        setState({phase:"ready",data:d,error:null});
+      })
+      .catch(e=>{if(!cancelled)setState({phase:"error",data:null,error:e.message||"Fetch failed"});});
+    return()=>{cancelled=true;};
+  },[refreshTick]);
+
+  const header=(
+    <>
+      <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:4}}>
+        <span style={{width:7,height:7,borderRadius:"50%",background:"#1d4ed8",display:"inline-block"}}/>
+        <span style={{fontSize:10,textTransform:"uppercase",letterSpacing:".09em",fontWeight:700,color:"#1d4ed8"}}>Provider rollup · monthly</span>
+      </div>
+      <div style={{marginBottom:10}}>
+        <div style={{fontSize:16,fontWeight:700,color:"#111827",lineHeight:1.3}}>OpenRouter Token Demand by Provider — Monthly</div>
+        <div style={{fontSize:11,color:"#9ca3af",marginTop:3}}>
+          Ecosystem demand proxy via OpenRouter rankings · stacked tokens (right axis) + provider share % (left axis). Not equivalent to cloud-spend datasets; coverage begins when OpenRouter started publishing weekly rankings.
+        </div>
+      </div>
+    </>
+  );
+
+  if(state.phase==="loading"){
+    return(<div style={{...S.card,marginBottom:16}}>{header}<Shimmer rows={6}/></div>);
+  }
+  if(state.phase==="error"){
+    return(
+      <div style={{...S.card,marginBottom:16}}>{header}
+        <div style={{background:"#fff",border:"0.5px dashed #fca5a5",borderRadius:10,padding:"14px 16px"}}>
+          <div style={{fontSize:12,color:"#991b1b",fontWeight:500}}>Provider rollup temporarily unavailable</div>
+          <div style={{fontSize:11,color:"#6b7280",marginTop:2}}>{state.error||"/api/openrouter-chart-weekly did not return success"}</div>
+        </div>
+      </div>
+    );
+  }
+
+  const weeks=state.data?.weeks||[];
+  const monthsAll=buildMonthlyPeriods(weeks);
+  // Drop the current MTD month so the rightmost bar always represents a full
+  // calendar month. The table view keeps MTD with a "QTD/MTD" tag; for a
+  // visual rollup we trade one bar of recency for a clean apples-to-apples
+  // comparison across the timeline.
+  const months=monthsAll.filter(m=>!m.partial);
+
+  if(!months.length){
+    return(
+      <div style={{...S.card,marginBottom:16}}>{header}
+        <div style={{background:"#f9fafb",border:"0.5px dashed #d1d5db",borderRadius:10,padding:"22px 16px",textAlign:"center"}}>
+          <div style={{fontSize:12,color:"#374151",fontWeight:500}}>Chart populates once a full calendar month of OpenRouter data has accumulated</div>
+        </div>
+      </div>
+    );
+  }
+
+  // Chart-ready rows: absolute tokens per bucket + share % per bucket.
+  const rows=months.map(m=>{
+    const tot=m.total||0;
+    const sh=k=>tot>0?(m[k]/tot)*100:0;
+    return{
+      label:m.label,
+      anthropic:m.anthropic,
+      google:m.google,
+      openai:m.openai,
+      other:m.other,
+      anthropicShare:sh("anthropic"),
+      googleShare:  sh("google"),
+      openaiShare:  sh("openai"),
+      total:tot,
+    };
+  });
+
+  return(
+    <div style={{...S.card,marginBottom:16}}>{header}
+      <div style={{padding:"4px 0 0"}}>
+        <ResponsiveContainer width="100%" height={340}>
+          <ComposedChart data={rows} margin={{top:8,right:14,left:-6,bottom:6}}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" vertical={false}/>
+            <XAxis dataKey="label" tick={{fontSize:10,fill:"#6b7280"}} tickLine={false} axisLine={{stroke:"#e5e7eb"}}/>
+            <YAxis yAxisId="share" orientation="left" domain={[0,100]} tick={{fontSize:10,fill:"#6b7280"}} tickLine={false} axisLine={{stroke:"#e5e7eb"}} tickFormatter={v=>v+"%"} width={42}/>
+            <YAxis yAxisId="tokens" orientation="right" tick={{fontSize:10,fill:"#6b7280"}} tickLine={false} axisLine={{stroke:"#e5e7eb"}} tickFormatter={_fmtTokensShort} width={46}/>
+            <Tooltip
+              contentStyle={{fontSize:11,borderRadius:6,border:"0.5px solid #e5e7eb"}}
+              labelStyle={{fontWeight:600,color:"#111827"}}
+              formatter={(v,name)=>{
+                if(name.endsWith("Share"))return[(typeof v==="number"?v.toFixed(1):"—")+"%",name.replace("Share","")+" share"];
+                const lab=(PROV_ROLLUP_COLORS[name]||{}).label||name;
+                return[_fmtTokensShort(v),lab+" tokens"];
+              }}/>
+            <Legend
+              wrapperStyle={{fontSize:10,paddingTop:4}}
+              iconSize={8}
+              formatter={(n)=>{
+                if(n.endsWith("Share")){
+                  const k=n.replace("Share","");
+                  return((PROV_ROLLUP_COLORS[k]||{}).label||k)+" share";
+                }
+                return((PROV_ROLLUP_COLORS[n]||{}).label||n)+" tokens";
+              }}/>
+            {/* Stacked bars — absolute tokens (right axis). Stack order: claude → google → openai → other so claude reads off the baseline. */}
+            <Bar yAxisId="tokens" dataKey="anthropic" stackId="t" fill={PROV_ROLLUP_COLORS.anthropic.bar} isAnimationActive={false}/>
+            <Bar yAxisId="tokens" dataKey="google"    stackId="t" fill={PROV_ROLLUP_COLORS.google.bar}    isAnimationActive={false}/>
+            <Bar yAxisId="tokens" dataKey="openai"    stackId="t" fill={PROV_ROLLUP_COLORS.openai.bar}    isAnimationActive={false}/>
+            <Bar yAxisId="tokens" dataKey="other"     stackId="t" fill={PROV_ROLLUP_COLORS.other.bar}     isAnimationActive={false}/>
+            {/* Share lines — left axis, % of total */}
+            <Line yAxisId="share" type="monotone" dataKey="anthropicShare" stroke={PROV_ROLLUP_COLORS.anthropic.line} strokeWidth={1.75} dot={{r:2.5,strokeWidth:0,fill:PROV_ROLLUP_COLORS.anthropic.line}} activeDot={{r:4}} isAnimationActive={false}/>
+            <Line yAxisId="share" type="monotone" dataKey="googleShare"    stroke={PROV_ROLLUP_COLORS.google.line}    strokeWidth={1.75} dot={{r:2.5,strokeWidth:0,fill:PROV_ROLLUP_COLORS.google.line}}    activeDot={{r:4}} isAnimationActive={false}/>
+            <Line yAxisId="share" type="monotone" dataKey="openaiShare"    stroke={PROV_ROLLUP_COLORS.openai.line}    strokeWidth={1.75} dot={{r:2.5,strokeWidth:0,fill:PROV_ROLLUP_COLORS.openai.line}}    activeDot={{r:4}} isAnimationActive={false}/>
+          </ComposedChart>
+        </ResponsiveContainer>
+      </div>
+      <div style={{fontSize:10,color:"#9ca3af",marginTop:4}}>
+        Source: openrouter.ai/rankings · weekly tokens aggregated by ISO-day fraction into calendar months · current MTD month excluded.
+      </div>
+    </div>
+  );
 }
 
 function OpenRouterTokenDemandTable({refreshTick=0}={}){
@@ -6964,6 +7117,13 @@ export default function App(){
 
       {/* ── OPENROUTER LIVE RANKINGS EMBED ── */}
       <OpenRouterLiveEmbed/>
+
+      {/* ── HERO PROVIDER ROLLUP CHART ──
+         Sits between the live Top Models embed and the tab row.
+         Same data as the AI Adoption table's monthly view, rendered
+         as stacked bars + share lines so the provider story is
+         legible without leaving the always-visible hero zone. */}
+      <OpenRouterProviderRollupChart refreshTick={refreshTick}/>
 
       {/* Tab bar */}
       <div style={{display:"flex",gap:4,marginBottom:12}}>
