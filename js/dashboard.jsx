@@ -3045,13 +3045,15 @@ function buildMonthlyPeriods(weeks){
    Partial (MTD) months are excluded so the rightmost bar always
    represents a full calendar month.
 ═══════════════════════════════════════════════════════ */
-// Palette matches the YipitData "Exhibit 2A" exhibit exactly: red-coral for
-// Claude, dark forest-green for Google, near-black navy for OpenAI; bars use
-// pastel-pink / mint / pale-teal counterparts.
+// Palette: red-coral for Claude, dark forest-green for Google, near-black navy
+// for OpenAI (share lines). Bar fills are pastel counterparts but split into
+// a red / green / BLUE family so the three stack segments stay clearly
+// distinguishable — previously OpenAI's pale teal was too close to Google's
+// mint and the boundary blurred.
 const PROV_ROLLUP_COLORS={
-  anthropic:{line:"#e74c3c",bar:"#f4b3aa",label:"Claude"},
+  anthropic:{line:"#e74c3c",bar:"#f4a89a",label:"Claude"},
   google:   {line:"#1d6b54",bar:"#9cd1b3",label:"Google"},
-  openai:   {line:"#0f2438",bar:"#c8e3da",label:"OpenAI"},
+  openai:   {line:"#0f2438",bar:"#b4c9dc",label:"OpenAI"},
 };
 
 function _fmtTokensShort(v){
