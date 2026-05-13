@@ -3817,6 +3817,12 @@ function ORTab({data,busy,ts,live,refresh,refreshTick,bumpRefreshTick}){
       <OpenRouterTokenDemandTable refreshTick={refreshTick}/>
 
       {busy?<Shimmer rows={7}/>:(<>
+        <div style={{marginBottom:10}}>
+          <div style={{fontSize:16,fontWeight:700,color:"#111827",lineHeight:1.3}}>Weekly Model Leaderboard</div>
+          <div style={{fontSize:11,color:"#9ca3af",marginTop:3}}>
+            Latest weekly token ranking by model, provider, tokens, and WoW change. Ecosystem usage proxy, not Google revenue.
+          </div>
+        </div>
         <div style={{display:"flex",gap:10,marginBottom:14}}>
           {best&&<KBox label="Best Gemini" value={"#"+best.rank} sub={trunc(best.model,22)} bg="#f0fdf4" fg="#059669"/>}
           {top &&<KBox label="#1 this week" value={top.tokens}   sub={trunc(top.model,22)}  bg="#eff6ff" fg="#1d4ed8"/>}
