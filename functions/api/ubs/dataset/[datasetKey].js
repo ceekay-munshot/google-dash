@@ -32,7 +32,48 @@ import { fetchUbsCatalogue, ubsGet, UBS_HOST } from '../_client.js';
 import { extractDatasetArray, safeViewSubset } from '../_parser.js';
 import { getUbsDataset } from '../_registry.js';
 
-const VALID_MODES = new Set(['data', 'model', 'count', 'distinct']);
+const VALID_MODES = new Set(['data', 'model', 'count', 'distinct', 'search']);
+
+// ─── mode=search constants ───────────────────────────────────────────
+// mode=search is a paginated, locally-filtering discovery path. It
+// calls view.dataUrl repeatedly (NEVER distinctUrl, which is the
+// endpoint that times out at 30s on broad datasets), pages through
+// rows under bounded limits, and runs a case-insensitive substring
+// match locally. This keeps a search query under a single
+// Cloudflare Pages Function wall-time budget.
+const SEARCH_DEFAULT_LIMIT             = 500;
+const SEARCH_MAX_LIMIT                 = 1000;
+const SEARCH_DEFAULT_MAX_PAGES         = 5;
+const SEARCH_MAX_MAX_PAGES             = 20;
+const SEARCH_MAX_MATCHES               = 100;
+const SEARCH_MAX_DISCOVERED_PER_FIELD  = 200;
+const SEARCH_PAGE_TIMEOUT_MS           = 15000;
+
+// Fields searched by default when ?searchFields is not supplied.
+const SEARCH_DEFAULT_FIELDS = [
+  'compset', 'appName', 'appType', 'sector',
+  'metricType', 'geographyName',
+  'clientStudyName', 'legalEntityName',
+  'primaryExchangeTicker', 'primaryTickerIsin',
+];
+
+// Fields whose unique values are aggregated into discoveredValues for
+// downstream filter building.
+const SEARCH_DISCOVERED_VALUE_FIELDS = [
+  'compset', 'appName', 'appType', 'metricType', 'geographyName',
+];
+
+// UBS filters that may be forwarded as URL params when mode=search.
+// Anything outside this set goes to droppedParams.
+const SEARCH_UBS_FILTER_ALLOWLIST = new Set([
+  'compset', 'appName', 'appType', 'sector',
+  'metricType', 'geographyName', 'geographyId',
+  'period', 'periodEndDate',
+]);
+
+// Inbound params consumed by the search handler itself (so they are
+// neither forwarded to UBS nor surfaced in droppedParams).
+const SEARCH_HANDLER_PARAMS = new Set(['q', 'searchFields', 'maxPages']);
 
 // Static filter passthrough for mode=data. `dataAssetKey` is deliberately
 // absent — caller is never allowed to override the dataset selection.
@@ -97,6 +138,13 @@ function jsonResp(data, status = 200) {
 
 export async function onRequestOptions() {
   return new Response(null, { status: 204, headers: CORS });
+}
+
+/** Clamp a query-string int into [min, max], falling back to defaultValue. */
+function clampInt(raw, min, max, defaultValue) {
+  const n = parseInt(raw == null ? '' : String(raw), 10);
+  if (!Number.isFinite(n)) return defaultValue;
+  return Math.min(Math.max(n, min), max);
 }
 
 /**
@@ -356,8 +404,8 @@ async function callDistinctAttempt(env, urlStr) {
  * Call UBS distinct URL with the configured param-name strategies
  * (fieldName → field → column → fields → columns → distinctField).
  *
- * A strategy counts as a CONTINUATION condition (i.e. try the next
- * one) when:
+ * A strategy counts as a CONTINUATION condition (try the next one)
+ * when:
  *   - UBS returns HTTP 400, OR
  *   - UBS returns 2xx but the body carries an embedded logical error
  *     (UBS does this when the field name isn't recognised; the body
@@ -365,14 +413,21 @@ async function callDistinctAttempt(env, urlStr) {
  *
  * A strategy counts as a HARD STOP (return immediately) when:
  *   - UBS returns 2xx with no logical errors → success
- *   - UBS returns a non-400 HTTP error → short-circuit (the param name
- *     isn't the problem; further retries would be noise)
+ *   - UBS returns a non-400 HTTP error → short-circuit
+ *
+ * Transport errors (timeouts / network failures) ALSO short-circuit by
+ * default — UBS's distinctUrl reliably times out at 30s on broad
+ * datasets, and retrying all six strategies would burn up to 6×30s of
+ * Worker wall time. The caller (mode=distinct handler) can pass
+ * { continueOnTransport: true } when ?debug=2 is set to force the
+ * full retry.
  *
  * Returns either a successful UBS response augmented with attempted[]
  * and usedDistinctParam, or an error object with allFailed: true and
  * allLogicalErrors: true|false.
  */
-async function callDistinctWithFallback(env, distinctUrl, fieldValue, extraParams) {
+async function callDistinctWithFallback(env, distinctUrl, fieldValue, extraParams, options = {}) {
+  const continueOnTransport = options.continueOnTransport === true;
   const attempted = [];
   let lastRes = null;
   let lastUrl = distinctUrl;
@@ -413,31 +468,41 @@ async function callDistinctWithFallback(env, distinctUrl, fieldValue, extraParam
       return { ...res, usedDistinctParam: paramName, attempted, upstreamUrl: urlStr };
     }
     if (!res.ok && res.status !== 400) {
-      // Non-400 HTTP — short-circuit. Param name isn't the issue.
+      const isTransport = res.code === 'transport_error';
+      if (isTransport && continueOnTransport) {
+        // ?debug=2 path — try the next strategy anyway.
+        continue;
+      }
+      // Default: short-circuit. Param name isn't the issue.
       return {
         ...res, usedDistinctParam: paramName,
         attempted, upstreamUrl: urlStr,
         shortCircuitedOnNon400: true,
+        shortCircuitedOnTransport: isTransport,
       };
     }
     // HTTP 400 OR 2xx-with-logical-error — continue to the next strategy.
   }
 
-  // Every strategy failed. Decide which kind of failure dominates.
-  const allLogical = attempted.length > 0 && attempted.every((a) => a.hadLogicalError);
+  // Every strategy failed. Classify the failure shape.
+  const allLogical   = attempted.length > 0 && attempted.every((a) => a.hadLogicalError);
+  const hasTransport = attempted.some((a) => a.upstreamStatus === 0);
   return {
     ok: false,
     status: lastRes && lastRes.status ? lastRes.status : 0,
-    code: 'distinct_lookup_failed',
-    error: allLogical
-      ? 'All distinct strategies returned UBS logical errors — field name not recognised under any param alias'
-      : 'All distinct strategies failed (mixed HTTP errors and/or UBS logical errors)',
+    code: hasTransport ? 'transport_error' : 'distinct_lookup_failed',
+    error: hasTransport
+      ? 'One or more distinct strategies hit a transport error (likely timeout)'
+      : allLogical
+        ? 'All distinct strategies returned UBS logical errors — field name not recognised under any param alias'
+        : 'All distinct strategies failed (mixed HTTP errors and/or UBS logical errors)',
     errorBody: lastRes ? lastRes.errorBody : undefined,
     usedDistinctParam: DISTINCT_UPSTREAM_PARAM_ORDER[DISTINCT_UPSTREAM_PARAM_ORDER.length - 1],
     attempted,
     upstreamUrl: lastUrl,
     allFailed: true,
     allLogicalErrors: allLogical,
+    hadTransportError: hasTransport,
   };
 }
 
@@ -531,11 +596,13 @@ export async function onRequestGet({ request, env, params }) {
     view = views[0];
   }
   const safeView = safeViewSubset(view);
-  const modeUrl = resolveUbsUrl(view?.[`${mode}Url`]);
+  // mode=search reuses view.dataUrl (UBS has no separate searchUrl).
+  const modeUrlKey = mode === 'search' ? 'dataUrl' : `${mode}Url`;
+  const modeUrl = resolveUbsUrl(view?.[modeUrlKey]);
   if (!modeUrl) {
     return jsonResp({
       ok: false, error: 'mode_url_missing',
-      detail: `View "${view?.id || '(unnamed)'}" has no usable ${mode}Url`,
+      detail: `View "${view?.id || '(unnamed)'}" has no usable ${modeUrlKey}`,
       mode, view: safeView,
       datasetKey, ubsDatasetId: matchKey, label: entry.label, fetchedAt,
     }, 502);
@@ -546,15 +613,18 @@ export async function onRequestGet({ request, env, params }) {
   const candidateFilters = {};   // non-reserved inbound params
   for (const [k, v] of url.searchParams) {
     if (HANDLER_PARAMS.has(k)) continue;
-    if (FORBIDDEN_PARAMS.has(k)) { droppedParams.push(k); continue; }
+    if (mode === 'search'   && SEARCH_HANDLER_PARAMS.has(k)) continue;
     if (mode === 'distinct' && DISTINCT_FIELD_ALIASES.includes(k)) continue;
+    if (FORBIDDEN_PARAMS.has(k)) { droppedParams.push(k); continue; }
     candidateFilters[k] = v;
   }
 
   // ── mode=distinct branch ──────────────────────────────────────────
   if (mode === 'distinct') {
     const distinctReq = getDistinctFieldRequested(url.searchParams);
-    const debug = url.searchParams.get('debug') === '1';
+    const debugRaw = url.searchParams.get('debug') || '';
+    const debug  = debugRaw === '1' || debugRaw === '2';
+    const debug2 = debugRaw === '2';
 
     // Forward only limit/offset; everything else is dropped for distinct.
     const distinctForwarded = {};
@@ -570,9 +640,13 @@ export async function onRequestGet({ request, env, params }) {
     let allFailed = false;
     let allLogicalErrors = false;
     let shortCircuitedOnNon400 = false;
+    let shortCircuitedOnTransport = false;
+    let hadTransportError = false;
 
     if (distinctReq) {
-      const r = await callDistinctWithFallback(env, modeUrl, distinctReq.value, distinctForwarded);
+      const r = await callDistinctWithFallback(env, modeUrl, distinctReq.value, distinctForwarded, {
+        continueOnTransport: debug2,
+      });
       dataRes = r;
       upstreamUrlUsed = r.upstreamUrl || modeUrl;
       usedDistinctParam = r.usedDistinctParam || null;
@@ -580,6 +654,8 @@ export async function onRequestGet({ request, env, params }) {
       allFailed = !!r.allFailed;
       allLogicalErrors = !!r.allLogicalErrors;
       shortCircuitedOnNon400 = !!r.shortCircuitedOnNon400;
+      shortCircuitedOnTransport = !!r.shortCircuitedOnTransport;
+      hadTransportError = !!r.hadTransportError;
     } else {
       // No field requested — single call to distinctUrl. Still validate
       // the 2xx body for embedded UBS logical errors before declaring
@@ -634,11 +710,28 @@ export async function onRequestGet({ request, env, params }) {
       : attempted.map(slimAttempted);
 
     if (!dataRes.ok) {
-      const isLogicalFailure = (dataRes.code === 'distinct_lookup_failed') || allLogicalErrors;
+      const isTransportFailure = shortCircuitedOnTransport
+        || hadTransportError
+        || dataRes.code === 'transport_error';
+      const isLogicalFailure = !isTransportFailure
+        && ((dataRes.code === 'distinct_lookup_failed') || allLogicalErrors);
+
+      let errorName, detail;
+      if (isTransportFailure) {
+        errorName = 'distinct_timeout';
+        detail = 'distinct endpoint timed out; use mode=search for discovery (e.g. ?mode=search&q=Artificial%20Intelligence&limit=500&maxPages=5). To force a retry across all six param strategies despite timeouts, add ?debug=2 — note this may take up to ~3 minutes of UBS time and may exceed Worker wall-time limits.';
+      } else if (isLogicalFailure) {
+        errorName = 'distinct_lookup_failed';
+        detail = dataRes.error;
+      } else {
+        errorName = 'upstream_fetch_failed';
+        detail = dataRes.error;
+      }
+
       return jsonResp({
         ok: false,
-        error: isLogicalFailure ? 'distinct_lookup_failed' : 'upstream_fetch_failed',
-        detail: dataRes.error,
+        error: errorName,
+        detail,
         errorCode: dataRes.code,
         ...(dataRes.errorBody ? { errorBody: dataRes.errorBody } : {}),
         upstreamStatus: dataRes.status || null,
@@ -656,6 +749,8 @@ export async function onRequestGet({ request, env, params }) {
         ...(allFailed ? { allFailed: true } : {}),
         ...(allLogicalErrors ? { allLogicalErrors: true } : {}),
         ...(shortCircuitedOnNon400 ? { shortCircuitedOnNon400: true } : {}),
+        ...(shortCircuitedOnTransport ? { shortCircuitedOnTransport: true } : {}),
+        ...(hadTransportError ? { hadTransportError: true } : {}),
       }, 502);
     }
 
@@ -680,6 +775,158 @@ export async function onRequestGet({ request, env, params }) {
         distinctFieldSource: distinctReq.source,
       } : {}),
       ...(pagination ? { pagination } : {}),
+    });
+  }
+
+  // ── mode=search branch ────────────────────────────────────────────
+  if (mode === 'search') {
+    // q is required.
+    const q = (url.searchParams.get('q') || '').trim();
+    if (!q) {
+      return jsonResp({
+        ok: false, error: 'missing_q',
+        detail: 'mode=search requires a non-empty ?q=<searchTerm>',
+        mode, view: safeView,
+        datasetKey, ubsDatasetId: matchKey, label: entry.label, fetchedAt,
+      }, 400);
+    }
+
+    const limit    = clampInt(url.searchParams.get('limit'),    1, SEARCH_MAX_LIMIT,    SEARCH_DEFAULT_LIMIT);
+    const maxPages = clampInt(url.searchParams.get('maxPages'), 1, SEARCH_MAX_MAX_PAGES, SEARCH_DEFAULT_MAX_PAGES);
+    const startOffset = Math.max(0, parseInt(url.searchParams.get('offset') || '0', 10) || 0);
+
+    const searchFieldsRaw = url.searchParams.get('searchFields');
+    const searchFields = (searchFieldsRaw && searchFieldsRaw.trim())
+      ? searchFieldsRaw.split(',').map((s) => s.trim()).filter(Boolean)
+      : [...SEARCH_DEFAULT_FIELDS];
+
+    // Categorise non-search candidate params: forward UBS narrowing
+    // filters from the SEARCH_UBS_FILTER_ALLOWLIST, drop everything
+    // else. limit / offset are handled separately because we want
+    // page-specific values, not the inbound ones, on the upstream URL.
+    const forwardedFiltersExtra = {};
+    for (const [k, v] of Object.entries(candidateFilters)) {
+      if (k === 'limit' || k === 'offset') continue;
+      if (SEARCH_UBS_FILTER_ALLOWLIST.has(k)) forwardedFiltersExtra[k] = v;
+      else droppedParams.push(k);
+    }
+
+    const needle = q.toLowerCase();
+    const matches = [];
+    let matchedCount = 0;
+    const rawDiscovered = {};
+    for (const f of SEARCH_DISCOVERED_VALUE_FIELDS) rawDiscovered[f] = new Set();
+    const pageErrors = [];
+    let pagesFetched = 0;
+    let rowsScanned = 0;
+    let lastUpstreamUrl = null;
+
+    for (let page = 0; page < maxPages; page++) {
+      const pageOffset = startOffset + page * limit;
+      let urlStr = modeUrl;
+      try {
+        const u = new URL(modeUrl);
+        u.searchParams.set('limit',  String(limit));
+        u.searchParams.set('offset', String(pageOffset));
+        for (const [k, v] of Object.entries(forwardedFiltersExtra)) u.searchParams.set(k, v);
+        urlStr = u.toString();
+      } catch {
+        pageErrors.push({ page, offset: pageOffset, error: 'invalid_upstream_url' });
+        break;
+      }
+      lastUpstreamUrl = urlStr;
+
+      const res = await ubsGet(env, urlStr, { timeoutMs: SEARCH_PAGE_TIMEOUT_MS });
+      pagesFetched += 1;
+
+      if (!res.ok) {
+        pageErrors.push({
+          page,
+          offset: pageOffset,
+          error: res.error,
+          errorCode: res.code,
+          upstreamStatus: res.status || null,
+          ...(res.errorBody ? { errorBody: res.errorBody } : {}),
+        });
+        break;
+      }
+
+      // Defensive: UBS occasionally returns 2xx with embedded errors.
+      const logical = summarizeUbsLogicalError(res.json);
+      if (logical) {
+        pageErrors.push({
+          page, offset: pageOffset,
+          error: 'upstream_logical_error',
+          hadLogicalError: true,
+          logicalErrorSummary: logical,
+        });
+        break;
+      }
+
+      const parsed = extractDataRows(res.json);
+      const rows = parsed.rows;
+      if (rows.length === 0) break;
+      rowsScanned += rows.length;
+
+      for (const row of rows) {
+        if (!row || typeof row !== 'object') continue;
+
+        // Accumulate discoveredValues (independent of match).
+        for (const f of SEARCH_DISCOVERED_VALUE_FIELDS) {
+          const val = row[f];
+          if (typeof val === 'string' && val
+              && rawDiscovered[f].size < SEARCH_MAX_DISCOVERED_PER_FIELD) {
+            rawDiscovered[f].add(val);
+          }
+        }
+
+        // Substring match against the configured search fields.
+        let isMatch = false;
+        for (const f of searchFields) {
+          const val = row[f];
+          if (val == null) continue;
+          const sval = typeof val === 'string' ? val : String(val);
+          if (sval.toLowerCase().includes(needle)) {
+            isMatch = true;
+            break;
+          }
+        }
+        if (isMatch) {
+          matchedCount += 1;
+          if (matches.length < SEARCH_MAX_MATCHES) matches.push(row);
+        }
+      }
+    }
+
+    const discoveredValues = {};
+    for (const f of SEARCH_DISCOVERED_VALUE_FIELDS) {
+      discoveredValues[f] = [...rawDiscovered[f]].sort();
+    }
+
+    const forwardedParamsReport = {
+      limit:    String(limit),
+      offset:   String(startOffset),
+      maxPages: String(maxPages),
+      ...forwardedFiltersExtra,
+    };
+
+    return jsonResp({
+      ok: true,
+      datasetKey, label: entry.label, ubsDatasetId: matchKey,
+      mode: 'search',
+      view: safeView,
+      fetchedAt,
+      q,
+      searchedFields: searchFields,
+      pagesFetched,
+      rowsScanned,
+      matchedCount,
+      matches,
+      discoveredValues,
+      forwardedParams: forwardedParamsReport,
+      droppedParams,
+      upstreamUrlRedacted: redactUrlSecrets(lastUpstreamUrl || modeUrl),
+      ...(pageErrors.length > 0 ? { pageErrors } : {}),
     });
   }
 
