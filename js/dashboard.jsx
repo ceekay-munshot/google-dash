@@ -3045,11 +3045,13 @@ function buildMonthlyPeriods(weeks){
    Partial (MTD) months are excluded so the rightmost bar always
    represents a full calendar month.
 ═══════════════════════════════════════════════════════ */
+// Palette matches the YipitData "Exhibit 2A" exhibit exactly: red-coral for
+// Claude, dark forest-green for Google, near-black navy for OpenAI; bars use
+// pastel-pink / mint / pale-teal counterparts.
 const PROV_ROLLUP_COLORS={
-  anthropic:{line:"#ef4444",bar:"#fda4af",label:"Claude"},
-  google:   {line:"#10b981",bar:"#86efac",label:"Google"},
-  openai:   {line:"#1e293b",bar:"#94a3b8",label:"OpenAI"},
-  other:    {line:"#f59e0b",bar:"#fbbf24",label:"Other"},
+  anthropic:{line:"#e74c3c",bar:"#f4b3aa",label:"Claude"},
+  google:   {line:"#1d6b54",bar:"#9cd1b3",label:"Google"},
+  openai:   {line:"#0f2438",bar:"#c8e3da",label:"OpenAI"},
 };
 
 function _fmtTokensShort(v){
@@ -3126,6 +3128,9 @@ function OpenRouterProviderRollupChart({refreshTick=0}={}){
   }
 
   // Chart-ready rows: absolute tokens per bucket + share % per bucket.
+  // Shares are computed as % of the ORIGINAL total (still including Other in
+  // the denominator) so the lines mean exactly the same thing as the YipitData
+  // exhibit — even though the Other bar segment itself is not rendered.
   const rows=months.map(m=>{
     const tot=m.total||0;
     const sh=k=>tot>0?(m[k]/tot)*100:0;
@@ -3134,13 +3139,44 @@ function OpenRouterProviderRollupChart({refreshTick=0}={}){
       anthropic:m.anthropic,
       google:m.google,
       openai:m.openai,
-      other:m.other,
       anthropicShare:sh("anthropic"),
       googleShare:  sh("google"),
       openaiShare:  sh("openai"),
       total:tot,
     };
   });
+
+  // Custom legend renderer — recharts auto-discovers items in JSX declaration
+  // order (bars first, then lines). We re-order to lines-first / bars-second
+  // to mirror the YipitData "Exhibit 2A" legend order, and swap the raw
+  // dataKey names for human labels. Doing this in a content function rather
+  // than via the payload prop because recharts 3.x ignores Legend payload
+  // when there are auto-discovered series.
+  const LEGEND_ORDER=["anthropicShare","googleShare","openaiShare","anthropic","google","openai"];
+  const renderLegend=({payload})=>{
+    if(!payload)return null;
+    const byKey=Object.fromEntries(payload.map(p=>[p.dataKey||p.value,p]));
+    const items=LEGEND_ORDER.map(k=>byKey[k]).filter(Boolean);
+    return(
+      <ul style={{padding:0,margin:0,textAlign:"center",listStyle:"none"}}>
+        {items.map((p,i)=>{
+          const isLine=p.type==="line"||/Share$/.test(p.dataKey||"");
+          const key=(p.dataKey||"").replace("Share","");
+          const meta=PROV_ROLLUP_COLORS[key]||{};
+          const swatch=isLine?meta.line:meta.bar;
+          const lab=meta.label+(isLine?" Share":" Tokens");
+          return(
+            <li key={i} style={{display:"inline-block",marginRight:10,fontSize:10,color:"#374151"}}>
+              {isLine
+                ?<svg width="14" height="8" style={{verticalAlign:"middle",marginRight:4}}><line x1="0" y1="4" x2="14" y2="4" stroke={swatch} strokeWidth="2"/></svg>
+                :<svg width="10" height="8" style={{verticalAlign:"middle",marginRight:4}}><rect width="10" height="8" fill={swatch}/></svg>}
+              <span>{lab}</span>
+            </li>
+          );
+        })}
+      </ul>
+    );
+  };
 
   return(
     <div style={{...S.card,marginBottom:16}}>{header}
@@ -3155,26 +3191,18 @@ function OpenRouterProviderRollupChart({refreshTick=0}={}){
               contentStyle={{fontSize:11,borderRadius:6,border:"0.5px solid #e5e7eb"}}
               labelStyle={{fontWeight:600,color:"#111827"}}
               formatter={(v,name)=>{
-                if(name.endsWith("Share"))return[(typeof v==="number"?v.toFixed(1):"—")+"%",name.replace("Share","")+" share"];
+                if(name.endsWith("Share"))return[(typeof v==="number"?v.toFixed(1):"—")+"%",(PROV_ROLLUP_COLORS[name.replace("Share","")]||{}).label+" Share"];
                 const lab=(PROV_ROLLUP_COLORS[name]||{}).label||name;
-                return[_fmtTokensShort(v),lab+" tokens"];
+                return[_fmtTokensShort(v),lab+" Tokens"];
               }}/>
             <Legend
               wrapperStyle={{fontSize:10,paddingTop:4}}
-              iconSize={8}
-              formatter={(n)=>{
-                if(n.endsWith("Share")){
-                  const k=n.replace("Share","");
-                  return((PROV_ROLLUP_COLORS[k]||{}).label||k)+" share";
-                }
-                return((PROV_ROLLUP_COLORS[n]||{}).label||n)+" tokens";
-              }}/>
-            {/* Stacked bars — absolute tokens (right axis). Stack order: claude → google → openai → other so claude reads off the baseline. */}
+              content={renderLegend}/>
+            {/* Stacked bars — absolute tokens (right axis). Stack order matches YipitData Exhibit 2A: Claude (bottom) → Google → OpenAI (top). */}
             <Bar yAxisId="tokens" dataKey="anthropic" stackId="t" fill={PROV_ROLLUP_COLORS.anthropic.bar} isAnimationActive={false}/>
             <Bar yAxisId="tokens" dataKey="google"    stackId="t" fill={PROV_ROLLUP_COLORS.google.bar}    isAnimationActive={false}/>
             <Bar yAxisId="tokens" dataKey="openai"    stackId="t" fill={PROV_ROLLUP_COLORS.openai.bar}    isAnimationActive={false}/>
-            <Bar yAxisId="tokens" dataKey="other"     stackId="t" fill={PROV_ROLLUP_COLORS.other.bar}     isAnimationActive={false}/>
-            {/* Share lines — left axis, % of total */}
+            {/* Share lines — left axis, % of total. Declared after bars so they render on top of the stack. */}
             <Line yAxisId="share" type="monotone" dataKey="anthropicShare" stroke={PROV_ROLLUP_COLORS.anthropic.line} strokeWidth={1.75} dot={{r:2.5,strokeWidth:0,fill:PROV_ROLLUP_COLORS.anthropic.line}} activeDot={{r:4}} isAnimationActive={false}/>
             <Line yAxisId="share" type="monotone" dataKey="googleShare"    stroke={PROV_ROLLUP_COLORS.google.line}    strokeWidth={1.75} dot={{r:2.5,strokeWidth:0,fill:PROV_ROLLUP_COLORS.google.line}}    activeDot={{r:4}} isAnimationActive={false}/>
             <Line yAxisId="share" type="monotone" dataKey="openaiShare"    stroke={PROV_ROLLUP_COLORS.openai.line}    strokeWidth={1.75} dot={{r:2.5,strokeWidth:0,fill:PROV_ROLLUP_COLORS.openai.line}}    activeDot={{r:4}} isAnimationActive={false}/>
