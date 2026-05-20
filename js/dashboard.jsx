@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from "react";
-import { BarChart, Bar, LineChart, Line, ComposedChart, AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, PieChart, Pie, CartesianGrid, Legend } from "recharts";
+import { BarChart, Bar, LineChart, Line, ComposedChart, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, PieChart, Pie, CartesianGrid, Legend } from "recharts";
 
 /* ─── Live data fetched by me right now (Apr 11 2026) ───────
    Sources:
@@ -2852,23 +2852,24 @@ function OpenRouterLiveEmbed({refreshTick=0}={}){
   const fmtWeek=(x)=>{const p=String(x).split("-");return p.length===3?MNS[(+p[1])-1]+" "+(+p[2]):x;};
   const shortName=(slug)=>slug.split("/").pop().replace(/:free$/,"").replace(/-\d{8}$/,"");
 
-  // Stacked dataset: the eight largest models by all-time tokens, rest → Others.
+  // Stacked dataset: the nine largest models by all-time tokens, the rest → Others.
   const weeks=state.data?.weeks||[];
   const totals={};
   for(const w of weeks){
     const ys=w.allModels||Object.fromEntries((w.topModels||[]).map(t=>[t.slug,t.tokens]));
     for(const slug in ys){if(slug==="Others")continue;totals[slug]=(totals[slug]||0)+(ys[slug]||0);}
   }
-  const topSlugs=Object.keys(totals).sort((a,b)=>totals[b]-totals[a]).slice(0,8);
+  const topSlugs=Object.keys(totals).sort((a,b)=>totals[b]-totals[a]).slice(0,9);
   const topSet=new Set(topSlugs);
-  const OR_COLORS=["#5b9bf8","#34d399","#fbbf24","#c084fc","#fb7185","#22d3ee","#f472b6","#a3e635"];
+  // OpenRouter theme: "Others" is the pink base of the stack, models sit above it.
+  const OR_COLORS=["#a78bfa","#fb923c","#38bdf8","#4ade80","#facc15","#22d3ee","#818cf8","#84cc16","#f97316"];
   const segs=[
+    {key:"Others",name:"Others",color:"#ec4899"},
     ...topSlugs.map((slug,i)=>({key:slug,name:shortName(slug),color:OR_COLORS[i%OR_COLORS.length]})),
-    {key:"Others",name:"Others",color:"#52525b"},
   ];
   const chartData=weeks.map(w=>{
     const ys=w.allModels||Object.fromEntries((w.topModels||[]).map(t=>[t.slug,t.tokens]));
-    const row={week:w.start};
+    const row={week:w.start,partial:!!w.partial};
     let others=0;
     for(const slug in ys){
       if(topSet.has(slug))row[slug]=ys[slug];
@@ -2897,9 +2898,9 @@ function OpenRouterLiveEmbed({refreshTick=0}={}){
       </div>
 
       {/* Native "Top Models" weekly chart — dark panel */}
-      <div style={{background:"#0c0c0d",borderRadius:8,border:"0.5px solid #e5e7eb",padding:16,minHeight:560}}>
+      <div style={{background:"#0a0a0a",borderRadius:8,border:"0.5px solid #e5e7eb",padding:16,minHeight:560}}>
         <div style={{display:"flex",alignItems:"center",gap:8}}>
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fafafa" strokeWidth="2.4" strokeLinecap="round">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#a1a1aa" strokeWidth="2.4" strokeLinecap="round">
             <line x1="6" y1="20" x2="6" y2="12"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="18" y1="20" x2="18" y2="9"/>
           </svg>
           <span style={{fontSize:14,fontWeight:700,color:"#fafafa"}}>Top Models</span>
@@ -2914,29 +2915,28 @@ function OpenRouterLiveEmbed({refreshTick=0}={}){
           <>
             <ResponsiveContainer width="100%" height={430}>
               <BarChart data={chartData} margin={{top:6,right:6,left:2,bottom:2}} barCategoryGap={1}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#262629" vertical={false}/>
-                <XAxis dataKey="week" tickFormatter={fmtWeek} interval={6} tick={{fontSize:9,fill:"#a1a1aa"}} tickLine={false} axisLine={{stroke:"#3f3f46"}}/>
-                <YAxis tickFormatter={orFmtTok} width={46} tick={{fontSize:9,fill:"#a1a1aa"}} tickLine={false} axisLine={{stroke:"#3f3f46"}}/>
+                <XAxis dataKey="week" tickFormatter={fmtWeek} interval={6} tick={{fontSize:9,fill:"#71717a"}} tickLine={false} axisLine={false}/>
+                <YAxis tickFormatter={orFmtTok} width={44} tick={{fontSize:9,fill:"#71717a"}} tickLine={false} axisLine={false}/>
                 <Tooltip
-                  cursor={{fill:"rgba(255,255,255,0.06)"}}
+                  cursor={{fill:"rgba(255,255,255,0.05)"}}
                   content={({active,label,payload})=>{
                     if(!active||!payload||!payload.length)return null;
-                    const rows=payload.slice().reverse().filter(p=>p.value>0);
+                    const rows=payload.filter(p=>p.value>0).sort((a,b)=>b.value-a.value);
                     const total=payload.reduce((s,p)=>s+(p.value||0),0);
                     return(
-                      <div style={{background:"#18181b",border:"0.5px solid #3f3f46",borderRadius:6,padding:"8px 10px",fontSize:11,lineHeight:1.5,boxShadow:"0 2px 10px rgba(0,0,0,0.55)"}}>
-                        <div style={{fontWeight:600,color:"#fafafa",marginBottom:4}}>Week of {fmtWeek(label)}</div>
+                      <div style={{background:"#1c1c1f",border:"0.5px solid #3f3f46",borderRadius:8,padding:"9px 11px",fontSize:11,lineHeight:1.55,boxShadow:"0 4px 14px rgba(0,0,0,0.6)"}}>
+                        <div style={{fontWeight:600,color:"#fafafa",marginBottom:5}}>Week of {fmtWeek(label)}</div>
                         {rows.map((p,i)=>{
                           const seg=segs.find(s=>s.key===p.dataKey);
                           return(
-                            <div key={i} style={{display:"flex",alignItems:"center",gap:6,color:"#d4d4d8"}}>
-                              <span style={{width:8,height:8,borderRadius:2,background:p.color,flexShrink:0}}/>
-                              <span style={{flex:1,whiteSpace:"nowrap",marginRight:10}}>{seg?seg.name:p.dataKey}</span>
+                            <div key={i} style={{display:"flex",alignItems:"center",gap:7,color:"#d4d4d8"}}>
+                              <span style={{width:8,height:8,borderRadius:"50%",background:p.color,flexShrink:0}}/>
+                              <span style={{flex:1,whiteSpace:"nowrap",marginRight:14}}>{seg?seg.name:p.dataKey}</span>
                               <span style={{fontWeight:600,color:"#fafafa"}}>{orFmtTok(p.value)}</span>
                             </div>
                           );
                         })}
-                        <div style={{display:"flex",justifyContent:"space-between",gap:14,marginTop:4,paddingTop:4,borderTop:"0.5px solid #3f3f46",color:"#a1a1aa"}}>
+                        <div style={{display:"flex",justifyContent:"space-between",gap:14,marginTop:5,paddingTop:5,borderTop:"0.5px solid #3f3f46",color:"#a1a1aa"}}>
                           <span>Total</span><span style={{fontWeight:700,color:"#fafafa"}}>{orFmtTok(total)}</span>
                         </div>
                       </div>
@@ -2944,14 +2944,18 @@ function OpenRouterLiveEmbed({refreshTick=0}={}){
                   }}
                 />
                 {segs.map(s=>(
-                  <Bar key={s.key} dataKey={s.key} stackId="t" fill={s.color} isAnimationActive={false}/>
+                  <Bar key={s.key} dataKey={s.key} stackId="t" fill={s.color} isAnimationActive={false}>
+                    {chartData.map((d,i)=>(
+                      <Cell key={i} fill={s.color} fillOpacity={d.partial?0.4:1}/>
+                    ))}
+                  </Bar>
                 ))}
               </BarChart>
             </ResponsiveContainer>
             <div style={{display:"flex",flexWrap:"wrap",gap:"5px 12px",marginTop:10}}>
               {segs.map(s=>(
                 <span key={s.key} style={{display:"inline-flex",alignItems:"center",gap:5,fontSize:10,color:"#d4d4d8"}}>
-                  <span style={{width:9,height:9,borderRadius:2,background:s.color,display:"inline-block",flexShrink:0}}/>
+                  <span style={{width:9,height:9,borderRadius:"50%",background:s.color,display:"inline-block",flexShrink:0}}/>
                   {s.name}
                 </span>
               ))}
@@ -2991,19 +2995,29 @@ function OpenRouterMarketShareEmbed({refreshTick=0}={}){
 
   const MS_MNS=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
   const fmtWeek=(x)=>{const p=String(x).split("-");return p.length===3?MS_MNS[(+p[1])-1]+" "+(+p[2]):x;};
+  const msFmtTok=(n)=>{
+    if(n==null||!isFinite(n)||n<=0)return"0";
+    if(n>=1e12)return(n/1e12).toFixed(2).replace(/\.?0+$/,"")+"T";
+    if(n>=1e9) return(n/1e9 ).toFixed(0)+"B";
+    if(n>=1e6) return(n/1e6 ).toFixed(0)+"M";
+    return Math.round(n).toString();
+  };
   const PROV_NAMES={google:"Google",openai:"OpenAI",anthropic:"Anthropic",deepseek:"DeepSeek","meta-llama":"Meta",mistralai:"Mistral",qwen:"Qwen","x-ai":"xAI",tencent:"Tencent",moonshotai:"Moonshot","z-ai":"Z.ai",microsoft:"Microsoft",openrouter:"OpenRouter",others:"Others"};
   const provLabel=(p)=>PROV_NAMES[p]||(p.charAt(0).toUpperCase()+p.slice(1));
+  // OpenRouter theme — per-author colors.
+  const PROV_COLORS={deepseek:"#f97316",google:"#4f8ff7",anthropic:"#f0a93b",tencent:"#5fb0f5",openai:"#22c4a0",openrouter:"#9a9a3c",qwen:"#a3e635",moonshotai:"#fb7185","z-ai":"#c5879f","meta-llama":"#6366f1",mistralai:"#ef5a3c","x-ai":"#8b5cf6",microsoft:"#2563eb",stepfun:"#0ea5e9",xiaomi:"#f59e0b","arcee-ai":"#14b8a6",nvidia:"#76b900",others:"#ec4899"};
+  const MS_FALLBACK=["#a78bfa","#38bdf8","#fbbf24","#4ade80","#f472b6","#fb923c","#22d3ee","#818cf8"];
 
-  // 100%-stacked dataset: every provider as its own band, plus Others.
+  // 100%-stacked dataset: the nine largest authors as bands; the rest fold into Others.
   const weeks=state.data?.weeks||[];
   const totals={};
   for(const w of weeks){const pr=w.providers||{};for(const p in pr){if(p==="others")continue;totals[p]=(totals[p]||0)+(pr[p]||0);}}
-  const ordered=Object.keys(totals).sort((a,b)=>totals[b]-totals[a]);
+  const ordered=Object.keys(totals).sort((a,b)=>totals[b]-totals[a]).slice(0,9);
   const knownSet=new Set(ordered);
-  const MS_COLORS=["#34d399","#5b9bf8","#fb7185","#fbbf24","#c084fc","#22d3ee","#f472b6","#a3e635","#fb923c"];
+  let _fb=0;
   const segs=[
-    ...ordered.map((p,i)=>({key:p,name:provLabel(p),color:MS_COLORS[i%MS_COLORS.length]})),
-    {key:"others",name:"Others",color:"#52525b"},
+    ...ordered.map((p)=>({key:p,name:provLabel(p),color:PROV_COLORS[p]||MS_FALLBACK[(_fb++)%MS_FALLBACK.length]})),
+    {key:"others",name:"Others",color:PROV_COLORS.others},
   ];
   const chartData=weeks.map(w=>{
     const pr=w.providers||{};
@@ -3014,6 +3028,13 @@ function OpenRouterMarketShareEmbed({refreshTick=0}={}){
     row.others=other;
     return row;
   });
+  // Ranked legend — most recent week's provider share.
+  const lastRow=chartData.length?chartData[chartData.length-1]:{};
+  const lastTotal=segs.reduce((s,g)=>s+(lastRow[g.key]||0),0)||1;
+  const ranked=segs
+    .map(g=>({...g,tokens:lastRow[g.key]||0}))
+    .filter(g=>g.tokens>0)
+    .sort((a,b)=>b.tokens-a.tokens);
 
   return(
     <div style={{marginTop:20,marginBottom:20}}>
@@ -3028,14 +3049,14 @@ function OpenRouterMarketShareEmbed({refreshTick=0}={}){
       </div>
 
       {/* Native provider-share chart — dark panel */}
-      <div style={{background:"#0c0c0d",borderRadius:8,border:"0.5px solid #e5e7eb",padding:16,minHeight:512}}>
+      <div style={{background:"#0a0a0a",borderRadius:8,border:"0.5px solid #e5e7eb",padding:16,minHeight:520}}>
         <div style={{display:"flex",alignItems:"center",gap:8}}>
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fafafa" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#a1a1aa" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M3 17l6-6 4 4 8-8"/><path d="M21 7v6h-6"/>
           </svg>
           <span style={{fontSize:14,fontWeight:700,color:"#fafafa"}}>Market Share</span>
         </div>
-        <div style={{fontSize:11,color:"#a1a1aa",marginTop:2,marginBottom:14}}>Weekly token share by provider across OpenRouter</div>
+        <div style={{fontSize:11,color:"#a1a1aa",marginTop:2,marginBottom:14}}>Compare OpenRouter token share by model author</div>
 
         {state.phase==="loading"?(
           <div style={{height:430,display:"flex",alignItems:"center",justifyContent:"center",color:"#52525b",fontSize:12}}>Loading provider share…</div>
@@ -3043,25 +3064,25 @@ function OpenRouterMarketShareEmbed({refreshTick=0}={}){
           <div style={{height:430,display:"flex",alignItems:"center",justifyContent:"center",color:"#52525b",fontSize:12}}>Provider share will appear here shortly</div>
         ):(
           <>
-            <ResponsiveContainer width="100%" height={388}>
-              <AreaChart data={chartData} stackOffset="expand" margin={{top:6,right:6,left:2,bottom:2}}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#262629" vertical={false}/>
-                <XAxis dataKey="week" tickFormatter={fmtWeek} interval={6} tick={{fontSize:9,fill:"#a1a1aa"}} tickLine={false} axisLine={{stroke:"#3f3f46"}}/>
-                <YAxis tickFormatter={v=>Math.round(v*100)+"%"} width={38} tick={{fontSize:9,fill:"#a1a1aa"}} tickLine={false} axisLine={{stroke:"#3f3f46"}}/>
+            <ResponsiveContainer width="100%" height={360}>
+              <BarChart data={chartData} stackOffset="expand" margin={{top:6,right:6,left:2,bottom:2}} barCategoryGap={1}>
+                <XAxis dataKey="week" tickFormatter={fmtWeek} interval={6} tick={{fontSize:9,fill:"#71717a"}} tickLine={false} axisLine={false}/>
+                <YAxis tickFormatter={v=>Math.round(v*100)+"%"} ticks={[0,0.3,0.6,1]} domain={[0,1]} width={38} tick={{fontSize:9,fill:"#71717a"}} tickLine={false} axisLine={false}/>
                 <Tooltip
+                  cursor={{fill:"rgba(255,255,255,0.05)"}}
                   content={({active,label,payload})=>{
                     if(!active||!payload||!payload.length)return null;
                     const total=payload.reduce((s,p)=>s+(p.value||0),0)||1;
-                    const rows=payload.slice().reverse().filter(p=>p.value>0);
+                    const rows=payload.filter(p=>p.value>0).sort((a,b)=>b.value-a.value);
                     return(
-                      <div style={{background:"#18181b",border:"0.5px solid #3f3f46",borderRadius:6,padding:"8px 10px",fontSize:11,lineHeight:1.5,boxShadow:"0 2px 10px rgba(0,0,0,0.55)"}}>
-                        <div style={{fontWeight:600,color:"#fafafa",marginBottom:4}}>Week of {fmtWeek(label)}</div>
+                      <div style={{background:"#1c1c1f",border:"0.5px solid #3f3f46",borderRadius:8,padding:"9px 11px",fontSize:11,lineHeight:1.55,boxShadow:"0 4px 14px rgba(0,0,0,0.6)"}}>
+                        <div style={{fontWeight:600,color:"#fafafa",marginBottom:5}}>Week of {fmtWeek(label)}</div>
                         {rows.map((p,i)=>{
                           const seg=segs.find(s=>s.key===p.dataKey);
                           return(
-                            <div key={i} style={{display:"flex",alignItems:"center",gap:6,color:"#d4d4d8"}}>
-                              <span style={{width:8,height:8,borderRadius:2,background:p.color,flexShrink:0}}/>
-                              <span style={{flex:1,whiteSpace:"nowrap",marginRight:10}}>{seg?seg.name:p.dataKey}</span>
+                            <div key={i} style={{display:"flex",alignItems:"center",gap:7,color:"#d4d4d8"}}>
+                              <span style={{width:8,height:8,borderRadius:"50%",background:p.color,flexShrink:0}}/>
+                              <span style={{flex:1,whiteSpace:"nowrap",marginRight:14}}>{seg?seg.name:p.dataKey}</span>
                               <span style={{fontWeight:600,color:"#fafafa"}}>{((p.value/total)*100).toFixed(1)}%</span>
                             </div>
                           );
@@ -3071,16 +3092,19 @@ function OpenRouterMarketShareEmbed({refreshTick=0}={}){
                   }}
                 />
                 {segs.map(s=>(
-                  <Area key={s.key} type="monotone" dataKey={s.key} stackId="1" stroke={s.color} fill={s.color} fillOpacity={0.82} strokeWidth={0} isAnimationActive={false}/>
+                  <Bar key={s.key} dataKey={s.key} stackId="1" fill={s.color} isAnimationActive={false}/>
                 ))}
-              </AreaChart>
+              </BarChart>
             </ResponsiveContainer>
-            <div style={{display:"flex",flexWrap:"wrap",gap:"5px 12px",marginTop:10}}>
-              {segs.map(s=>(
-                <span key={s.key} style={{display:"inline-flex",alignItems:"center",gap:5,fontSize:10,color:"#d4d4d8"}}>
-                  <span style={{width:9,height:9,borderRadius:2,background:s.color,display:"inline-block",flexShrink:0}}/>
-                  {s.name}
-                </span>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:"3px 24px",marginTop:12}}>
+              {ranked.map((s,i)=>(
+                <div key={s.key} style={{display:"flex",alignItems:"center",gap:7,fontSize:10.5,color:"#d4d4d8"}}>
+                  <span style={{width:14,color:"#71717a",textAlign:"right",flexShrink:0}}>{i+1}</span>
+                  <span style={{width:9,height:9,borderRadius:"50%",background:s.color,flexShrink:0}}/>
+                  <span style={{flex:1,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",color:"#fafafa"}}>{s.name}</span>
+                  <span style={{color:"#a1a1aa",flexShrink:0}}>{msFmtTok(s.tokens)}</span>
+                  <span style={{width:46,textAlign:"right",fontWeight:600,flexShrink:0}}>{((s.tokens/lastTotal)*100).toFixed(1)}%</span>
+                </div>
               ))}
             </div>
           </>
