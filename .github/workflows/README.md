@@ -8,6 +8,7 @@
 | `history-freshness-check.yml` | 22:47 | Final-line-of-defense check that today's snapshot exists; alerts only if all three capture slots failed |
 | `history-gap-audit.yml` | 23:11 | Audits the recent rolling window for any missing UTC dates that even the endpoint's self-healing gap fill failed to patch |
 | `keepalive.yml` | every 25 days | Pushes a tiny heartbeat commit so GitHub doesn't auto-disable scheduled workflows after 60 days of repo inactivity |
+| `ubs-capture.yml` | 08:23 | Daily POST to `/api/ubs/capture` so the UBS AI App Downloads Monitor chart refreshes as UBS Evidence Lab publishes new (~biweekly) data |
 
 ### Why this many layers?
 
@@ -621,3 +622,134 @@ curl -s "https://<your-domain>/api/history-health?window=30" | jq '.gapCount'
   reduces gap-noise to "yesterday + today" — useful for tighter alerting
   if you've recently filled long-tail gaps and only want fresh failures
   to trigger. Default 14 matches the gap-audit workflow.
+
+---
+
+## `ubs-capture.yml` — UBS AI App Downloads Capture
+
+Automatically triggers the production `POST /api/ubs/capture` endpoint once a
+day so the **UBS AI App Downloads Monitor** chart stays fresh. The capture
+endpoint fetches the latest UBS Evidence Lab "Global AI App Monitor" slice
+server-side and writes it to D1 (`ubs_dataset_snapshots`); the chart reads D1
+through `/api/ubs/snapshots/global_app_downloads_ai/trend`. Without this
+workflow the chart freezes at whatever the last manual capture pulled — UBS
+publishes the dataset roughly biweekly, so it goes visibly stale within days.
+
+### Required GitHub Secret
+
+Add in the GitHub repo: **Settings → Secrets and variables → Actions → Repository secrets**
+
+| Secret | Example value | Purpose |
+|---|---|---|
+| `UBS_CAPTURE_SECRET` | `<random 32+ char string>` | Bearer token the workflow sends to `/api/ubs/capture`. Must match the `UBS_CAPTURE_SECRET` variable in Cloudflare Pages exactly. |
+
+The capture URL is **hard-coded** in the workflow
+(`https://google-dash-git.pages.dev/api/ubs/capture?maxPages=50`) — it is not
+sensitive, so it is not stored as a secret. `UBS_CAPTURE_SECRET` is the only
+secret this workflow needs.
+
+### Required Cloudflare Pages Settings
+
+Confirm in **Cloudflare dashboard → Pages → google-dash → Settings → Variables and Secrets**
+
+| Variable | Environment | Value |
+|---|---|---|
+| `UBS_CAPTURE_SECRET` | Production | Same random string as the GitHub secret |
+| `UBS_API_KEY` | Production | UBS Evidence Lab API key (used server-side only; never sent by this workflow) |
+
+The capture endpoint also needs the D1 binding `EC2_PRICING_DB` (already bound
+for EC2 pricing — the `ubs_dataset_snapshots` table lives in the same database,
+scoped by `dataset_key`).
+
+### Schedule
+
+- One slot per day at **08:23 UTC**, off-minute to dodge GitHub's
+  heavily-queued `:00` / `:30` slots.
+- One slot is enough because UBS only publishes ~biweekly: a daily run catches
+  each new week within ~24h, and a single dropped run is recovered by the next
+  morning's run.
+- Also triggers on **`workflow_dispatch`** with an optional `reason` input.
+
+### Behavior
+
+- `curl -X POST` to `/api/ubs/capture?maxPages=50` with an
+  `Authorization: Bearer <UBS_CAPTURE_SECRET>` header. No request body — the
+  endpoint takes all of its scope from hard-coded constants.
+- `maxPages=50` is the endpoint's hard cap; it gives headroom as the dataset
+  grows. Empty pages cost nothing — the endpoint stops at the first empty page.
+- Up to 3 attempts with 15s / 30s backoff, 5-minute timeout per attempt.
+- A run counts as successful **only** when the response is HTTP 200 **and** the
+  JSON body has `"ok": true`. Any other outcome (HTTP error, `ok:false`,
+  network failure) retries, then fails the run.
+- `concurrency: ubs-capture` prevents overlapping runs.
+- The step summary records the trigger, `maxPeriodEndDate`, and
+  `rowsInsertedOrUpdated` from the capture response.
+
+### Idempotency
+
+The capture endpoint deduplicates on the unique index
+`idx_ubs_dataset_snapshots_unique` (migration `0004`) with `INSERT OR REPLACE`.
+Re-running the workflow on a day when UBS has published nothing new simply
+rewrites identical rows — safe and side-effect-free. There is no harm in the
+daily cadence outpacing UBS's biweekly publication.
+
+### Failure alerting
+
+When the workflow fails (after 3 retries), the **"Open or update failure
+issue"** step automatically:
+
+1. Searches for an existing open issue titled `🔴 UBS AI app-downloads capture failing`
+   tagged with the `ubs-capture-failure` label
+2. If one exists → posts a comment with the new failure details (run URL,
+   timestamp, last HTTP status)
+3. If none exists → opens a new issue with the same title and label
+
+One rolling issue per failure cluster. Close it once the underlying problem is
+fixed; the next failure opens a fresh one. The step uses the auto-provided
+`GITHUB_TOKEN` with `issues: write` — no extra secrets.
+
+### Manual Trigger
+
+1. Go to **GitHub repo → Actions tab**
+2. Select **"UBS AI App Downloads Capture"** from the left sidebar
+3. Click **"Run workflow"** (top right of the runs list)
+4. Optionally enter a reason
+5. Click the green **"Run workflow"** button
+
+CLI equivalent:
+
+```bash
+gh workflow run ubs-capture.yml
+```
+
+### Verification
+
+After a run (scheduled or manual):
+
+1. **Check the Actions log / step summary**: look for `maxPeriodEndDate` and a
+   non-zero `rowsInsertedOrUpdated`.
+2. **Confirm D1 advanced**:
+   ```bash
+   curl -s "https://google-dash-git.pages.dev/api/ubs/capture/status" | jq '.latestCaptureCreatedAt'
+   ```
+   `latestCaptureCreatedAt` should be the current run's timestamp.
+3. **Confirm the chart's series advanced**:
+   ```bash
+   curl -s "https://google-dash-git.pages.dev/api/ubs/snapshots/global_app_downloads_ai/trend?metric=downloadsShare&geography=Global_90&period=week&topN=2" \
+     | jq '.snapshotDateRange.max'
+   ```
+   The weekly `max` should be the most recent UBS week. The trend endpoint has
+   a 5-minute edge cache, so allow a few minutes.
+4. **Confirm in the dashboard UI**: open the **AI Adoption** tab → the UBS AI
+   App Downloads Monitor chart's last labelled week should match step 3.
+
+### Troubleshooting
+
+| Symptom | Likely cause |
+|---|---|
+| `HTTP 401 unauthorized` | `UBS_CAPTURE_SECRET` in GitHub doesn't match the one in Cloudflare Pages |
+| `HTTP 500 missing_capture_secret` / `missing_api_key` | `UBS_CAPTURE_SECRET` or `UBS_API_KEY` not bound in Cloudflare Pages |
+| `HTTP 500 migration_missing` | `ubs_dataset_snapshots` table absent — apply the D1 migrations |
+| `HTTP 502 catalogue_fetch_failed` | UBS Evidence Lab API unreachable or rate-limited; the next run retries |
+| Workflow green but chart unchanged | UBS published no new week — `rowsInsertedOrUpdated` is still non-zero (rewritten rows); the chart only advances when UBS adds a week |
+| Failure step fails with `Resource not accessible by integration` | The job's `permissions: issues: write` is blocked by repo settings — check **Settings → Actions → General → Workflow permissions** |

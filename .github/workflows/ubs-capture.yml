@@ -1,0 +1,168 @@
+name: UBS AI App Downloads Capture
+
+# Refreshes the "UBS AI App Downloads Monitor" dashboard chart by POSTing to
+# the production capture endpoint. The endpoint fetches the latest UBS
+# Evidence Lab "Global AI App Monitor" slice server-side and writes it to D1;
+# the chart reads D1 via /api/ubs/snapshots/global_app_downloads_ai/trend.
+# UBS publishes this dataset roughly biweekly, so a daily run keeps the chart
+# fresh within ~24h of each publication and self-heals from a dropped run.
+#
+# ── One-time setup (required before this workflow can do anything) ──
+#   GitHub → repo Settings → Secrets and variables → Actions → New secret:
+#     UBS_CAPTURE_SECRET = <the SAME value already set as UBS_CAPTURE_SECRET
+#                           in Cloudflare Pages → project "google-dash" →
+#                           Settings → Variables and Secrets>
+#   The capture endpoint matches the Bearer token against the Cloudflare-side
+#   UBS_CAPTURE_SECRET, so the two values must be identical. If the original
+#   value is unknown, set a fresh random string in BOTH places. No other
+#   secret is needed here — UBS_API_KEY lives only on Cloudflare.
+#
+#   Then run it once: Actions tab → "UBS AI App Downloads Capture" →
+#   Run workflow.
+
+on:
+  schedule:
+    # Daily at 08:23 UTC. Off-minute to dodge GitHub's heavily-queued
+    # :00/:30 slots. Each capture is idempotent (INSERT OR REPLACE on the
+    # unique index), so re-running when UBS has no new week is harmless.
+    - cron: '23 8 * * *'
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: 'Optional note (for the audit log)'
+        required: false
+        default: 'manual run'
+
+# Never overlap runs; queue instead of cancelling a partial capture.
+concurrency:
+  group: ubs-capture
+  cancel-in-progress: false
+
+jobs:
+  capture:
+    name: Capture UBS AI app-downloads slice
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    # issues:write is only for the failure-alert step. Everything else is read-only.
+    permissions:
+      contents: read
+      issues: write
+
+    steps:
+      - name: Validate required secret
+        env:
+          UBS_CAPTURE_SECRET: ${{ secrets.UBS_CAPTURE_SECRET }}
+        run: |
+          if [ -z "$UBS_CAPTURE_SECRET" ]; then
+            echo "::error::UBS_CAPTURE_SECRET secret is not set. Add it under"
+            echo "::error::repo Settings → Secrets and variables → Actions."
+            exit 1
+          fi
+          echo "UBS_CAPTURE_SECRET is configured."
+
+      - name: Capture UBS slice into D1
+        id: capture
+        env:
+          UBS_CAPTURE_SECRET: ${{ secrets.UBS_CAPTURE_SECRET }}
+        run: |
+          set -euo pipefail
+          CAPTURE_URL="https://google-dash-git.pages.dev/api/ubs/capture?maxPages=50"
+          ok=0
+          http="000"
+          for attempt in 1 2 3; do
+            echo "── Attempt $attempt of 3 ──"
+            http=$(curl -sS -o resp.json -w '%{http_code}' \
+              --max-time 300 \
+              -X POST "$CAPTURE_URL" \
+              -H "Authorization: Bearer $UBS_CAPTURE_SECRET") || http="000"
+            echo "HTTP $http"
+            if [ "$http" = "200" ] && jq -e '.ok == true' resp.json >/dev/null 2>&1; then
+              ok=1
+              break
+            fi
+            echo "Attempt $attempt failed (HTTP $http). Response body:"
+            cat resp.json 2>/dev/null || echo "(no response body)"
+            echo ""
+            if [ "$attempt" -lt 3 ]; then
+              sleep $((attempt * 15))
+            fi
+          done
+
+          if [ "$ok" != "1" ]; then
+            echo "http=$http"               >> "$GITHUB_OUTPUT"
+            echo "max_period_end_date=n/a"  >> "$GITHUB_OUTPUT"
+            echo "rows=n/a"                 >> "$GITHUB_OUTPUT"
+            echo "::error::UBS capture failed after 3 attempts (last HTTP $http)"
+            exit 1
+          fi
+
+          maxDate=$(jq -r '.maxPeriodEndDate // "unknown"' resp.json) || maxDate="unknown"
+          rows=$(jq -r '.rowsInsertedOrUpdated // 0' resp.json) || rows="0"
+          echo "http=$http"                    >> "$GITHUB_OUTPUT"
+          echo "max_period_end_date=$maxDate"  >> "$GITHUB_OUTPUT"
+          echo "rows=$rows"                    >> "$GITHUB_OUTPUT"
+          echo "::notice::UBS capture OK — latest week $maxDate, $rows rows written"
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "### UBS AI App Downloads Capture"
+            echo ""
+            echo "- Trigger: ${{ github.event_name }}"
+            echo "- Reason: ${{ github.event.inputs.reason || 'scheduled' }}"
+            echo "- Time (UTC): $(date -u '+%Y-%m-%d %H:%M:%S')"
+            echo "- Job status: ${{ job.status }}"
+            echo "- HTTP status: ${{ steps.capture.outputs.http || 'n/a' }}"
+            echo "- maxPeriodEndDate: ${{ steps.capture.outputs.max_period_end_date || 'n/a' }}"
+            echo "- rowsInsertedOrUpdated: ${{ steps.capture.outputs.rows || 'n/a' }}"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # On failure, open a rolling "capture failing" issue (or comment on the
+      # existing open one). The dashboard keeps serving the last good data, so
+      # this is an internal signal only — customers never see an error.
+      - name: Open or update failure issue
+        if: failure()
+        uses: actions/github-script@v7
+        env:
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          TRIGGER: ${{ github.event_name }}
+          HTTP_STATUS: ${{ steps.capture.outputs.http }}
+        with:
+          script: |
+            const TITLE = '🔴 UBS AI app-downloads capture failing';
+            const LABEL = 'ubs-capture-failure';
+            const nowUTC = new Date().toISOString().replace('T', ' ').slice(0, 19) + ' UTC';
+            const summary = [
+              '**Run:** ' + process.env.RUN_URL,
+              '**When:** ' + nowUTC,
+              '**Trigger:** ' + process.env.TRIGGER,
+              '**Last HTTP status:** ' + (process.env.HTTP_STATUS || 'n/a'),
+              '',
+              'The scheduled UBS Evidence Lab capture failed after 3 attempts.',
+              'The dashboard keeps serving the last good data in the meantime,',
+              'so there is no customer-facing error. Check the run log linked',
+              'above — the next scheduled run retries automatically.',
+              '',
+              'If the status is 401, the `UBS_CAPTURE_SECRET` GitHub secret no',
+              'longer matches the one in Cloudflare Pages.',
+            ].join('\n');
+            const { data: open } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner, repo: context.repo.repo,
+              state: 'open', labels: LABEL, per_page: 50,
+            });
+            const existing = open.find(i => i.title === TITLE);
+            if (existing) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner, repo: context.repo.repo,
+                issue_number: existing.number, body: '### New failure\n\n' + summary,
+              });
+              core.notice('Commented on existing issue #' + existing.number);
+            } else {
+              const { data: created } = await github.rest.issues.create({
+                owner: context.repo.owner, repo: context.repo.repo,
+                title: TITLE, body: '### Initial failure\n\n' + summary, labels: [LABEL],
+              });
+              core.notice('Opened issue #' + created.number);
+            }
