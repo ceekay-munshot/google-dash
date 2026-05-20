@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from "react";
-import { BarChart, Bar, LineChart, Line, ComposedChart, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, PieChart, Pie, CartesianGrid, Legend } from "recharts";
+import { BarChart, Bar, LineChart, Line, ComposedChart, AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, PieChart, Pie, CartesianGrid, Legend } from "recharts";
 
 /* ─── Live data fetched by me right now (Apr 11 2026) ───────
    Sources:
@@ -2969,6 +2969,133 @@ function OpenRouterLiveEmbed({refreshTick=0}={}){
 }
 
 /* ═══════════════════════════════════════════════════════
+   EMBEDDED: OpenRouter Provider Market Share — native
+   100%-stacked weekly provider-share chart, fed by
+   /api/openrouter-chart-weekly?providers=1.
+═══════════════════════════════════════════════════════ */
+function OpenRouterMarketShareEmbed({refreshTick=0}={}){
+  const[state,setState]=useState({phase:"loading",data:null});
+
+  useEffect(()=>{
+    let cancelled=false;
+    fetch("/api/openrouter-chart-weekly?providers=1&_="+(refreshTick||Date.now()),{cache:"no-store"})
+      .then(r=>r.json())
+      .then(d=>{
+        if(cancelled)return;
+        if(!d||d.success===false||!(d.weeks&&d.weeks.length)){setState({phase:"empty",data:null});return;}
+        setState({phase:"ready",data:d});
+      })
+      .catch(()=>{if(!cancelled)setState({phase:"empty",data:null});});
+    return()=>{cancelled=true;};
+  },[refreshTick]);
+
+  const MS_MNS=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  const fmtWeek=(x)=>{const p=String(x).split("-");return p.length===3?MS_MNS[(+p[1])-1]+" "+(+p[2]):x;};
+  const PROV_NAMES={google:"Google",openai:"OpenAI",anthropic:"Anthropic",deepseek:"DeepSeek","meta-llama":"Meta",mistralai:"Mistral",qwen:"Qwen","x-ai":"xAI",tencent:"Tencent",moonshotai:"Moonshot","z-ai":"Z.ai",microsoft:"Microsoft",openrouter:"OpenRouter",others:"Others"};
+  const provLabel=(p)=>PROV_NAMES[p]||(p.charAt(0).toUpperCase()+p.slice(1));
+
+  // 100%-stacked dataset: every provider as its own band, plus Others.
+  const weeks=state.data?.weeks||[];
+  const totals={};
+  for(const w of weeks){const pr=w.providers||{};for(const p in pr){if(p==="others")continue;totals[p]=(totals[p]||0)+(pr[p]||0);}}
+  const ordered=Object.keys(totals).sort((a,b)=>totals[b]-totals[a]);
+  const knownSet=new Set(ordered);
+  const MS_COLORS=["#34d399","#5b9bf8","#fb7185","#fbbf24","#c084fc","#22d3ee","#f472b6","#a3e635","#fb923c"];
+  const segs=[
+    ...ordered.map((p,i)=>({key:p,name:provLabel(p),color:MS_COLORS[i%MS_COLORS.length]})),
+    {key:"others",name:"Others",color:"#52525b"},
+  ];
+  const chartData=weeks.map(w=>{
+    const pr=w.providers||{};
+    const row={week:w.start};
+    let other=pr.others||0;
+    for(const p of ordered)row[p]=pr[p]||0;
+    for(const p in pr)if(p!=="others"&&!knownSet.has(p))other+=(pr[p]||0);
+    row.others=other;
+    return row;
+  });
+
+  return(
+    <div style={{marginTop:20,marginBottom:20}}>
+      {/* Section label */}
+      <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:4}}>
+        <span style={{width:7,height:7,borderRadius:"50%",background:"#10b981",display:"inline-block",animation:"orpulse 2s infinite"}}/>
+        <span style={{fontSize:10,textTransform:"uppercase",letterSpacing:".09em",fontWeight:700,color:"#10b981"}}>OpenRouter / Ecosystem</span>
+      </div>
+      <div style={{fontSize:14,fontWeight:700,color:"#111827",lineHeight:1.3}}>OpenRouter Provider Market Share</div>
+      <div style={{fontSize:11,color:"#9ca3af",marginTop:2,marginBottom:8}}>
+        Weekly provider token share across OpenRouter · ecosystem benchmark, not Google revenue
+      </div>
+
+      {/* Native provider-share chart — dark panel */}
+      <div style={{background:"#0c0c0d",borderRadius:8,border:"0.5px solid #e5e7eb",padding:16,minHeight:512}}>
+        <div style={{display:"flex",alignItems:"center",gap:8}}>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fafafa" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M3 17l6-6 4 4 8-8"/><path d="M21 7v6h-6"/>
+          </svg>
+          <span style={{fontSize:14,fontWeight:700,color:"#fafafa"}}>Market Share</span>
+        </div>
+        <div style={{fontSize:11,color:"#a1a1aa",marginTop:2,marginBottom:14}}>Weekly token share by provider across OpenRouter</div>
+
+        {state.phase==="loading"?(
+          <div style={{height:430,display:"flex",alignItems:"center",justifyContent:"center",color:"#52525b",fontSize:12}}>Loading provider share…</div>
+        ):chartData.length===0?(
+          <div style={{height:430,display:"flex",alignItems:"center",justifyContent:"center",color:"#52525b",fontSize:12}}>Provider share will appear here shortly</div>
+        ):(
+          <>
+            <ResponsiveContainer width="100%" height={388}>
+              <AreaChart data={chartData} stackOffset="expand" margin={{top:6,right:6,left:2,bottom:2}}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#262629" vertical={false}/>
+                <XAxis dataKey="week" tickFormatter={fmtWeek} interval={6} tick={{fontSize:9,fill:"#a1a1aa"}} tickLine={false} axisLine={{stroke:"#3f3f46"}}/>
+                <YAxis tickFormatter={v=>Math.round(v*100)+"%"} width={38} tick={{fontSize:9,fill:"#a1a1aa"}} tickLine={false} axisLine={{stroke:"#3f3f46"}}/>
+                <Tooltip
+                  content={({active,label,payload})=>{
+                    if(!active||!payload||!payload.length)return null;
+                    const total=payload.reduce((s,p)=>s+(p.value||0),0)||1;
+                    const rows=payload.slice().reverse().filter(p=>p.value>0);
+                    return(
+                      <div style={{background:"#18181b",border:"0.5px solid #3f3f46",borderRadius:6,padding:"8px 10px",fontSize:11,lineHeight:1.5,boxShadow:"0 2px 10px rgba(0,0,0,0.55)"}}>
+                        <div style={{fontWeight:600,color:"#fafafa",marginBottom:4}}>Week of {fmtWeek(label)}</div>
+                        {rows.map((p,i)=>{
+                          const seg=segs.find(s=>s.key===p.dataKey);
+                          return(
+                            <div key={i} style={{display:"flex",alignItems:"center",gap:6,color:"#d4d4d8"}}>
+                              <span style={{width:8,height:8,borderRadius:2,background:p.color,flexShrink:0}}/>
+                              <span style={{flex:1,whiteSpace:"nowrap",marginRight:10}}>{seg?seg.name:p.dataKey}</span>
+                              <span style={{fontWeight:600,color:"#fafafa"}}>{((p.value/total)*100).toFixed(1)}%</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  }}
+                />
+                {segs.map(s=>(
+                  <Area key={s.key} type="monotone" dataKey={s.key} stackId="1" stroke={s.color} fill={s.color} fillOpacity={0.82} strokeWidth={0} isAnimationActive={false}/>
+                ))}
+              </AreaChart>
+            </ResponsiveContainer>
+            <div style={{display:"flex",flexWrap:"wrap",gap:"5px 12px",marginTop:10}}>
+              {segs.map(s=>(
+                <span key={s.key} style={{display:"inline-flex",alignItems:"center",gap:5,fontSize:10,color:"#d4d4d8"}}>
+                  <span style={{width:9,height:9,borderRadius:2,background:s.color,display:"inline-block",flexShrink:0}}/>
+                  {s.name}
+                </span>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* Source note */}
+      <div style={{fontSize:10,color:"#9ca3af",marginTop:5}}>
+        Source: openrouter.ai/rankings · weekly provider token share
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════
    AI ADOPTION — OpenRouter Token Demand by Provider
    Finance-model layout: rows = metric groups + provider buckets,
    columns = quarter-end periods (Mar/Jun/Sep/Dec). Mirrors the
@@ -4283,28 +4410,8 @@ function ORTab({data,busy,ts,live,refresh,refreshTick,bumpRefreshTick}){
           </BarChart>
         </ResponsiveContainer>
 
-        {/* OpenRouter — Market Share live embed */}
-        <div style={{marginTop:20,marginBottom:20}}>
-          <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:4}}>
-            <span style={{width:7,height:7,borderRadius:"50%",background:"#10b981",display:"inline-block",animation:"orpulse 2s infinite"}}/>
-            <span style={{fontSize:10,textTransform:"uppercase",letterSpacing:".09em",fontWeight:700,color:"#10b981"}}>OpenRouter / Ecosystem</span>
-          </div>
-          <div style={{fontSize:14,fontWeight:700,color:"#111827",lineHeight:1.3}}>OpenRouter Provider Market Share</div>
-          <div style={{fontSize:11,color:"#9ca3af",marginTop:2,marginBottom:8}}>
-            Weekly provider token share across OpenRouter · ecosystem benchmark, not Google revenue
-          </div>
-          <div style={{borderRadius:8,overflow:"hidden",border:"0.5px solid #e5e7eb",background:"#fff"}}>
-            <iframe
-              src={"/api/openrouter-rankings-proxy?section=market-share&v="+Math.floor(Date.now()/3e5)}
-              title="OpenRouter — Provider Market Share"
-              loading="lazy"
-              style={{border:0,display:"block",width:"100%",height:820,minHeight:700}}
-            />
-          </div>
-          <div style={{fontSize:10,color:"#9ca3af",marginTop:5}}>
-            Source: openrouter.ai/rankings · provider token share proxy
-          </div>
-        </div>
+        {/* OpenRouter — Provider Market Share (native chart) */}
+        <OpenRouterMarketShareEmbed refreshTick={refreshTick}/>
 
         {/* PricePerToken — Open Router Pricing History embed */}
         <div style={{marginTop:20,marginBottom:20}}>

@@ -1,14 +1,16 @@
 #!/usr/bin/env node
 /**
- * Capture the OpenRouter "Top Models" weekly token series and forward it to
- * the dashboard capture endpoint. Run by .github/workflows/openrouter-capture.yml.
+ * Capture the OpenRouter weekly "Top Models" and "Market Share" series and
+ * forward them to the dashboard capture endpoint. Run by
+ * .github/workflows/openrouter-capture.yml.
  *
- * OpenRouter's rankings chart is client-rendered, so the weekly `x + ys` token
- * series is not in the page HTML — it arrives as a network response after the
- * page's JS runs. This script loads the page in a headless browser, intercepts
- * that response, and POSTs the exact payload to:
+ * OpenRouter's rankings charts are client-rendered, so the weekly token
+ * series are not in the page HTML — they arrive as network responses after
+ * the page's JS runs. This script loads the page in a headless browser,
+ * intercepts both responses, and POSTs each to:
  *     /api/openrouter-chart-weekly?capture=1
- * which parses it and persists it to HISTORY_KV.
+ * which parses and persists them to HISTORY_KV (the endpoint auto-routes
+ * model-level vs provider-level payloads to their own keys).
  *
  * Required env:
  *   OPENROUTER_CAPTURE_URL  POST target, e.g.
@@ -16,7 +18,7 @@
  *   CAPTURE_TOKEN           bearer token; must match the dashboard's CAPTURE_TOKEN
  *
  * Optional:
- *   DRY_RUN=true  (or pass --dry-run)  capture only — print a summary, skip the POST
+ *   DRY_RUN=true  (or pass --dry-run)  capture only — print a summary, skip POSTs
  */
 import { chromium } from 'playwright';
 
@@ -29,12 +31,18 @@ const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 '
 
 function log(...a) { console.error('[capture-openrouter]', ...a); }
 
-/** True when a response body carries the model-level weekly series. */
+/** Model-level "Top Models" series: {"data":[{x,ys}]} keyed by provider/model slugs. */
 function isModelSeries(body) {
   if (!body || body.indexOf('"data":[') < 0) return false;
   if (body.indexOf('"x":"') < 0 || body.indexOf('"ys":') < 0) return false;
-  // Model-level ys keys are "provider/model" slugs — find a slug:number pair.
   return /"[a-z][a-z0-9-]*\/[A-Za-z0-9][\w.:-]*":\s*\d/.test(body);
+}
+
+/** Provider-level "Market Share" series: a bare [{x,ys}] keyed by provider names. */
+function isProviderSeries(body) {
+  if (!body || body.indexOf('[{"x":"') < 0) return false;
+  if (body.indexOf('"ys":') < 0 || body.indexOf('"data":[') >= 0) return false;
+  return /"(google|openai|anthropic|deepseek|qwen|tencent|moonshotai|meta-llama|mistralai|x-ai|openrouter)":\s*\d/.test(body);
 }
 
 async function captureOnce() {
@@ -42,29 +50,32 @@ async function captureOnce() {
   try {
     const ctx = await browser.newContext({ userAgent: UA, viewport: { width: 1440, height: 900 } });
     const page = await ctx.newPage();
-    const hits = [];
+    const modelHits = [], providerHits = [];
     page.on('response', async (resp) => {
       try {
         const rt = resp.request().resourceType();
         if (rt !== 'fetch' && rt !== 'xhr' && rt !== 'document') return;
         if (resp.status() !== 200) return;
         const body = await resp.text();
-        if (isModelSeries(body)) hits.push({ url: resp.url(), body });
+        if (isModelSeries(body)) modelHits.push({ url: resp.url(), body });
+        else if (isProviderSeries(body)) providerHits.push({ url: resp.url(), body });
       } catch (_) { /* body not retrievable — skip */ }
     });
     await page.goto(RANKINGS_URL, { waitUntil: 'domcontentloaded', timeout: 45000 });
-    // The chart fetch fires after hydration — give it up to ~20s to land.
-    for (let i = 0; i < 20 && hits.length === 0; i++) await page.waitForTimeout(1000);
-    if (hits.length === 0) throw new Error('no model-level chart response observed');
-    // Prefer the largest matching payload (the full multi-week series).
-    hits.sort((a, b) => b.body.length - a.body.length);
-    return hits[0];
+    // Both chart fetches fire after hydration — wait up to ~20s for both.
+    for (let i = 0; i < 20 && (modelHits.length === 0 || providerHits.length === 0); i++) {
+      await page.waitForTimeout(1000);
+    }
+    if (modelHits.length === 0) throw new Error('no model-level chart response observed');
+    modelHits.sort((a, b) => b.body.length - a.body.length);
+    providerHits.sort((a, b) => b.body.length - a.body.length);
+    return { model: modelHits[0], provider: providerHits[0] || null };
   } finally {
     await browser.close();
   }
 }
 
-async function postCapture(body) {
+async function postCapture(body, label) {
   for (let attempt = 1; attempt <= 3; attempt++) {
     try {
       const resp = await fetch(CAPTURE_URL, {
@@ -77,10 +88,10 @@ async function postCapture(body) {
       });
       const text = await resp.text();
       let json; try { json = JSON.parse(text); } catch { json = { raw: text.slice(0, 300) }; }
-      log(`POST attempt ${attempt}: HTTP ${resp.status}`, JSON.stringify(json));
+      log(`POST ${label} attempt ${attempt}: HTTP ${resp.status}`, JSON.stringify(json));
       if (resp.ok && json.success === true) return true;
     } catch (e) {
-      log(`POST attempt ${attempt} failed: ${e.message}`);
+      log(`POST ${label} attempt ${attempt} failed: ${e.message}`);
     }
     if (attempt < 3) await new Promise(r => setTimeout(r, attempt * 10000));
   }
@@ -90,13 +101,11 @@ async function postCapture(body) {
 async function main() {
   if (!DRY_RUN && !CAPTURE_URL) { log('ERROR: OPENROUTER_CAPTURE_URL is not set'); process.exit(2); }
 
-  let hit = null, lastErr = null;
+  let cap = null, lastErr = null;
   for (let attempt = 1; attempt <= 3; attempt++) {
     try {
       log(`capture attempt ${attempt}/3 …`);
-      hit = await captureOnce();
-      const weekCount = (hit.body.match(/"x":"/g) || []).length;
-      log(`captured ${hit.body.length} bytes (~${weekCount} week rows) from ${hit.url}`);
+      cap = await captureOnce();
       break;
     } catch (e) {
       lastErr = e;
@@ -104,18 +113,34 @@ async function main() {
       if (attempt < 3) await new Promise(r => setTimeout(r, attempt * 10000));
     }
   }
-  if (!hit) { log('FAILED — could not capture the weekly series: ' + (lastErr && lastErr.message)); process.exit(1); }
+  if (!cap) { log('FAILED — could not capture the weekly series: ' + (lastErr && lastErr.message)); process.exit(1); }
+
+  const modelWeeks = (cap.model.body.match(/"x":"/g) || []).length;
+  log(`models:    ${cap.model.body.length} bytes (~${modelWeeks} week rows) from ${cap.model.url}`);
+  if (cap.provider) {
+    const provWeeks = (cap.provider.body.match(/"x":"/g) || []).length;
+    log(`providers: ${cap.provider.body.length} bytes (~${provWeeks} week rows) from ${cap.provider.url}`);
+  } else {
+    log('providers: NOT captured this run');
+  }
 
   if (DRY_RUN) {
-    log('DRY RUN — capture succeeded, not posting. Payload preview:');
-    console.log(hit.body.slice(0, 700));
+    log('DRY RUN — not posting. Model preview:');
+    console.log(cap.model.body.slice(0, 400));
+    if (cap.provider) { log('Provider preview:'); console.log(cap.provider.body.slice(0, 400)); }
     log('OK (dry run)');
     return;
   }
 
-  const ok = await postCapture(hit.body);
-  if (!ok) { log('FAILED — capture endpoint did not confirm success'); process.exit(1); }
-  log('OK — weekly series captured and persisted');
+  let ok = await postCapture(cap.model.body, 'models');
+  if (cap.provider) {
+    ok = (await postCapture(cap.provider.body, 'providers')) && ok;
+  } else {
+    log('FAILED — provider-level series was not captured');
+    ok = false;
+  }
+  if (!ok) { log('FAILED — one or more captures did not persist'); process.exit(1); }
+  log('OK — Top Models and Market Share series captured and persisted');
 }
 
 main().catch(e => { log('FATAL: ' + (e && e.message)); process.exit(1); });

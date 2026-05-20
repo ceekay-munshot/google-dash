@@ -1,31 +1,36 @@
 /**
- * Cloudflare Pages Function — OpenRouter weekly "Top Models" token series.
+ * Cloudflare Pages Function — OpenRouter weekly token series.
  * Route: /api/openrouter-chart-weekly
  *
- *   GET                → weekly model-token series in the dashboard wire shape.
+ *   GET                → "Top Models" weekly model-token series (wire shape).
  *   GET  ?full=1       → also include the per-week `allModels` map.
+ *   GET  ?providers=1  → "Market Share" weekly provider-token series.
  *   GET  ?debug=1      → internal diagnostics (source, freshness, last error).
- *   POST ?capture=1    → ingest a fresh capture and persist it to HISTORY_KV.
+ *   POST ?capture=1    → ingest a fresh capture; auto-routes model vs provider
+ *                        payloads to their own HISTORY_KV keys.
  *                        Auth: Authorization: Bearer <CAPTURE_TOKEN>.
  *
- * Source of truth is HISTORY_KV key `or-chart:series`, refreshed by the
- * scheduled browser capture (.github/workflows/openrouter-capture.yml). The
- * bundled seed (_openrouter-chart-seed.js) is a bootstrap / emergency fallback
- * only — persisted captures always override and extend it.
+ * Source of truth is HISTORY_KV (`or-chart:series` for models,
+ * `or-chart:providers` for providers), refreshed by the scheduled browser
+ * capture (.github/workflows/openrouter-capture.yml). The bundled seed
+ * (_openrouter-chart-seed.js) is a bootstrap / emergency fallback only —
+ * persisted captures always override and extend it.
  *
  * A normal GET ALWAYS responds 200 with a renderable series — it never
  * surfaces an upstream/parser error to the dashboard.
  */
 
-import { SEED_WEEKS, SEED_CAPTURED_AT } from './_openrouter-chart-seed.js';
+import { SEED_WEEKS, SEED_PROVIDER_WEEKS, SEED_CAPTURED_AT } from './_openrouter-chart-seed.js';
 
-const KV_SERIES = 'or-chart:series';
-const KV_META   = 'or-chart:capture-meta';
-const KV_ERROR  = 'or-chart:last-error';
+const KV_SERIES         = 'or-chart:series';
+const KV_META           = 'or-chart:capture-meta';
+const KV_PROVIDERS      = 'or-chart:providers';
+const KV_PROVIDERS_META = 'or-chart:providers-meta';
+const KV_ERROR          = 'or-chart:last-error';
 const CACHE_TTL_MS = 5 * 60 * 1000;
 
 // In-isolate memo of the merged series so request bursts don't re-read KV.
-let _memo = null; // { at, merged, kvMeta, kvErr, kvCount }
+let _memo = null;
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -118,7 +123,7 @@ function parseRSCPayload(input) {
     const w = coerceWeeks(JSON.parse(t));
     if (w) return w;
   } catch (_) { /* not plain JSON — fall through to the RSC scan */ }
-  // 2) RSC stream text — locate the model-level (preferred) or provider-level block
+  // 2) RSC stream text — model-level (`{"data":[`) is tried before provider-level (`[{"x":`)
   for (const marker of ['{"data":[', '[{"x":']) {
     let idx = t.indexOf(marker);
     while (idx >= 0) {
@@ -145,19 +150,23 @@ function looksModelLevel(weeks) {
 
 /* ── merge + shape ──────────────────────────────────────────── */
 /** Seed first, persisted capture overlaid — captures override & extend. */
-function mergeSeries(kvWeeks) {
+function mergeSeries(seed, kvWeeks) {
   const map = new Map();
-  for (const w of SEED_WEEKS) if (w && w.x && w.ys) map.set(w.x, w.ys);
+  for (const w of seed) if (w && w.x && w.ys) map.set(w.x, w.ys);
   if (Array.isArray(kvWeeks)) for (const w of kvWeeks) if (w && w.x && w.ys) map.set(w.x, w.ys);
   return [...map.keys()].sort().map(x => ({ x, ys: map.get(x) }));
 }
 
-function shapeResponse(merged, { full, updatedAt }) {
+function isPartialWeek(x, todayTs) {
+  const startTs = parseUTC(x);
+  return todayTs >= startTs && todayTs < startTs + 7 * 86400000;
+}
+
+/** "Top Models" wire shape — unchanged contract for charts 1/2/3. */
+function shapeModelResponse(merged, { full, updatedAt }) {
   const todayTs = parseUTC(todayISO());
   const weeks = merged.map(({ x, ys }) => {
-    const startTs = parseUTC(x);
     const totalRaw = Object.values(ys).reduce((s, v) => s + (v > 0 ? v : 0), 0);
-    const partial = todayTs >= startTs && todayTs < startTs + 7 * 86400000;
     const topModels = Object.entries(ys)
       .filter(([slug]) => slug !== 'Others')
       .map(([slug, tokens]) => ({ slug, tokens }))
@@ -168,13 +177,12 @@ function shapeResponse(merged, { full, updatedAt }) {
       end: addDaysISO(x, 6),
       totalRaw,
       totalLabel: formatTokens(totalRaw),
-      partial,
+      partial: isPartialWeek(x, todayTs),
       topModels,
     };
     if (full) w.allModels = ys;
     return w;
   });
-
   const currentWeek = weeks.find(w => w.partial) || null;
   let weeklyPace = null;
   if (currentWeek) {
@@ -188,7 +196,6 @@ function shapeResponse(merged, { full, updatedAt }) {
       };
     }
   }
-
   return {
     success: true,
     fetchedAt: new Date().toISOString(),
@@ -201,25 +208,53 @@ function shapeResponse(merged, { full, updatedAt }) {
   };
 }
 
+/** "Market Share" wire shape — per-week provider token totals. */
+function shapeProviderResponse(merged, { updatedAt }) {
+  const todayTs = parseUTC(todayISO());
+  const weeks = merged.map(({ x, ys }) => {
+    const totalRaw = Object.values(ys).reduce((s, v) => s + (v > 0 ? v : 0), 0);
+    return {
+      start: x,
+      end: addDaysISO(x, 6),
+      totalRaw,
+      totalLabel: formatTokens(totalRaw),
+      partial: isPartialWeek(x, todayTs),
+      providers: ys,
+    };
+  });
+  return {
+    success: true,
+    fetchedAt: new Date().toISOString(),
+    updatedAt: updatedAt || null,
+    weeks,
+    currentWeek: weeks.find(w => w.partial) || null,
+    source: 'openrouter.ai/rankings · weekly provider token share',
+  };
+}
+
 /* ── KV read (memoised per isolate) ─────────────────────────── */
 async function loadState(env) {
   if (_memo && Date.now() - _memo.at < CACHE_TTL_MS) return _memo;
   const kv = env && env.HISTORY_KV;
-  let kvWeeks = null, kvMeta = null, kvErr = null;
+  let modelKv = null, providerKv = null, modelMeta = null, providerMeta = null, kvErr = null;
   if (kv) {
     try {
-      const series = await kv.get(KV_SERIES, 'json');
-      if (series) kvWeeks = Array.isArray(series) ? series : series.weeks;
-      kvMeta = await kv.get(KV_META, 'json');
+      const s = await kv.get(KV_SERIES, 'json');
+      if (s) modelKv = Array.isArray(s) ? s : s.weeks;
+      const p = await kv.get(KV_PROVIDERS, 'json');
+      if (p) providerKv = Array.isArray(p) ? p : p.weeks;
+      modelMeta = await kv.get(KV_META, 'json');
+      providerMeta = await kv.get(KV_PROVIDERS_META, 'json');
       kvErr = await kv.get(KV_ERROR, 'json');
     } catch (_) { /* fall back to the bundled seed */ }
   }
   _memo = {
     at: Date.now(),
-    merged: mergeSeries(kvWeeks),
-    kvMeta,
-    kvErr,
-    kvCount: Array.isArray(kvWeeks) ? kvWeeks.length : 0,
+    model: mergeSeries(SEED_WEEKS, modelKv),
+    providers: mergeSeries(SEED_PROVIDER_WEEKS, providerKv),
+    modelMeta, providerMeta, kvErr,
+    modelKvCount: Array.isArray(modelKv) ? modelKv.length : 0,
+    providerKvCount: Array.isArray(providerKv) ? providerKv.length : 0,
   };
   return _memo;
 }
@@ -229,38 +264,53 @@ export async function onRequestGet({ request, env }) {
   const url = new URL(request.url);
   const full = url.searchParams.get('full') === '1';
   const debug = url.searchParams.get('debug') === '1';
+  const providers = url.searchParams.get('providers') === '1';
 
   const state = await loadState(env);
-  const merged = state.merged;
-  const latestWeek = merged.length ? merged[merged.length - 1].x : null;
 
   if (debug) {
     const currentIsoWeek = isoWeekStartISO(Date.now());
-    const weeksBehind = latestWeek
-      ? Math.round((parseUTC(currentIsoWeek) - parseUTC(latestWeek)) / (7 * 86400000))
+    const behind = (latest) => latest
+      ? Math.round((parseUTC(currentIsoWeek) - parseUTC(latest)) / (7 * 86400000))
       : null;
+    const seriesDiag = (series, kvCount, meta) => {
+      const latest = series.length ? series[series.length - 1].x : null;
+      return {
+        source: kvCount > 0 ? 'persisted-capture' : 'seed',
+        weeksCount: series.length,
+        latestStoredWeek: latest,
+        firstStoredWeek: series.length ? series[0].x : null,
+        weeksBehind: behind(latest),
+        isFresh: behind(latest) === 0,
+        lastCapture: meta || null,
+      };
+    };
     return jsonResp({
       success: true,
       diagnostics: true,
-      source: state.kvCount > 0 ? 'persisted-capture' : 'seed',
-      kvBound: !!(env && env.HISTORY_KV),
-      weeksCount: merged.length,
-      latestStoredWeek: latestWeek,
-      firstStoredWeek: merged.length ? merged[0].x : null,
       currentIsoWeek,
-      weeksBehind,
-      isFresh: weeksBehind === 0,
-      seed: { capturedAt: SEED_CAPTURED_AT, weeks: SEED_WEEKS.length },
-      persisted: { weeks: state.kvCount, lastCapture: state.kvMeta || null },
+      kvBound: !!(env && env.HISTORY_KV),
+      models: seriesDiag(state.model, state.modelKvCount, state.modelMeta),
+      providers: seriesDiag(state.providers, state.providerKvCount, state.providerMeta),
+      seed: {
+        capturedAt: SEED_CAPTURED_AT,
+        modelWeeks: SEED_WEEKS.length,
+        providerWeeks: SEED_PROVIDER_WEEKS.length,
+      },
       lastCaptureError: state.kvErr || null,
     });
   }
 
-  const updatedAt = (state.kvMeta && state.kvMeta.capturedAt) || SEED_CAPTURED_AT;
-  return jsonResp(shapeResponse(merged, { full, updatedAt }), 200, 'public, max-age=300');
+  if (providers) {
+    const updatedAt = (state.providerMeta && state.providerMeta.capturedAt) || SEED_CAPTURED_AT;
+    return jsonResp(shapeProviderResponse(state.providers, { updatedAt }), 200, 'public, max-age=300');
+  }
+
+  const updatedAt = (state.modelMeta && state.modelMeta.capturedAt) || SEED_CAPTURED_AT;
+  return jsonResp(shapeModelResponse(state.model, { full, updatedAt }), 200, 'public, max-age=300');
 }
 
-/* ── POST ?capture=1 — ingest a fresh capture ───────────────── */
+/* ── POST ?capture=1 — ingest a fresh capture (model OR provider) ── */
 export async function onRequestPost({ request, env }) {
   const url = new URL(request.url);
   if (url.searchParams.get('capture') !== '1') {
@@ -283,24 +333,22 @@ export async function onRequestPost({ request, env }) {
   try { raw = await request.text(); } catch (_) { /* empty body */ }
   const weeks = parseRSCPayload(raw);
 
-  const recordError = async (msg) => {
-    const errRec = { at: new Date().toISOString(), error: msg, receivedBytes: raw.length };
-    try { await kv.put(KV_ERROR, JSON.stringify(errRec)); } catch (_) {}
-    return jsonResp({ success: false, error: msg }, 422);
-  };
-
   if (!weeks || !weeks.length) {
-    return recordError('No valid {x,ys} weekly rows found in posted payload');
-  }
-  if (!looksModelLevel(weeks)) {
-    return recordError('Posted payload looks provider-level, not model-level (ys keys are not model slugs)');
+    const msg = 'No valid {x,ys} weekly rows found in posted payload';
+    try { await kv.put(KV_ERROR, JSON.stringify({ at: new Date().toISOString(), error: msg, receivedBytes: raw.length })); } catch (_) {}
+    return jsonResp({ success: false, error: msg }, 422);
   }
 
+  // Auto-route: model-level (slug keys) → or-chart:series; provider-level → or-chart:providers.
   weeks.sort((a, b) => (a.x < b.x ? -1 : a.x > b.x ? 1 : 0));
+  const isModel = looksModelLevel(weeks);
+  const seriesKey = isModel ? KV_SERIES : KV_PROVIDERS;
+  const metaKey   = isModel ? KV_META : KV_PROVIDERS_META;
   const capturedAt = new Date().toISOString();
   const latestWeek = weeks[weeks.length - 1].x;
-  await kv.put(KV_SERIES, JSON.stringify({ capturedAt, count: weeks.length, weeks }));
-  await kv.put(KV_META, JSON.stringify({
+
+  await kv.put(seriesKey, JSON.stringify({ capturedAt, count: weeks.length, weeks }));
+  await kv.put(metaKey, JSON.stringify({
     capturedAt, count: weeks.length, latestWeek, firstWeek: weeks[0].x,
   }));
   try { await kv.delete(KV_ERROR); } catch (_) {}
@@ -309,6 +357,7 @@ export async function onRequestPost({ request, env }) {
   return jsonResp({
     success: true,
     action: 'captured',
+    series: isModel ? 'models' : 'providers',
     capturedAt,
     weeks: weeks.length,
     firstWeek: weeks[0].x,
