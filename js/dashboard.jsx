@@ -2822,10 +2822,62 @@ function Sparkline({pts,w=80,h=22}){
 }
 
 /* ═══════════════════════════════════════════════════════
-   EMBEDDED: OpenRouter Live Rankings (proxied page iframe)
+   EMBEDDED: OpenRouter Live Rankings — native "Top Models"
+   weekly stacked-bar chart, fed by /api/openrouter-chart-weekly.
 ═══════════════════════════════════════════════════════ */
-function OpenRouterLiveEmbed(){
-  const[err,setErr]=useState(false);
+function OpenRouterLiveEmbed({refreshTick=0}={}){
+  const[state,setState]=useState({phase:"loading",data:null});
+
+  useEffect(()=>{
+    let cancelled=false;
+    fetch("/api/openrouter-chart-weekly?full=1&_="+(refreshTick||Date.now()),{cache:"no-store"})
+      .then(r=>r.json())
+      .then(d=>{
+        if(cancelled)return;
+        if(!d||d.success===false||!(d.weeks&&d.weeks.length)){setState({phase:"empty",data:null});return;}
+        setState({phase:"ready",data:d});
+      })
+      .catch(()=>{if(!cancelled)setState({phase:"empty",data:null});});
+    return()=>{cancelled=true;};
+  },[refreshTick]);
+
+  const orFmtTok=(n)=>{
+    if(n==null||!isFinite(n)||n<=0)return"0";
+    if(n>=1e12)return(n/1e12).toFixed(2).replace(/\.?0+$/,"")+"T";
+    if(n>=1e9) return(n/1e9 ).toFixed(1).replace(/\.0$/,"")+"B";
+    if(n>=1e6) return(n/1e6 ).toFixed(1).replace(/\.0$/,"")+"M";
+    return Math.round(n).toString();
+  };
+  const MNS=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  const fmtWeek=(x)=>{const p=String(x).split("-");return p.length===3?MNS[(+p[1])-1]+" "+(+p[2]):x;};
+  const shortName=(slug)=>slug.split("/").pop().replace(/:free$/,"").replace(/-\d{8}$/,"");
+
+  // Stacked dataset: the eight largest models by all-time tokens, rest → Others.
+  const weeks=state.data?.weeks||[];
+  const totals={};
+  for(const w of weeks){
+    const ys=w.allModels||Object.fromEntries((w.topModels||[]).map(t=>[t.slug,t.tokens]));
+    for(const slug in ys){if(slug==="Others")continue;totals[slug]=(totals[slug]||0)+(ys[slug]||0);}
+  }
+  const topSlugs=Object.keys(totals).sort((a,b)=>totals[b]-totals[a]).slice(0,8);
+  const topSet=new Set(topSlugs);
+  const OR_COLORS=["#5b9bf8","#34d399","#fbbf24","#c084fc","#fb7185","#22d3ee","#f472b6","#a3e635"];
+  const segs=[
+    ...topSlugs.map((slug,i)=>({key:slug,name:shortName(slug),color:OR_COLORS[i%OR_COLORS.length]})),
+    {key:"Others",name:"Others",color:"#52525b"},
+  ];
+  const chartData=weeks.map(w=>{
+    const ys=w.allModels||Object.fromEntries((w.topModels||[]).map(t=>[t.slug,t.tokens]));
+    const row={week:w.start};
+    let others=0;
+    for(const slug in ys){
+      if(topSet.has(slug))row[slug]=ys[slug];
+      else others+=(ys[slug]||0);
+    }
+    for(const s of topSlugs)if(!(s in row))row[s]=0;
+    row.Others=others;
+    return row;
+  });
 
   return(
     <div style={{...S.card,marginBottom:16}}>
@@ -2844,26 +2896,69 @@ function OpenRouterLiveEmbed(){
         </div>
       </div>
 
-      {/* Iframe or fallback */}
-      {err?(
-        <div style={{background:"#f9fafb",border:"1px dashed #d1d5db",borderRadius:8,padding:"32px 16px",textAlign:"center"}}>
-          <div style={{fontSize:13,color:"#6b7280",fontWeight:500}}>OpenRouter weekly chart temporarily unavailable</div>
-          <button onClick={()=>setErr(false)}
-            style={{marginTop:10,fontSize:11,padding:"5px 14px",border:"0.5px solid #d1d5db",borderRadius:6,background:"#fff",color:"#374151",cursor:"pointer",fontFamily:"inherit"}}>
-            Retry
-          </button>
+      {/* Native "Top Models" weekly chart — dark panel */}
+      <div style={{background:"#0c0c0d",borderRadius:8,border:"0.5px solid #e5e7eb",padding:16,minHeight:560}}>
+        <div style={{display:"flex",alignItems:"center",gap:8}}>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fafafa" strokeWidth="2.4" strokeLinecap="round">
+            <line x1="6" y1="20" x2="6" y2="12"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="18" y1="20" x2="18" y2="9"/>
+          </svg>
+          <span style={{fontSize:14,fontWeight:700,color:"#fafafa"}}>Top Models</span>
         </div>
-      ):(
-        <div style={{borderRadius:8,overflow:"hidden",border:"0.5px solid #e5e7eb",background:"#fff"}}>
-          <iframe
-            src={"/api/openrouter-rankings-proxy?v="+Math.floor(Date.now()/3e5)}
-            title="OpenRouter — Weekly Model Rankings"
-            loading="lazy"
-            onError={()=>setErr(true)}
-            style={{border:0,display:"block",width:"100%",height:560,minHeight:460}}
-          />
-        </div>
-      )}
+        <div style={{fontSize:11,color:"#a1a1aa",marginTop:2,marginBottom:14}}>Weekly usage of models across OpenRouter</div>
+
+        {state.phase==="loading"?(
+          <div style={{height:476,display:"flex",alignItems:"center",justifyContent:"center",color:"#52525b",fontSize:12}}>Loading weekly usage…</div>
+        ):chartData.length===0?(
+          <div style={{height:476,display:"flex",alignItems:"center",justifyContent:"center",color:"#52525b",fontSize:12}}>Weekly usage will appear here shortly</div>
+        ):(
+          <>
+            <ResponsiveContainer width="100%" height={430}>
+              <BarChart data={chartData} margin={{top:6,right:6,left:2,bottom:2}} barCategoryGap={1}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#262629" vertical={false}/>
+                <XAxis dataKey="week" tickFormatter={fmtWeek} interval={6} tick={{fontSize:9,fill:"#a1a1aa"}} tickLine={false} axisLine={{stroke:"#3f3f46"}}/>
+                <YAxis tickFormatter={orFmtTok} width={46} tick={{fontSize:9,fill:"#a1a1aa"}} tickLine={false} axisLine={{stroke:"#3f3f46"}}/>
+                <Tooltip
+                  cursor={{fill:"rgba(255,255,255,0.06)"}}
+                  content={({active,label,payload})=>{
+                    if(!active||!payload||!payload.length)return null;
+                    const rows=payload.slice().reverse().filter(p=>p.value>0);
+                    const total=payload.reduce((s,p)=>s+(p.value||0),0);
+                    return(
+                      <div style={{background:"#18181b",border:"0.5px solid #3f3f46",borderRadius:6,padding:"8px 10px",fontSize:11,lineHeight:1.5,boxShadow:"0 2px 10px rgba(0,0,0,0.55)"}}>
+                        <div style={{fontWeight:600,color:"#fafafa",marginBottom:4}}>Week of {fmtWeek(label)}</div>
+                        {rows.map((p,i)=>{
+                          const seg=segs.find(s=>s.key===p.dataKey);
+                          return(
+                            <div key={i} style={{display:"flex",alignItems:"center",gap:6,color:"#d4d4d8"}}>
+                              <span style={{width:8,height:8,borderRadius:2,background:p.color,flexShrink:0}}/>
+                              <span style={{flex:1,whiteSpace:"nowrap",marginRight:10}}>{seg?seg.name:p.dataKey}</span>
+                              <span style={{fontWeight:600,color:"#fafafa"}}>{orFmtTok(p.value)}</span>
+                            </div>
+                          );
+                        })}
+                        <div style={{display:"flex",justifyContent:"space-between",gap:14,marginTop:4,paddingTop:4,borderTop:"0.5px solid #3f3f46",color:"#a1a1aa"}}>
+                          <span>Total</span><span style={{fontWeight:700,color:"#fafafa"}}>{orFmtTok(total)}</span>
+                        </div>
+                      </div>
+                    );
+                  }}
+                />
+                {segs.map(s=>(
+                  <Bar key={s.key} dataKey={s.key} stackId="t" fill={s.color} isAnimationActive={false}/>
+                ))}
+              </BarChart>
+            </ResponsiveContainer>
+            <div style={{display:"flex",flexWrap:"wrap",gap:"5px 12px",marginTop:10}}>
+              {segs.map(s=>(
+                <span key={s.key} style={{display:"inline-flex",alignItems:"center",gap:5,fontSize:10,color:"#d4d4d8"}}>
+                  <span style={{width:9,height:9,borderRadius:2,background:s.color,display:"inline-block",flexShrink:0}}/>
+                  {s.name}
+                </span>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
 
       {/* Source note */}
       <div style={{fontSize:10,color:"#9ca3af",marginTop:6}}>

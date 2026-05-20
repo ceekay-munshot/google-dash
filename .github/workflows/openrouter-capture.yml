@@ -1,0 +1,138 @@
+name: OpenRouter Weekly Capture
+
+# Captures the OpenRouter "Top Models" weekly token series with a headless
+# browser and POSTs it to the dashboard, which persists it to HISTORY_KV.
+# This is what keeps /api/openrouter-chart-weekly as fresh as the live
+# openrouter.ai/rankings?view=week page — no manual updates required.
+#
+# ── One-time setup (required before this workflow can do anything) ──
+# Add two secrets. Keep them separate from any other repo secrets.
+#
+#   1. GitHub → repo Settings → Secrets and variables → Actions → New secret:
+#        CAPTURE_TOKEN           = <a long random string you choose>
+#        OPENROUTER_CAPTURE_URL  = https://google-dash-git.pages.dev/api/openrouter-chart-weekly?capture=1
+#
+#   2. Cloudflare → Pages project "google-dash" → Settings → Variables and Secrets:
+#        CAPTURE_TOKEN           = <the SAME random string>   (add as a Secret)
+#
+# Then run it once: Actions tab → "OpenRouter Weekly Capture" → Run workflow.
+
+on:
+  schedule:
+    # Two off-minute slots ~12h apart, so one dropped cron slot still leaves
+    # the data refreshed that day. Each capture replaces the full series, so
+    # repeated runs are idempotent.
+    - cron: '37 7 * * *'
+    - cron: '41 19 * * *'
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: 'Optional note (for the audit log)'
+        required: false
+        default: 'manual run'
+
+# Never overlap runs; queue instead of cancelling a partial capture.
+concurrency:
+  group: openrouter-capture
+  cancel-in-progress: false
+
+jobs:
+  capture:
+    name: Capture OpenRouter weekly series
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    # issues:write is only for the failure-alert step. Everything else is read-only.
+    permissions:
+      contents: read
+      issues: write
+
+    steps:
+      - name: Validate required secrets
+        env:
+          OPENROUTER_CAPTURE_URL: ${{ secrets.OPENROUTER_CAPTURE_URL }}
+          CAPTURE_TOKEN: ${{ secrets.CAPTURE_TOKEN }}
+        run: |
+          missing=0
+          if [ -z "$OPENROUTER_CAPTURE_URL" ]; then
+            echo "::error::OPENROUTER_CAPTURE_URL secret is not set"; missing=1
+          fi
+          if [ -z "$CAPTURE_TOKEN" ]; then
+            echo "::error::CAPTURE_TOKEN secret is not set"; missing=1
+          fi
+          if [ "$missing" != "0" ]; then exit 1; fi
+          echo "Both required secrets are configured."
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Playwright (Chromium)
+        run: |
+          npm install playwright --no-save --no-audit --no-fund
+          npx playwright install --with-deps chromium
+
+      - name: Capture weekly series and post to the dashboard
+        id: capture
+        env:
+          OPENROUTER_CAPTURE_URL: ${{ secrets.OPENROUTER_CAPTURE_URL }}
+          CAPTURE_TOKEN: ${{ secrets.CAPTURE_TOKEN }}
+        run: node scripts/capture-openrouter.mjs
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "### OpenRouter Weekly Capture"
+            echo "- Trigger: ${{ github.event_name }}"
+            echo "- Reason: ${{ github.event.inputs.reason || 'scheduled' }}"
+            echo "- Time (UTC): $(date -u '+%Y-%m-%d %H:%M:%S')"
+            echo "- Status: ${{ job.status }}"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # On failure, open a rolling "capture failing" issue (or comment on the
+      # existing open one). The dashboard keeps serving the last good data, so
+      # this is an internal signal only — customers never see an error.
+      - name: Open or update failure issue
+        if: failure()
+        uses: actions/github-script@v7
+        env:
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          TRIGGER: ${{ github.event_name }}
+        with:
+          script: |
+            const TITLE = '🔴 OpenRouter weekly capture failing';
+            const LABEL = 'openrouter-capture-failure';
+            const nowUTC = new Date().toISOString().replace('T', ' ').slice(0, 19) + ' UTC';
+            const summary = [
+              '**Run:** ' + process.env.RUN_URL,
+              '**When:** ' + nowUTC,
+              '**Trigger:** ' + process.env.TRIGGER,
+              '',
+              'The scheduled browser capture of the OpenRouter weekly series failed.',
+              'The dashboard keeps serving the last good data in the meantime, so',
+              'there is no customer-facing error. Check the run log linked above —',
+              'the next scheduled slot retries automatically.',
+            ].join('\n');
+            const { data: open } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner, repo: context.repo.repo,
+              state: 'open', labels: LABEL, per_page: 50,
+            });
+            const existing = open.find(i => i.title === TITLE);
+            if (existing) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner, repo: context.repo.repo,
+                issue_number: existing.number, body: '### New failure\n\n' + summary,
+              });
+              core.notice('Commented on existing issue #' + existing.number);
+            } else {
+              const { data: created } = await github.rest.issues.create({
+                owner: context.repo.owner, repo: context.repo.repo,
+                title: TITLE, body: '### Initial failure\n\n' + summary, labels: [LABEL],
+              });
+              core.notice('Opened issue #' + created.number);
+            }
