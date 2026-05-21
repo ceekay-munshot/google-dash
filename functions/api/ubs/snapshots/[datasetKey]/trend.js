@@ -26,9 +26,24 @@
  *   startDate  YYYY-MM-DD; filter snapshot_date >= startDate
  *   endDate    YYYY-MM-DD; filter snapshot_date <= endDate
  *   limit      clamped [1, 10000]; default 5000; total-rows cap
+ *   includeAggregates  1/true/yes → also return company & category
+ *              aggregates. Default (absent): individual apps only.
+ *
+ * App-only filter (default):
+ *   Every UBS row carries an `aggregator` field inside raw_json marking
+ *   the aggregation level of the entity:
+ *     el_app_name        → an individual app
+ *     el_parent_company  → a company-level rollup
+ *     el_app_type        → a category-level rollup
+ *   This endpoint feeds an *app* downloads monitor, so by default it
+ *   surfaces only el_app_name rows — company/category aggregates are
+ *   excluded so the chart never silently mixes apps with aggregates.
+ *   Rows whose aggregator is missing/unrecognised are excluded too
+ *   (conservative: never guess an unclassifiable row is an app).
  *
  * Returns the response shape from the user spec verbatim
- * (snapshotDateRange, appsTotal, appsReturned, topApps, series[]).
+ * (snapshotDateRange, appsTotal, appsReturned, topApps, series[]),
+ * plus `includeAggregates` and a `methodology` string.
  */
 
 const ALLOWED_DATASETS = new Set(['global_app_downloads_ai']);
@@ -63,6 +78,16 @@ const MAX_TOP_N         = 50;
 const DEFAULT_LIMIT     = 5000;
 const MAX_LIMIT         = 10000;
 const MAX_EXPLICIT_APPS = 50;  // keep IN-clause + other params well under D1's 100-bound-param cap
+
+// App-only filter — see the header comment. UBS marks each entity's
+// aggregation level in raw_json.aggregator; only 'el_app_name' rows are
+// individual apps. APP_ONLY_FILTER_SQL is a fixed literal built from a
+// hard-coded constant (never user input), so inlining it in the query
+// text carries no injection risk.
+const APP_AGGREGATOR_VALUE = 'el_app_name';
+const APP_ONLY_FILTER_SQL  = ` AND json_extract(raw_json, '$.aggregator') = '${APP_AGGREGATOR_VALUE}'`;
+const METHODOLOGY_APP_ONLY = 'Shows individual AI app rows from UBS Evidence Lab Global_90 weekly app-download dataset; company/category aggregates are excluded where identifiable.';
+const METHODOLOGY_WITH_AGG = 'Includes all UBS Evidence Lab Global_90 weekly entities — individual apps plus company and category aggregates.';
 
 const DATE_SHAPE        = /^\d{4}-\d{2}-\d{2}$/;
 const DATASET_KEY_SHAPE = /^[A-Za-z0-9_-]{1,80}$/;
@@ -182,6 +207,15 @@ export async function onRequestGet({ request, env, params }) {
     ? appRaw.split(',').map((s) => s.trim()).filter(Boolean).slice(0, MAX_EXPLICIT_APPS)
     : null;
 
+  // Default: individual apps only. ?includeAggregates=1 also returns the
+  // company/category aggregates. appFilter is spliced into every query's
+  // WHERE clause; methodology is echoed back in the response.
+  const includeAggregates = ['1', 'true', 'yes'].includes(
+    String(url.searchParams.get('includeAggregates') || '').trim().toLowerCase()
+  );
+  const appFilter   = includeAggregates ? '' : APP_ONLY_FILTER_SQL;
+  const methodology = includeAggregates ? METHODOLOGY_WITH_AGG : METHODOLOGY_APP_ONLY;
+
   // ── D1 binding + table check ──────────────────────────────────────
   if (!env?.EC2_PRICING_DB) {
     return jsonResp({
@@ -208,7 +242,7 @@ export async function onRequestGet({ request, env, params }) {
       MAX(snapshot_date) AS maxDate,
       COUNT(DISTINCT dimension_1) AS appsTotal
     FROM ubs_dataset_snapshots
-    WHERE dataset_key = ? AND metric_name = ? AND dimension_2 = ? AND period = ?
+    WHERE dataset_key = ? AND metric_name = ? AND dimension_2 = ? AND period = ?${appFilter}
   `).bind(datasetKey, metric, geography, period).first();
 
   const appsTotal = probeRow?.appsTotal || 0;
@@ -243,7 +277,7 @@ export async function onRequestGet({ request, env, params }) {
         AND metric_name = ?
         AND dimension_2 = ?
         AND period = ?
-        AND snapshot_date = ?
+        AND snapshot_date = ?${appFilter}
       ORDER BY metric_value ${sortDir}
       LIMIT ?
     `).bind(datasetKey, metric, geography, period, maxDate, topN).all();
@@ -262,6 +296,8 @@ export async function onRequestGet({ request, env, params }) {
       topApps: [],
       series: [],
       rowsReturned: 0,
+      includeAggregates,
+      methodology,
       fetchedAt,
     });
   }
@@ -280,7 +316,7 @@ export async function onRequestGet({ request, env, params }) {
     WHERE dataset_key = ?
       AND metric_name = ?
       AND dimension_2 = ?
-      AND period = ?
+      AND period = ?${appFilter}
       AND dimension_1 IN (${placeholders})
       ${dateClauses.length > 0 ? ' AND ' + dateClauses.join(' AND ') : ''}
     ORDER BY dimension_1 ASC, snapshot_date ASC
@@ -301,6 +337,8 @@ export async function onRequestGet({ request, env, params }) {
     topApps: series.map((s) => s.app),
     series,
     rowsReturned: rows.length,
+    includeAggregates,
+    methodology,
     fetchedAt,
   });
 }
