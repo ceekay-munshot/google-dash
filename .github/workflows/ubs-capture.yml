@@ -7,6 +7,14 @@ name: UBS AI App Downloads Capture
 # UBS publishes this dataset roughly biweekly, so a daily run keeps the chart
 # fresh within ~24h of each publication and self-heals from a dropped run.
 #
+# ── Why this walks the data in chunks ──
+# A single full capture re-ingests the entire UBS history (~64k D1 rows) and
+# exceeds a Cloudflare Worker's per-request resource limit (error 1101/1102).
+# So this workflow walks the dataset with many small POSTs — limit=<chunk>,
+# maxPages=1, increasing offset — each of which is light enough to finish
+# well inside the limit. The endpoint upserts (INSERT OR REPLACE on the
+# unique index), so the chunked walk is idempotent.
+#
 # ── One-time setup (required before this workflow can do anything) ──
 #   GitHub → repo Settings → Secrets and variables → Actions → New secret:
 #     UBS_CAPTURE_SECRET = <the SAME value already set as UBS_CAPTURE_SECRET
@@ -32,6 +40,10 @@ on:
         description: 'Optional note (for the audit log)'
         required: false
         default: 'manual run'
+      chunk:
+        description: 'Raw UBS rows fetched per POST (smaller = safer under Cloudflare limits)'
+        required: false
+        default: '500'
 
 # Never overlap runs; queue instead of cancelling a partial capture.
 concurrency:
@@ -42,7 +54,7 @@ jobs:
   capture:
     name: Capture UBS AI app-downloads slice
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 35
 
     # issues:write is only for the failure-alert step. Everything else is read-only.
     permissions:
@@ -65,44 +77,79 @@ jobs:
         id: capture
         env:
           UBS_CAPTURE_SECRET: ${{ secrets.UBS_CAPTURE_SECRET }}
+          CHUNK: ${{ github.event.inputs.chunk || '500' }}
         run: |
           set -euo pipefail
-          CAPTURE_URL="https://google-dash-git.pages.dev/api/ubs/capture?maxPages=50"
-          ok=0
-          http="000"
-          for attempt in 1 2 3; do
-            echo "── Attempt $attempt of 3 ──"
-            http=$(curl -sS -o resp.json -w '%{http_code}' \
-              --max-time 300 \
-              -X POST "$CAPTURE_URL" \
-              -H "Authorization: Bearer $UBS_CAPTURE_SECRET") || http="000"
-            echo "HTTP $http"
-            if [ "$http" = "200" ] && jq -e '.ok == true' resp.json >/dev/null 2>&1; then
-              ok=1
+          BASE="https://google-dash-git.pages.dev/api/ubs/capture"
+          MAX_CHUNKS=200   # safety cap so a paging bug can't loop forever
+
+          offset=0
+          chunk_index=0
+          total_rows=0
+          max_date=""
+          strategy="n/a"
+
+          while [ "$chunk_index" -lt "$MAX_CHUNKS" ]; do
+            url="${BASE}?limit=${CHUNK}&maxPages=1&offset=${offset}"
+            echo "── Chunk $((chunk_index + 1)) — offset ${offset}, limit ${CHUNK} ──"
+
+            ok=0
+            http="000"
+            for attempt in 1 2 3; do
+              http=$(curl -sS -o resp.json -w '%{http_code}' \
+                --max-time 150 \
+                -X POST "$url" \
+                -H "Authorization: Bearer $UBS_CAPTURE_SECRET") || http="000"
+              if [ "$http" = "200" ] && jq -e '.ok == true' resp.json >/dev/null 2>&1; then
+                ok=1
+                break
+              fi
+              echo "  attempt $attempt failed (HTTP $http):"
+              head -c 400 resp.json 2>/dev/null || echo "  (no response body)"
+              echo ""
+              if [ "$attempt" -lt 3 ]; then
+                sleep $((attempt * 15))
+              fi
+            done
+
+            if [ "$ok" != "1" ]; then
+              echo "http=$http"               >> "$GITHUB_OUTPUT"
+              echo "max_period_end_date=n/a"  >> "$GITHUB_OUTPUT"
+              echo "rows=n/a"                 >> "$GITHUB_OUTPUT"
+              echo "chunks=$chunk_index"      >> "$GITHUB_OUTPUT"
+              echo "::error::UBS capture failed at offset ${offset} after 3 attempts (last HTTP $http)"
+              exit 1
+            fi
+
+            raw=$(jq -r '.rawRowsFetched // 0' resp.json)
+            wrote=$(jq -r '.rowsInsertedOrUpdated // 0' resp.json)
+            cmax=$(jq -r '.maxPeriodEndDate // empty' resp.json)
+            strategy=$(jq -r '.usedStrategy // "n/a"' resp.json)
+            total_rows=$((total_rows + wrote))
+            if [ -n "$cmax" ]; then
+              if [ -z "$max_date" ] || [[ "$cmax" > "$max_date" ]]; then
+                max_date="$cmax"
+              fi
+            fi
+            echo "  ok — rawRowsFetched=${raw}, rowsInsertedOrUpdated=${wrote}, maxPeriodEndDate=${cmax:-none}"
+
+            chunk_index=$((chunk_index + 1))
+            if [ "$raw" -lt "$CHUNK" ]; then
+              echo "Reached the last chunk (rawRowsFetched ${raw} < ${CHUNK})."
               break
             fi
-            echo "Attempt $attempt failed (HTTP $http). Response body:"
-            cat resp.json 2>/dev/null || echo "(no response body)"
-            echo ""
-            if [ "$attempt" -lt 3 ]; then
-              sleep $((attempt * 15))
-            fi
+            offset=$((offset + CHUNK))
           done
 
-          if [ "$ok" != "1" ]; then
-            echo "http=$http"               >> "$GITHUB_OUTPUT"
-            echo "max_period_end_date=n/a"  >> "$GITHUB_OUTPUT"
-            echo "rows=n/a"                 >> "$GITHUB_OUTPUT"
-            echo "::error::UBS capture failed after 3 attempts (last HTTP $http)"
-            exit 1
+          if [ "$chunk_index" -ge "$MAX_CHUNKS" ]; then
+            echo "::warning::Hit MAX_CHUNKS=${MAX_CHUNKS}; capture may be incomplete — raise the cap."
           fi
 
-          maxDate=$(jq -r '.maxPeriodEndDate // "unknown"' resp.json) || maxDate="unknown"
-          rows=$(jq -r '.rowsInsertedOrUpdated // 0' resp.json) || rows="0"
-          echo "http=$http"                    >> "$GITHUB_OUTPUT"
-          echo "max_period_end_date=$maxDate"  >> "$GITHUB_OUTPUT"
-          echo "rows=$rows"                    >> "$GITHUB_OUTPUT"
-          echo "::notice::UBS capture OK — latest week $maxDate, $rows rows written"
+          echo "http=200"                             >> "$GITHUB_OUTPUT"
+          echo "max_period_end_date=${max_date:-unknown}" >> "$GITHUB_OUTPUT"
+          echo "rows=$total_rows"                      >> "$GITHUB_OUTPUT"
+          echo "chunks=$chunk_index"                   >> "$GITHUB_OUTPUT"
+          echo "::notice::UBS capture OK — ${chunk_index} chunk(s), latest week ${max_date:-unknown}, ${total_rows} rows written (strategy: ${strategy})"
 
       - name: Summary
         if: always()
@@ -115,6 +162,7 @@ jobs:
             echo "- Time (UTC): $(date -u '+%Y-%m-%d %H:%M:%S')"
             echo "- Job status: ${{ job.status }}"
             echo "- HTTP status: ${{ steps.capture.outputs.http || 'n/a' }}"
+            echo "- Chunks POSTed: ${{ steps.capture.outputs.chunks || 'n/a' }}"
             echo "- maxPeriodEndDate: ${{ steps.capture.outputs.max_period_end_date || 'n/a' }}"
             echo "- rowsInsertedOrUpdated: ${{ steps.capture.outputs.rows || 'n/a' }}"
           } >> "$GITHUB_STEP_SUMMARY"
@@ -146,7 +194,8 @@ jobs:
               'above — the next scheduled run retries automatically.',
               '',
               'If the status is 401, the `UBS_CAPTURE_SECRET` GitHub secret no',
-              'longer matches the one in Cloudflare Pages.',
+              'longer matches the one in Cloudflare Pages. If it is 1101/1102',
+              '(Cloudflare resource limit), lower the `chunk` input and re-run.',
             ].join('\n');
             const { data: open } = await github.rest.issues.listForRepo({
               owner: context.repo.owner, repo: context.repo.repo,

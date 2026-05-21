@@ -644,9 +644,9 @@ Add in the GitHub repo: **Settings → Secrets and variables → Actions → Rep
 | `UBS_CAPTURE_SECRET` | `<random 32+ char string>` | Bearer token the workflow sends to `/api/ubs/capture`. Must match the `UBS_CAPTURE_SECRET` variable in Cloudflare Pages exactly. |
 
 The capture URL is **hard-coded** in the workflow
-(`https://google-dash-git.pages.dev/api/ubs/capture?maxPages=50`) — it is not
-sensitive, so it is not stored as a secret. `UBS_CAPTURE_SECRET` is the only
-secret this workflow needs.
+(`https://google-dash-git.pages.dev/api/ubs/capture`) — it is not sensitive,
+so it is not stored as a secret. `UBS_CAPTURE_SECRET` is the only secret this
+workflow needs.
 
 ### Required Cloudflare Pages Settings
 
@@ -672,18 +672,24 @@ scoped by `dataset_key`).
 
 ### Behavior
 
-- `curl -X POST` to `/api/ubs/capture?maxPages=50` with an
-  `Authorization: Bearer <UBS_CAPTURE_SECRET>` header. No request body — the
-  endpoint takes all of its scope from hard-coded constants.
-- `maxPages=50` is the endpoint's hard cap; it gives headroom as the dataset
-  grows. Empty pages cost nothing — the endpoint stops at the first empty page.
-- Up to 3 attempts with 15s / 30s backoff, 5-minute timeout per attempt.
-- A run counts as successful **only** when the response is HTTP 200 **and** the
-  JSON body has `"ok": true`. Any other outcome (HTTP error, `ok:false`,
-  network failure) retries, then fails the run.
+- The endpoint re-ingests the entire UBS history on every run. Doing that in
+  one request exceeds a Cloudflare Worker's per-request resource limit
+  (`error code: 1101` / `1102`), so the workflow **walks the dataset in small
+  chunks**: repeated `POST /api/ubs/capture?limit=<chunk>&maxPages=1&offset=<n>`
+  calls with an increasing offset, each light enough to finish inside the limit.
+- `chunk` defaults to **500** raw UBS rows per call (≈8 calls today) and is
+  exposed as a `workflow_dispatch` input — lower it if a run ever hits a
+  Cloudflare resource-limit error, no code change needed.
+- The walk stops when a call reports fewer raw rows than the chunk size
+  (the last page). A `MAX_CHUNKS=200` safety cap prevents an infinite loop.
+- Each call: up to 3 attempts with 15s / 30s backoff, 150s timeout. A call
+  counts as successful **only** on HTTP 200 **and** a JSON body with
+  `"ok": true`; any other outcome retries, then fails the whole run.
+- The endpoint upserts (`INSERT OR REPLACE`), so the chunked walk is
+  idempotent and safe to re-run.
 - `concurrency: ubs-capture` prevents overlapping runs.
-- The step summary records the trigger, `maxPeriodEndDate`, and
-  `rowsInsertedOrUpdated` from the capture response.
+- The step summary records the trigger, number of chunks POSTed,
+  `maxPeriodEndDate`, and total `rowsInsertedOrUpdated`.
 
 ### Idempotency
 
@@ -751,5 +757,6 @@ After a run (scheduled or manual):
 | `HTTP 500 missing_capture_secret` / `missing_api_key` | `UBS_CAPTURE_SECRET` or `UBS_API_KEY` not bound in Cloudflare Pages |
 | `HTTP 500 migration_missing` | `ubs_dataset_snapshots` table absent — apply the D1 migrations |
 | `HTTP 502 catalogue_fetch_failed` | UBS Evidence Lab API unreachable or rate-limited; the next run retries |
+| `error code: 1101` / `1102` (HTTP 5xx) | A single call did too much work for one Cloudflare Worker invocation — lower the `chunk` workflow input and re-run |
 | Workflow green but chart unchanged | UBS published no new week — `rowsInsertedOrUpdated` is still non-zero (rewritten rows); the chart only advances when UBS adds a week |
 | Failure step fails with `Resource not accessible by integration` | The job's `permissions: issues: write` is blocked by repo settings — check **Settings → Actions → General → Workflow permissions** |
