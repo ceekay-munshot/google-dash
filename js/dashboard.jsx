@@ -4361,7 +4361,7 @@ function UBSAppDownloadsTrendChart(){
       </div>
 
       <div style={{fontSize:10,color:"#9ca3af",marginTop:6,fontStyle:"italic",lineHeight:1.5}}>
-        The first live UBS slice currently covers the Global_90 weekly cohort. More geographies are available in D1 and can be added as filters.
+        Shows individual AI app rows from UBS Evidence Lab Global_90 weekly app-download dataset. Company/category aggregate rows are excluded where identifiable.
       </div>
     </div>
   );
