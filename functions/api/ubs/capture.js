@@ -6,7 +6,14 @@
  *   datasetKey:    global_app_downloads_ai
  *   ubsDatasetId:  10087   (UBS dataAssetKey)
  *   viewId:        share-v3
- *   filter:        compset = "Global AI App Monitor"
+ *   filters:       compset       = "Global AI App Monitor"
+ *                  geographyName = "Global_90"
+ *                  period        = "week"
+ *
+ * The geographyName + period filters narrow the pull to the exact slice
+ * the dashboard chart renders. Without them the capture re-ingests ~58k
+ * rows (50 geographies x weekly + monthly periods) and overruns a single
+ * Cloudflare Worker invocation's resource limit (error 1101 / 1102).
  *
  * Auth:
  *   Authorization: Bearer <UBS_CAPTURE_SECRET>
@@ -45,6 +52,10 @@ const DATASET_KEY     = 'global_app_downloads_ai';
 const UBS_DATASET_ID  = '10087';
 const VIEW_ID         = 'share-v3';
 const COMPSET_FILTER  = 'Global AI App Monitor';
+// Narrowing filters — the live chart only renders the Global_90 weekly
+// cohort, so the capture pulls just that slice (see header comment).
+const GEOGRAPHY_FILTER = 'Global_90';
+const PERIOD_FILTER    = 'week';
 
 const DEFAULT_PAGE_LIMIT = 1000;
 const MAX_PAGE_LIMIT     = 1000;
@@ -174,13 +185,15 @@ async function resolveDataUrl(env) {
   return { ok: true, dataUrl: abs };
 }
 
-async function fetchPage(env, dataUrl, { limit, offset, compset }) {
+async function fetchPage(env, dataUrl, { limit, offset, compset, geographyName, period }) {
   let u;
   try { u = new URL(dataUrl); }
   catch { return { ok: false, error: 'invalid_data_url', status: 0 }; }
   u.searchParams.set('limit', String(limit));
   u.searchParams.set('offset', String(offset));
   u.searchParams.set('compset', compset);
+  u.searchParams.set('geographyName', geographyName);
+  u.searchParams.set('period', period);
   const urlStr = u.toString();
   const res = await ubsGet(env, urlStr, { timeoutMs: PAGE_TIMEOUT_MS });
   return { ...res, upstreamUrl: urlStr };
@@ -398,7 +411,12 @@ export async function onRequestPost({ request, env }) {
 
   for (let page = 0; page < maxPages; page++) {
     const pageOffset = offset + page * limit;
-    const res = await fetchPage(env, dataUrl, { limit, offset: pageOffset, compset: COMPSET_FILTER });
+    const res = await fetchPage(env, dataUrl, {
+      limit, offset: pageOffset,
+      compset: COMPSET_FILTER,
+      geographyName: GEOGRAPHY_FILTER,
+      period: PERIOD_FILTER,
+    });
     pagesFetched += 1;
 
     if (!res.ok) {
@@ -487,7 +505,7 @@ export async function onRequestPost({ request, env }) {
     datasetKey: DATASET_KEY,
     ubsDatasetId: UBS_DATASET_ID,
     viewId: VIEW_ID,
-    filter: { compset: COMPSET_FILTER },
+    filter: { compset: COMPSET_FILTER, geographyName: GEOGRAPHY_FILTER, period: PERIOD_FILTER },
     pagesFetched,
     rawRowsFetched: rawRows.length,
     normalizedRowsPrepared: normalizedRows.length,

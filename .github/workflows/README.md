@@ -672,14 +672,17 @@ scoped by `dataset_key`).
 
 ### Behavior
 
-- The endpoint re-ingests the entire UBS history on every run. Doing that in
-  one request exceeds a Cloudflare Worker's per-request resource limit
-  (`error code: 1101` / `1102`), so the workflow **walks the dataset in small
-  chunks**: repeated `POST /api/ubs/capture?limit=<chunk>&maxPages=1&offset=<n>`
-  calls with an increasing offset, each light enough to finish inside the limit.
-- `chunk` defaults to **500** raw UBS rows per call (≈8 calls today) and is
-  exposed as a `workflow_dispatch` input — lower it if a run ever hits a
-  Cloudflare resource-limit error, no code change needed.
+- The capture endpoint pulls only the **Global_90 weekly** slice the chart
+  renders — `geographyName=Global_90`, `period=week`, hard-coded in
+  `functions/api/ubs/capture.js`. That is a few thousand rows; the full
+  dataset (~58k rows across 50 geographies + monthly periods) overruns a
+  Cloudflare Worker's per-request resource limit (`error code: 1101` / `1102`).
+- To keep every POST well inside that limit, the workflow **walks the slice
+  in small pages**: repeated `POST /api/ubs/capture?limit=<chunk>&maxPages=1&offset=<n>`
+  calls with an increasing offset, stopping when a page comes back short.
+- `chunk` defaults to **500** raw rows per call (≈7 calls) and is exposed as
+  a `workflow_dispatch` input — lower it if a run ever hits a Cloudflare
+  resource-limit error, no code change needed.
 - The walk stops when a call reports fewer raw rows than the chunk size
   (the last page). A `MAX_CHUNKS=200` safety cap prevents an infinite loop.
 - Each call: up to 3 attempts with 15s / 30s backoff, 150s timeout. A call

@@ -8,12 +8,12 @@ name: UBS AI App Downloads Capture
 # fresh within ~24h of each publication and self-heals from a dropped run.
 #
 # ── Why this walks the data in chunks ──
-# A single full capture re-ingests the entire UBS history (~64k D1 rows) and
-# exceeds a Cloudflare Worker's per-request resource limit (error 1101/1102).
-# So this workflow walks the dataset with many small POSTs — limit=<chunk>,
-# maxPages=1, increasing offset — each of which is light enough to finish
-# well inside the limit. The endpoint upserts (INSERT OR REPLACE on the
-# unique index), so the chunked walk is idempotent.
+# The capture endpoint pulls only the Global_90 weekly slice the chart
+# renders (a few thousand rows). To keep every POST comfortably inside a
+# Cloudflare Worker's per-request resource limit, this workflow walks the
+# slice in small pages — limit=<chunk>, maxPages=1, increasing offset —
+# stopping when a page comes back short. The endpoint upserts (INSERT OR
+# REPLACE on the unique index), so the chunked walk is idempotent.
 #
 # ── One-time setup (required before this workflow can do anything) ──
 #   GitHub → repo Settings → Secrets and variables → Actions → New secret:
@@ -54,7 +54,7 @@ jobs:
   capture:
     name: Capture UBS AI app-downloads slice
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 20
 
     # issues:write is only for the failure-alert step. Everything else is read-only.
     permissions:
