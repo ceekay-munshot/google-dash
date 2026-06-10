@@ -1,0 +1,8 @@
+# Keepalive heartbeat
+
+Last update: 2026-06-10T19:35:27Z
+Trigger: workflow_dispatch (verify untracked-file fix)
+
+Purpose: a tiny periodic commit to prevent GitHub from
+auto-disabling the daily History Capture scheduled workflow.
+See .github/workflows/keepalive.yml for details.
