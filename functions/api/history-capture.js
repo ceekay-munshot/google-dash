@@ -266,7 +266,7 @@ function normalizePricing(raw) {
  *
  * Stored per tracked SKU:
  *   gpuModel, vram, category, providerCount,
- *   minPricePerHour, maxPricePerHour,
+ *   minPricePerHour, maxPricePerHour, medianPricePerHour,
  *   spreadAbsolute, spreadMultiple, priceMidpoint
  *
  * If the parser is offline the block is `null` — readers count it as a
@@ -289,6 +289,11 @@ function normalizeGPU(raw) {
     if (!trackedSet.has(r.gpuModel)) continue;
     const min = typeof r.minPricePerHour === 'number' ? r.minPricePerHour : null;
     const max = typeof r.maxPricePerHour === 'number' ? r.maxPricePerHour : null;
+    // The upstream listing switched from publishing a min-max range to
+    // publishing a single median. Median is stored as its own field rather
+    // than backfilled into min, so the two are never silently spliced into
+    // one series — they measure different things.
+    const median = typeof r.medianPricePerHour === 'number' ? r.medianPricePerHour : null;
     const spreadAbsolute = (min != null && max != null) ? +(max - min).toFixed(4) : null;
     const spreadMultiple = (min != null && max != null && min > 0) ? +(max / min).toFixed(3) : null;
     const priceMidpoint = (min != null && max != null) ? +((min + max) / 2).toFixed(4) : null;
@@ -299,6 +304,7 @@ function normalizeGPU(raw) {
       providerCount: typeof r.providerCount === 'number' ? r.providerCount : null,
       minPricePerHour: min,
       maxPricePerHour: max,
+      medianPricePerHour: median,
       spreadAbsolute,
       spreadMultiple,
       priceMidpoint,

@@ -73,16 +73,32 @@ export async function onRequestOptions() {
   });
 }
 
+/* ─── Row extraction ──────────────────────────────────────────────────
+   getdeploying.com has served two different layouts for this listing, and
+   the capture must survive both:
+
+     legacy  <tr data-gpu ... data-minprice="0.40" data-providers="48">
+             with <td> cells whose price cell read "$0.07 - $14.90"
+     current <article data-gpu ... data-price="3.39" data-providers="53">
+             a card that publishes a single MEDIAN price and no range
+
+   The switch to cards silently emptied this parser (it split on
+   `<tr data-gpu`, which stopped matching), and an earlier rename of
+   data-minprice → data-price had already nulled every min price. Both
+   markers are matched now, and every field falls back to text extraction
+   so a presentation change degrades one field instead of the whole feed.  */
 function parseRows(html) {
   const rows = [];
-  // Split on row openers. `<tr data-gpu` is a unique marker in this page.
-  const pieces = html.split(/<tr\s+data-gpu\b/);
-  // First piece is everything before the first row — skip.
-  for (let i = 1; i < pieces.length; i++) {
-    const end = pieces[i].indexOf('</tr>');
-    if (end === -1) continue;
-    const row = pieces[i].slice(0, end);
-    const parsed = parseRow(row);
+  // `data-gpu` is the stable marker across both layouts; capture the element
+  // name so we know which closing tag ends the block.
+  const opener = /<(article|tr|div)\s+data-gpu\b/gi;
+  let m;
+  while ((m = opener.exec(html)) !== null) {
+    const closeTag = '</' + m[1].toLowerCase() + '>';
+    const rest = html.slice(m.index);
+    const end = rest.toLowerCase().indexOf(closeTag);
+    const block = end === -1 ? rest : rest.slice(0, end);
+    const parsed = parseRow(block);
     if (parsed) rows.push(parsed);
   }
   return rows;
@@ -94,7 +110,6 @@ function parseRow(row) {
 
   const segment = attr(row, 'data-segment') || null;
   const vramNumRaw = attr(row, 'data-vram');
-  const minPriceRaw = attr(row, 'data-minprice');
   const providersRaw = attr(row, 'data-providers');
   const defaultRaw = attr(row, 'data-default');
 
@@ -103,23 +118,46 @@ function parseRow(row) {
   const slug = slugMatch ? slugMatch[1] : null;
   const vendor = slug ? slug.split('-')[0] : firstWord(name).toLowerCase();
 
-  // Cell texts: take each top-level <td>…</td> in order.
-  const tds = extractTds(row);
-  const vramText = tds[1] ? stripTags(tds[1]) : null;   // e.g. "80GB HBM3"
-  const priceText = tds[2] ? stripTags(tds[2]) : null;  // e.g. "$0.07 - $14.90"
+  const text = visibleText(row);
 
-  // Min + max price: prefer data-minprice; extract max from cell text.
-  const minPrice = num(minPriceRaw);
-  const maxPrice = extractMaxPrice(priceText, minPrice);
+  // ── Price ───────────────────────────────────────────────────────────
+  // Two different meanings have lived in these attributes, so they are
+  // kept as two different fields rather than folded together:
+  //   data-minprice → the cheapest listing  (legacy layout)
+  //   data-price    → the MEDIAN listing    (current layout; the sort
+  //                   control labels it "Cheapest median")
+  // Conflating them would splice a floor series onto a median series
+  // mid-history and silently change what the number means.
+  const legacyMin = num(attr(row, 'data-minprice'));
+  const currentPrice = num(attr(row, 'data-price'));
+  const isMedianLayout = legacyMin == null && currentPrice != null;
+
+  const medianPricePerHour = isMedianLayout ? round4(currentPrice)
+    : round4(num(textAfter(text, /median(?:\s+price)?\s*\$?\s*/i)));
+
+  // Legacy cells carried "$min - $max"; cards publish a single figure. A
+  // range is only inferred from an explicit "$X - $Y" pair, never from "this
+  // block happens to contain two dollar signs" — a sponsor slot or a config
+  // line inside a card would otherwise be read as a price range.
+  const cell = priceCellText(row);
+  const range = matchRange(cell || text);
+  const priceNums = dollarValues(cell);
+  const minPrice = legacyMin != null ? legacyMin : (range ? range[0] : null);
+  const maxPrice = range ? range[1]
+    : (minPrice != null && priceNums.length === 1 ? priceNums[0] : null);
 
   return {
     gpuModel: name,
     vendor,
     slug,
-    vram: vramText,                    // human-readable (with unit/type)
-    vramGB: num(vramNumRaw),           // numeric GB (may be min spec for multi-spec SKUs)
+    // Legacy rows carried the spec in the 2nd <td>; cards put it in the
+    // heading. Prefer the cell when it exists so the old layout is unchanged.
+    vram: (extractTds(row)[1] ? stripTags(extractTds(row)[1]).replace(/\s+/g, ' ').trim() : null)
+          || vramText(text, name, attr(row, 'data-vram')),
+    vramGB: num(vramNumRaw),
     minPricePerHour: minPrice,
-    maxPricePerHour: maxPrice,
+    maxPricePerHour: (maxPrice != null && minPrice != null && maxPrice < minPrice) ? null : maxPrice,
+    medianPricePerHour,
     providerCount: int(providersRaw),
     category: normalizeSegment(segment),
     segmentRaw: segment,
@@ -128,9 +166,71 @@ function parseRow(row) {
   };
 }
 
+function round4(v) {
+  if (v == null || !isFinite(v)) return null;
+  return +v.toFixed(4);
+}
+
+function visibleText(block) {
+  return stripTags(block).replace(/\s+/g, ' ').trim();
+}
+
+// Legacy layout only: the 3rd <td> held the price range. Returns null on the
+// card layout, where the caller falls back to the card's own text.
+function priceCellText(row) {
+  const tds = extractTds(row);
+  return tds[2] ? stripTags(tds[2]) : null;
+}
+
+// Explicit "$1.23 - $45.60" (any dash/en-dash, optional "to"). Returns
+// [min, max] or null.
+function matchRange(text) {
+  if (!text) return null;
+  const m = /\$\s*([0-9]+(?:\.[0-9]+)?)\s*(?:-|–|—|to)\s*\$\s*([0-9]+(?:\.[0-9]+)?)/i.exec(text);
+  if (!m) return null;
+  const a = parseFloat(m[1]), b = parseFloat(m[2]);
+  if (!isFinite(a) || !isFinite(b)) return null;
+  return [Math.min(a, b), Math.max(a, b)];
+}
+
+function dollarValues(text) {
+  if (!text) return [];
+  const out = [];
+  const re = /\$\s*([0-9]+(?:\.[0-9]+)?)/g;
+  let m;
+  while ((m = re.exec(text)) !== null) out.push(parseFloat(m[1]));
+  return out;
+}
+
+function textAfter(text, re) {
+  if (!text) return null;
+  const m = re.exec(text);
+  if (!m) return null;
+  const tail = text.slice(m.index + m[0].length);
+  const n = /^([0-9]+(?:\.[0-9]+)?)/.exec(tail);
+  return n ? n[1] : null;
+}
+
+// "Nvidia H100 80GB HBM3 · Q3 2022 …" → "80GB HBM3". Falls back to the
+// numeric data-vram attribute when the heading is not in that shape.
+function vramText(text, name, vramAttr) {
+  if (text && name && text.startsWith(name)) {
+    const after = text.slice(name.length).trim();
+    const spec = after.split('·')[0].trim();
+    if (spec && /\d/.test(spec) && spec.length <= 40) return spec;
+  }
+  const n = num(vramAttr);
+  return n != null ? Math.round(n) + 'GB' : null;
+}
+
 function normalizeSegment(seg) {
   if (!seg) return null;
   const map = {
+    // Current upstream vocabulary
+    DATACENTER: 'Data Center',
+    WORKSTATION: 'Workstation',
+    CONSUMER: 'Consumer',
+    // Legacy vocabulary — kept so historical snapshots keep their labels
     HIGH_PERFORMANCE: 'High Performance',
     MID_RANGE: 'Mid-Range',
     BUDGET: 'Budget',
@@ -156,19 +256,6 @@ function extractTds(row) {
   return out;
 }
 
-function extractMaxPrice(priceText, min) {
-  if (!priceText) return null;
-  // Matches $1.23 or $12 (optional decimals). Commas not expected for $/hr.
-  const nums = [];
-  const re = /\$\s*([0-9]+(?:\.[0-9]+)?)/g;
-  let m;
-  while ((m = re.exec(priceText)) !== null) nums.push(parseFloat(m[1]));
-  if (!nums.length) return null;
-  if (nums.length === 1) return nums[0]; // single-price case (= min)
-  // Max is the largest. Also sanity: drop any value < min (shouldn't happen).
-  const max = Math.max.apply(null, nums);
-  return (min != null && max < min) ? null : max;
-}
 
 function parseUpdatedAt(html) {
   // Header markup:

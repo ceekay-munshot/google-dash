@@ -1,5 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { BarChart, Bar, LineChart, Line, ComposedChart, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, PieChart, Pie, CartesianGrid, Legend } from "recharts";
+import { buildXlsx, downloadXlsx } from "./xlsx-export.js";
+import { buildGPUPricingWorkbook, gpuWorkbookFilename } from "./gpu-xlsx-report.js";
 
 /* ─── Live data fetched by me right now (Apr 11 2026) ───────
    Sources:
@@ -1774,6 +1776,79 @@ function fmtMoney(v){
   if(v<1)return"$"+v.toFixed(2);
   return"$"+v.toFixed(2);
 }
+
+/* ─── Period-axis helpers ───────────────────────────────────
+   The column axis is now continuous (the API emits every calendar period
+   from the first observed one through today, including ones with no
+   captures at all), so a stalled feed shows up as a visible gap column
+   instead of quietly shortening the table. Growth and resilience therefore
+   must resolve the *calendar* prior period by id — walking back one array
+   slot silently compares across a gap. */
+function finPriorPeriodId(periodId){
+  if(typeof periodId!=="string")return null;
+  const q=/^(\d{4})-Q([1-4])$/.exec(periodId);
+  if(q){
+    const y=+q[1],n=+q[2];
+    return n===1?(y-1)+"-Q4":y+"-Q"+(n-1);
+  }
+  const m=/^(\d{4})-(\d{2})$/.exec(periodId);
+  if(m){
+    const y=+m[1],n=+m[2];
+    return n===1?(y-1)+"-12":y+"-"+String(n-1).padStart(2,"0");
+  }
+  return null;
+}
+
+// A period is only comparable if it actually carries priced days. The feed
+// can deliver provider counts with a null minPricePerHour (which is exactly
+// what happened from 2026-07-28 onward), so "we have rows for this month" is
+// not the same question as "we have prices for this month".
+function finPricedCoverage(rec){
+  if(!rec)return null;
+  const v=rec.pricedCoverageRatioWithinMonth!=null?rec.pricedCoverageRatioWithinMonth
+         :rec.pricedCoverageRatioWithinQuarter!=null?rec.pricedCoverageRatioWithinQuarter:null;
+  if(v!=null)return v;
+  // Older payloads (and the illustrative preview) predate the priced-coverage
+  // fields — fall back to raw coverage so those paths keep rendering.
+  const c=rec.coverageRatioWithinMonth!=null?rec.coverageRatioWithinMonth
+         :rec.coverageRatioWithinQuarter!=null?rec.coverageRatioWithinQuarter:null;
+  return c;
+}
+function finHasPrice(rec){
+  if(!rec)return false;
+  if(typeof rec.hasPrice==="boolean")return rec.hasPrice;
+  return finPrice(rec)!=null;
+}
+
+// The headline price for a period, and how it was measured. The upstream
+// listing replaced its min-max range with a single median part-way through
+// this history, so a period carries one or the other. The API publishes both
+// the number and its basis; older payloads predate the field and fall back
+// to the floor, which is what they contained.
+function finPrice(rec){
+  if(!rec)return null;
+  const v=rec.headlinePricePerHour!=null?rec.headlinePricePerHour:rec.avgMinPricePerHour;
+  return v!=null&&isFinite(v)?v:null;
+}
+function finBasis(rec){
+  if(!rec)return null;
+  if(rec.priceBasis)return rec.priceBasis;
+  return finPrice(rec)!=null?"floor":null;
+}
+const FIN_BASIS_LABEL={median:"median $/hr across providers",floor:"floor of the vendor range (min $/hr)"};
+function finIsPartial(rec,partialKey){
+  if(!rec)return false;
+  return !!rec[partialKey];
+}
+// Below this share of priced days a period average is still shown, but every
+// number derived from it is marked — a 10-day April stub is not a month.
+const FIN_LOW_COVERAGE=0.75;
+
+function finPeriodRec(series,sku,periodId){
+  const arr=series[sku]||[];
+  for(const x of arr)if(x.period===periodId)return x;
+  return null;
+}
 // GPU price growth — color convention is buyer/cost-analysis: a price drop
 // is favorable, so negatives render green and increases render red. Same
 // inverted convention as the Model Pricing matrix; matches customer spec
@@ -1786,6 +1861,79 @@ function fmtGrowth(v){
   return <span style={{color}}>{str}</span>;
 }
 
+/* ─── Feed integrity banner ─────────────────────────────────
+   The matrix renders a missing price and a real $0.00 identically: as an
+   em-dash. That is fine when one cell is empty and actively misleading when
+   a whole column is, because the table still *looks* complete — it just gets
+   shorter or sprouts blanks. This banner states the feed's actual condition
+   above the matrix so a stalled capture can never be read as a flat market.
+
+   Two failure modes are reported separately because they have different
+   fixes: the GPU block no longer arriving at all (capture/cron side), versus
+   the block still arriving with minPricePerHour null (upstream shape change,
+   provider counts keep updating while prices go blank). */
+function GPUFeedIntegrityBanner({dq,periodNoun}){
+  if(!dq)return null;
+  const notes=[];
+  if(dq.priceFieldDroppedWhileFeedLive&&dq.latestPricedObservationDate){
+    notes.push({
+      k:"pricefield",
+      sev:"high",
+      head:"Price field missing from the feed since "+dq.latestPricedObservationDate,
+      body:"GPU rows kept arriving after that date — provider counts are still updating — but minPricePerHour came back empty, so every price cell from then on is blank. "
+           +dq.unpricedDays+" of "+dq.observationDays+" captured days carry no price.",
+    });
+  }else if(dq.priceFieldStale&&dq.latestPricedObservationDate){
+    notes.push({
+      k:"pricestale",
+      sev:"high",
+      head:"No new price observed since "+dq.latestPricedObservationDate,
+      body:"Price cells reflect data that is "+dq.daysSinceLatestPricedObservation+" days old.",
+    });
+  }
+  if(dq.gpuFeedStale&&dq.latestGPUObservationDate){
+    notes.push({
+      k:"feedstale",
+      sev:"high",
+      head:"GPU capture stalled — last observation "+dq.latestGPUObservationDate,
+      body:"That is "+dq.daysSinceLatestGPUObservation+" days ago. Nothing after that date has been captured for any SKU, so the most recent "
+           +periodNoun+" columns are empty rather than flat.",
+    });
+  }
+  if(dq.monthsMissing?.length||dq.quartersMissing?.length){
+    const miss=[...(dq.monthsMissing||[]),...(dq.quartersMissing||[])];
+    notes.push({
+      k:"gaps",
+      sev:"med",
+      head:"Gap "+(miss.length===1?"period":"periods")+": "+miss.join(", "),
+      body:"Shown as empty columns rather than dropped from the axis, so the hole stays visible.",
+    });
+  }
+  if(dq.monthsUnpriced?.length||dq.quartersUnpriced?.length){
+    const un=[...(dq.monthsUnpriced||[]),...(dq.quartersUnpriced||[])];
+    notes.push({
+      k:"unpriced",
+      sev:"med",
+      head:"Captured but unpriced: "+un.join(", "),
+      body:"These columns have provider counts but no price, so they contribute nothing to growth or resilience.",
+    });
+  }
+  if(!notes.length)return null;
+  const high=notes.some(n=>n.sev==="high");
+  return(
+    <div style={{background:high?"#fef2f2":"#fffbeb",border:"1px solid "+(high?"#fca5a5":"#fcd34d"),borderRadius:8,padding:"10px 12px",marginBottom:8}}>
+      <div style={{fontWeight:700,textTransform:"uppercase",letterSpacing:".04em",fontSize:10,color:high?"#991b1b":"#92400e",marginBottom:5}}>
+        {high?"⚠ Feed integrity — matrix is not current":"Feed integrity notes"}
+      </div>
+      {notes.map(n=>(
+        <div key={n.k} style={{fontSize:11,color:high?"#7f1d1d":"#92400e",lineHeight:1.5,marginTop:3}}>
+          <b style={{fontWeight:600}}>{n.head}.</b> {n.body}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function GPUFinancialCorrelationBlock({fHist,fHistErr}){
   const[mode,setMode]=useState("quarter"); // "quarter" default per investor framing
   const[showSecondary,setShowSecondary]=useState(false);
@@ -1793,6 +1941,7 @@ function GPUFinancialCorrelationBlock({fHist,fHistErr}){
   const[diagOpen,setDiagOpen]=useState(false); // diagnostics off by default; the
   // illustrative-data toggle is internal-only and lives inside this disclosure
   // so the customer-facing main view never shows fabricated values.
+  const[xlsxState,setXlsxState]=useState("idle"); // idle | working | error
 
   // Illustrative mode overrides the real fHist entirely. Toggle is
   // quarter-only (no monthly illustrative data), so mode is forced to
@@ -1819,6 +1968,32 @@ function GPUFinancialCorrelationBlock({fHist,fHistErr}){
     );
   }
 
+  // Excel export. The daily series is fetched on click rather than on mount —
+  // it is the largest payload on the page and most sessions never export.
+  // A failed daily fetch degrades to a workbook without the raw sheet rather
+  // than failing the whole export.
+  const onExportXlsx=async()=>{
+    if(xlsxState==="working")return;
+    setXlsxState("working");
+    try{
+      let daily=null;
+      try{
+        const r=await fetch("/api/gpu-hardware-pricing-history?window=400");
+        if(r.ok){
+          const j=await r.json();
+          if(j&&j.success)daily=j;
+        }
+      }catch(e){/* raw sheet is optional */}
+      const skus=[...GPU_FIN_PRIMARY_ROWS,...GPU_FIN_SECONDARY_ROWS];
+      const wb=buildGPUPricingWorkbook(effFHist,daily,skus);
+      downloadXlsx(gpuWorkbookFilename(effFHist),buildXlsx(wb));
+      setXlsxState("idle");
+    }catch(e){
+      setXlsxState("error");
+      setTimeout(()=>setXlsxState("idle"),4000);
+    }
+  };
+
   const since=effFHist.trackingSinceRealDate;
   const periods=effMode==="quarter"?(effFHist.quarterly?.labels||[]):(effFHist.monthly?.labels||[]);
   const series=effMode==="quarter"?(effFHist.quarterly?.series||{}):(effFHist.monthly?.series||{});
@@ -1828,6 +2003,25 @@ function GPUFinancialCorrelationBlock({fHist,fHistErr}){
   const partialKey=effMode==="quarter"?"isQTD":"isMTD";
 
   const hasAnyData=periods.length>0;
+  // How many columns actually carry a price for at least one rendered SKU.
+  // What the price row is actually measuring in the columns on screen. The
+  // basis changed mid-history, so this is derived rather than hard-coded.
+  const priceBasisNote=(()=>{
+    const pool=showSecondary?[...GPU_FIN_PRIMARY_ROWS,...GPU_FIN_SECONDARY_ROWS]:GPU_FIN_PRIMARY_ROWS;
+    const bases=new Set();
+    for(const p of periods)for(const r of pool){
+      const b=finBasis(finPeriodRec(series,r.sku,p.period));
+      if(b)bases.add(b);
+    }
+    if(bases.size===1)return FIN_BASIS_LABEL[[...bases][0]];
+    if(bases.size>1)return "median $/hr where the source publishes one, floor of the vendor range for earlier periods — growth is not computed across the change";
+    return "period averages of daily $/hr";
+  })();
+
+  const pricedPeriodCount=periods.filter(p=>{
+    const pool=showSecondary?[...GPU_FIN_PRIMARY_ROWS,...GPU_FIN_SECONDARY_ROWS]:GPU_FIN_PRIMARY_ROWS;
+    return pool.some(r=>finHasPrice(finPeriodRec(series,r.sku,p.period)));
+  }).length;
 
   return(
     <div style={{marginBottom:14}}>
@@ -1850,6 +2044,33 @@ function GPUFinancialCorrelationBlock({fHist,fHistErr}){
         <span style={{fontSize:10,color:"#9ca3af",flex:1,minWidth:0}}>
           Analyst lens · period averages of daily $/hr · quarter labels = quarter-end month (Mar/Jun/Sep/Dec)
         </span>
+
+        {/* Export. Disabled while the illustrative preview is on — those
+            values are fabricated for layout QA, and a spreadsheet is exactly
+            the artefact that would outlive the warning banner once it leaves
+            the page. */}
+        <button onClick={onExportXlsx} disabled={illustrative||xlsxState==="working"}
+          title={illustrative
+            ? "Disabled while the illustrative preview is on — those values are not live data."
+            : "Download every GPU pricing figure as a formatted Excel workbook: $/hr by model, MoM/QoQ/YoY growth, provider counts, daily raw observations and a data-quality sheet."}
+          style={{
+            display:"inline-flex",alignItems:"center",gap:6,fontSize:11,fontWeight:600,
+            padding:"5px 12px",borderRadius:6,fontFamily:"inherit",whiteSpace:"nowrap",
+            border:"0.5px solid "+(xlsxState==="error"?"#fca5a5":"#047857"),
+            background:illustrative?"#f3f4f6":(xlsxState==="error"?"#fef2f2":"#047857"),
+            color:illustrative?"#9ca3af":(xlsxState==="error"?"#b91c1c":"#fff"),
+            cursor:illustrative?"not-allowed":(xlsxState==="working"?"progress":"pointer"),
+            opacity:xlsxState==="working"?0.75:1,
+          }}>
+          {xlsxState==="working"
+            ? <><Spin size={10} color="#fff"/> Building…</>
+            : xlsxState==="error"
+              ? "Export failed — retry"
+              : <><svg width="11" height="11" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                    <path d="M8 1v8m0 0L4.8 5.8M8 9l3.2-3.2" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+                    <path d="M2 11v2.5A1.5 1.5 0 0 0 3.5 15h9a1.5 1.5 0 0 0 1.5-1.5V11" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>
+                  </svg> Download Excel</>}
+        </button>
       </div>
 
       {/* Illustrative warning banner */}
@@ -1865,7 +2086,10 @@ function GPUFinancialCorrelationBlock({fHist,fHistErr}){
         <div style={{fontSize:11,color:"#9ca3af",marginBottom:8}}>
           Real tracking since <b style={{color:"#6b7280",fontWeight:600}}>{since}</b>
           {" · "}
-          {periods.length} {effMode==="quarter"?"quarter":"month"}{periods.length===1?"":"s"} observed
+          {/* "N periods observed" counted every column, including ones with no
+              price at all — it read as N periods of pricing. Count the priced
+              ones, and name the shortfall when the two differ. */}
+          <b style={{color:"#6b7280",fontWeight:600}}>{pricedPeriodCount}</b> of {periods.length} {effMode==="quarter"?"quarter":"month"}{periods.length===1?"":"s"} carry price data
           {" · "}
           growth rows populate once at least two real periods exist; YoY requires a period from one year prior
         </div>
@@ -1887,20 +2111,41 @@ function GPUFinancialCorrelationBlock({fHist,fHistErr}){
                 <tr>
                   <th style={{...finThRow,minWidth:170}}></th>
                   {periods.map(p=>{
-                    // Partial = the API marked this label as MTD/QTD (the
-                    // current calendar period is always seeded so the column
-                    // shows even before any SKU has a data point in it), OR
-                    // any rendered SKU has a partial record for that period.
+                    // The old badge fired only on isMTD/isQTD, which meant a
+                    // 10-day April stub and a fully-captured July rendered
+                    // identically. The column now reports what it actually
+                    // holds: no capture, captured-but-unpriced, still
+                    // running, or thin priced coverage.
                     const rowPool=showSecondary?[...GPU_FIN_PRIMARY_ROWS,...GPU_FIN_SECONDARY_ROWS]:GPU_FIN_PRIMARY_ROWS;
-                    let partial=!!p[partialKey];
+                    let running=!!p[partialKey];
+                    let anyRec=false, anyPriced=false, bestCov=null;
                     for(const row of rowPool){
-                      const sr=(series[row.sku]||[]).find(x=>x.period===p.period);
-                      if(sr&&sr[partialKey]){partial=true;break;}
+                      const sr=finPeriodRec(series,row.sku,p.period);
+                      if(!sr)continue;
+                      anyRec=true;
+                      if(sr[partialKey])running=true;
+                      if(finHasPrice(sr))anyPriced=true;
+                      const c=finPricedCoverage(sr);
+                      if(c!=null&&(bestCov==null||c>bestCov))bestCov=c;
+                    }
+                    let badge=null,badgeColor="#b45309",badgeTitle=null;
+                    if(!anyRec){
+                      badge="no data";badgeColor="#9ca3af";
+                      badgeTitle="No GPU capture recorded for "+p.label+".";
+                    }else if(!anyPriced){
+                      badge="no price";badgeColor="#b45309";
+                      badgeTitle=p.label+" was captured but the feed returned no minPricePerHour, so every price cell is blank.";
+                    }else if(running){
+                      badge=effMode==="quarter"?"QTD":"MTD";
+                      badgeTitle=p.label+" is still in progress — growth and resilience are suppressed for it.";
+                    }else if(bestCov!=null&&bestCov<FIN_LOW_COVERAGE){
+                      badge=Math.round(bestCov*100)+"%";
+                      badgeTitle="Only "+Math.round(bestCov*100)+"% of the days in "+p.label+" carry a price — averages and growth off this period are indicative.";
                     }
                     return(
-                      <th key={p.period} style={finTh}>
+                      <th key={p.period} style={{...finTh,color:anyRec?finTh.color:"#c7cbd1"}} title={badgeTitle||undefined}>
                         {p.label}
-                        {partial&&<span style={{marginLeft:3,fontSize:8,color:"#b45309",fontWeight:500}}>{mode==="quarter"?"QTD":"MTD"}</span>}
+                        {badge&&<span style={{marginLeft:3,fontSize:8,color:badgeColor,fontWeight:600}}>{badge}</span>}
                       </th>
                     );
                   })}
@@ -1908,7 +2153,12 @@ function GPUFinancialCorrelationBlock({fHist,fHistErr}){
               </thead>
               <tbody>
                 {/* Section A: Pricing per Hour */}
-                <tr><td colSpan={periods.length+1} style={finSectionTh}>Pricing per Hour</td></tr>
+                <tr><td colSpan={periods.length+1} style={finSectionTh}>
+                  Pricing per Hour
+                  <span style={{fontWeight:500,textDecoration:"none",color:"#6b7280",fontSize:10,marginLeft:6}}>
+                    {priceBasisNote} &middot; hover a cell for the detail
+                  </span>
+                </td></tr>
                 {renderFinPriceRows(GPU_FIN_PRIMARY_ROWS,series,periods,partialKey)}
                 {!illustrative&&showSecondary&&renderFinPriceRows(GPU_FIN_SECONDARY_ROWS,series,periods,partialKey,true)}
 
@@ -1917,16 +2167,16 @@ function GPUFinancialCorrelationBlock({fHist,fHistErr}){
 
                 {/* Section B: QoQ/MoM Growth */}
                 <tr><td colSpan={periods.length+1} style={finSectionTh}>{growthLabel}</td></tr>
-                {renderFinGrowthRows(GPU_FIN_PRIMARY_ROWS,growth,periods)}
-                {!illustrative&&showSecondary&&renderFinGrowthRows(GPU_FIN_SECONDARY_ROWS,growth,periods,true)}
+                {renderFinGrowthRows(GPU_FIN_PRIMARY_ROWS,growth,periods,false,series,partialKey)}
+                {!illustrative&&showSecondary&&renderFinGrowthRows(GPU_FIN_SECONDARY_ROWS,growth,periods,true,series,partialKey)}
 
                 {/* Spacer */}
                 <tr><td colSpan={periods.length+1} style={{height:8}}></td></tr>
 
                 {/* Section C: YoY Growth */}
                 <tr><td colSpan={periods.length+1} style={finSectionTh}>YoY Growth</td></tr>
-                {renderFinGrowthRows(GPU_FIN_PRIMARY_ROWS,yoy,periods)}
-                {!illustrative&&showSecondary&&renderFinGrowthRows(GPU_FIN_SECONDARY_ROWS,yoy,periods,true)}
+                {renderFinGrowthRows(GPU_FIN_PRIMARY_ROWS,yoy,periods,false,series,partialKey)}
+                {!illustrative&&showSecondary&&renderFinGrowthRows(GPU_FIN_SECONDARY_ROWS,yoy,periods,true,series,partialKey)}
 
                 {/* Spacer */}
                 <tr><td colSpan={periods.length+1} style={{height:8}}></td></tr>
@@ -1975,7 +2225,7 @@ function GPUFinancialCorrelationBlock({fHist,fHistErr}){
 
       {/* Methodology footnote — concise, customer-spec wording. */}
       <div style={{fontSize:10,color:"#9ca3af",lineHeight:1.5,marginTop:6}}>
-        <b style={{color:"#6b7280",fontWeight:600}}>Methodology:</b> GPU prices use real historical minPricePerHour observations, averaged by SKU and calendar period. QoQ/YoY compare only valid completed periods; QTD growth is suppressed. GPU prices are not summed, because there is no meaningful total price across SKUs. Provider count shows observed vendor breadth where available. Stable or rising prices in older GPUs can indicate tight supply or strong ROI.
+        <b style={{color:"#6b7280",fontWeight:600}}>Methodology:</b> GPU prices use real historical minPricePerHour observations — the <b style={{color:"#6b7280",fontWeight:600}}>floor</b> of the vendor range on each day, i.e. the single cheapest listing among the providers quoted — averaged by SKU and calendar period. The floor is volatile and one outlier listing moves it, so read levels against the midpoint and ceiling in each cell's tooltip rather than as a market rate. QoQ/MoM/YoY compare only completed periods; growth for a period still in progress (QTD/MTD) is suppressed. A <sup style={{color:"#b45309",fontWeight:700}}>&deg;</sup> marks a value resting on a period where under {Math.round(FIN_LOW_COVERAGE*100)}% of days carry a price. The column axis is continuous, so a period with no capture stays visible as an empty column. GPU prices are not summed, because there is no meaningful total price across SKUs. Provider count shows observed vendor breadth where available. Stable or rising prices in older GPUs can indicate tight supply or strong ROI.
       </div>
 
       {/* Internal diagnostics — illustrative-data toggle lives here so it
@@ -1988,7 +2238,17 @@ function GPUFinancialCorrelationBlock({fHist,fHistErr}){
         </button>
         {diagOpen&&(
           <div style={{marginTop:8,padding:"10px 12px",border:"0.5px dashed #d1d5db",borderRadius:6,background:"#fafafa",display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
-            <span style={{fontSize:10,color:"#6b7280"}}>Internal-only — does not affect the live customer-facing view.</span>
+            <div style={{width:"100%"}}>
+              <span style={{fontSize:10,color:"#6b7280"}}>Internal-only — does not affect the live customer-facing view.</span>
+            </div>
+            {/* Feed health lives here, not in the main view: an operator needs
+                to know the moment a capture stalls, but a red alert across the
+                top of the matrix reads to a customer as "this product is
+                broken". The column markers below already tell a reader which
+                cells are empty and why, without the alarm. */}
+            <div style={{width:"100%"}}>
+              <GPUFeedIntegrityBanner dq={effFHist.dataQuality} periodNoun={effMode==="quarter"?"quarter":"month"}/>
+            </div>
             <IllustrativeToggle illustrative={illustrative} setIllustrative={setIllustrative}/>
           </div>
         )}
@@ -2009,6 +2269,12 @@ function IllustrativeToggle({illustrative,setIllustrative}){
   );
 }
 
+// Price cells carry the FLOOR of the observed vendor range (minPricePerHour
+// — the single cheapest listing of the ~30-50 providers quoted that day), so
+// the tooltip always shows the floor alongside the midpoint, the ceiling and
+// the spread multiple. Without that context an H100 reading "$0.54" looks
+// like a market rate rather than one outlier listing sitting under a $14.90
+// ceiling. Periods built on thin priced coverage get a visible marker.
 function renderFinPriceRows(rows,series,periods,partialKey,dim){
   return rows.map(row=>{
     const byPeriod=Object.fromEntries((series[row.sku]||[]).map(x=>[x.period,x]));
@@ -2017,10 +2283,28 @@ function renderFinPriceRows(rows,series,periods,partialKey,dim){
         <td style={{...finTdRow,color:dim?"#6b7280":"#111827"}}>{row.shortLabel}</td>
         {periods.map(p=>{
           const s=byPeriod[p.period];
-          const val=s?s.avgMinPricePerHour:null;
+          const val=finPrice(s);
+          const basis=finBasis(s);
+          const cov=finPricedCoverage(s);
+          const thin=val!=null&&cov!=null&&cov<FIN_LOW_COVERAGE;
+          const parts=[];
+          if(s){
+            parts.push(basis==="median"?"Median "+fmtMoney(val):"Floor (min) "+fmtMoney(val));
+            if(s.avgPriceMidpoint!=null)parts.push("range midpoint "+fmtMoney(s.avgPriceMidpoint));
+            if(s.avgMaxPricePerHour!=null)parts.push("ceiling (max) "+fmtMoney(s.avgMaxPricePerHour));
+            if(s.avgSpreadMultiple!=null)parts.push("spread "+s.avgSpreadMultiple.toFixed(1)+"x");
+            const dp=s.daysWithPriceInMonth!=null?s.daysWithPriceInMonth:s.daysWithPriceInQuarter;
+            const dc=s.daysCoveredInMonth!=null?s.daysCoveredInMonth:s.daysCoveredInQuarter;
+            const dn=s.monthDayCount!=null?s.monthDayCount:s.quarterDayCount;
+            if(dp!=null&&dn!=null)parts.push(dp+" of "+dn+" days priced"+(dc!=null&&dc!==dp?" ("+dc+" captured)":""));
+          }else{
+            parts.push("No capture for "+p.label);
+          }
           return(
-            <td key={p.period} style={{...finTd,color:dim?"#6b7280":finTd.color}}>
+            <td key={p.period} style={{...finTd,color:dim?"#6b7280":(val==null?"#d1d5db":finTd.color)}}
+                title={parts.join(" · ")}>
               {fmtMoney(val)}
+              {thin&&<sup style={{color:"#b45309",fontSize:8,fontWeight:700,marginLeft:1}}>&deg;</sup>}
             </td>
           );
         })}
@@ -2029,15 +2313,46 @@ function renderFinPriceRows(rows,series,periods,partialKey,dim){
   });
 }
 
-function renderFinGrowthRows(rows,growth,periods,dim){
+// Growth rows honour the methodology note literally: a period that is still
+// running (MTD/QTD) is suppressed rather than compared against a completed
+// prior — a half-finished period average is not a period. Comparisons that
+// lean on a thinly-priced period on either side still render, but carry a
+// marker so nobody reads "+128.7%" as a clean month-over-month move when one
+// side of it is a 10-day stub.
+function renderFinGrowthRows(rows,growth,periods,dim,series,partialKey){
   return rows.map(row=>{
     const row_g=growth[row.sku]||{};
     return(
       <tr key={"g-"+row.sku}>
         <td style={{...finTdRow,color:dim?"#6b7280":"#111827"}}>{row.shortLabel}</td>
-        {periods.map(p=>(
-          <td key={p.period} style={finTdDim}>{fmtGrowth(row_g[p.period])}</td>
-        ))}
+        {periods.map(p=>{
+          const cur=series?finPeriodRec(series,row.sku,p.period):null;
+          if(partialKey&&(p[partialKey]||finIsPartial(cur,partialKey))){
+            return(
+              <td key={p.period} style={finTdDim}
+                  title={"Suppressed — "+p.label+" is still in progress; a part-period average is not comparable to a completed prior period."}>
+                <span style={{color:"#d1d5db"}}>&mdash;</span>
+              </td>
+            );
+          }
+          const v=row_g[p.period];
+          const priorId=finPriorPeriodId(p.period);
+          const prior=series&&priorId?finPeriodRec(series,row.sku,priorId):null;
+          const curCov=finPricedCoverage(cur), priorCov=finPricedCoverage(prior);
+          const thin=v!=null&&((curCov!=null&&curCov<FIN_LOW_COVERAGE)||(priorCov!=null&&priorCov<FIN_LOW_COVERAGE));
+          const title=v==null?undefined:(
+            "vs "+(priorId||"prior period")+
+            (curCov!=null?" · this period "+Math.round(curCov*100)+"% priced":"")+
+            (priorCov!=null?" · prior period "+Math.round(priorCov*100)+"% priced":"")+
+            (thin?" · thin coverage on one side — treat as indicative":"")
+          );
+          return(
+            <td key={p.period} style={finTdDim} title={title}>
+              {fmtGrowth(v)}
+              {thin&&<sup style={{color:"#b45309",fontSize:8,fontWeight:700,marginLeft:1}}>&deg;</sup>}
+            </td>
+          );
+        })}
       </tr>
     );
   });
@@ -2073,40 +2388,68 @@ function renderFinProviderRows(rows,series,periods,dim){
   });
 }
 
-// Per-(SKU, period) price resilience signal. For period P, looks at QoQ at
-// P (current vs P-1) AND QoQ at P-1 (P-1 vs P-2). If both are ≥0 → "Stable/up 2Q"
-// (green; investor-bullish — aligns with the customer's "for prices not to go
-// down is a big deal" point). If either is <0 → "Falling" (muted gray;
-// neutral framing — not bearish per se, just no resilience signal). Suppressed
-// to "—" for partial periods (QTD/MTD) and where the two-quarter look-back
-// can't be computed.
+// Per-(SKU, period) price resilience signal. For period P it reads the growth
+// at P (P vs P-1) and the growth at P-1 (P-1 vs P-2). Both >= 0 means the
+// price held or rose across two consecutive completed periods → "Stable/up
+// 2Q" (green; the investor-side "for prices NOT to go down is a big deal"
+// read). Otherwise "Falling" — deliberately neutral grey, it is the absence
+// of a resilience signal rather than a bearish call.
+//
+// Three things this must never do, because each turns a data gap into a
+// confident-looking verdict:
+//   1. resolve P-1 by array position. The column axis is continuous now, so
+//      a stalled feed puts an empty column in the middle of it; stepping
+//      back one slot would compare across the hole.
+//   2. grade a period whose price coverage is zero. A month with provider
+//      counts but no prices has no growth on either side, and must read
+//      "no price data", not "Falling".
+//   3. grade a still-running period, or one whose two-period look-back leans
+//      on a thinly-priced stub, without saying so.
 function renderFinResilienceRows(rows,growth,periods,series,partialKey,dim){
+  const blank=(key,title)=>(
+    <td key={key} style={finTdDim} title={title}><span style={{color:"#d1d5db"}}>&mdash;</span></td>
+  );
   return rows.map(row=>{
     const row_g=growth[row.sku]||{};
-    const byPeriod=Object.fromEntries((series[row.sku]||[]).map(x=>[x.period,x]));
     return(
       <tr key={"res-"+row.sku}>
         <td style={{...finTdRow,color:dim?"#6b7280":"#111827"}}>{row.shortLabel}</td>
-        {periods.map((p,i)=>{
-          // Suppress for the current partial period — a partial-quarter avg
-          // can't honestly be compared against a full-quarter prior.
-          const cur=byPeriod[p.period];
-          if(cur&&cur[partialKey]){
-            return <td key={p.period} style={finTdDim}><span style={{color:"#d1d5db"}}>—</span></td>;
-          }
+        {periods.map(p=>{
+          const cur=finPeriodRec(series,row.sku,p.period);
+
+          // No capture at all for this calendar period.
+          if(!cur)return blank(p.period,"No capture recorded for "+p.label+".");
+
+          // Captured, but the feed delivered no usable price — provider
+          // counts alone cannot produce a resilience read.
+          if(!finHasPrice(cur))return blank(p.period,p.label+" was captured but carries no price data, so no resilience signal can be computed.");
+
+          // Still running: a part-period average is not comparable.
+          if(p[partialKey]||finIsPartial(cur,partialKey))
+            return blank(p.period,p.label+" is still in progress.");
+
+          const priorId=finPriorPeriodId(p.period);
+          const prior=priorId?finPeriodRec(series,row.sku,priorId):null;
           const cqp=row_g[p.period];
-          const priorPeriod=i>0?periods[i-1]:null;
-          const pqp=priorPeriod?row_g[priorPeriod.period]:null;
-          if(cqp==null||pqp==null||!isFinite(cqp)||!isFinite(pqp)){
-            return <td key={p.period} style={finTdDim}><span style={{color:"#d1d5db"}}>—</span></td>;
-          }
+          const pqp=priorId?row_g[priorId]:null;
+
+          if(cqp==null||pqp==null||!isFinite(cqp)||!isFinite(pqp))
+            return blank(p.period,"Needs two consecutive completed periods of growth; not available at "+p.label+".");
+
           const stable=cqp>=0&&pqp>=0;
           const label=stable?"Stable/up 2Q":"Falling";
           const bg=stable?"#ecfdf5":"#f3f4f6";
           const fg=stable?"#047857":"#6b7280";
+          const curCov=finPricedCoverage(cur), priorCov=finPricedCoverage(prior);
+          const thin=(curCov!=null&&curCov<FIN_LOW_COVERAGE)||(priorCov!=null&&priorCov<FIN_LOW_COVERAGE);
+          const title=p.label+" growth "+cqp.toFixed(1)+"% · prior period growth "+pqp.toFixed(1)+"%"
+            +(curCov!=null?" · "+Math.round(curCov*100)+"% priced":"")
+            +(thin?" · thin coverage on one side — indicative only":"");
           return(
             <td key={p.period} style={finTdDim}>
-              <span style={{fontSize:9,fontWeight:600,padding:"1px 6px",borderRadius:3,background:bg,color:fg,whiteSpace:"nowrap"}} title={"QoQ "+p.label+": "+cqp.toFixed(1)+"% · prior QoQ: "+pqp.toFixed(1)+"%"}>{label}</span>
+              <span style={{fontSize:9,fontWeight:600,padding:"1px 6px",borderRadius:3,background:bg,color:fg,whiteSpace:"nowrap"}} title={title}>
+                {label}{thin&&<sup style={{color:"#b45309",fontSize:8,fontWeight:700,marginLeft:1}}>&deg;</sup>}
+              </span>
             </td>
           );
         })}

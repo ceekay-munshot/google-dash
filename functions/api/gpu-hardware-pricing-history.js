@@ -182,6 +182,7 @@ export async function onRequestGet({ request, env }) {
         date,
         minPricePerHour: m.minPricePerHour,
         maxPricePerHour: m.maxPricePerHour,
+        medianPricePerHour: m.medianPricePerHour,
         providerCount: m.providerCount,
         spreadAbsolute: m.spreadAbsolute,
         spreadMultiple: m.spreadMultiple,
@@ -623,6 +624,33 @@ function avgOrNull(arr) {
   return valid.reduce((a, b) => a + b, 0) / valid.length;
 }
 
+// Median is preferred over the floor when both exist: it is a market rate,
+// whereas the floor is the single cheapest listing among ~50 vendors and one
+// outlier moves it (H100 floors of $0.40 sat under a $14.90 ceiling). Which
+// one a period actually has is recorded so nothing downstream has to guess.
+function headline(arr) {
+  const median = avgOrNull(arr.map(p => p.medianPricePerHour));
+  if (median != null) {
+    return { headlinePricePerHour: +median.toFixed(4), priceBasis: 'median' };
+  }
+  const floor = avgOrNull(arr.map(p => p.minPricePerHour));
+  if (floor != null) {
+    return { headlinePricePerHour: +floor.toFixed(4), priceBasis: 'floor' };
+  }
+  return { headlinePricePerHour: null, priceBasis: null };
+}
+
+// Growth is only meaningful between two periods measured the same way. When
+// the basis changes (the upstream swapped range for median mid-history) the
+// comparison is refused rather than reported as a price move — the number
+// would otherwise read as a ~700% jump that never happened in the market.
+function periodGrowth(cur, prior) {
+  if (!cur || !prior) return null;
+  if (!cur.priceBasis || !prior.priceBasis) return null;
+  if (cur.priceBasis !== prior.priceBasis) return null;
+  return pctChange(cur.headlinePricePerHour, prior.headlinePricePerHour);
+}
+
 function pctChange(curr, prior) {
   if (curr == null || prior == null || prior === 0) return null;
   return +(((curr - prior) / prior) * 100).toFixed(2);
@@ -666,6 +694,21 @@ function buildFinancialResponse(ctx) {
       // For MTD use days elapsed (today inclusive); for completed months use full month length.
       const effectiveDays = isMTD ? daysInclusive(start, today) : denom;
       const coverage = effectiveDays > 0 ? +(daysCovered / effectiveDays).toFixed(3) : null;
+      // Priced days are counted separately from snapshot days. A snapshot can
+      // land with providerCount populated but minPricePerHour null (which is
+      // exactly what the upstream feed started doing on 2026-07-28), so
+      // "days covered" alone overstates how much of the period actually
+      // carries a price. Every downstream average, growth and coverage badge
+      // needs the priced count to be honest.
+      const pricedDates = new Set(
+        arr.filter(p => typeof p.minPricePerHour === 'number' && isFinite(p.minPricePerHour))
+           .map(p => p.date)
+      );
+      const daysWithPrice = pricedDates.size;
+      const medianDates = new Set(
+        arr.filter(p => typeof p.medianPricePerHour === 'number' && isFinite(p.medianPricePerHour))
+           .map(p => p.date)
+      );
       months.push({
         period: mid,
         label: monthLabel(y, m),
@@ -674,11 +717,26 @@ function buildFinancialResponse(ctx) {
         periodStart: start,
         periodEnd: end,
         daysCoveredInMonth: daysCovered,
+        daysWithPriceInMonth: daysWithPrice,
         monthDayCount: effectiveDays,
         coverageRatioWithinMonth: coverage,
+        pricedCoverageRatioWithinMonth: effectiveDays > 0
+          ? +(Math.max(daysWithPrice, medianDates.size) / effectiveDays).toFixed(3) : null,
         isPartialMonth: isMTD || daysCovered < denom,
         isMTD,
+        hasPrice: daysWithPrice > 0 || medianDates.size > 0,
+        daysWithMedianInMonth: medianDates.size,
+        hasMedian: medianDates.size > 0,
+        // The headline figure the matrix renders. The upstream replaced its
+        // min-max range with a single median part-way through this history,
+        // so which measure is available depends on the period. The basis is
+        // published alongside the number and growth refuses to compare
+        // across a basis change (see periodGrowth below).
+        ...headline(arr),
         avgMinPricePerHour: roundMaybe(avgOrNull(arr.map(p => p.minPricePerHour)), 4),
+        avgMaxPricePerHour: roundMaybe(avgOrNull(arr.map(p => p.maxPricePerHour)), 4),
+        avgMedianPricePerHour: roundMaybe(avgOrNull(arr.map(p => p.medianPricePerHour)), 4),
+        avgPriceMidpoint:   roundMaybe(avgOrNull(arr.map(p => p.priceMidpoint)), 4),
         avgProviderCount:   roundMaybe(avgOrNull(arr.map(p => p.providerCount)), 2),
         avgSpreadMultiple:  roundMaybe(avgOrNull(arr.map(p => p.spreadMultiple)), 3),
       });
@@ -697,6 +755,15 @@ function buildFinancialResponse(ctx) {
       const isQTD = qid === todayQuarterId;
       const effectiveDays = isQTD ? daysInclusive(start, today) : denom;
       const coverage = effectiveDays > 0 ? +(daysCovered / effectiveDays).toFixed(3) : null;
+      const pricedDatesQ = new Set(
+        arr.filter(p => typeof p.minPricePerHour === 'number' && isFinite(p.minPricePerHour))
+           .map(p => p.date)
+      );
+      const daysWithPriceQ = pricedDatesQ.size;
+      const medianDatesQ = new Set(
+        arr.filter(p => typeof p.medianPricePerHour === 'number' && isFinite(p.medianPricePerHour))
+           .map(p => p.date)
+      );
       quarters.push({
         period: qid,
         label: quarterEndLabel(y, qi),
@@ -705,11 +772,21 @@ function buildFinancialResponse(ctx) {
         periodStart: start,
         periodEnd: end,
         daysCoveredInQuarter: daysCovered,
+        daysWithPriceInQuarter: daysWithPriceQ,
         quarterDayCount: effectiveDays,
         coverageRatioWithinQuarter: coverage,
+        pricedCoverageRatioWithinQuarter: effectiveDays > 0
+          ? +(Math.max(daysWithPriceQ, medianDatesQ.size) / effectiveDays).toFixed(3) : null,
         isPartialQuarter: isQTD || daysCovered < denom,
         isQTD,
+        hasPrice: daysWithPriceQ > 0 || medianDatesQ.size > 0,
+        daysWithMedianInQuarter: medianDatesQ.size,
+        hasMedian: medianDatesQ.size > 0,
+        ...headline(arr),
         avgMinPricePerHour: roundMaybe(avgOrNull(arr.map(p => p.minPricePerHour)), 4),
+        avgMaxPricePerHour: roundMaybe(avgOrNull(arr.map(p => p.maxPricePerHour)), 4),
+        avgMedianPricePerHour: roundMaybe(avgOrNull(arr.map(p => p.medianPricePerHour)), 4),
+        avgPriceMidpoint:   roundMaybe(avgOrNull(arr.map(p => p.priceMidpoint)), 4),
         avgProviderCount:   roundMaybe(avgOrNull(arr.map(p => p.providerCount)), 2),
         avgSpreadMultiple:  roundMaybe(avgOrNull(arr.map(p => p.spreadMultiple)), 3),
       });
@@ -717,14 +794,58 @@ function buildFinancialResponse(ctx) {
     quarterlyBySku[sku] = quarters;
   }
 
-  const monthlyLabels = Array.from(monthIdSet).sort().map(mid => {
-    const [y, m] = mid.split('-').map(Number);
-    return { period: mid, label: monthLabel(y, m) };
-  });
-  const quarterlyLabels = Array.from(quarterIdSet).sort().map(qid => {
-    const m = /^(\d{4})-Q([1-4])$/.exec(qid);
-    return { period: qid, label: quarterEndLabel(+m[1], +m[2]) };
-  });
+  // ── Period labels are CONTINUOUS, not observation-derived ────────────
+  // Previously the label list was built from the set of periods that had
+  // observations, so a calendar period with zero captures simply vanished
+  // from the matrix. That is the worst possible failure mode for a tracking
+  // dashboard: a stalled feed renders as a shorter, apparently-healthy table
+  // rather than as a visible hole. We now emit every calendar period from the
+  // first observed one through the current one, tagging each with whether it
+  // has observations at all and whether any of them carry a price, so the UI
+  // can draw the gap explicitly.
+  const observedMonthIds = Array.from(monthIdSet).sort();
+  const observedQuarterIds = Array.from(quarterIdSet).sort();
+
+  const monthHasData = new Set(observedMonthIds);
+  const monthHasPrice = new Set();
+  for (const sku of availableSKUs) {
+    for (const m of (monthlyBySku[sku] || [])) if (m.hasPrice) monthHasPrice.add(m.period);
+  }
+  const quarterHasData = new Set(observedQuarterIds);
+  const quarterHasPrice = new Set();
+  for (const sku of availableSKUs) {
+    for (const q of (quarterlyBySku[sku] || [])) if (q.hasPrice) quarterHasPrice.add(q.period);
+  }
+
+  const lastObservedMonthId = observedMonthIds[observedMonthIds.length - 1];
+  const lastObservedQuarterId = observedQuarterIds[observedQuarterIds.length - 1];
+  // The axis runs to today, or past it if an observation somehow sits in the
+  // future (upstream clock skew) — never stop short of real data.
+  const monthAxisEnd = lastObservedMonthId && lastObservedMonthId > todayMonthId ? lastObservedMonthId : todayMonthId;
+  const quarterAxisEnd = lastObservedQuarterId && lastObservedQuarterId > todayQuarterId ? lastObservedQuarterId : todayQuarterId;
+
+  const monthlyLabels = enumerateMonthIds(observedMonthIds[0] || todayMonthId, monthAxisEnd)
+    .map(mid => {
+      const [y, m] = mid.split('-').map(Number);
+      return {
+        period: mid,
+        label: monthLabel(y, m),
+        hasData: monthHasData.has(mid),
+        hasPrice: monthHasPrice.has(mid),
+        isMTD: mid === todayMonthId,
+      };
+    });
+  const quarterlyLabels = enumerateQuarterIds(observedQuarterIds[0] || todayQuarterId, quarterAxisEnd)
+    .map(qid => {
+      const m = /^(\d{4})-Q([1-4])$/.exec(qid);
+      return {
+        period: qid,
+        label: quarterEndLabel(+m[1], +m[2]),
+        hasData: quarterHasData.has(qid),
+        hasPrice: quarterHasPrice.has(qid),
+        isQTD: qid === todayQuarterId,
+      };
+    });
 
   // Growth matrices: MoM / QoQ / YoY (per SKU, keyed by period id, value = pct or null).
   const mom = {};
@@ -744,10 +865,10 @@ function buildFinancialResponse(ctx) {
     for (const cur of months) {
       const priorId = priorMonthId(cur.period);
       const prior = monthByPeriod[priorId];
-      mom[sku][cur.period] = pctChange(cur.avgMinPricePerHour, prior?.avgMinPricePerHour);
+      mom[sku][cur.period] = periodGrowth(cur, prior);
       const yoyId = yearPriorMonthId(cur.period);
       const yoyPrior = monthByPeriod[yoyId];
-      yoyMonth[sku][cur.period] = pctChange(cur.avgMinPricePerHour, yoyPrior?.avgMinPricePerHour);
+      yoyMonth[sku][cur.period] = periodGrowth(cur, yoyPrior);
     }
 
     // QoQ + YoY (quarter)
@@ -756,17 +877,76 @@ function buildFinancialResponse(ctx) {
     for (const cur of quarters) {
       const priorId = priorQuarterId(cur.period);
       const prior = quarterByPeriod[priorId];
-      qoq[sku][cur.period] = pctChange(cur.avgMinPricePerHour, prior?.avgMinPricePerHour);
+      qoq[sku][cur.period] = periodGrowth(cur, prior);
       const yoyId = yearPriorQuarterId(cur.period);
       const yoyPrior = quarterByPeriod[yoyId];
-      yoyQuarter[sku][cur.period] = pctChange(cur.avgMinPricePerHour, yoyPrior?.avgMinPricePerHour);
+      yoyQuarter[sku][cur.period] = periodGrowth(cur, yoyPrior);
     }
   }
+
+  // ── Feed integrity ───────────────────────────────────────────────────
+  // Two independent failure modes have to be reported separately, because
+  // they look identical in the rendered matrix (an em-dash) but mean very
+  // different things:
+  //   1. the GPU block stopped arriving altogether  → no rows at all
+  //   2. the GPU block still arrives but minPricePerHour comes back null
+  //      → provider counts keep updating while every price cell goes blank
+  // Reporting only "latest snapshot date" hides both, because the wider
+  // history capture can be perfectly healthy while the GPU feed is dead.
+  let latestGPUObservationDate = null;
+  let latestPricedObservationDate = null;
+  const observationDates = new Set();
+  const pricedDatesAll = new Set();
+  for (const sku of availableSKUs) {
+    for (const p of (series[sku] || [])) {
+      observationDates.add(p.date);
+      if (!latestGPUObservationDate || p.date > latestGPUObservationDate) latestGPUObservationDate = p.date;
+      const anyPrice = (typeof p.minPricePerHour === 'number' && isFinite(p.minPricePerHour))
+        || (typeof p.medianPricePerHour === 'number' && isFinite(p.medianPricePerHour));
+      if (anyPrice) {
+        pricedDatesAll.add(p.date);
+        if (!latestPricedObservationDate || p.date > latestPricedObservationDate) latestPricedObservationDate = p.date;
+      }
+    }
+  }
+  const daysSince = d => (d ? Math.max(0, daysInclusive(d, today) - 1) : null);
+  const daysSinceLatestGPUObservation = daysSince(latestGPUObservationDate);
+  const daysSinceLatestPricedObservation = daysSince(latestPricedObservationDate);
+
+  const monthsMissing  = monthlyLabels.filter(l => !l.hasData).map(l => l.period);
+  const monthsUnpriced = monthlyLabels.filter(l => l.hasData && !l.hasPrice).map(l => l.period);
+
+  const dataQuality = {
+    // Staleness is measured against the GPU feed itself, never against the
+    // wider history capture — those can and do diverge.
+    latestGPUObservationDate,
+    latestPricedObservationDate,
+    daysSinceLatestGPUObservation,
+    daysSinceLatestPricedObservation,
+    // 3 days of slack absorbs a single missed cron slot plus the capture
+    // window; beyond that the feed is genuinely not updating.
+    gpuFeedStale:   daysSinceLatestGPUObservation   != null && daysSinceLatestGPUObservation   > 3,
+    priceFieldStale: daysSinceLatestPricedObservation != null && daysSinceLatestPricedObservation > 3,
+    // Set when the GPU rows keep arriving but carry no usable price — the
+    // upstream shape changed rather than the capture stopping.
+    priceFieldDroppedWhileFeedLive:
+      latestGPUObservationDate != null &&
+      latestPricedObservationDate != null &&
+      latestGPUObservationDate > latestPricedObservationDate,
+    observationDays: observationDates.size,
+    pricedDays: pricedDatesAll.size,
+    unpricedDays: observationDates.size - pricedDatesAll.size,
+    monthsMissing,
+    monthsUnpriced,
+    quartersMissing:  quarterlyLabels.filter(l => !l.hasData).map(l => l.period),
+    quartersUnpriced: quarterlyLabels.filter(l => l.hasData && !l.hasPrice).map(l => l.period),
+  };
 
   return jsonResp({
     success: true,
     view: 'financial',
     include,
+    dataQuality,
     trackingSinceRealDate: trackingSinceReal,
     latestRealSnapshotDate: latestRealDate,
     trackingSinceAny: trackingSince,
@@ -800,6 +980,41 @@ function buildFinancialResponse(ctx) {
 function roundMaybe(v, digits) {
   if (v == null || !isFinite(v)) return null;
   return +v.toFixed(digits);
+}
+
+// Inclusive calendar enumeration between two period ids. Used to emit a
+// continuous column axis so a period with zero captures renders as a visible
+// gap instead of silently disappearing from the matrix.
+function enumerateMonthIds(startId, endId) {
+  if (!startId || !endId || startId > endId) return startId ? [startId] : [];
+  const out = [];
+  let [y, m] = startId.split('-').map(Number);
+  const [ey, em] = endId.split('-').map(Number);
+  // Hard stop at 600 periods so a malformed id can never spin forever.
+  for (let guard = 0; guard < 600; guard++) {
+    out.push(y + '-' + String(m).padStart(2, '0'));
+    if (y === ey && m === em) break;
+    m += 1;
+    if (m > 12) { m = 1; y += 1; }
+  }
+  return out;
+}
+
+function enumerateQuarterIds(startId, endId) {
+  if (!startId || !endId || startId > endId) return startId ? [startId] : [];
+  const out = [];
+  const sm = /^(\d{4})-Q([1-4])$/.exec(startId);
+  const em = /^(\d{4})-Q([1-4])$/.exec(endId);
+  if (!sm || !em) return [startId];
+  let y = +sm[1], q = +sm[2];
+  const ey = +em[1], eq = +em[2];
+  for (let guard = 0; guard < 200; guard++) {
+    out.push(y + '-Q' + q);
+    if (y === ey && q === eq) break;
+    q += 1;
+    if (q > 4) { q = 1; y += 1; }
+  }
+  return out;
 }
 
 function priorMonthId(monthId) {
@@ -843,6 +1058,22 @@ function emptyFinancialResponse(reason) {
     availableSKUs: [],
     monthly: { labels: [], series: {}, mom: {}, yoy: {} },
     quarterly: { labels: [], series: {}, qoq: {}, yoy: {} },
+    dataQuality: {
+      latestGPUObservationDate: null,
+      latestPricedObservationDate: null,
+      daysSinceLatestGPUObservation: null,
+      daysSinceLatestPricedObservation: null,
+      gpuFeedStale: false,
+      priceFieldStale: false,
+      priceFieldDroppedWhileFeedLive: false,
+      observationDays: 0,
+      pricedDays: 0,
+      unpricedDays: 0,
+      monthsMissing: [],
+      monthsUnpriced: [],
+      quartersMissing: [],
+      quartersUnpriced: [],
+    },
     note: reason,
   });
 }
