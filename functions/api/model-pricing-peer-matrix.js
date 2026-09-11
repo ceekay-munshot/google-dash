@@ -104,13 +104,14 @@ const CACHE_TTL = 86400; // 24 hours — Firecrawl + pricepertoken responses bot
    in the Frontier Reference table so the fixed-rep QoQ math doesn't
    drift with each new point release. */
 const PEER_MODELS = [
-  // Frontier — gen-3/4/5 production flagships
+  // ── Frontier (current generation) — the flagship each hyperscaler
+  //    markets first today.
   { key:'google-frontier',    provider:'Google',    tier:'Frontier',              providerSlug:'google',
     label:'Google / Gemini — Frontier',
     candidates:[
       // Continuous gen-3 Pro lineage (3-pro-preview deprecated 2026-03-25,
       // succeeded by 3.1-pro-preview from 2026-02-20). Together: Q4-25 +
-      // Q1-26 + Q2-26 coverage.
+      // Q1-26 + Q2-26 + Q3-26 coverage.
       {norms:['gemini3propreview','gemini31propreview'], display:'Gemini 3 Pro Preview'},
       // Defensive fallback if gen-3 ever vanishes from upstream
       {norms:['gemini25pro'], display:'Gemini 2.5 Pro'},
@@ -122,7 +123,30 @@ const PEER_MODELS = [
     label:'Anthropic — Frontier',
     candidates:[ {norms:['claudeopus4'], display:'Claude Opus 4'} ] },
 
-  // Fast / Cost-efficient — same generation as Frontier where possible
+  // ── Frontier (prior generation) — the flagship one generation back.
+  //    These carry the FULL upstream window (2025-07-28 →) where the
+  //    current-gen rows only start when that generation shipped, so they
+  //    are what make multi-period QoQ and monthly YoY actually computable.
+  { key:'google-frontier-prev',    provider:'Google',    tier:'Frontier — prior gen', providerSlug:'google',
+    label:'Google / Gemini — Frontier (prior gen)',
+    candidates:[
+      {norms:['gemini25pro'],  display:'Gemini 2.5 Pro'},
+      {norms:['geminipro15'],  display:'Gemini 1.5 Pro'},
+    ]},
+  { key:'openai-frontier-prev',    provider:'OpenAI',    tier:'Frontier — prior gen', providerSlug:'openai',
+    label:'OpenAI — Frontier (prior gen)',
+    candidates:[
+      {norms:['gpt4o'],  display:'GPT-4o'},
+      {norms:['gpt41'],  display:'GPT-4.1'},
+    ]},
+  { key:'anthropic-frontier-prev', provider:'Anthropic', tier:'Frontier — prior gen', providerSlug:'anthropic',
+    label:'Anthropic — Frontier (prior gen)',
+    candidates:[
+      {norms:['claudesonnet4'],   display:'Claude Sonnet 4'},
+      {norms:['claude35sonnet'],  display:'Claude 3.5 Sonnet'},
+    ]},
+
+  // ── Fast / Cost-efficient — same generation as Frontier where possible
   { key:'google-fast',        provider:'Google',    tier:'Fast / Cost-efficient', providerSlug:'google',
     label:'Google / Gemini — Fast / Cost-efficient',
     candidates:[
@@ -139,13 +163,39 @@ const PEER_MODELS = [
       {norms:['claude3haiku'],  display:'Claude 3 Haiku'},
     ]},
 
-  // Legacy — first candidate with data wins (no merging — these are
-  // distinct prior-generation classes the customer specified explicitly).
+  // ── Fast / Cost-efficient (prior generation) — the cheap tier one
+  //    generation back. Full-window coverage, same rationale as the
+  //    prior-gen frontier rows.
+  { key:'google-fast-prev',    provider:'Google',    tier:'Fast — prior gen', providerSlug:'google',
+    label:'Google / Gemini — Fast (prior gen)',
+    candidates:[
+      {norms:['gemini25flash'],   display:'Gemini 2.5 Flash'},
+      {norms:['gemini20flash'],   display:'Gemini 2.0 Flash'},
+    ]},
+  { key:'openai-fast-prev',    provider:'OpenAI',    tier:'Fast — prior gen', providerSlug:'openai',
+    label:'OpenAI — Fast (prior gen)',
+    candidates:[
+      {norms:['gpt4omini'],  display:'GPT-4o mini'},
+      {norms:['gpt41mini'],  display:'GPT-4.1 mini'},
+    ]},
+  { key:'anthropic-fast-prev', provider:'Anthropic', tier:'Fast — prior gen', providerSlug:'anthropic',
+    label:'Anthropic — Fast (prior gen)',
+    candidates:[
+      {norms:['claude35haiku'], display:'Claude 3.5 Haiku'},
+      {norms:['claude3haiku'],  display:'Claude 3 Haiku'},
+    ]},
+
+  // ── Legacy — prior-generation flagship. First candidate with data wins.
+  //    Google's norm list is ordered `geminipro15` FIRST because upstream
+  //    spells it `gemini-pro-1.5` (normalizes to `geminipro15`), NOT
+  //    `gemini-1.5-pro`. The old `gemini15pro` norm matched nothing, which
+  //    is why the Google Legacy row silently vanished from the matrix.
   { key:'google-legacy',    provider:'Google',    tier:'Legacy', providerSlug:'google',
     label:'Google / Gemini — Legacy',
     candidates:[
-      {norms:['gemini15pro'],   display:'Gemini 1.5 Pro'},
-      {norms:['gemini15flash'], display:'Gemini 1.5 Flash'},
+      {norms:['geminipro15'],    display:'Gemini 1.5 Pro'},
+      {norms:['geminiflash15'],  display:'Gemini 1.5 Flash'},
+      {norms:['gemini20flash'],  display:'Gemini 2.0 Flash'},
     ]},
   { key:'openai-legacy',    provider:'OpenAI',    tier:'Legacy', providerSlug:'openai',
     label:'OpenAI — Legacy',
@@ -168,19 +218,40 @@ const PEER_MODELS = [
    the customer's "the frontier 12 quarters ago is not the frontier today"
    point WITHOUT contaminating the fixed-rep QoQ math above. */
 const FRONTIER_PRIORITIES = {
+  /* Ordering rule for every provider below: TOP TIER FIRST, then newest
+     within that tier. "Frontier" means the flagship line, not the highest
+     version number — Gemini 3.8 Flash carries a bigger number than Gemini
+     3.1 Pro but Flash is the cost-efficient tier and has its own row in the
+     matrix. Ranking by version alone made this table report Flash as
+     Google's frontier and Anthropic's Fable line as its flagship, which
+     also made the frontier-cost series jump on tier changes rather than on
+     actual frontier moves. */
   google: [
+    // Pro line — Google's flagship tier
     {norm:'gemini31propreview', display:'Gemini 3.1 Pro Preview'},
     {norm:'gemini3propreview',  display:'Gemini 3 Pro Preview'},
     {norm:'gemini25pro',        display:'Gemini 2.5 Pro'},
-    {norm:'gemini15pro',        display:'Gemini 1.5 Pro'},
+    {norm:'geminipro15',        display:'Gemini 1.5 Pro'},
     {norm:'geminipro',          display:'Gemini Pro'},
+    // Flash fallback — only when no Pro-tier model exists in the period
+    {norm:'gemini38flash',      display:'Gemini 3.8 Flash'},
+    {norm:'gemini37flash',      display:'Gemini 3.7 Flash'},
+    {norm:'gemini36flash',      display:'Gemini 3.6 Flash'},
+    {norm:'gemini35flash',      display:'Gemini 3.5 Flash'},
     {norm:'gemini25flash',      display:'Gemini 2.5 Flash'},
   ],
   openai: [
+    {norm:'gpt6astra', display:'GPT-6 Astra'},
+    {norm:'gpt6',      display:'GPT-6'},
+    {norm:'gpt56sol',  display:'GPT-5.6 Sol'},
+    {norm:'gpt56terra',display:'GPT-5.6 Terra'},
+    {norm:'gpt56luna', display:'GPT-5.6 Luna'},
     {norm:'gpt55pro',  display:'GPT-5.5 Pro'},
     {norm:'gpt55',     display:'GPT-5.5'},
+    {norm:'gpt54pro',  display:'GPT-5.4 Pro'},
     {norm:'gpt54',     display:'GPT-5.4'},
     {norm:'gpt53',     display:'GPT-5.3'},
+    {norm:'gpt52pro',  display:'GPT-5.2 Pro'},
     {norm:'gpt52',     display:'GPT-5.2'},
     {norm:'gpt51',     display:'GPT-5.1'},
     {norm:'gpt5pro',   display:'GPT-5 Pro'},
@@ -192,11 +263,19 @@ const FRONTIER_PRIORITIES = {
     {norm:'gpt35turbo',display:'GPT-3.5 Turbo'},
   ],
   anthropic: [
+    // Opus line — Anthropic's flagship tier. Kept above the Fable line so
+    // the series reads as one continuous Opus 4 → 4.1 → … → 5 progression
+    // instead of swapping product lines mid-series.
+    {norm:'claudeopus5',    display:'Claude Opus 5'},
+    {norm:'claudefable51',  display:'Claude Fable 5.1'},
+    {norm:'claudefable5',   display:'Claude Fable 5'},
+    {norm:'claudeopus48',   display:'Claude Opus 4.8'},
     {norm:'claudeopus47',   display:'Claude Opus 4.7'},
     {norm:'claudeopus46',   display:'Claude Opus 4.6'},
     {norm:'claudeopus45',   display:'Claude Opus 4.5'},
     {norm:'claudeopus41',   display:'Claude Opus 4.1'},
     {norm:'claudeopus4',    display:'Claude Opus 4'},
+    {norm:'claudesonnet5',  display:'Claude Sonnet 5'},
     {norm:'claudesonnet46', display:'Claude Sonnet 4.6'},
     {norm:'claudesonnet45', display:'Claude Sonnet 4.5'},
     {norm:'claudesonnet4',  display:'Claude Sonnet 4'},
@@ -243,13 +322,50 @@ const EXTERNAL_PROVIDERS = [
   },
 ];
 
-const TIER_REJECT_PREFIXES = /^(mini|lite|flash|haiku|nano|micro|image)/;
+/* Suffixes that mark a DIFFERENT product from the rep, not a dated variant
+   of it. Anything whose post-prefix remainder starts with one of these is
+   rejected from the rep's match set.
+
+   Two families are in here:
+
+     tier / modality markers — mini, lite, flash, haiku, nano, micro, and the
+       non-text modalities (image, audio, video, embedding, tts, realtime).
+
+     sibling product lines — pro, max, chat, codex, instruct, search,
+       deepresearch, customtools, fast, thinking, latest, exp.
+
+   The sibling-product-line half is what keeps `gpt-5-pro` ($15/1M) out of
+   the `gpt-5` ($1.25/1M) row. Before this list existed the two were averaged
+   together, and gpt-5-pro's arrival on 2025-10-07 showed up on the dashboard
+   as a fabricated "+272.4% QoQ price increase" for GPT-5 in Dec-25 — GPT-5's
+   list price never moved. `customtools` does the same job for
+   gemini-3.1-pro-preview-customtools ($2.00) vs gemini-3.1-pro-preview
+   ($1.69), and `fast` for claude-opus-4.x-fast ($30) vs claude-opus-4.x ($5).
+
+   `exp` is here because Google's experimental SKUs (gemini-2.5-pro-exp-03-25)
+   are priced at $0.00 and would drag any average they land in to zero. */
+const VARIANT_REJECT_PREFIXES =
+  /^(mini|lite|flash|haiku|nano|micro|image|audio|video|embedding|tts|realtime|pro|max|chat|codex|instruct|search|deepresearch|customtools|fast|thinking|latest|exp)/;
 // Pure short-numeric suffixes mark a version bump, not a dated variant —
 // e.g. "gpt5" target should match "gpt-5" and "gpt-5-2025-08-07" but NOT
 // "gpt-5.1" or "gpt-5.5" (which are different model classes). After normalize
 // the version-bump shows up as 1–3 digits followed by non-digit/end; date
 // stamps show up as 4+ contiguous digits which fall through this rule.
 const VERSION_BUMP_SUFFIX = /^\d{1,3}([^0-9]|$)/;
+
+/* Alternate-BILLING SKUs. Upstream tags these with a colon suffix:
+   ':batch' (~50% off async), ':beta', ':thinking', ':free', ':extended',
+   ':exacto'. They are the same model sold on different terms, NOT a repricing
+   of the standard SKU, so they must never enter a price average.
+
+   This matters more than it sounds. pricepertoken began cataloguing ':batch'
+   rows for every provider on 2026-07-29. Because the old matcher swept them
+   in, each rep's Q3-26 average fell by roughly half a batch-weighting —
+   producing a synchronized "price cut" of -18% to -21.8% across Google,
+   OpenAI and Anthropic simultaneously, in the same quarter, which the
+   read-through panel then reported as real competitive repricing. No
+   provider cut list prices; the upstream catalog just grew a column. */
+const ALT_BILLING_SKU = /:/;
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -274,11 +390,15 @@ function normalizeModel(s) {
 }
 
 function modelMatches(modelStr, targetNorm) {
+  // Alternate-billing SKUs are excluded before anything else, so every
+  // consumer of the matcher (rep pricing, frontier reference) sees standard
+  // list-price rows only.
+  if (ALT_BILLING_SKU.test(String(modelStr || ''))) return false;
   const n = normalizeModel(modelStr);
   if (n === targetNorm) return true;
   if (!n.startsWith(targetNorm)) return false;
   const suffix = n.slice(targetNorm.length);
-  if (TIER_REJECT_PREFIXES.test(suffix)) return false;
+  if (VARIANT_REJECT_PREFIXES.test(suffix)) return false;
   if (VERSION_BUMP_SUFFIX.test(suffix)) return false;
   return true;
 }
@@ -650,7 +770,7 @@ function computeRepFreshness(rep, providerData, externalCatalog) {
       if (candNorm === rn) return false;
       if (!candNorm.startsWith(rn)) return false;
       const suffix = candNorm.slice(rn.length);
-      return TIER_REJECT_PREFIXES.test(suffix) || VERSION_BUMP_SUFFIX.test(suffix);
+      return VARIANT_REJECT_PREFIXES.test(suffix) || VERSION_BUMP_SUFFIX.test(suffix);
     });
   const ppByModel = new Map();
   for (const row of ppRows) {
@@ -790,8 +910,14 @@ export async function onRequestGet({ request, env }) {
       const mb = monthBuckets.get(mid);
       const inP  = row?.pricing_prompt;
       const outP = row?.pricing_completion;
-      if (typeof inP  === 'number' && isFinite(inP)  && inP  >= 0) { b.sumIn  += inP;  b.nIn  += 1; mb.sumIn  += inP;  mb.nIn  += 1; }
-      if (typeof outP === 'number' && isFinite(outP) && outP >= 0) { b.sumOut += outP; b.nOut += 1; mb.sumOut += outP; mb.nOut += 1; }
+      // Strictly > 0: a $0.00 observation on a paid model class is a free /
+      // experimental SKU that upstream files under the same family (Google's
+      // gemini-2.5-pro-exp-* rows are $0.00). Averaging those in drags the
+      // rep's price toward zero and reads as a price cut that never happened.
+      // buildPerModelHistory below keeps >= 0 on purpose — there each model is
+      // its own row, so a genuinely free model should show as free.
+      if (typeof inP  === 'number' && isFinite(inP)  && inP  > 0) { b.sumIn  += inP;  b.nIn  += 1; mb.sumIn  += inP;  mb.nIn  += 1; }
+      if (typeof outP === 'number' && isFinite(outP) && outP > 0) { b.sumOut += outP; b.nOut += 1; mb.sumOut += outP; mb.nOut += 1; }
       if (row.model) matchedModelSet.add(row.model);
     }
 
@@ -893,37 +1019,106 @@ export async function onRequestGet({ request, env }) {
     return { id: mid, start: range.start, end: range.end, partial: mid === todayM };
   });
 
-  // Frontier Reference by Period — informational only. Per provider, per
-  // quarter, walk that provider's frontier-priority list and pick the first
-  // candidate with at least one upstream model matching it in that quarter.
-  // This is what changes over time (the customer's "the frontier today is
-  // not the same model as 12 quarters ago" point) and is intentionally
-  // SEPARATE from the peer matrix so the main QoQ/YoY math stays clean.
-  const frontierReference = FRONTIER_REFERENCE_PROVIDERS.map(prov => {
-    const provider = byProvider.get(prov.slug);
-    const rowsByQ = new Map();
+  /* Frontier Reference by Period — which model was each provider's frontier
+     in each period, and what it cost there.
+
+     Two things are emitted per provider:
+
+       cells / cellsMonthly    — the frontier LABEL per quarter / per month.
+       input,  output          — that frontier model's average price in that
+       inputMonthly, ...         period, in $/1M tokens.
+
+     The label half answers the customer's "the frontier today is not the same
+     model as 12 quarters ago" point. The priced half answers the follow-on
+     question — what it costs to stay at the frontier — which the label-only
+     table could not.
+
+     Read the change rows on this series carefully: because the underlying
+     model CHANGES between periods, a move here is the cost of the frontier
+     moving, not a provider repricing one model. That is a different (and
+     deliberately separate) measure from the fixed-rep matrix above, which is
+     the one to read for same-model repricing. The UI labels both. */
+  function buildFrontierSeries(provider, priorities, periodOf, currentPeriodKey, priorPeriodFn, yearAgoPeriodFn) {
+    // period -> model -> price accumulator
+    const byPeriod = new Map();
     for (const row of provider?.rows || []) {
       if (typeof row?.date !== 'string' || row.date.length < 10) continue;
       if (typeof row?.model !== 'string') continue;
-      const qid = quarterOf(row.date);
-      if (!rowsByQ.has(qid)) rowsByQ.set(qid, new Set());
-      rowsByQ.get(qid).add(row.model);
+      const pid = periodOf(row.date);
+      if (!byPeriod.has(pid)) byPeriod.set(pid, new Map());
+      const models = byPeriod.get(pid);
+      const acc = models.get(row.model) || { sumIn: 0, nIn: 0, sumOut: 0, nOut: 0 };
+      const inP = row?.pricing_prompt, outP = row?.pricing_completion;
+      if (typeof inP  === 'number' && isFinite(inP)  && inP  > 0) { acc.sumIn  += inP;  acc.nIn  += 1; }
+      if (typeof outP === 'number' && isFinite(outP) && outP > 0) { acc.sumOut += outP; acc.nOut += 1; }
+      models.set(row.model, acc);
     }
-    const cells = {};
-    const priorities = FRONTIER_PRIORITIES[prov.slug] || [];
-    for (const [qid, modelSet] of rowsByQ) {
-      const modelList = Array.from(modelSet);
-      let cell = null;
+
+    const cells = {}, input = {}, output = {};
+    for (const [pid, models] of byPeriod) {
+      const modelList = Array.from(models.keys());
+      let picked = null;
       for (const cand of priorities) {
         const matched = modelList.filter(m => modelMatches(m, cand.norm));
-        if (matched.length > 0) {
-          cell = { display: cand.display, matchedVariants: matched.sort() };
-          break;
-        }
+        if (matched.length > 0) { picked = { cand, matched }; break; }
       }
-      cells[qid] = cell; // null if no priority matched
+      if (!picked) { cells[pid] = null; continue; }
+      cells[pid] = { display: picked.cand.display, matchedVariants: picked.matched.slice().sort() };
+      // Price the frontier across every variant that matched the winning
+      // candidate in this period (dated re-publishes of the same model).
+      let sumIn = 0, nIn = 0, sumOut = 0, nOut = 0;
+      for (const m of picked.matched) {
+        const acc = models.get(m);
+        if (!acc) continue;
+        sumIn += acc.sumIn; nIn += acc.nIn; sumOut += acc.sumOut; nOut += acc.nOut;
+      }
+      input[pid]  = nIn  ? round3((sumIn  / nIn)  * 1_000_000) : null;
+      output[pid] = nOut ? round3((sumOut / nOut) * 1_000_000) : null;
     }
-    return { providerSlug: prov.slug, providerLabel: prov.label, cells };
+
+    // Period-over-period and year-over-year on the frontier cost series.
+    // Suppressed for the in-progress period, same rule as the rep matrix.
+    const chgInput = {}, chgOutput = {}, yoyInput = {}, yoyOutput = {};
+    for (const pid of Object.keys(input)) {
+      if (pid === currentPeriodKey) continue;
+      const pp = priorPeriodFn(pid), yp = yearAgoPeriodFn(pid);
+      const inCur = input[pid],  outCur = output[pid];
+      const inPri = input[pp],   outPri = output[pp];
+      const inYa  = input[yp],   outYa  = output[yp];
+      if (inCur  != null && inPri  != null && inPri  > 0) chgInput[pid]  = round3((inCur  - inPri)  / inPri);
+      if (outCur != null && outPri != null && outPri > 0) chgOutput[pid] = round3((outCur - outPri) / outPri);
+      if (inCur  != null && inYa   != null && inYa   > 0) yoyInput[pid]  = round3((inCur  - inYa)   / inYa);
+      if (outCur != null && outYa  != null && outYa  > 0) yoyOutput[pid] = round3((outCur - outYa)  / outYa);
+    }
+    return { cells, input, output, chgInput, chgOutput, yoyInput, yoyOutput };
+  }
+
+  const frontierReference = FRONTIER_REFERENCE_PROVIDERS.map(prov => {
+    const provider = byProvider.get(prov.slug);
+    const priorities = FRONTIER_PRIORITIES[prov.slug] || [];
+    const q = buildFrontierSeries(provider, priorities, quarterOf, todayQ, priorQuarter, yearAgoQuarter);
+    const m = buildFrontierSeries(provider, priorities, monthOf,   todayM, priorMonth,   yearAgoMonth);
+    return {
+      providerSlug: prov.slug,
+      providerLabel: prov.label,
+      // Quarterly (default view)
+      cells: q.cells,
+      input: q.input,
+      output: q.output,
+      chgInput: q.chgInput,
+      chgOutput: q.chgOutput,
+      yoyInput: q.yoyInput,
+      yoyOutput: q.yoyOutput,
+      // Monthly counterparts — same shape, keyed 'YYYY-MM', so the client's
+      // granularity toggle needs no second round-trip.
+      cellsMonthly: m.cells,
+      inputMonthly: m.input,
+      outputMonthly: m.output,
+      momInput: m.chgInput,
+      momOutput: m.chgOutput,
+      yoyInputMonthly: m.yoyInput,
+      yoyOutputMonthly: m.yoyOutput,
+    };
   });
 
   const providerErrors = fetched.filter(f => f.error).map(f => ({ slug: f.slug, error: f.error }));
@@ -993,10 +1188,30 @@ export async function onRequestGet({ request, env }) {
       'provider repricing on the same model. No synthetic backfill — pre-upstream ' +
       'quarters simply do not appear. Frontier Reference is a separate informational ' +
       'projection — it picks the highest-tier-available model per (provider, quarter) ' +
-      'and is intentionally not used for the main QoQ/YoY math. externalCatalog (when ' +
+      'and is intentionally not used for the main QoQ/YoY math — it is priced separately ' +
+      'so the cost of staying at the frontier is visible, but because the underlying model ' +
+      'changes between periods its change rows measure frontier movement, not repricing. ' +
+      'Alternate-billing SKUs (:batch, :beta, :thinking, :free, :extended, :exacto) and ' +
+      'sibling product lines (gpt-5-pro vs gpt-5, *-customtools, *-fast) are excluded from ' +
+      'every price average, as are $0.00 experimental rows — each of these would otherwise ' +
+      'register as a price move when only the upstream catalog changed. externalCatalog (when ' +
       'enabled) is a Firecrawl-discovered list of models the provider currently ' +
       'documents, used purely as a freshness audit signal — pricing math never reads it.',
     earliestDateObserved: earliestDate ? earliestDate.slice(0, 10) : null,
+    // Coverage — lets the client explain an empty change section instead of
+    // rendering a wall of dashes with no reason given. Upstream history
+    // starts 2025-07-28, so no QUARTER yet has a year-ago comparator (the
+    // only candidate, 2026-Q3, is the in-progress quarter and is suppressed)
+    // while MONTHLY YoY is already computable from 2026-07 onward. That gap
+    // is exactly why the matrix offers a month/quarter granularity toggle.
+    coverage: {
+      quarterCount: quarters.length,
+      monthCount: months.length,
+      quarterlyYoYAvailable: reps.some(r => Object.keys(r.yoyInput || {}).length > 0
+                                         || Object.keys(r.yoyOutput || {}).length > 0),
+      monthlyYoYAvailable:   reps.some(r => Object.keys(r.yoyInputMonthly || {}).length > 0
+                                         || Object.keys(r.yoyOutputMonthly || {}).length > 0),
+    },
     quarters,
     months,
     reps,

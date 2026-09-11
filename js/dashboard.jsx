@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect, Fragment } from "react";
 import { BarChart, Bar, LineChart, Line, ComposedChart, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, PieChart, Pie, CartesianGrid, Legend } from "recharts";
 
 /* ─── Live data fetched by me right now (Apr 11 2026) ───────
@@ -921,10 +921,58 @@ function quarterIdToLabel(qid){
   const y=parseInt(m[1],10),q=parseInt(m[2],10);
   return ["Mar","Jun","Sep","Dec"][q-1]+"-"+String(y).slice(2);
 }
+const MONTH_ABBR=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+function monthIdToLabel(mid){
+  const m=mid.match(/^(\d{4})-(\d{2})$/);
+  if(!m)return mid;
+  return MONTH_ABBR[parseInt(m[2],10)-1]+"-"+String(m[1]).slice(2);
+}
+/* One label formatter for both granularities so the header cells, the
+   Frontier Reference header and the section labels can't drift apart. */
+function periodIdToLabel(pid,gran){
+  return gran==="month"?monthIdToLabel(pid):quarterIdToLabel(pid);
+}
+
+/* Field-name map per granularity. The endpoint emits quarterly and monthly
+   series side by side under parallel keys, so switching the view is a key
+   swap — no refetch, no second round-trip. */
+const GRAN={
+  quarter:{
+    periodsKey:"quarters",
+    price:{input:"input",output:"output"},
+    chg:{input:"qoqInput",output:"qoqOutput"},
+    yoy:{input:"yoyInput",output:"yoyOutput"},
+    frontierCells:"cells",
+    frontierPrice:{input:"input",output:"output"},
+    frontierChg:{input:"chgInput",output:"chgOutput"},
+    chgLabel:"QoQ",
+    partialBadge:"QTD",
+    yoyAvailableKey:"quarterlyYoYAvailable",
+    bucketWord:"calendar quarter",
+  },
+  month:{
+    periodsKey:"months",
+    price:{input:"inputMonthly",output:"outputMonthly"},
+    chg:{input:"momInput",output:"momOutput"},
+    yoy:{input:"yoyInputMonthly",output:"yoyOutputMonthly"},
+    frontierCells:"cellsMonthly",
+    frontierPrice:{input:"inputMonthly",output:"outputMonthly"},
+    frontierChg:{input:"momInput",output:"momOutput"},
+    chgLabel:"MoM",
+    partialBadge:"MTD",
+    yoyAvailableKey:"monthlyYoYAvailable",
+    bucketWord:"calendar month",
+  },
+};
 
 function ModelPricingMatrixTable(){
   const[state,setState]=useState({phase:"loading",data:null,error:null});
   const[diagOpen,setDiagOpen]=useState(false);
+  // Granularity: quarter is the default finance view; month exposes the
+  // step changes a quarterly average blurs (Google's July-2026 50% cuts
+  // read as a soft -44% quarter but a clean 2x step month-over-month)
+  // and is currently the only granularity where YoY is computable at all.
+  const[gran,setGran]=useState("quarter");
   useEffect(()=>{
     let cancelled=false;
     // Source: /api/model-pricing-peer-matrix proxies pricepertoken's own
@@ -949,15 +997,38 @@ function ModelPricingMatrixTable(){
     return()=>{cancelled=true;};
   },[]);
 
+  const G=GRAN[gran];
+
+  const SegToggle=({value,onChange,options})=>(
+    <div style={{display:"inline-flex",border:"0.5px solid #e5e7eb",borderRadius:6,overflow:"hidden",background:"#fff",flexShrink:0}}>
+      {options.map(o=>{
+        const active=value===o.v;
+        return(
+          <button key={o.v} onClick={()=>onChange(o.v)}
+            style={{fontSize:11,padding:"4px 12px",border:"none",background:active?"#111827":"#fff",color:active?"#fff":"#6b7280",cursor:"pointer",fontFamily:"inherit",fontWeight:500}}>
+            {o.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+
   const header=(
     <>
       <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:4}}>
         <span style={{width:7,height:7,borderRadius:"50%",background:"#0e7490",display:"inline-block"}}/>
         <span style={{fontSize:10,textTransform:"uppercase",letterSpacing:".09em",fontWeight:700,color:"#0e7490"}}>Model Pricing Matrix</span>
       </div>
-      <div style={{marginBottom:10}}>
-        <div style={{fontSize:16,fontWeight:700,color:"#111827",lineHeight:1.3}}>Model Pricing by Provider</div>
-        <div style={{fontSize:11,color:"#9ca3af",marginTop:3}}>Quarter-aligned price per token comparison across comparable model classes — real pricing history only.</div>
+      <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:12,marginBottom:10,flexWrap:"wrap"}}>
+        <div style={{flex:"1 1 auto",minWidth:0}}>
+          <div style={{fontSize:16,fontWeight:700,color:"#111827",lineHeight:1.3}}>Model Pricing by Provider</div>
+          <div style={{fontSize:11,color:"#9ca3af",marginTop:3}}>
+            {gran==="month"
+              ?"Month-aligned price per token comparison across comparable model classes — real pricing history only."
+              :"Quarter-aligned price per token comparison across comparable model classes — real pricing history only."}
+          </div>
+        </div>
+        <SegToggle value={gran} onChange={setGran} options={[{v:"quarter",label:"Quarterly"},{v:"month",label:"Monthly"}]}/>
       </div>
     </>
   );
@@ -977,20 +1048,23 @@ function ModelPricingMatrixTable(){
   }
 
   const data=state.data;
-  const quarters=(data?.quarters||[]);
+  const periods=(data?.[G.periodsKey]||[]);
   const allReps=(data?.reps||[]);
-  // Filter out reps that have no upstream data in any quarter — happens when
-  // an entire candidate list whiffs (e.g. provider has no Legacy variants in
-  // the upstream window). Per spec: don't render an all-`—` row.
+  // Filter out reps that have no upstream data in the CURRENT granularity —
+  // happens when an entire candidate list whiffs (e.g. provider has no
+  // Legacy variants in the upstream window). Per spec: don't render an
+  // all-`—` row.
   const reps=allReps.filter(rep=>{
     if(rep.hasData===false)return false;
-    const hasAnyInput =Object.values(rep.input ||{}).some(v=>v!=null);
-    const hasAnyOutput=Object.values(rep.output||{}).some(v=>v!=null);
+    const hasAnyInput =Object.values(rep[G.price.input] ||{}).some(v=>v!=null);
+    const hasAnyOutput=Object.values(rep[G.price.output]||{}).some(v=>v!=null);
     return hasAnyInput||hasAnyOutput;
   });
   const frontierRef=(data?.frontierReference||[]);
   const externalCatalog=data?.externalCatalog||null;
-  if(!quarters.length||!reps.length){
+  const coverage=data?.coverage||null;
+  const yoyAvailable=coverage?coverage[G.yoyAvailableKey]!==false:true;
+  if(!periods.length||!reps.length){
     return(
       <div style={{marginBottom:16}}>{header}
         <div style={{background:"#fff",border:"0.5px solid #e5e7eb",borderRadius:10,padding:"14px 16px"}}>
@@ -1032,10 +1106,20 @@ function ModelPricingMatrixTable(){
   const tdFirst={...stickyFirstBase,textAlign:"left",padding:"6px 10px 6px 18px",fontSize:11,whiteSpace:"nowrap",zIndex:2};
   const sectionTh={...stickySectionBase,textAlign:"left",padding:"10px 10px 4px",fontSize:11,color:"#111827",fontWeight:700,textDecoration:"underline",textUnderlineOffset:"3px",zIndex:1};
 
-  const renderSectionRow=label=>(
+  const periodHeaderCells=(bg)=>periods.map(p=>(
+    <th key={p.id} style={bg?{...thMain,background:bg}:thMain}>
+      {periodIdToLabel(p.id,gran)}
+      {p.partial&&<span style={{marginLeft:3,fontSize:8,color:"#b45309",fontWeight:500}}>{G.partialBadge}</span>}
+    </th>
+  ));
+
+  const renderSectionRow=(label,note)=>(
     <tr key={"sec-"+label}>
-      <td style={sectionTh}>{label}</td>
-      {quarters.map(q=>(<td key={q.id} style={{padding:"10px 10px 4px",background:"#f3f4f6",minWidth:COL_W}}/>))}
+      <td style={sectionTh}>
+        {label}
+        {note&&<div style={{fontWeight:400,fontSize:9,color:"#9ca3af",textDecoration:"none",marginTop:1,whiteSpace:"normal",lineHeight:1.35}}>{note}</div>}
+      </td>
+      {periods.map(p=>(<td key={p.id} style={{padding:"10px 10px 4px",background:"#f3f4f6",minWidth:COL_W}}/>))}
     </tr>
   );
   const renderModelLabel=rep=>{
@@ -1054,111 +1138,129 @@ function ModelPricingMatrixTable(){
   const renderPriceRow=(rep,metricKey)=>(
     <tr key={metricKey+"-"+rep.key}>
       {renderModelLabel(rep)}
-      {quarters.map(q=>{
-        const val=rep[metricKey]?.[q.id];
-        return(<td key={q.id} style={tdMain}>{fmtPrice(val)}</td>);
+      {periods.map(p=>{
+        const val=rep[metricKey]?.[p.id];
+        return(<td key={p.id} style={tdMain}>{fmtPrice(val)}</td>);
       })}
     </tr>
   );
   const renderChangeRow=(rep,key)=>(
     <tr key={key+"-"+rep.key}>
       {renderModelLabel(rep)}
-      {quarters.map(q=>{
-        const val=rep[key]?.[q.id];
-        return(<td key={q.id} style={tdDim}>{fmtChange(val)}</td>);
+      {periods.map(p=>{
+        const val=rep[key]?.[p.id];
+        return(<td key={p.id} style={tdDim}>{fmtChange(val)}</td>);
       })}
     </tr>
   );
+  const spacerRow=k=>(<tr key={k}><td colSpan={periods.length+1} style={{height:8,background:"#f9fafb"}}></td></tr>);
 
   return(
     <div style={{marginBottom:16}}>
       {header}
       <div style={{border:"0.5px solid #e5e7eb",borderRadius:8,overflow:"hidden",background:"#f9fafb"}}>
         <div style={{overflowX:"auto"}}>
-          <table style={{width:"100%",borderCollapse:"separate",borderSpacing:0,background:"#f3f4f6",minWidth:FIRST_COL_W+COL_W*quarters.length}}>
+          <table style={{width:"100%",borderCollapse:"separate",borderSpacing:0,background:"#f3f4f6",minWidth:FIRST_COL_W+COL_W*periods.length}}>
             <thead>
               <tr>
                 <th style={thFirst}></th>
-                {quarters.map(q=>(
-                  <th key={q.id} style={thMain}>
-                    {quarterIdToLabel(q.id)}
-                    {q.partial&&<span style={{marginLeft:3,fontSize:8,color:"#b45309",fontWeight:500}}>QTD</span>}
-                  </th>
-                ))}
+                {periodHeaderCells()}
               </tr>
             </thead>
             <tbody>
               {renderSectionRow("Input Price / 1M Tokens")}
-              {reps.map(rep=>renderPriceRow(rep,"input"))}
+              {reps.map(rep=>renderPriceRow(rep,G.price.input))}
 
-              <tr><td colSpan={quarters.length+1} style={{height:8,background:"#f9fafb"}}></td></tr>
+              {spacerRow("sp1")}
 
               {renderSectionRow("Output Price / 1M Tokens")}
-              {reps.map(rep=>renderPriceRow(rep,"output"))}
+              {reps.map(rep=>renderPriceRow(rep,G.price.output))}
 
-              <tr><td colSpan={quarters.length+1} style={{height:8,background:"#f9fafb"}}></td></tr>
+              {spacerRow("sp2")}
 
-              {renderSectionRow("QoQ Price Change (input)")}
-              {reps.map(rep=>renderChangeRow(rep,"qoqInput"))}
+              {renderSectionRow(G.chgLabel+" Price Change (input)")}
+              {reps.map(rep=>renderChangeRow(rep,G.chg.input))}
 
-              <tr><td colSpan={quarters.length+1} style={{height:8,background:"#f9fafb"}}></td></tr>
+              {spacerRow("sp3")}
 
-              {renderSectionRow("QoQ Price Change (output)")}
-              {reps.map(rep=>renderChangeRow(rep,"qoqOutput"))}
+              {renderSectionRow(G.chgLabel+" Price Change (output)")}
+              {reps.map(rep=>renderChangeRow(rep,G.chg.output))}
 
-              <tr><td colSpan={quarters.length+1} style={{height:8,background:"#f9fafb"}}></td></tr>
+              {spacerRow("sp4")}
 
-              {renderSectionRow("YoY Price Change (input)")}
-              {reps.map(rep=>renderChangeRow(rep,"yoyInput"))}
+              {renderSectionRow("YoY Price Change (input)",
+                yoyAvailable?null:"No comparator yet — upstream history starts "+(data.earliestDateObserved||"mid-2025")+", so no full "+G.bucketWord+" has a year-ago pair. Populates automatically.")}
+              {reps.map(rep=>renderChangeRow(rep,G.yoy.input))}
 
-              <tr><td colSpan={quarters.length+1} style={{height:8,background:"#f9fafb"}}></td></tr>
+              {spacerRow("sp5")}
 
-              {renderSectionRow("YoY Price Change (output)")}
-              {reps.map(rep=>renderChangeRow(rep,"yoyOutput"))}
+              {renderSectionRow("YoY Price Change (output)",
+                yoyAvailable?null:"Same coverage limit as YoY input above.")}
+              {reps.map(rep=>renderChangeRow(rep,G.yoy.output))}
             </tbody>
           </table>
         </div>
       </div>
 
-      {/* Frontier Reference by Period — informational only. The customer's
+      {/* Frontier Reference by Period — which model was each provider's
+         frontier in each period AND what it cost there. The customer's
          "the frontier today is not the same model as 12 quarters ago" point
-         is answered here without contaminating the QoQ/YoY math above. */}
+         is answered here without contaminating the fixed-rep math above.
+         Because the underlying model changes between periods, the change row
+         measures the cost of the frontier MOVING, not a provider repricing
+         one model — that distinction is called out in the subtitle. */}
       {frontierRef.length>0&&(
         <div style={{marginTop:12,marginBottom:6}}>
           <div style={{fontSize:11,fontWeight:700,color:"#374151",lineHeight:1.3}}>Frontier Reference by Period</div>
-          <div style={{fontSize:10,color:"#9ca3af",marginTop:2,marginBottom:6,lineHeight:1.45}}>Reference only: shows the highest-tier available model observed per provider in each period. The main matrix above uses fixed representatives to keep QoQ/YoY comparisons clean.</div>
+          <div style={{fontSize:10,color:"#9ca3af",marginTop:2,marginBottom:6,lineHeight:1.45}}>Reference only: the highest-tier model observed per provider in each period, and its price there. The model changes between periods, so the change rows show what the frontier costs as it moves — not a provider repricing one model. Read the matrix above for same-model repricing.</div>
           <div style={{border:"0.5px solid #e5e7eb",borderRadius:8,overflow:"hidden",background:"#fafafa"}}>
             <div style={{overflowX:"auto"}}>
-              <table style={{width:"100%",borderCollapse:"separate",borderSpacing:0,background:"#fafafa",minWidth:FIRST_COL_W+COL_W*quarters.length}}>
+              <table style={{width:"100%",borderCollapse:"separate",borderSpacing:0,background:"#fafafa",minWidth:FIRST_COL_W+COL_W*periods.length}}>
                 <thead>
                   <tr>
                     <th style={{...thFirst,background:"#fafafa"}}></th>
-                    {quarters.map(q=>(
-                      <th key={q.id} style={thMain}>
-                        {quarterIdToLabel(q.id)}
-                        {q.partial&&<span style={{marginLeft:3,fontSize:8,color:"#b45309",fontWeight:500}}>QTD</span>}
-                      </th>
-                    ))}
+                    {periodHeaderCells("#fafafa")}
                   </tr>
                 </thead>
                 <tbody>
-                  {frontierRef.map(row=>(
-                    <tr key={"ref-"+row.providerSlug}>
-                      <td style={{...tdFirst,background:"#fafafa"}}>
-                        <div style={{lineHeight:1.25,fontWeight:600,color:"#111827"}}>{row.providerLabel}</div>
-                      </td>
-                      {quarters.map(q=>{
-                        const cell=row.cells?.[q.id];
-                        const variantsTitle=cell?.matchedVariants?.length
-                          ? cell.matchedVariants.length+" upstream variant"+(cell.matchedVariants.length===1?"":"s")+" matched: "+cell.matchedVariants.join(", ")
-                          : undefined;
-                        return(
-                          <td key={q.id} title={variantsTitle} style={{textAlign:"right",padding:"6px 10px",fontSize:11,color:cell?"#374151":"#d1d5db",fontFamily:"ui-monospace,SFMono-Regular,Menlo,monospace",whiteSpace:"nowrap",minWidth:COL_W}}>
-                            {cell?cell.display:"—"}
+                  {[
+                    {label:"Frontier Model",         kind:"label"},
+                    {label:"Input Price / 1M",       kind:"price",  key:G.frontierPrice.input},
+                    {label:"Output Price / 1M",      kind:"price",  key:G.frontierPrice.output},
+                    {label:G.chgLabel+" Change (input)", kind:"change", key:G.frontierChg.input},
+                  ].map(section=>(
+                    <Fragment key={"fsec-"+section.label}>
+                      <tr>
+                        <td style={{...sectionTh,background:"#fafafa"}}>{section.label}</td>
+                        {periods.map(p=>(<td key={p.id} style={{padding:"10px 10px 4px",background:"#fafafa",minWidth:COL_W}}/>))}
+                      </tr>
+                      {frontierRef.map(row=>(
+                        <tr key={"ref-"+section.label+"-"+row.providerSlug}>
+                          <td style={{...tdFirst,background:"#fafafa"}}>
+                            <div style={{lineHeight:1.25,fontWeight:600,color:"#111827"}}>{row.providerLabel}</div>
                           </td>
-                        );
-                      })}
-                    </tr>
+                          {periods.map(p=>{
+                            const cell=row[G.frontierCells]?.[p.id];
+                            if(section.kind==="label"){
+                              const variantsTitle=cell?.matchedVariants?.length
+                                ? cell.matchedVariants.length+" upstream variant"+(cell.matchedVariants.length===1?"":"s")+" matched: "+cell.matchedVariants.join(", ")
+                                : undefined;
+                              return(
+                                <td key={p.id} title={variantsTitle} style={{textAlign:"right",padding:"6px 10px",fontSize:11,color:cell?"#374151":"#d1d5db",fontFamily:"ui-monospace,SFMono-Regular,Menlo,monospace",whiteSpace:"nowrap",minWidth:COL_W}}>
+                                  {cell?cell.display:"—"}
+                                </td>
+                              );
+                            }
+                            const val=row[section.key]?.[p.id];
+                            return(
+                              <td key={p.id} style={section.kind==="price"?tdMain:tdDim}>
+                                {section.kind==="price"?fmtPrice(val):fmtChange(val)}
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      ))}
+                    </Fragment>
                   ))}
                 </tbody>
               </table>
@@ -1274,7 +1376,7 @@ function ModelPricingMatrixTable(){
       })()}
 
       <div style={{fontSize:10,color:"#9ca3af",lineHeight:1.5,marginTop:6}}>
-        <b style={{color:"#6b7280",fontWeight:600}}>Methodology:</b> Prices use pricepertoken historical model-level rows, averaged by calendar quarter and shown as $/1M tokens. QoQ/YoY compare only valid full historical periods; QTD growth is suppressed. Fixed representative models keep growth math comparable; the Frontier Reference shows how latest frontier labels change by period. Firecrawl is used only as an advisory model-discovery signal, never for pricing math.
+        <b style={{color:"#6b7280",fontWeight:600}}>Methodology:</b> Prices use pricepertoken historical model-level rows, averaged by {G.bucketWord} and shown as $/1M tokens. {G.chgLabel}/YoY compare only valid full historical periods; {G.partialBadge} growth is suppressed. Fixed representative models keep growth math comparable; the Frontier Reference shows how the latest frontier label — and its price — change by period. Alternate-billing SKUs (<code style={{fontFamily:"ui-monospace,SFMono-Regular,Menlo,monospace"}}>:batch</code>, <code style={{fontFamily:"ui-monospace,SFMono-Regular,Menlo,monospace"}}>:beta</code>, <code style={{fontFamily:"ui-monospace,SFMono-Regular,Menlo,monospace"}}>:thinking</code>) and sibling product lines (GPT-5 Pro vs GPT-5, <code style={{fontFamily:"ui-monospace,SFMono-Regular,Menlo,monospace"}}>-customtools</code>, <code style={{fontFamily:"ui-monospace,SFMono-Regular,Menlo,monospace"}}>-fast</code>) are excluded from every average — each would otherwise register as a price move when only the upstream catalog changed. Firecrawl is used only as an advisory model-discovery signal, never for pricing math.
       </div>
     </div>
   );
