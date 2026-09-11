@@ -146,8 +146,25 @@ function buildMatrix(providerResults, metric) {
     // quarter -> { sum, count, modelSet }
     const buckets = new Map();
     for (const row of pr.rows) {
+      // Alternate-billing SKUs are the same model sold on different terms —
+      // ':batch' is ~50% off async, plus ':beta', ':thinking', ':free',
+      // ':extended', ':exacto'. They are not a repricing of the standard SKU,
+      // so they must not move a provider's average.
+      //
+      // pricepertoken began cataloguing ':batch' rows for every provider on
+      // 2026-07-29. Including them made Q3-26 look like a synchronized
+      // industry-wide price cut: Anthropic read as -21.8% (actually -8.0%)
+      // and OpenAI as -18.3% (actually -11.9%), while Google's real cut was
+      // understated at -13.5% (actually -18.8%). That inverted the ranking
+      // the read-through panel headlines — it named Anthropic the biggest
+      // price cutter when Anthropic had in fact cut the least and Google the
+      // most. No provider's list price changed on that date; the upstream
+      // catalog just grew a column.
+      if (typeof row?.model === 'string' && row.model.includes(':')) continue;
       const v = row?.[priceField];
-      if (typeof v !== 'number' || !isFinite(v) || v < 0) continue;
+      // Strictly > 0: $0.00 rows are free/experimental SKUs (Google's
+      // gemini-2.5-pro-exp-*, lyria-*) and drag a paid-lineup average down.
+      if (typeof v !== 'number' || !isFinite(v) || v <= 0) continue;
       const dateStr = row?.date;
       if (typeof dateStr !== 'string' || dateStr.length < 10) continue;
       const q = quarterOf(dateStr);
