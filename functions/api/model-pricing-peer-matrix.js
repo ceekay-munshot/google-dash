@@ -211,81 +211,206 @@ const PEER_MODELS = [
     ]},
 ];
 
-/* Frontier Reference priorities — informational only. Per provider, per
-   quarter, walk this list and pick the first candidate with ≥1 matching
-   upstream model in that quarter. Newest model classes come first so the
-   reference shows the latest-generation flagship in each period — answers
-   the customer's "the frontier 12 quarters ago is not the frontier today"
-   point WITHOUT contaminating the fixed-rep QoQ math above. */
-const FRONTIER_PRIORITIES = {
-  /* Ordering rule for every provider below: TOP TIER FIRST, then newest
-     within that tier. "Frontier" means the flagship line, not the highest
-     version number — Gemini 3.8 Flash carries a bigger number than Gemini
-     3.1 Pro but Flash is the cost-efficient tier and has its own row in the
-     matrix. Ranking by version alone made this table report Flash as
-     Google's frontier and Anthropic's Fable line as its flagship, which
-     also made the frontier-cost series jump on tier changes rather than on
-     actual frontier moves. */
-  google: [
-    // Pro line — Google's flagship tier
-    {norm:'gemini31propreview', display:'Gemini 3.1 Pro Preview'},
-    {norm:'gemini3propreview',  display:'Gemini 3 Pro Preview'},
-    {norm:'gemini25pro',        display:'Gemini 2.5 Pro'},
-    {norm:'geminipro15',        display:'Gemini 1.5 Pro'},
-    {norm:'geminipro',          display:'Gemini Pro'},
-    // Flash fallback — only when no Pro-tier model exists in the period
-    {norm:'gemini38flash',      display:'Gemini 3.8 Flash'},
-    {norm:'gemini37flash',      display:'Gemini 3.7 Flash'},
-    {norm:'gemini36flash',      display:'Gemini 3.6 Flash'},
-    {norm:'gemini35flash',      display:'Gemini 3.5 Flash'},
-    {norm:'gemini25flash',      display:'Gemini 2.5 Flash'},
-  ],
-  openai: [
-    {norm:'gpt6astra', display:'GPT-6 Astra'},
-    {norm:'gpt6',      display:'GPT-6'},
-    {norm:'gpt56sol',  display:'GPT-5.6 Sol'},
-    {norm:'gpt56terra',display:'GPT-5.6 Terra'},
-    {norm:'gpt56luna', display:'GPT-5.6 Luna'},
-    {norm:'gpt55pro',  display:'GPT-5.5 Pro'},
-    {norm:'gpt55',     display:'GPT-5.5'},
-    {norm:'gpt54pro',  display:'GPT-5.4 Pro'},
-    {norm:'gpt54',     display:'GPT-5.4'},
-    {norm:'gpt53',     display:'GPT-5.3'},
-    {norm:'gpt52pro',  display:'GPT-5.2 Pro'},
-    {norm:'gpt52',     display:'GPT-5.2'},
-    {norm:'gpt51',     display:'GPT-5.1'},
-    {norm:'gpt5pro',   display:'GPT-5 Pro'},
-    {norm:'gpt5',      display:'GPT-5'},
-    {norm:'gpt41',     display:'GPT-4.1'},
-    {norm:'gpt4o',     display:'GPT-4o'},
-    {norm:'gpt4turbo', display:'GPT-4 Turbo'},
-    {norm:'gpt4',      display:'GPT-4'},
-    {norm:'gpt35turbo',display:'GPT-3.5 Turbo'},
-  ],
-  anthropic: [
-    // Opus line — Anthropic's flagship tier. Kept above the Fable line so
-    // the series reads as one continuous Opus 4 → 4.1 → … → 5 progression
-    // instead of swapping product lines mid-series.
-    {norm:'claudeopus5',    display:'Claude Opus 5'},
-    {norm:'claudefable51',  display:'Claude Fable 5.1'},
-    {norm:'claudefable5',   display:'Claude Fable 5'},
-    {norm:'claudeopus48',   display:'Claude Opus 4.8'},
-    {norm:'claudeopus47',   display:'Claude Opus 4.7'},
-    {norm:'claudeopus46',   display:'Claude Opus 4.6'},
-    {norm:'claudeopus45',   display:'Claude Opus 4.5'},
-    {norm:'claudeopus41',   display:'Claude Opus 4.1'},
-    {norm:'claudeopus4',    display:'Claude Opus 4'},
-    {norm:'claudesonnet5',  display:'Claude Sonnet 5'},
-    {norm:'claudesonnet46', display:'Claude Sonnet 4.6'},
-    {norm:'claudesonnet45', display:'Claude Sonnet 4.5'},
-    {norm:'claudesonnet4',  display:'Claude Sonnet 4'},
-    {norm:'claude37sonnet', display:'Claude 3.7 Sonnet'},
-    {norm:'claude35sonnet', display:'Claude 3.5 Sonnet'},
-    {norm:'claude3opus',    display:'Claude 3 Opus'},
-    {norm:'claude3sonnet',  display:'Claude 3 Sonnet'},
-    {norm:'claude3haiku',   display:'Claude 3 Haiku'},
-  ],
+/* ─────────────────────────────────────────────────────────────────────
+   Automatic frontier detection.
+
+   This replaced a hand-maintained priority list per provider, which went
+   stale the moment a provider shipped anything: the list topped out at
+   Claude Opus 4.7 / GPT-5.5 Pro / Gemini 3.1 Pro while the upstream catalog
+   already carried Opus 4.8, Opus 5, Fable 5.1, the whole GPT-5.6 family and
+   GPT-6 Astra — so the dashboard kept presenting months-old models as each
+   provider's current frontier.
+
+   Nothing here is a list of known models. Each provider declares how its
+   model NAMES are shaped, and the frontier for a period is derived from
+   whatever the upstream catalog actually contains in that period. A model
+   released tomorrow is picked up on the next fetch with no code change,
+   and because selection runs per period against that period's own rows,
+   history stays intact — Sep-25 still resolves to what was frontier in
+   Sep-25, not to today's flagship.
+
+   Selection, per provider per period:
+     1. Drop specialty SKUs (see FRONTIER_EXCLUDE) and alternate-billing
+        rows — these are modality, latency or billing variants, not a better
+        model, and several are priced ABOVE the flagship (claude-opus-*-fast
+        at $30 vs $5, o1-pro at $150) so they would otherwise win outright.
+     2. Match the remainder against the provider's `flagship` line patterns
+        and read each one's version number out of its name.
+     3. Take the highest version found across ALL flagship lines. Line order
+        breaks ties only — it is deliberately NOT a preference ranking, or a
+        provider that stopped shipping under one line name would pin the
+        frontier to that line forever (the exact staleness this replaced).
+     4. If a period has no flagship match at all, fall back to the `fallback`
+        lines, so an early period with only a cost tier still resolves.
+     5. Within the winning version, take the priciest variant — that is the
+        top SKU of that generation (gpt-5.5-pro $23 over gpt-5.5 $3.87).
+        Equal prices fall back to the shortest name, i.e. the base model.
+
+   Version comparison is [major, minor] integer pairs, not a float, so 3.10
+   sorts above 3.9 rather than below it.
+
+   Models that match a provider prefix but no line pattern are reported in
+   the response as `frontierUnclassified`, so a naming scheme this parser
+   does not understand shows up as a visible signal instead of silently
+   narrowing what the table can see.
+   ───────────────────────────────────────────────────────────────────── */
+
+/* Specialty / non-comparable SKUs, tested against the raw upstream name.
+   Deliberately broad: anything here is never eligible to be a frontier. */
+const FRONTIER_EXCLUDE =
+  /(image|audio|video|embedding|tts|realtime|search|deep-?research|codex|instruct|customtools|custom-tools|safeguard|oss|gemma|lyria|-fast\b|exacto|guard|moderation|whisper|dall|sora|veo|imagen|embed|\bmini\b|-mini|\bnano\b|-nano|\blite\b|-lite|haiku|chat)/i;
+
+/* Per-provider name grammar. Each line's regex must expose the version in
+   one of its capture groups; alternatives exist because providers reorder
+   the tier word and the version over time (claude-3-opus → claude-opus-4). */
+const FRONTIER_LINES = {
+  google: {
+    flagship: [
+      { name:'Pro',    re:/^gemini[-.]?(?:(\d+(?:\.\d+)?)[-.]?pro\b|pro[-.]?(\d+(?:\.\d+)?)\b)/i },
+      { name:'Ultra',  re:/^gemini[-.]?(?:(\d+(?:\.\d+)?)[-.]?ultra\b|ultra[-.]?(\d+(?:\.\d+)?)\b)/i },
+    ],
+    fallback: [
+      { name:'Flash',  re:/^gemini[-.]?(?:(\d+(?:\.\d+)?)[-.]?flash\b|flash[-.]?(\d+(?:\.\d+)?)\b)/i },
+    ],
+  },
+  openai: {
+    // `gpt-<version>` covers gpt-4, gpt-4o, gpt-5, gpt-5.5-pro, gpt-6-astra.
+    // The `o<n>` reasoning line is intentionally not flagship: o1-pro at
+    // $150/1M is a specialty SKU, not OpenAI's general-purpose flagship.
+    flagship: [
+      { name:'GPT',    re:/^gpt[-.]?(\d+(?:\.\d+)?)/i },
+    ],
+    fallback: [],
+    // Recognized but never frontier. Listing them keeps the drift signal
+    // meaningful — without this the o-series fills `unclassified` on every
+    // response and a genuinely new naming scheme would be lost in the noise.
+    ignore: [
+      { name:'O-series', re:/^o\d/i },
+      { name:'ChatGPT',  re:/^chatgpt|^gpt-chat/i },
+    ],
+  },
+  anthropic: {
+    // Opus and Fable compete on version, not on line order — see step 3.
+    flagship: [
+      { name:'Opus',   re:/^claude[-.]?(?:opus[-.]?(\d+(?:\.\d+)?)\b|(\d+(?:\.\d+)?)[-.]?opus\b)/i },
+      { name:'Fable',  re:/^claude[-.]?(?:fable[-.]?(\d+(?:\.\d+)?)\b|(\d+(?:\.\d+)?)[-.]?fable\b)/i },
+    ],
+    fallback: [
+      { name:'Sonnet', re:/^claude[-.]?(?:sonnet[-.]?(\d+(?:\.\d+)?)\b|(\d+(?:\.\d+)?)[-.]?sonnet\b)/i },
+    ],
+  },
 };
+
+/** [major, minor] from a version string; null when unparseable. */
+function versionKey(v) {
+  if (typeof v !== 'string' || !v) return null;
+  const m = v.match(/^(\d+)(?:\.(\d+))?$/);
+  if (!m) return null;
+  return [parseInt(m[1], 10), m[2] ? parseInt(m[2], 10) : 0];
+}
+
+function compareVersion(a, b) {
+  if (a[0] !== b[0]) return a[0] - b[0];
+  return a[1] - b[1];
+}
+
+/** First non-empty capture group — the version, wherever the line put it. */
+function matchLine(modelName, line) {
+  const m = String(modelName).match(line.re);
+  if (!m) return null;
+  const raw = m.slice(1).find(g => g != null);
+  const key = versionKey(raw);
+  return key ? { line: line.name, version: raw, key } : null;
+}
+
+/* Turn an upstream slug into the label the table shows. Derived rather than
+   looked up, so a model nobody has seen before still renders with a sensible
+   name. "gpt-6-astra" → "GPT-6 Astra"; "claude-opus-4.8" → "Claude Opus 4.8";
+   "gemini-3.1-pro-preview" → "Gemini 3.1 Pro Preview". */
+const DISPLAY_UPPER = new Set(['gpt', 'ai', 'api', 'oss']);
+function prettifyModelName(slug) {
+  const parts = String(slug || '').split(/[-_]/).filter(Boolean);
+  const words = parts.map(p => {
+    const low = p.toLowerCase();
+    if (DISPLAY_UPPER.has(low)) return low.toUpperCase();
+    if (/^\d/.test(p)) return p;
+    return p.charAt(0).toUpperCase() + p.slice(1);
+  });
+  // Providers write their generation attached to the family name — GPT-6,
+  // not "GPT 6" — so re-attach a leading numeric token to the family word.
+  if (words.length >= 2 && DISPLAY_UPPER.has(parts[0].toLowerCase()) && /^\d/.test(words[1])) {
+    return [words[0] + '-' + words[1], ...words.slice(2)].join(' ');
+  }
+  return words.join(' ');
+}
+
+/**
+ * Pick the frontier model for one period from that period's observations.
+ *
+ * @param entries [{ model, avgInput }] — standard-SKU rows seen in the period
+ * @param rules   FRONTIER_LINES entry for the provider
+ * @returns { display, model, line, version, matchedVariants, viaFallback } | null
+ */
+function pickFrontier(entries, rules) {
+  if (!rules || !entries.length) return null;
+
+  const consider = (lines) => {
+    const hits = [];
+    for (const e of entries) {
+      if (FRONTIER_EXCLUDE.test(e.model)) continue;
+      for (const line of lines) {
+        const m = matchLine(e.model, line);
+        if (m) { hits.push({ ...e, ...m }); break; }
+      }
+    }
+    if (!hits.length) return null;
+
+    // Highest version wins across every line, then priciest variant of it,
+    // then the shortest name (the base model rather than a suffixed sibling).
+    let best = null;
+    for (const h of hits) {
+      if (!best) { best = h; continue; }
+      const c = compareVersion(h.key, best.key);
+      if (c > 0) { best = h; continue; }
+      if (c < 0) continue;
+      const ap = typeof h.avgInput === 'number' ? h.avgInput : -1;
+      const bp = typeof best.avgInput === 'number' ? best.avgInput : -1;
+      if (ap > bp) { best = h; continue; }
+      if (ap < bp) continue;
+      if (h.model.length < best.model.length) best = h;
+    }
+    if (!best) return null;
+
+    /* Group the winner with its own dated re-publishes only —
+       gpt-4o + gpt-4o-2024-08-06, not the whole generation.
+
+       Grouping by line+version instead looked reasonable and was badly
+       wrong: every gen-5 GPT shares line=GPT and version=5, so the frontier
+       price became an average of gpt-5, gpt-5-pro, gpt-5-mini AND
+       gpt-5-nano — $0.68/1M for what the table called the frontier.
+       modelMatches already encodes the right notion of "same model": it
+       accepts date stamps and rejects tier and sibling-line suffixes. */
+    const bestNorm = normalizeModel(best.model);
+    const sameClass = hits
+      .filter(h => modelMatches(h.model, bestNorm))
+      .map(h => h.model);
+    if (!sameClass.includes(best.model)) sameClass.push(best.model);
+    return { best, sameClass };
+  };
+
+  const flagship = consider(rules.flagship || []);
+  const chosen = flagship || consider(rules.fallback || []);
+  if (!chosen) return null;
+
+  return {
+    display: prettifyModelName(chosen.best.model),
+    model: chosen.best.model,
+    line: chosen.best.line,
+    version: chosen.best.version,
+    matchedVariants: chosen.sameClass.slice().sort(),
+    viaFallback: !flagship,
+  };
+}
 
 const FRONTIER_REFERENCE_PROVIDERS = [
   { slug:'google',    label:'Google / Gemini' },
@@ -1038,7 +1163,7 @@ export async function onRequestGet({ request, env }) {
      moving, not a provider repricing one model. That is a different (and
      deliberately separate) measure from the fixed-rep matrix above, which is
      the one to read for same-model repricing. The UI labels both. */
-  function buildFrontierSeries(provider, priorities, periodOf, currentPeriodKey, priorPeriodFn, yearAgoPeriodFn) {
+  function buildFrontierSeries(provider, rules, periodOf, currentPeriodKey, priorPeriodFn, yearAgoPeriodFn) {
     // period -> model -> price accumulator
     const byPeriod = new Map();
     for (const row of provider?.rows || []) {
@@ -1047,6 +1172,9 @@ export async function onRequestGet({ request, env }) {
       const pid = periodOf(row.date);
       if (!byPeriod.has(pid)) byPeriod.set(pid, new Map());
       const models = byPeriod.get(pid);
+      // Alternate-billing rows never represent the frontier — same exclusion
+      // the rep math applies, for the same reason.
+      if (ALT_BILLING_SKU.test(row.model)) continue;
       const acc = models.get(row.model) || { sumIn: 0, nIn: 0, sumOut: 0, nOut: 0 };
       const inP = row?.pricing_prompt, outP = row?.pricing_completion;
       if (typeof inP  === 'number' && isFinite(inP)  && inP  > 0) { acc.sumIn  += inP;  acc.nIn  += 1; }
@@ -1056,18 +1184,27 @@ export async function onRequestGet({ request, env }) {
 
     const cells = {}, input = {}, output = {};
     for (const [pid, models] of byPeriod) {
-      const modelList = Array.from(models.keys());
-      let picked = null;
-      for (const cand of priorities) {
-        const matched = modelList.filter(m => modelMatches(m, cand.norm));
-        if (matched.length > 0) { picked = { cand, matched }; break; }
-      }
+      // Feed the picker each model observed in THIS period with its own
+      // average input price, so "priciest variant of the winning generation"
+      // is decided on what the period actually charged.
+      const entries = Array.from(models.entries()).map(([model, acc]) => ({
+        model,
+        avgInput: acc.nIn ? (acc.sumIn / acc.nIn) * 1_000_000 : null,
+      }));
+      const picked = pickFrontier(entries, rules);
       if (!picked) { cells[pid] = null; continue; }
-      cells[pid] = { display: picked.cand.display, matchedVariants: picked.matched.slice().sort() };
-      // Price the frontier across every variant that matched the winning
-      // candidate in this period (dated re-publishes of the same model).
+      cells[pid] = {
+        display: picked.display,
+        model: picked.model,
+        line: picked.line,
+        version: picked.version,
+        viaFallback: picked.viaFallback,
+        matchedVariants: picked.matchedVariants,
+      };
+      // Price the frontier across every variant of the winning model class
+      // in this period (dated re-publishes of the same model).
       let sumIn = 0, nIn = 0, sumOut = 0, nOut = 0;
-      for (const m of picked.matched) {
+      for (const m of picked.matchedVariants) {
         const acc = models.get(m);
         if (!acc) continue;
         sumIn += acc.sumIn; nIn += acc.nIn; sumOut += acc.sumOut; nOut += acc.nOut;
@@ -1095,12 +1232,45 @@ export async function onRequestGet({ request, env }) {
 
   const frontierReference = FRONTIER_REFERENCE_PROVIDERS.map(prov => {
     const provider = byProvider.get(prov.slug);
-    const priorities = FRONTIER_PRIORITIES[prov.slug] || [];
-    const q = buildFrontierSeries(provider, priorities, quarterOf, todayQ, priorQuarter, yearAgoQuarter);
-    const m = buildFrontierSeries(provider, priorities, monthOf,   todayM, priorMonth,   yearAgoMonth);
+    const rules = FRONTIER_LINES[prov.slug] || null;
+    const q = buildFrontierSeries(provider, rules, quarterOf, todayQ, priorQuarter, yearAgoQuarter);
+    const m = buildFrontierSeries(provider, rules, monthOf,   todayM, priorMonth,   yearAgoMonth);
+
+    /* Drift signal. Models the parser could not place on any line — not
+       specialty SKUs, not alternate billing, just names whose shape this
+       grammar does not recognize. Empty is the healthy state. A provider
+       adopting a new naming scheme shows up here first, BEFORE it can
+       quietly hold the frontier back to an older model, which is the
+       failure mode the hand-maintained priority list had. */
+    // Versioned lines are matched through matchLine (they must yield a
+    // parseable version). `ignore` lines are plain shape tests — they exist
+    // only to say "this name is recognized", so they carry no version group
+    // and must not go through matchLine, which returns null without one.
+    const versionedLines = [...(rules?.flagship || []), ...(rules?.fallback || [])];
+    const ignoreLines = rules?.ignore || [];
+    const unclassified = [];
+    const seen = new Set();
+    for (const row of provider?.rows || []) {
+      if (typeof row?.model !== 'string') continue;
+      if (seen.has(row.model)) continue;
+      seen.add(row.model);
+      if (ALT_BILLING_SKU.test(row.model)) continue;
+      if (FRONTIER_EXCLUDE.test(row.model)) continue;
+      if (ignoreLines.some(line => line.re.test(row.model))) continue;
+      if (versionedLines.some(line => matchLine(row.model, line))) continue;
+      unclassified.push(row.model);
+    }
+
+    // Newest period first — that's the one whose correctness matters most.
+    const latestQ = Object.keys(q.cells).sort().pop();
+    const latestM = Object.keys(m.cells).sort().pop();
+
     return {
       providerSlug: prov.slug,
       providerLabel: prov.label,
+      // What this provider's frontier resolves to right now, and how.
+      currentFrontier: (latestM && m.cells[latestM]) || (latestQ && q.cells[latestQ]) || null,
+      unclassifiedModels: unclassified.sort(),
       // Quarterly (default view)
       cells: q.cells,
       input: q.input,

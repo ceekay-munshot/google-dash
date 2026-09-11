@@ -1212,7 +1212,28 @@ function ModelPricingMatrixTable(){
       {frontierRef.length>0&&(
         <div style={{marginTop:12,marginBottom:6}}>
           <div style={{fontSize:11,fontWeight:700,color:"#374151",lineHeight:1.3}}>Frontier Reference by Period</div>
-          <div style={{fontSize:10,color:"#9ca3af",marginTop:2,marginBottom:6,lineHeight:1.45}}>Reference only: the highest-tier model observed per provider in each period, and its price there. The model changes between periods, so the change rows show what the frontier costs as it moves — not a provider repricing one model. Read the matrix above for same-model repricing.</div>
+          <div style={{fontSize:10,color:"#9ca3af",marginTop:2,marginBottom:6,lineHeight:1.45}}>Reference only: the highest-tier model observed per provider in each period, and its price there. Auto-detected from the upstream catalog by model line and version — new releases appear here on their own, with no code change, and each period keeps whatever was frontier at the time. The model changes between periods, so the change rows show what the frontier costs as it moves — not a provider repricing one model. Read the matrix above for same-model repricing.</div>
+          {/* Current frontier per provider + parser drift. Drift is the
+             signal that a provider has adopted a naming scheme the detector
+             does not recognize — surfaced rather than silently narrowing
+             what the table can see, which is how the previous hand-kept
+             priority list went months out of date unnoticed. */}
+          {(()=>{
+            const current=frontierRef.filter(r=>r.currentFrontier).map(r=>r.providerLabel.replace(" / Gemini","")+": "+r.currentFrontier.display);
+            const drift=frontierRef.filter(r=>(r.unclassifiedModels||[]).length>0);
+            if(!current.length&&!drift.length)return null;
+            return(
+              <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap",marginTop:-2,marginBottom:7}}>
+                {current.length>0&&<span style={{fontSize:10,color:"#6b7280"}}>Current frontier — <b style={{color:"#374151",fontWeight:600}}>{current.join(" · ")}</b></span>}
+                {drift.length>0&&(
+                  <span title={drift.map(r=>r.providerLabel+": "+r.unclassifiedModels.join(", ")).join(" | ")}
+                    style={{fontSize:10,fontWeight:500,padding:"2px 7px",borderRadius:3,background:"#fef3c7",color:"#92400e"}}>
+                    {drift.reduce((n,r)=>n+r.unclassifiedModels.length,0)} unrecognized model name{drift.reduce((n,r)=>n+r.unclassifiedModels.length,0)===1?"":"s"} — review detector
+                  </span>
+                )}
+              </div>
+            );
+          })()}
           <div style={{border:"0.5px solid #e5e7eb",borderRadius:8,overflow:"hidden",background:"#fafafa"}}>
             <div style={{overflowX:"auto"}}>
               <table style={{width:"100%",borderCollapse:"separate",borderSpacing:0,background:"#fafafa",minWidth:FIRST_COL_W+COL_W*periods.length}}>
