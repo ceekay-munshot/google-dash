@@ -361,6 +361,52 @@ function makeModelResolver(providerResults, priceField) {
   };
 }
 
+/**
+ * Overlay accumulated full-catalogue weeks onto the top-9 weekly chart.
+ *
+ * The chart names ~9 models a week and rolls the rest into "Others", which is
+ * the real ceiling on usage-weighted coverage — it is why OpenAI can only ever
+ * be measured at 2–16% of its own volume. /api/openrouter-model-usage banks the
+ * full ~500-model ranking one completed week at a time; wherever it has a week,
+ * that week's weights come from the full catalogue instead.
+ *
+ * Two things this fixes at once. Coverage stops being capped at whatever the
+ * top-9 happened to include. And because the full catalogue counts prompt and
+ * completion tokens separately, the INPUT average can be weighted by prompt
+ * tokens and the OUTPUT average by completion tokens, rather than both sharing
+ * one combined count as the chart forces.
+ *
+ * Weeks are keyed by ISO start and replaced wholesale, never blended: mixing a
+ * 9-model numerator with a 500-model one inside a single week would produce a
+ * coverage figure describing neither.
+ */
+function overlayRichModelWeeks(chartSeries, richSeries, metric) {
+  const rich = Array.isArray(richSeries?.weeks) ? richSeries.weeks : [];
+  if (!rich.length) return { series: chartSeries, richWeeks: [] };
+
+  const byStart = new Map();
+  for (const w of (chartSeries?.weeks || [])) {
+    if (w?.start) byStart.set(w.start, w);
+  }
+  const used = [];
+  for (const w of rich) {
+    const tokens = metric === 'output' ? w.completionTokens : w.promptTokens;
+    if (!w?.start || !tokens || !Object.keys(tokens).length) continue;
+    byStart.set(w.start, {
+      start: w.start,
+      end: w.end,
+      partial: false,           // only completed weeks are ever banked
+      allModels: tokens,
+      totalRaw: Object.values(tokens).reduce((s, v) => s + v, 0),
+    });
+    used.push(w.start);
+  }
+  return {
+    series: { weeks: [...byStart.keys()].sort().map(s => byStart.get(s)) },
+    richWeeks: used.sort(),
+  };
+}
+
 /** Latest week start in a {weeks:[{start}]} payload, or null. */
 function lastWeekStart(series) {
   const weeks = series?.weeks;
@@ -430,13 +476,16 @@ export async function onRequestGet({ request }) {
     // is still merged underneath because it reaches back further (2025-05-26)
     // than the live dataset (2025-09-22), so the union covers more history
     // than either alone.
-    const [modelSeries, capturedProviders, liveProviders] = await Promise.all([
+    const [chartSeries, capturedProviders, liveProviders, richSeries] = await Promise.all([
       fetchSameOrigin(request, '/api/openrouter-chart-weekly?full=1'),
       fetchSameOrigin(request, '/api/openrouter-chart-weekly?providers=1'),
       fetchMarketShare('week').catch(e => ({ error: e.message })),
+      fetchSameOrigin(request, '/api/openrouter-model-usage'),
     ]);
     const liveOk = !!liveProviders && Array.isArray(liveProviders.weeks);
     const providerSeries = mergeProviderWeeks(capturedProviders, liveOk ? liveProviders : null);
+    const { series: modelSeries, richWeeks } =
+      overlayRichModelWeeks(chartSeries, richSeries, metric);
 
     const priceField = metric === 'output' ? 'pricing_completion' : 'pricing_prompt';
     const built = buildUsageWeights(
@@ -455,6 +504,11 @@ export async function onRequestGet({ request }) {
       providerSeriesLive: liveOk,
       providerSeriesLiveError: liveOk ? null : (liveProviders?.error || 'unavailable'),
       providerSeriesCapturedLatestWeek: lastWeekStart(capturedProviders),
+      // Weeks whose weights came from the full ~500-model catalogue rather
+      // than the top-9 chart. Coverage on these is not capped by the chart,
+      // and input/output are weighted by prompt/completion tokens separately.
+      fullCatalogueWeeks: richWeeks,
+      fullCatalogueWeekCount: richWeeks.length,
       providerSeriesLiveLatestWeek: liveOk ? lastWeekStart(liveProviders) : null,
       modelSeriesLatestWeek: built.modelSeriesLatestWeek,
       providerSeriesLatestWeek: built.providerSeriesLatestWeek,
@@ -466,8 +520,8 @@ export async function onRequestGet({ request }) {
       providerSlugMap: PPT_TO_OR_PROVIDER,
       caveats: [
         'OpenRouter is one marketplace, not the whole market — first-party API traffic is not represented.',
-        'OpenRouter names only its top models each week and buckets the rest as "Others", which caps measurable coverage.',
-        'Token counts combine prompt and completion, so the same weight applies to the input and output averages.',
+        'Where the full per-model catalogue has been banked for a week, coverage is not capped; elsewhere OpenRouter names only its top models each week and buckets the rest as "Others".',
+        'Chart-sourced weeks combine prompt and completion into one count, so input and output share weights there; full-catalogue weeks weight input by prompt tokens and output by completion tokens.',
         'A quarter publishes only when every week in it appears in both captures; a partly-measured quarter is withheld.',
         'A provider absent from a week\'s ranking is folded into "others" by OpenRouter, so that provider-quarter\'s coverage is unknowable and withheld.',
         '":free" and other variant SKUs are excluded from the weights — folding them into the paid model would price free traffic as paid.',
