@@ -165,16 +165,10 @@ function buildMatrix(providerResults, metric, weighting) {
   // Collect the union of quarter keys across providers
   const allQuarters = new Set();
   const perProvider = new Map();
-  // slug -> quarter -> model -> { sum, count } — per-model price means, used
-  // only by the usage-weighted path. Built in the same pass as the equal
-  // -weighted buckets so the two views can never diverge on which rows they
-  // consider valid.
-  const perProviderModels = new Map();
 
   for (const pr of providerResults) {
     // quarter -> { sum, count, modelSet }
     const buckets = new Map();
-    const modelBuckets = new Map();
     for (const row of pr.rows) {
       // Alternate-billing SKUs are the same model sold on different terms —
       // ':batch' is ~50% off async, plus ':beta', ':thinking', ':free',
@@ -204,18 +198,8 @@ function buildMatrix(providerResults, metric, weighting) {
       b.sum += v;
       b.count += 1;
       if (row.model) b.models.add(row.model);
-
-      if (row.model) {
-        if (!modelBuckets.has(q)) modelBuckets.set(q, new Map());
-        const byModel = modelBuckets.get(q);
-        if (!byModel.has(row.model)) byModel.set(row.model, { sum: 0, count: 0 });
-        const ms = byModel.get(row.model);
-        ms.sum += v;
-        ms.count += 1;
-      }
     }
     perProvider.set(pr.slug, buckets);
-    perProviderModels.set(pr.slug, modelBuckets);
   }
 
   // Sort quarters newest first
@@ -245,12 +229,11 @@ function buildMatrix(providerResults, metric, weighting) {
       // trend chart, the matrix — reads one consistent series and cannot mix
       // a weighted level with an equal-weighted change. The equal-weighted
       // level stays available as `equalAvg` for tooltips.
-      const modelMeans = perProviderModels.get(p.slug)?.get(q) || new Map();
       const modelWeights = weighting.weights.get(q)?.get(p.slug);
       const coverage = weighting.coverage.get(q)?.has(p.slug)
         ? weighting.coverage.get(q).get(p.slug)
         : null;
-      const w = weightedAverage(modelMeans, modelWeights, coverage);
+      const w = weightedAverage(modelWeights, coverage, weighting.seriesAvailable);
       const weightedAvg = w.avg === null ? null : w.avg * 1_000_000;
 
       cell.equalAvg = cell.avg;
@@ -317,39 +300,60 @@ async function fetchSameOrigin(request, path) {
 }
 
 /**
- * Build the resolver that maps an OpenRouter model name to a model name that
- * actually carries a price, using only names present in THIS request's
- * upstream payload. Deriving it from live data rather than a hardcoded table
- * means a renamed or delisted model degrades into "unpriced" — visibly
- * lowering coverage — instead of silently matching the wrong price.
+ * Build the resolver that maps an OpenRouter model name to a priced model AND
+ * the price in force over a given day window, using only rows present in THIS
+ * request's upstream payload. Deriving it from live data rather than a
+ * hardcoded table means a renamed or delisted model degrades into "unpriced" —
+ * visibly lowering coverage — instead of silently matching the wrong price.
  *
- * The catalog is indexed PER QUARTER, not across all history. A model priced
- * in one quarter and absent in another contributes no weight in the quarter
- * where it has no price, so counting it as covered there would advertise
- * volume that never reaches the average. Scoping resolution to the quarter
- * keeps the coverage figure describing exactly the models that contribute.
+ * Prices are indexed BY DAY, and a lookup averages only the days in the window
+ * it is asked about. Two problems that solves:
+ *
+ *   - A catalog spanning all history would count a model as covered in a
+ *     quarter where it has no price row at all.
+ *   - A quarterly mean price would charge a mid-quarter reprice to every token
+ *     of the quarter. Traffic concentrated after a price cut would be billed
+ *     partly at the old price, which nobody paid. Measured on live data this
+ *     moves Google's 2025-Q3 weighted input price by -2.8%.
+ *
+ * A window with no priced day returns null, so those tokens are dropped and
+ * count against coverage rather than borrowing a price from another week.
  */
 function makeModelResolver(providerResults, priceField) {
-  const catalog = new Map();                       // slug -> quarter -> Set(model)
+  const catalog = new Map();                       // slug -> model -> (day -> price)
   for (const pr of providerResults) {
-    const byQuarter = new Map();
+    const byModel = new Map();
     for (const row of pr.rows) {
       if (typeof row?.model !== 'string' || row.model.includes(':')) continue;
       const v = row?.[priceField];
       if (typeof v !== 'number' || !isFinite(v) || v <= 0) continue;
       const date = row?.date;
       if (typeof date !== 'string' || date.length < 10) continue;
-      const q = quarterOf(date);
-      if (!byQuarter.has(q)) byQuarter.set(q, new Set());
-      byQuarter.get(q).add(row.model);
+      if (!byModel.has(row.model)) byModel.set(row.model, new Map());
+      byModel.get(row.model).set(date.slice(0, 10), v);
     }
-    catalog.set(pr.slug, byQuarter);
+    catalog.set(pr.slug, byModel);
   }
-  return (pptSlug, orModel, quarter) => {
-    const names = catalog.get(pptSlug)?.get(quarter);
-    if (!names) return null;
+
+  /** Mean of a model's daily prices across [from, to]; null if none priced. */
+  const meanOver = (days, from, to) => {
+    let sum = 0;
+    let n = 0;
+    for (let t = Date.parse(from + 'T00:00:00Z'); t <= Date.parse(to + 'T00:00:00Z'); t += 86400000) {
+      const v = days.get(new Date(t).toISOString().slice(0, 10));
+      if (typeof v === 'number') { sum += v; n += 1; }
+    }
+    return n ? sum / n : null;
+  };
+
+  return (pptSlug, orModel, _quarter, from, to) => {
+    const byModel = catalog.get(pptSlug);
+    if (!byModel) return null;
     for (const candidate of priceModelCandidates(orModel)) {
-      if (names.has(candidate)) return candidate;
+      const days = byModel.get(candidate);
+      if (!days) continue;
+      const price = meanOver(days, from, to);
+      if (price !== null) return { model: candidate, price };
     }
     return null;
   };
@@ -392,7 +396,11 @@ export async function onRequestGet({ request }) {
     const built = buildUsageWeights(
       modelSeries, providerSeries, makeModelResolver(results, priceField),
     );
-    weighting = { weights: built.weights, coverage: built.coverage };
+    // Both series are required. Without the model series there are no weights;
+    // without the provider series there is no denominator to certify them
+    // against. Either way the weighted view has nothing it can honestly say.
+    const seriesAvailable = !!modelSeries && !!providerSeries;
+    weighting = { weights: built.weights, coverage: built.coverage, seriesAvailable };
     weightMeta = {
       source: 'openrouter.ai/rankings weekly token series, via /api/openrouter-chart-weekly',
       modelSeriesAvailable: !!modelSeries,
@@ -400,6 +408,7 @@ export async function onRequestGet({ request }) {
       modelSeriesLatestWeek: built.modelSeriesLatestWeek,
       providerSeriesLatestWeek: built.providerSeriesLatestWeek,
       uncertifiedQuarters: Array.from(built.uncertifiedQuarters).sort().reverse(),
+      incompleteProviderQuarters: Array.from(built.incompleteProviderQuarters).sort().reverse(),
       minCoverage: MIN_COVERAGE,
       minWeightedModels: MIN_WEIGHTED_MODELS,
       providerSlugMap: PPT_TO_OR_PROVIDER,
@@ -407,8 +416,10 @@ export async function onRequestGet({ request }) {
         'OpenRouter is one marketplace, not the whole market — first-party API traffic is not represented.',
         'OpenRouter names only its top models each week and buckets the rest as "Others", which caps measurable coverage.',
         'Token counts combine prompt and completion, so the same weight applies to the input and output averages.',
-        'A quarter publishes only when every week in it has a provider-total denominator; a partly-measured quarter is withheld.',
+        'A quarter publishes only when every week in it appears in both captures; a partly-measured quarter is withheld.',
+        'A provider absent from a week\'s ranking is folded into "others" by OpenRouter, so that provider-quarter\'s coverage is unknowable and withheld.',
         '":free" and other variant SKUs are excluded from the weights — folding them into the paid model would price free traffic as paid.',
+        'Tokens are charged at the price in force the week they were served, not a quarterly mean, so mid-quarter repricing is not spread over traffic that never paid it.',
       ],
     };
   }

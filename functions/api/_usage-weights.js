@@ -2,11 +2,12 @@
  * Usage weights for provider price averages.
  *
  * WHAT THIS IS FOR
- * The provider pricing matrix averages every model in a provider's lineup
- * equally: a model nobody calls counts exactly as much as the one carrying
- * the traffic. That answers "what is on the menu", not "what does the market
+ * The provider pricing matrix averages a provider's lineup by (model, day)
+ * observation: a model nobody calls counts as much as the one carrying the
+ * traffic. That answers "what is on the menu", not "what does the market
  * actually pay". This module supplies the second answer by weighting each
- * model's price by the tokens it actually served.
+ * model's price by the tokens it actually served, at the price in force at
+ * the time it served them.
  *
  * WEIGHT SOURCE
  * /api/openrouter-chart-weekly — the weekly "Top Models" token series
@@ -14,7 +15,7 @@
  * `allModels: { "<orProvider>/<model>": tokens }`. This is REAL observed
  * volume, not a survey or an estimate.
  *
- * THE FOUR HONESTY LIMITS — every one of them is surfaced in the response,
+ * THE HONESTY LIMITS — every one of them is surfaced in the response,
  * because a weighted average that hides its own coverage is worse than no
  * weighted average at all:
  *
@@ -34,13 +35,18 @@
  *      one side is weighted slightly off on both.
  *
  *   4. Coverage needs a denominator — the provider's total OpenRouter
- *      tokens — which comes from a separate capture
- *      (/api/openrouter-chart-weekly?providers=1). A quarter is certifiable
- *      only when EVERY week contributing to it has that denominator. If even
- *      one week is missing it, the quarter's coverage is UNKNOWN and every
- *      cell in it is withheld — a partly-certified quarter would publish a
- *      price computed over more weeks than its coverage figure describes.
- *      It is never assumed to be fine.
+ *      tokens — from a separate capture (?providers=1). Two ways it can be
+ *      incomplete, and both withhold rather than assume:
+ *        a. A week of the quarter is missing from one of the two captures.
+ *           Certifying a quarter on a subset of its weeks would publish a
+ *           price averaged over more weeks than the coverage figure covers.
+ *           Both directions count: a model week with no provider week, and
+ *           a provider week with no model week.
+ *        b. A provider is absent from a week's ranking, where OpenRouter
+ *           folds it into `others`. Absence is not zero traffic, so that
+ *           provider-quarter's denominator is short by an unknown amount
+ *           and its coverage is unknowable — even though other providers
+ *           in the same week are fine.
  *
  *   5. OpenRouter's `:free` variants serve tokens at no charge. Folding them
  *      into the paid SKU would count free traffic at the paid price and
@@ -48,8 +54,16 @@
  *      SKUs are excluded from the weights AND from the coverage numerator —
  *      they lower coverage, which is the visible, correct outcome.
  *
+ *   6. Prices are taken from the week the tokens were served, not from a
+ *      quarterly mean. A model repriced mid-quarter whose traffic is not
+ *      uniform either side of the change would otherwise be charged a blend
+ *      of the old and new price for all of its volume — which is not what
+ *      anyone paid. Tokens in a week where the model carries no price are
+ *      dropped and count against coverage.
+ *
  * THE GATE
- * A weighted cell is published only when all three hold:
+ * A weighted cell is published only when all of these hold:
+ *   - the weight series was actually available;
  *   - at least MIN_WEIGHTED_MODELS priced models carry a weight, so the
  *     number is an average and not one model wearing a provider's name;
  *   - coverage is KNOWN for that provider-quarter; and
@@ -142,28 +156,52 @@ function quarterOf(dateStr) {
   return dateStr.slice(0, 4) + '-Q' + (Math.floor((m - 1) / 3) + 1);
 }
 
+const DAY_MS = 86400000;
+const iso = (t) => new Date(t).toISOString().slice(0, 10);
+
 /**
- * Split one ISO week's tokens across the calendar quarters it touches,
- * pro-rata by day. Four weeks a year straddle a quarter boundary; assigning
- * such a week wholly to its start quarter would misplace up to six days of
- * volume, which is exactly the kind of quiet error a quarterly comparison
- * then reports as a trend.
+ * The last day a week's token count actually describes.
  *
- * Returns [{ quarter, fraction }] summing to 1.
+ * A completed week ends on its scheduled end date. The CURRENT week is still
+ * accumulating: the endpoint still labels it with the following Sunday, but
+ * its token count only covers the days captured so far. Spreading that count
+ * over all seven scheduled days would push observed traffic onto days that
+ * have not happened — and across a quarter boundary, into a quarter that has
+ * not started. A capture on 30 June would land most of its tokens in Q3.
+ */
+function observedEnd(week, observedThrough) {
+  const end = typeof week.end === 'string' ? week.end : week.start;
+  if (!week.partial || !observedThrough) return end;
+  return observedThrough < end ? observedThrough : end;
+}
+
+/**
+ * Split one week's tokens across the calendar quarters it touches, pro-rata
+ * by observed day. Four weeks a year straddle a quarter boundary; assigning
+ * such a week wholly to its start quarter would misplace up to six days of
+ * volume, which a quarterly comparison then reports as a trend.
+ *
+ * Returns [{ quarter, fraction, from, to }] with fractions summing to 1,
+ * where from/to bound the days of that week falling in that quarter — the
+ * price lookup needs them to charge tokens at the price in force.
  */
 function quarterSplit(startStr, endStr) {
   const start = Date.parse(startStr + 'T00:00:00Z');
   const end = Date.parse((endStr || startStr) + 'T00:00:00Z');
   if (!isFinite(start)) return [];
-  const days = isFinite(end) && end >= start
-    ? Math.round((end - start) / 86400000) + 1
-    : 7;
-  const counts = new Map();
+  const days = isFinite(end) && end >= start ? Math.round((end - start) / DAY_MS) + 1 : 7;
+
+  const spans = new Map();
   for (let i = 0; i < days; i++) {
-    const q = quarterOf(new Date(start + i * 86400000).toISOString().slice(0, 10));
-    counts.set(q, (counts.get(q) || 0) + 1);
+    const day = iso(start + i * DAY_MS);
+    const q = quarterOf(day);
+    const span = spans.get(q);
+    if (span) { span.n += 1; span.to = day; }
+    else spans.set(q, { n: 1, from: day, to: day });
   }
-  return Array.from(counts, ([quarter, n]) => ({ quarter, fraction: n / days }));
+  return Array.from(spans, ([quarter, s]) => ({
+    quarter, fraction: s.n / days, from: s.from, to: s.to,
+  }));
 }
 
 /**
@@ -191,57 +229,60 @@ function hasVariantSuffix(model) {
  *
  * @param {object} modelSeries    /api/openrouter-chart-weekly?full=1 payload
  * @param {object} providerSeries /api/openrouter-chart-weekly?providers=1 payload
- * @param {(pptSlug: string, model: string, quarter: string) => string|null} resolveModel
- *        Returns the price-catalog model name for an OpenRouter model name AS
- *        PRICED IN THAT QUARTER, or null otherwise. The quarter argument is
- *        load-bearing: a catalog spanning all history would count a model as
- *        covered in a quarter where it has traffic but no price row, while the
- *        weighted average correctly skips it for want of a price — coverage
- *        would then advertise volume that contributes nothing. Supplied by the
- *        caller so this module never needs the pricing payload itself.
+ * @param {(pptSlug: string, orModel: string, quarter: string, from: string, to: string)
+ *          => {model: string, price: number}|null} resolvePriced
+ *        Returns the price-catalog model name AND the price in force over
+ *        [from, to] for that model, or null when the model carries no price
+ *        in that window. Both parts are the caller's job so this module never
+ *        needs the pricing payload itself. The window is load-bearing twice
+ *        over: a catalog spanning all history would count a model as covered
+ *        in a quarter where it has no price row, and a quarterly mean price
+ *        would charge mid-quarter repricing to traffic that never paid it.
  *
  * @returns {{
- *   weights: Map<string, Map<string, Map<string, number>>>,  // quarter → pptSlug → priceModel → tokens
- *   coverage: Map<string, Map<string, number>>,              // quarter → pptSlug → 0..1 (known only)
+ *   weights: Map<string, Map<string, Map<string, {tokens:number, cost:number}>>>,
+ *   coverage: Map<string, Map<string, number>>,
+ *   uncertifiedQuarters: Set<string>,
+ *   incompleteProviderQuarters: Set<string>,   // "quarter|pptSlug"
  *   providerSeriesLatestWeek: string|null,
  *   modelSeriesLatestWeek: string|null,
  * }}
  */
-export function buildUsageWeights(modelSeries, providerSeries, resolveModel) {
+export function buildUsageWeights(modelSeries, providerSeries, resolvePriced) {
   const modelWeeks = Array.isArray(modelSeries?.weeks) ? modelSeries.weeks : [];
   const providerWeeks = Array.isArray(providerSeries?.weeks) ? providerSeries.weeks : [];
 
-  // Coverage is only meaningful where BOTH captures cover the same week.
-  // Comparing a numerator from 69 captured weeks against a denominator from
-  // 55 produced coverage above 100% in testing — i.e. a silently wrong
-  // number. Restricting both sides to the intersection is what makes the
-  // ratio mean what it claims.
+  // The capture time bounds the still-accumulating current week. `updatedAt`
+  // is when the series was last captured; `fetchedAt` is a fallback.
+  const capturedThrough = typeof modelSeries?.updatedAt === 'string'
+    ? modelSeries.updatedAt.slice(0, 10)
+    : (typeof modelSeries?.fetchedAt === 'string' ? modelSeries.fetchedAt.slice(0, 10) : null);
+
   const providerByWeek = new Map(providerWeeks.map((w) => [w.start, w]));
+  const modelByWeek = new Map(modelWeeks.map((w) => [w.start, w]));
 
-  const weights = new Map();          // quarter → pptSlug → priceModel → tokens
-  const covNumerator = new Map();     // quarter → pptSlug → priced+named tokens (aligned weeks only)
-  const covDenominator = new Map();   // quarter → pptSlug → provider total tokens (aligned weeks only)
+  const weights = new Map();        // quarter → slug → model → {tokens, cost}
+  const covNumerator = new Map();   // quarter → slug → priced+named tokens
+  const covDenominator = new Map(); // quarter → slug → provider total tokens
 
-  const bump = (map, quarter, slug, key, value) => {
+  // Quarters we cannot certify at all: some week of the quarter is missing
+  // from one of the two captures, in EITHER direction.
+  const uncertifiedQuarters = new Set();
+  // "quarter|slug" pairs where the provider was absent from at least one
+  // week's ranking, so its denominator is short by an unknown amount even
+  // though the quarter itself is otherwise fully aligned.
+  const incompleteProviderQuarters = new Set();
+
+  const addTotal = (map, quarter, slug, value) => {
     if (!map.has(quarter)) map.set(quarter, new Map());
     const byProvider = map.get(quarter);
-    if (key === null) {
-      byProvider.set(slug, (byProvider.get(slug) || 0) + value);
-      return;
-    }
-    if (!byProvider.has(slug)) byProvider.set(slug, new Map());
-    const byModel = byProvider.get(slug);
-    byModel.set(key, (byModel.get(key) || 0) + value);
+    byProvider.set(slug, (byProvider.get(slug) || 0) + value);
   };
 
-  // Quarters touched by at least one model week that has no provider-total
-  // counterpart. Their coverage cannot be certified, so no cell in them may
-  // publish — see limit 4 above.
-  const uncertifiedQuarters = new Set();
-
+  // ── Pass 1: weeks the model series has ──
   for (const week of modelWeeks) {
     if (typeof week?.start !== 'string') continue;
-    const split = quarterSplit(week.start, week.end);
+    const split = quarterSplit(week.start, observedEnd(week, capturedThrough));
     if (!split.length) continue;
     const aligned = providerByWeek.has(week.start);
 
@@ -258,32 +299,62 @@ export function buildUsageWeights(modelSeries, providerSeries, resolveModel) {
       const orModel = slug.slice(sep + 1);
       if (hasVariantSuffix(orModel)) continue;      // free/variant SKU — not paid volume
 
-      for (const { quarter, fraction } of split) {
-        // Resolved per quarter: a model priced in one quarter but not another
-        // must not count as covered in the quarter where it has no price.
-        const priceModel = resolveModel(pptSlug, orModel, quarter);
-        if (!priceModel) continue;                  // named but unpriced — lowers coverage
-        bump(weights, quarter, pptSlug, priceModel, tokens * fraction);
-        if (aligned) bump(covNumerator, quarter, pptSlug, null, tokens * fraction);
+      for (const { quarter, fraction, from, to } of split) {
+        const priced = resolvePriced(pptSlug, orModel, quarter, from, to);
+        if (!priced) continue;                      // unpriced in this window — lowers coverage
+        const share = tokens * fraction;
+
+        if (!weights.has(quarter)) weights.set(quarter, new Map());
+        const byProvider = weights.get(quarter);
+        if (!byProvider.has(pptSlug)) byProvider.set(pptSlug, new Map());
+        const byModel = byProvider.get(pptSlug);
+        const entry = byModel.get(priced.model) || { tokens: 0, cost: 0 };
+        entry.tokens += share;
+        entry.cost += priced.price * share;         // charged at the price then in force
+        byModel.set(priced.model, entry);
+
+        if (aligned) addTotal(covNumerator, quarter, pptSlug, share);
       }
     }
 
     if (!aligned) continue;
-    for (const [orSlug, total] of Object.entries(providerByWeek.get(week.start).providers || {})) {
-      const pptSlug = OR_TO_PPT_PROVIDER[orSlug];
-      if (!pptSlug || !(total > 0)) continue;
-      for (const { quarter, fraction } of split) {
-        bump(covDenominator, quarter, pptSlug, null, total * fraction);
+    const providers = providerByWeek.get(week.start).providers || {};
+    for (const [pptSlug, orSlug] of Object.entries(PPT_TO_OR_PROVIDER)) {
+      const total = providers[orSlug];
+      if (typeof total === 'number' && total > 0) {
+        for (const { quarter, fraction } of split) {
+          addTotal(covDenominator, quarter, pptSlug, total * fraction);
+        }
+      } else {
+        // Absent from this week's ranking. OpenRouter folds small providers
+        // into `others`, so this is "unknown, probably small" — never zero.
+        // The denominator for this provider-quarter is therefore short by an
+        // unmeasurable amount, and a ratio built on it would overstate.
+        for (const { quarter } of split) {
+          incompleteProviderQuarters.add(quarter + '|' + pptSlug);
+        }
       }
+    }
+  }
+
+  // ── Pass 2: weeks only the provider series has ──
+  // The loop above never visits these, so without this pass a quarter could
+  // be certified while missing model weights for part of it — the mirror of
+  // the case pass 1 catches.
+  for (const week of providerWeeks) {
+    if (typeof week?.start !== 'string' || modelByWeek.has(week.start)) continue;
+    for (const { quarter } of quarterSplit(week.start, week.end)) {
+      uncertifiedQuarters.add(quarter);
     }
   }
 
   const coverage = new Map();
   for (const [quarter, byProvider] of covDenominator) {
-    if (uncertifiedQuarters.has(quarter)) continue; // partly-measured: leave unknown
+    if (uncertifiedQuarters.has(quarter)) continue;   // partly-measured: leave unknown
     const out = new Map();
     for (const [slug, total] of byProvider) {
       if (!(total > 0)) continue;
+      if (incompleteProviderQuarters.has(quarter + '|' + slug)) continue;
       const named = covNumerator.get(quarter)?.get(slug) || 0;
       // Clamp at 1: OpenRouter's model chart and provider chart classify a
       // small number of community-hosted models differently, which can put
@@ -299,6 +370,7 @@ export function buildUsageWeights(modelSeries, providerSeries, resolveModel) {
     weights,
     coverage,
     uncertifiedQuarters,
+    incompleteProviderQuarters,
     providerSeriesLatestWeek: lastWeek(providerWeeks),
     modelSeriesLatestWeek: lastWeek(modelWeeks),
   };
@@ -307,13 +379,12 @@ export function buildUsageWeights(modelSeries, providerSeries, resolveModel) {
 /**
  * Apply weights to one provider-quarter.
  *
- * @param {Map<string, {sum:number,count:number}>} modelMeans
- *        priceModel → running sum/count of that model's daily prices in the
- *        quarter. The per-model mean is taken first so a model priced on 90
- *        days does not outvote one priced on 30; the usage weight is then
- *        the only thing that decides a model's influence.
- * @param {Map<string, number>|undefined} modelWeights priceModel → tokens
+ * @param {Map<string, {tokens:number, cost:number}>|undefined} modelWeights
+ *        priceModel → tokens served and what they cost at the prices in force
+ *        when they were served. Cost is accumulated per week upstream, so this
+ *        is a true volume-weighted average and not a mean of quarterly means.
  * @param {number|null} coverage 0..1, or null when unknown
+ * @param {boolean} seriesAvailable whether the weight series loaded at all
  *
  * @returns {{avg:number|null, models:number, coverage:number|null,
  *            topShare:number|null, gate:string|null}}
@@ -322,23 +393,28 @@ export function buildUsageWeights(modelSeries, providerSeries, resolveModel) {
  *          reader can tell a genuine blend from a number one model dominates —
  *          "4 models" alone does not distinguish the two.
  */
-export function weightedAverage(modelMeans, modelWeights, coverage) {
-  let numerator = 0;
-  let denominator = 0;
+export function weightedAverage(modelWeights, coverage, seriesAvailable = true) {
+  let cost = 0;
+  let tokens = 0;
   let models = 0;
   let topTokens = 0;
 
-  for (const [model, tokens] of modelWeights || []) {
-    const stat = modelMeans.get(model);
-    if (!stat || !(tokens > 0)) continue;
-    numerator += (stat.sum / stat.count) * tokens;
-    denominator += tokens;
+  for (const [, entry] of modelWeights || []) {
+    if (!entry || !(entry.tokens > 0)) continue;
+    cost += entry.cost;
+    tokens += entry.tokens;
     models += 1;
-    if (tokens > topTokens) topTokens = tokens;
+    if (entry.tokens > topTokens) topTokens = entry.tokens;
   }
-  const topShare = denominator > 0 ? topTokens / denominator : null;
+  const topShare = tokens > 0 ? topTokens / tokens : null;
 
-  if (denominator <= 0) {
+  // Checked before "no usage": an outage is not evidence that nobody used
+  // anything, and reporting it as zero volume would be a false statement
+  // about the market rather than about our data.
+  if (!seriesAvailable) {
+    return { avg: null, models: 0, coverage: null, topShare: null, gate: 'series-unavailable' };
+  }
+  if (tokens <= 0) {
     return { avg: null, models: 0, coverage, topShare: null, gate: 'no-usage' };
   }
   if (models < MIN_WEIGHTED_MODELS) {
@@ -350,7 +426,7 @@ export function weightedAverage(modelMeans, modelWeights, coverage) {
   if (coverage < MIN_COVERAGE) {
     return { avg: null, models, coverage, topShare, gate: 'low-coverage' };
   }
-  return { avg: numerator / denominator, models, coverage, topShare, gate: null };
+  return { avg: cost / tokens, models, coverage, topShare, gate: null };
 }
 
 /** Human-readable reason a weighted cell was withheld. */
@@ -359,6 +435,9 @@ export function gateReason(gate, coverage, models) {
     ? null
     : (coverage * 100).toFixed(0) + '%';
   switch (gate) {
+    case 'series-unavailable':
+      return 'The OpenRouter weekly token series could not be loaded, so no weights ' +
+        'could be built. This says nothing about actual usage.';
     case 'no-usage':
       return 'No paid OpenRouter token volume recorded for this provider in this quarter ' +
         '(free-tier variants are excluded from paid weights).';
@@ -366,8 +445,9 @@ export function gateReason(gate, coverage, models) {
       return 'Only ' + models + ' priced model' + (models === 1 ? '' : 's') +
         ' carried volume — one model is not a provider average.';
     case 'coverage-unknown':
-      return 'The provider-total capture does not cover every week of this quarter, so the ' +
-        'share of volume these weights represent cannot be measured for the whole quarter.';
+      return 'Coverage cannot be measured for the whole quarter — either a week of it is ' +
+        'missing from one of the two captures, or this provider fell out of OpenRouter\'s ' +
+        'weekly ranking, where its traffic is folded into "others" and cannot be counted.';
     case 'low-coverage':
       return 'Weights cover only ' + pct + ' of this provider\'s OpenRouter tokens — ' +
         'below the ' + (MIN_COVERAGE * 100).toFixed(0) + '% needed to call it an average.';

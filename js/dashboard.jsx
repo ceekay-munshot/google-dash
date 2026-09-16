@@ -759,11 +759,11 @@ function ModelPricingHistoryBlock(){
         {/* Weighting toggle — the question is "average of what?": every model
            once, or every model in proportion to the traffic it carried. */}
         <div style={{display:"inline-flex",border:"0.5px solid #e5e7eb",borderRadius:6,overflow:"hidden",background:"#fff"}}>
-          {[{id:"equal",label:"Equal weight"},{id:"usage",label:"Usage weighted"}].map(w=>(
+          {[{id:"equal",label:"Model-day weight"},{id:"usage",label:"Usage weighted"}].map(w=>(
             <button key={w.id} onClick={()=>setWeight(w.id)}
               title={w.id==="equal"
-                ?"Every model in the provider's lineup counts once — the list-price mean."
-                :"Each model counts in proportion to the tokens it served on OpenRouter."}
+                ?"Every (model, day) price observation counts once — a model priced on more days of the quarter carries proportionally more of the mean."
+                :"Each model counts in proportion to the tokens it served on OpenRouter, charged at the price in force that week."}
               style={{fontSize:11,padding:"4px 11px",border:"none",background:weight===w.id?"#111827":"#fff",color:weight===w.id?"#fff":"#6b7280",cursor:"pointer",fontFamily:"inherit",fontWeight:500}}>
               {w.label}
             </button>
@@ -786,14 +786,13 @@ function ModelPricingHistoryBlock(){
           that provider's OpenRouter tokens across at least {wMeta?wMeta.minWeightedModels:2} priced models —
           otherwise it shows “—” and names the reason on hover. Nothing is estimated to fill a gap.
           {wMeta&&wMeta.providerSeriesLatestWeek&&(
-            <> Coverage can only be measured through <b>{wMeta.providerSeriesLatestWeek}</b>, the last week of the
-            provider-total capture{wMeta.modelSeriesLatestWeek&&wMeta.modelSeriesLatestWeek>wMeta.providerSeriesLatestWeek
-              ?<> (per-model volumes run to {wMeta.modelSeriesLatestWeek})</>:null}. A quarter publishes only when
-            <i> every</i> week in it has that denominator, so
+            <> The two captures run to <b>{wMeta.providerSeriesLatestWeek}</b> (provider totals) and <b>{wMeta.modelSeriesLatestWeek}</b> (per-model
+            volumes). A quarter publishes only when <i>every</i> week in it appears in both, so
             {wMeta.uncertifiedQuarters?.length
               ?<> <b>{wMeta.uncertifiedQuarters.join(", ")}</b> {wMeta.uncertifiedQuarters.length===1?"is":"are"} withheld</>
               :<> any partly-measured quarter is withheld</>} rather than published against coverage
-            measured on only part of it.</>
+            measured on only part of it. A provider that drops out of OpenRouter's weekly ranking is folded into
+            “others” there, so its coverage for that quarter is unknowable too and is withheld on the same principle.</>
           )}
         </div>
       )}
@@ -914,7 +913,7 @@ function ModelPricingHistoryBlock(){
                     // reads differently: the sub-label names the gate, and the tooltip
                     // explains it in full rather than leaving a bare dash to interpret.
                     const withheld=weighted&&c.avg===null&&!!c.gate;
-                    const GATE_SHORT={"no-usage":"no paid OR volume","too-few-models":(c.weightedModelCount||1)+" model only","coverage-unknown":"quarter not fully measured","low-coverage":"coverage "+(c.coverageLabel||"low")};
+                    const GATE_SHORT={"series-unavailable":"weights unavailable","no-usage":"no paid OR volume","too-few-models":(c.weightedModelCount||1)+" model only","coverage-unknown":"coverage not measurable","low-coverage":"coverage "+(c.coverageLabel||"low")};
                     if(view==="qoq"){ main=c.qoqLabel||"—"; color=cellColor(c.qoq); sub=c.avgLabel; }
                     else if(view==="yoy"){ main=c.yoyLabel||"—"; color=cellColor(c.yoy); sub=c.avgLabel; }
                     else {
@@ -965,8 +964,8 @@ function ModelPricingHistoryBlock(){
         <span><b style={{color:"#374151"}}>Depth:</b> begins {state.data?.earliestDateObserved||"2025-07-28"}</span>
         <span>·</span>
         <span><b style={{color:"#374151"}}>Method:</b> {weighted
-          ?"each model's mean price in the quarter, weighted by the tokens it served on OpenRouter; weeks are split across a quarter boundary pro-rata by day"
-          :"equal-weighted mean of (model, day) observations per provider per quarter — model mix reflects what was available in that quarter, not a fixed basket"}</span>
+          ?"tokens served each week, charged at that week's price, summed over the quarter — not a quarterly mean price, so mid-quarter repricing is not spread over traffic that never paid it; boundary weeks split pro-rata by day"
+          :"equal-weighted mean of (model, day) observations per provider per quarter — a model priced on more days carries proportionally more of the mean; model mix reflects what was available in that quarter, not a fixed basket"}</span>
         <span>·</span>
         {weighted&&(<>
           <span><b style={{color:"#374151"}}>Gate:</b> a cell publishes only at ≥{wMeta?Math.round(wMeta.minCoverage*100):40}% measured coverage across ≥{wMeta?wMeta.minWeightedModels:2} priced models; otherwise withheld with a reason</span>
