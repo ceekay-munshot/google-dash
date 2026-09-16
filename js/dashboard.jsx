@@ -782,9 +782,11 @@ function ModelPricingHistoryBlock(){
           <b>Weights are OpenRouter token volumes</b> — one marketplace, not the whole market. First-party API
           traffic (much of OpenAI's and Google's real volume) never appears there, and OpenRouter names only its
           top models each week, bucketing the rest as “Others”.
-          A cell publishes only where the weights cover at least {wMeta?Math.round(wMeta.minCoverage*100):40}% of
-          that provider's OpenRouter tokens across at least {wMeta?wMeta.minWeightedModels:2} priced models —
-          otherwise it shows “—” and names the reason on hover. Nothing is estimated to fill a gap.
+          A cell publishes only where the weights cover at least {wMeta?Math.round(wMeta.minCoverage*100):15}% of
+          that provider's OpenRouter tokens across at least {wMeta?wMeta.minWeightedModels:2} priced models, and no
+          single model carries more than {wMeta?Math.round(wMeta.maxTopWeightShare*100):85}% of the weight —
+          otherwise it shows “—” and names the reason on hover. Coverage and the largest model's share are stated on
+          every published cell, so a thinly-covered number can be read as one. Nothing is estimated to fill a gap.
           {wMeta&&wMeta.providerSeriesLatestWeek&&(
             <> The two captures run to <b>{wMeta.providerSeriesLatestWeek}</b> (provider totals) and <b>{wMeta.modelSeriesLatestWeek}</b> (per-model
             volumes). A quarter publishes only when <i>every</i> week in it appears in both, so
@@ -913,7 +915,7 @@ function ModelPricingHistoryBlock(){
                     // reads differently: the sub-label names the gate, and the tooltip
                     // explains it in full rather than leaving a bare dash to interpret.
                     const withheld=weighted&&c.avg===null&&!!c.gate;
-                    const GATE_SHORT={"series-unavailable":"weights unavailable","no-usage":"no paid OR volume","too-few-models":(c.weightedModelCount||1)+" model only","coverage-unknown":"coverage not measurable","low-coverage":"coverage "+(c.coverageLabel||"low")};
+                    const GATE_SHORT={"series-unavailable":"weights unavailable","no-usage":"no paid OR volume","too-few-models":(c.weightedModelCount||1)+" model only","coverage-unknown":"coverage not measurable","low-coverage":"coverage "+(c.coverageLabel||"low"),"single-model-dominated":"1 model is "+(c.topWeightShareLabel||"most")};
                     if(view==="qoq"){ main=c.qoqLabel||"—"; color=cellColor(c.qoq); sub=c.avgLabel; }
                     else if(view==="yoy"){ main=c.yoyLabel||"—"; color=cellColor(c.yoy); sub=c.avgLabel; }
                     else {
@@ -968,7 +970,7 @@ function ModelPricingHistoryBlock(){
           :"equal-weighted mean of (model, day) observations per provider per quarter — a model priced on more days carries proportionally more of the mean; model mix reflects what was available in that quarter, not a fixed basket"}</span>
         <span>·</span>
         {weighted&&(<>
-          <span><b style={{color:"#374151"}}>Gate:</b> a cell publishes only at ≥{wMeta?Math.round(wMeta.minCoverage*100):40}% measured coverage across ≥{wMeta?wMeta.minWeightedModels:2} priced models; otherwise withheld with a reason</span>
+          <span><b style={{color:"#374151"}}>Gate:</b> a cell publishes only at ≥{wMeta?Math.round(wMeta.minCoverage*100):15}% measured coverage across ≥{wMeta?wMeta.minWeightedModels:2} priced models, with no single model above {wMeta?Math.round(wMeta.maxTopWeightShare*100):85}% of the weight; otherwise withheld with a reason</span>
           <span>·</span>
           <span><b style={{color:"#374151"}}>Matching:</b> OpenRouter model names are mapped to priced models by exact match after normalising version and date suffixes — never fuzzy; an unmatched model counts against coverage instead of borrowing a price</span>
           <span>·</span>

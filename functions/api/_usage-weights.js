@@ -80,8 +80,26 @@
 
 /** Minimum priced models carrying a weight before a cell is an "average". */
 export const MIN_WEIGHTED_MODELS = 2;
-/** Minimum share of a provider's own OpenRouter tokens the weights must cover. */
-export const MIN_COVERAGE = 0.40;
+/**
+ * Minimum share of a provider's own OpenRouter tokens the weights must cover.
+ *
+ * Deliberately lower than the concentration bar below. A volume-weighted price
+ * over a fifth of a provider's traffic is a real, useful number as long as the
+ * reader can see it is a fifth — and every cell states its coverage. What
+ * actually misleads is not low coverage but a single model wearing a
+ * provider's name, which MAX_TOP_WEIGHT_SHARE catches directly instead of
+ * being approximated by a high coverage bar.
+ */
+export const MIN_COVERAGE = 0.15;
+/**
+ * Most of a cell's weight one model may carry.
+ *
+ * "At least two models" does not make an average: measured on live data,
+ * 2026-Q2 Google cleared two models with the larger holding 93% of the weight,
+ * and 2025-Q3 DeepSeek with 90%. Those are single-model prices with a second
+ * model rounding to nothing. 85% admits genuine blends and rejects impostors.
+ */
+export const MAX_TOP_WEIGHT_SHARE = 0.85;
 
 /**
  * pricepertoken provider slug → OpenRouter provider slug.
@@ -426,6 +444,9 @@ export function weightedAverage(modelWeights, coverage, seriesAvailable = true) 
   if (coverage < MIN_COVERAGE) {
     return { avg: null, models, coverage, topShare, gate: 'low-coverage' };
   }
+  if (topShare !== null && topShare > MAX_TOP_WEIGHT_SHARE) {
+    return { avg: null, models, coverage, topShare, gate: 'single-model-dominated' };
+  }
   return { avg: cost / tokens, models, coverage, topShare, gate: null };
 }
 
@@ -451,6 +472,10 @@ export function gateReason(gate, coverage, models) {
     case 'low-coverage':
       return 'Weights cover only ' + pct + ' of this provider\'s OpenRouter tokens — ' +
         'below the ' + (MIN_COVERAGE * 100).toFixed(0) + '% needed to call it an average.';
+    case 'single-model-dominated':
+      return 'One model carries more than ' + (MAX_TOP_WEIGHT_SHARE * 100).toFixed(0) +
+        '% of the weight, so this would be that model\'s price under the provider\'s ' +
+        'name rather than an average across its lineup.';
     default:
       return null;
   }

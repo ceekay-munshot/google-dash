@@ -43,6 +43,7 @@ import {
   PPT_TO_OR_PROVIDER,
   MIN_COVERAGE,
   MIN_WEIGHTED_MODELS,
+  MAX_TOP_WEIGHT_SHARE,
   priceModelCandidates,
   buildUsageWeights,
   weightedAverage,
@@ -461,6 +462,7 @@ export async function onRequestGet({ request }) {
       incompleteProviderQuarters: Array.from(built.incompleteProviderQuarters).sort().reverse(),
       minCoverage: MIN_COVERAGE,
       minWeightedModels: MIN_WEIGHTED_MODELS,
+      maxTopWeightShare: MAX_TOP_WEIGHT_SHARE,
       providerSlugMap: PPT_TO_OR_PROVIDER,
       caveats: [
         'OpenRouter is one marketplace, not the whole market — first-party API traffic is not represented.',
@@ -470,6 +472,7 @@ export async function onRequestGet({ request }) {
         'A provider absent from a week\'s ranking is folded into "others" by OpenRouter, so that provider-quarter\'s coverage is unknowable and withheld.',
         '":free" and other variant SKUs are excluded from the weights — folding them into the paid model would price free traffic as paid.',
         'Tokens are charged at the price in force the week they were served, not a quarterly mean, so mid-quarter repricing is not spread over traffic that never paid it.',
+        'A cell where one model carries more than ' + (MAX_TOP_WEIGHT_SHARE * 100).toFixed(0) + '% of the weight is withheld — that is one model\'s price, not a provider average.',
       ],
     };
   }
