@@ -28,8 +28,26 @@
  * Query params:
  *   ?metric=input   (default) — pricing_prompt, scaled to per 1M tokens
  *   ?metric=output            — pricing_completion, scaled to per 1M tokens
+ *   ?weight=equal   (default) — every model in the lineup counts once
+ *   ?weight=usage             — each model counts in proportion to the tokens
+ *                               it actually served on OpenRouter, so the cell
+ *                               reads as what the market pays rather than what
+ *                               the price list says. Coverage is measured per
+ *                               provider-quarter and cells that cannot clear
+ *                               the gate are withheld with a stated reason —
+ *                               see _usage-weights.js for the limits.
  *   ?refresh=1                — bypass edge cache (diagnostic only)
  */
+
+import {
+  PPT_TO_OR_PROVIDER,
+  MIN_COVERAGE,
+  MIN_WEIGHTED_MODELS,
+  priceModelCandidates,
+  buildUsageWeights,
+  weightedAverage,
+  gateReason,
+} from './_usage-weights.js';
 
 const UPSTREAM_BASE = 'https://api.pricepertoken.com/api/provider-pricing-history/';
 const CACHE_TTL = 21600; // 6 hours
@@ -129,22 +147,34 @@ async function fetchProvider(slug) {
 
 /**
  * Build the matrix from a list of provider rowsets.
- * Average is equal-weighted across every (model, day) observation
- * in the quarter — i.e., one point per model per day that the upstream
- * recorded a price for. This mirrors how pricepertoken's own chart
- * aggregates the data and avoids collapsing-to-one-model bias when some
+ *
+ * Default (weighting omitted): the average is equal-weighted across every
+ * (model, day) observation in the quarter — i.e., one point per model per day
+ * that the upstream recorded a price for. This mirrors how pricepertoken's own
+ * chart aggregates the data and avoids collapsing-to-one-model bias when some
  * models have more dated observations than others.
+ *
+ * With `weighting` supplied, each model's mean price in the quarter is instead
+ * weighted by the tokens it served, and cells that cannot clear the coverage
+ * gate are withheld. The equal-weighted level is retained on every cell as
+ * `equalAvg` so the two are always comparable side by side.
  */
-function buildMatrix(providerResults, metric) {
+function buildMatrix(providerResults, metric, weighting) {
   const priceField = metric === 'output' ? 'pricing_completion' : 'pricing_prompt';
 
   // Collect the union of quarter keys across providers
   const allQuarters = new Set();
   const perProvider = new Map();
+  // slug -> quarter -> model -> { sum, count } — per-model price means, used
+  // only by the usage-weighted path. Built in the same pass as the equal
+  // -weighted buckets so the two views can never diverge on which rows they
+  // consider valid.
+  const perProviderModels = new Map();
 
   for (const pr of providerResults) {
     // quarter -> { sum, count, modelSet }
     const buckets = new Map();
+    const modelBuckets = new Map();
     for (const row of pr.rows) {
       // Alternate-billing SKUs are the same model sold on different terms —
       // ':batch' is ~50% off async, plus ':beta', ':thinking', ':free',
@@ -174,8 +204,18 @@ function buildMatrix(providerResults, metric) {
       b.sum += v;
       b.count += 1;
       if (row.model) b.models.add(row.model);
+
+      if (row.model) {
+        if (!modelBuckets.has(q)) modelBuckets.set(q, new Map());
+        const byModel = modelBuckets.get(q);
+        if (!byModel.has(row.model)) byModel.set(row.model, { sum: 0, count: 0 });
+        const ms = byModel.get(row.model);
+        ms.sum += v;
+        ms.count += 1;
+      }
     }
     perProvider.set(pr.slug, buckets);
+    perProviderModels.set(pr.slug, modelBuckets);
   }
 
   // Sort quarters newest first
@@ -190,14 +230,39 @@ function buildMatrix(providerResults, metric) {
         return { slug: p.slug, avg: null, avgLabel: '—', obsCount: 0, modelCount: 0 };
       }
       // Upstream values are $/token; scale to $/1M tokens
-      const avg = (stat.sum / stat.count) * 1_000_000;
-      return {
+      const equalAvg = (stat.sum / stat.count) * 1_000_000;
+      const cell = {
         slug: p.slug,
-        avg: round3(avg),
-        avgLabel: formatPrice(avg),
+        avg: round3(equalAvg),
+        avgLabel: formatPrice(equalAvg),
         obsCount: stat.count,
         modelCount: stat.models.size,
       };
+      if (!weighting) return cell;
+
+      // Usage-weighted view. `avg` is deliberately REPLACED rather than added
+      // alongside, so every downstream consumer — the QoQ/YoY pass below, the
+      // trend chart, the matrix — reads one consistent series and cannot mix
+      // a weighted level with an equal-weighted change. The equal-weighted
+      // level stays available as `equalAvg` for tooltips.
+      const modelMeans = perProviderModels.get(p.slug)?.get(q) || new Map();
+      const modelWeights = weighting.weights.get(q)?.get(p.slug);
+      const coverage = weighting.coverage.get(q)?.has(p.slug)
+        ? weighting.coverage.get(q).get(p.slug)
+        : null;
+      const w = weightedAverage(modelMeans, modelWeights, coverage);
+      const weightedAvg = w.avg === null ? null : w.avg * 1_000_000;
+
+      cell.equalAvg = cell.avg;
+      cell.equalAvgLabel = cell.avgLabel;
+      cell.avg = weightedAvg === null ? null : round3(weightedAvg);
+      cell.avgLabel = weightedAvg === null ? '—' : formatPrice(weightedAvg);
+      cell.weightedModelCount = w.models;
+      cell.coverage = w.coverage === null ? null : round3(w.coverage);
+      cell.coverageLabel = w.coverage === null ? null : (w.coverage * 100).toFixed(0) + '%';
+      cell.gate = w.gate;
+      cell.gateReason = gateReason(w.gate, w.coverage, w.models);
+      return cell;
     });
     return { quarter: q, cells };
   });
@@ -231,11 +296,62 @@ function currentQuarterKey() {
   return y + '-Q' + (Math.floor(m / 3) + 1);
 }
 
+/**
+ * Fetch one of this origin's own endpoints. The weekly OpenRouter series
+ * already lives behind /api/openrouter-chart-weekly with its own KV-backed
+ * capture and fallback handling; re-reading KV here would duplicate that
+ * logic and let the two drift.
+ */
+async function fetchSameOrigin(request, path) {
+  try {
+    const r = await fetch(new URL(request.url).origin + path, {
+      headers: { 'User-Agent': 'gdash-provider-pricing/1.0', Accept: 'application/json' },
+    });
+    if (!r.ok) return null;
+    return await r.json();
+  } catch (_) {
+    return null;
+  }
+}
+
+/**
+ * Build the resolver that maps an OpenRouter model name to a model name that
+ * actually carries a price, using only names present in THIS request's
+ * upstream payload. Deriving it from live data rather than a hardcoded table
+ * means a renamed or delisted model degrades into "unpriced" — visibly
+ * lowering coverage — instead of silently matching the wrong price.
+ */
+function makeModelResolver(providerResults, priceField) {
+  const catalog = new Map();
+  for (const pr of providerResults) {
+    const names = new Set();
+    for (const row of pr.rows) {
+      if (typeof row?.model !== 'string' || row.model.includes(':')) continue;
+      const v = row?.[priceField];
+      if (typeof v !== 'number' || !isFinite(v) || v <= 0) continue;
+      names.add(row.model);
+    }
+    catalog.set(pr.slug, names);
+  }
+  return (pptSlug, orModel) => {
+    const names = catalog.get(pptSlug);
+    if (!names) return null;
+    for (const candidate of priceModelCandidates(orModel)) {
+      if (names.has(candidate)) return candidate;
+    }
+    return null;
+  };
+}
+
 export async function onRequestGet({ request }) {
   const url = new URL(request.url);
   const metric = (url.searchParams.get('metric') || 'input').toLowerCase();
   if (metric !== 'input' && metric !== 'output') {
     return jsonResp({ success: false, error: 'metric must be "input" or "output"' }, 400);
+  }
+  const weight = (url.searchParams.get('weight') || 'equal').toLowerCase();
+  if (weight !== 'equal' && weight !== 'usage') {
+    return jsonResp({ success: false, error: 'weight must be "equal" or "usage"' }, 400);
   }
 
   const results = await Promise.all(PROVIDERS.map(p => fetchProvider(p.slug)));
@@ -248,7 +364,42 @@ export async function onRequestGet({ request }) {
     }, 502, { 'Cache-Control': 'no-store' });
   }
 
-  const { quarters } = buildMatrix(results, metric);
+  // Usage weighting needs two separate captures: per-model tokens for the
+  // weights, and per-provider totals for the coverage denominator. If either
+  // is missing the request does NOT silently fall back to equal weighting —
+  // that would answer a different question than the one asked — it returns
+  // the matrix with every weighted cell withheld and says why.
+  let weighting = null;
+  let weightMeta = null;
+  if (weight === 'usage') {
+    const [modelSeries, providerSeries] = await Promise.all([
+      fetchSameOrigin(request, '/api/openrouter-chart-weekly?full=1'),
+      fetchSameOrigin(request, '/api/openrouter-chart-weekly?providers=1'),
+    ]);
+    const priceField = metric === 'output' ? 'pricing_completion' : 'pricing_prompt';
+    const built = buildUsageWeights(
+      modelSeries, providerSeries, makeModelResolver(results, priceField),
+    );
+    weighting = { weights: built.weights, coverage: built.coverage };
+    weightMeta = {
+      source: 'openrouter.ai/rankings weekly token series, via /api/openrouter-chart-weekly',
+      modelSeriesAvailable: !!modelSeries,
+      providerSeriesAvailable: !!providerSeries,
+      modelSeriesLatestWeek: built.modelSeriesLatestWeek,
+      providerSeriesLatestWeek: built.providerSeriesLatestWeek,
+      minCoverage: MIN_COVERAGE,
+      minWeightedModels: MIN_WEIGHTED_MODELS,
+      providerSlugMap: PPT_TO_OR_PROVIDER,
+      caveats: [
+        'OpenRouter is one marketplace, not the whole market — first-party API traffic is not represented.',
+        'OpenRouter names only its top models each week and buckets the rest as "Others", which caps measurable coverage.',
+        'Token counts combine prompt and completion, so the same weight applies to the input and output averages.',
+        'Coverage needs the provider-total capture; quarters it does not reach are withheld rather than assumed.',
+      ],
+    };
+  }
+
+  const { quarters } = buildMatrix(results, metric, weighting);
   const currentQ = currentQuarterKey();
   quarters.forEach(q => { q.partial = q.quarter === currentQ; });
 
@@ -265,12 +416,20 @@ export async function onRequestGet({ request }) {
   return jsonResp({
     success: true,
     metric,
+    weight,
+    weighting: weightMeta,
     source: UPSTREAM_BASE,
-    sourceNote:
-      'Upstream is pricepertoken.com\'s own historical pricing API. ' +
-      'Per-provider daily model prices are averaged equal-weighted across ' +
-      'every (model, day) observation in each calendar quarter. No synthetic ' +
-      'backfill — pre-upstream quarters simply do not appear.',
+    sourceNote: weight === 'usage'
+      ? 'Prices come from pricepertoken.com\'s historical pricing API; weights ' +
+        'come from OpenRouter\'s weekly per-model token volumes. Each model\'s ' +
+        'mean price in the quarter is weighted by the tokens it served, so the ' +
+        'cell reads as what was actually paid rather than a list-price mean. ' +
+        'Cells whose weights do not cover enough of a provider\'s volume are ' +
+        'withheld with a stated reason, never estimated.'
+      : 'Upstream is pricepertoken.com\'s own historical pricing API. ' +
+        'Per-provider daily model prices are averaged equal-weighted across ' +
+        'every (model, day) observation in each calendar quarter. No synthetic ' +
+        'backfill — pre-upstream quarters simply do not appear.',
     earliestDateObserved: earliestDate ? earliestDate.slice(0, 10) : null,
     providers: PROVIDERS,
     quarters,

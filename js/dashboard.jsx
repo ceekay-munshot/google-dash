@@ -697,12 +697,17 @@ function PricingShareSignalBlock(){
 function ModelPricingHistoryBlock(){
   const[metric,setMetric]=useState("input");
   const[view,setView]=useState("avg"); // "avg" | "qoq" | "yoy"
+  // "equal" — every model in a provider's lineup counts once (list-price mean).
+  // "usage" — each model counts in proportion to the tokens it actually served,
+  // so the cell reads as what the market paid. The server replaces `avg` with
+  // the weighted level, so the chart, matrix and QoQ/YoY all follow one series.
+  const[weight,setWeight]=useState("equal");
   const[state,setState]=useState({phase:"loading",data:null,error:null});
 
   useEffect(()=>{
     let cancelled=false;
     setState(s=>({...s,phase:"loading"}));
-    fetch("/api/provider-pricing-matrix?metric="+metric)
+    fetch("/api/provider-pricing-matrix?metric="+metric+"&weight="+weight)
       .then(r=>r.json())
       .then(d=>{ if(cancelled) return;
         if(!d.success) setState({phase:"error",data:null,error:d.error||"Unknown error"});
@@ -710,11 +715,15 @@ function ModelPricingHistoryBlock(){
       })
       .catch(e=>{ if(!cancelled) setState({phase:"error",data:null,error:e.message}); });
     return ()=>{cancelled=true;};
-  },[metric]);
+  },[metric,weight]);
 
+  const weighted=weight==="usage";
   const title   ="Quarterly Model Pricing by Company";
-  const subtitle="Average model API price per token by calendar quarter, grouped by provider family, for historical comparison.";
+  const subtitle=weighted
+    ?"Model API price per token by calendar quarter, weighted by the tokens each model actually served on OpenRouter — what was paid, not what was listed."
+    :"Average model API price per token by calendar quarter, grouped by provider family, for historical comparison.";
   const unitHint=metric==="input"?"Input $/1M tokens":"Output $/1M tokens";
+  const wMeta=state.data?.weighting||null;
   const cellColor=(v)=>v===null||v===undefined?"#9ca3af":v>0?"#dc2626":v<0?"#059669":"#6b7280";
 
   return(
@@ -747,8 +756,43 @@ function ModelPricingHistoryBlock(){
             </button>
           ))}
         </div>
+        {/* Weighting toggle — the question is "average of what?": every model
+           once, or every model in proportion to the traffic it carried. */}
+        <div style={{display:"inline-flex",border:"0.5px solid #e5e7eb",borderRadius:6,overflow:"hidden",background:"#fff"}}>
+          {[{id:"equal",label:"Equal weight"},{id:"usage",label:"Usage weighted"}].map(w=>(
+            <button key={w.id} onClick={()=>setWeight(w.id)}
+              title={w.id==="equal"
+                ?"Every model in the provider's lineup counts once — the list-price mean."
+                :"Each model counts in proportion to the tokens it served on OpenRouter."}
+              style={{fontSize:11,padding:"4px 11px",border:"none",background:weight===w.id?"#111827":"#fff",color:weight===w.id?"#fff":"#6b7280",cursor:"pointer",fontFamily:"inherit",fontWeight:500}}>
+              {w.label}
+            </button>
+          ))}
+        </div>
         {state.phase==="loading"&&<span><Spin size={10}/></span>}
       </div>
+
+      {/* What the weighted view can and cannot say. Shown only in weighted mode,
+         because an unqualified weighted price is the easy way to mislead here:
+         OpenRouter is one marketplace, and it names only its top models each
+         week. Cells that cannot clear the coverage gate are withheld, and each
+         one states its own reason on hover. */}
+      {weighted&&state.phase==="ready"&&(
+        <div style={{fontSize:11,color:"#1e40af",background:"#eff6ff",border:"0.5px solid #bfdbfe",borderRadius:6,padding:"7px 10px",marginBottom:8,lineHeight:1.5}}>
+          <b>Weights are OpenRouter token volumes</b> — one marketplace, not the whole market. First-party API
+          traffic (much of OpenAI's and Google's real volume) never appears there, and OpenRouter names only its
+          top models each week, bucketing the rest as “Others”.
+          A cell publishes only where the weights cover at least {wMeta?Math.round(wMeta.minCoverage*100):40}% of
+          that provider's OpenRouter tokens across at least {wMeta?wMeta.minWeightedModels:2} priced models —
+          otherwise it shows “—” and names the reason on hover. Nothing is estimated to fill a gap.
+          {wMeta&&wMeta.providerSeriesLatestWeek&&(
+            <> Coverage can only be measured through <b>{wMeta.providerSeriesLatestWeek}</b>, the last week of the
+            provider-total capture{wMeta.modelSeriesLatestWeek&&wMeta.modelSeriesLatestWeek>wMeta.providerSeriesLatestWeek
+              ?<> (per-model volumes run to {wMeta.modelSeriesLatestWeek})</>:null}; later quarters are withheld
+            rather than assumed.</>
+          )}
+        </div>
+      )}
 
       {/* Per-provider upstream failure note — partial data still renders */}
       {state.data?.providerErrors?.length>0&&(
@@ -783,7 +827,11 @@ function ModelPricingHistoryBlock(){
             </div>
             <div style={{marginBottom:6}}>
               <div style={{fontSize:13,fontWeight:700,color:"#111827",lineHeight:1.3}}>Quarterly Model Pricing by Company — Trend</div>
-              <div style={{fontSize:10,color:"#9ca3af",marginTop:2}}>Calendar-quarter average model API price per token, grouped by provider family. Log scale. Same data as matrix below.</div>
+              <div style={{fontSize:10,color:"#9ca3af",marginTop:2}}>
+                {weighted
+                  ?"Calendar-quarter token-weighted model API price per token, grouped by provider family. Log scale. Gaps are quarters whose weights did not clear the coverage gate — lines break rather than bridging them. Same data as matrix below."
+                  :"Calendar-quarter average model API price per token, grouped by provider family. Log scale. Same data as matrix below."}
+              </div>
             </div>
             <div style={{...S.card,padding:"12px 12px 4px"}}>
               <ResponsiveContainer width="100%" height={240}>
@@ -808,7 +856,11 @@ function ModelPricingHistoryBlock(){
                       strokeWidth={1.75}
                       dot={{r:2.5,strokeWidth:0}}
                       activeDot={{r:4}}
-                      connectNulls
+                      /* Equal-weighted gaps mean "upstream had no rows yet", so bridging
+                         them is fair. A weighted gap means "we withheld this cell" —
+                         bridging it would draw a trend through a number we refused to
+                         publish, so the line breaks instead. */
+                      connectNulls={!weighted}
                       isAnimationActive={false}/>
                   ))}
                 </LineChart>
@@ -854,15 +906,38 @@ function ModelPricingHistoryBlock(){
                   </td>
                   {q.cells.map(c=>{
                     let main,sub,color="#111827";
+                    // A withheld weighted cell is not the same as missing data, so it
+                    // reads differently: the sub-label names the gate, and the tooltip
+                    // explains it in full rather than leaving a bare dash to interpret.
+                    const withheld=weighted&&c.avg===null&&!!c.gate;
+                    const GATE_SHORT={"no-usage":"no OR volume","too-few-models":"1 model only","coverage-unknown":"coverage unverified","low-coverage":"coverage "+(c.coverageLabel||"low")};
                     if(view==="qoq"){ main=c.qoqLabel||"—"; color=cellColor(c.qoq); sub=c.avgLabel; }
                     else if(view==="yoy"){ main=c.yoyLabel||"—"; color=cellColor(c.yoy); sub=c.avgLabel; }
-                    else { main=c.avgLabel; sub=c.modelCount?c.modelCount+" models":"—"; }
-                    const tip=(c.avgLabel||"—")+" avg · "+(c.modelCount||0)+" models in this quarter · "+(c.obsCount||0)+" daily observations"+(c.qoqLabel?" · QoQ "+c.qoqLabel:"")+(c.yoyLabel?" · YoY "+c.yoyLabel:"");
+                    else {
+                      main=c.avgLabel;
+                      sub=weighted
+                        ?(withheld
+                          ?(GATE_SHORT[c.gate]||"withheld")
+                          :(c.weightedModelCount?c.weightedModelCount+" models · "+(c.coverageLabel||"—")+" covered":"—"))
+                        :(c.modelCount?c.modelCount+" models":"—");
+                    }
+                    if(withheld) color="#9ca3af";
+                    const tip=weighted
+                      ?(withheld
+                        ?"Withheld — "+(c.gateReason||"did not clear the coverage gate")+
+                          " Equal-weighted for reference: "+(c.equalAvgLabel||"—")+"."
+                        :(c.avgLabel||"—")+" token-weighted across "+(c.weightedModelCount||0)+
+                          " priced model"+(c.weightedModelCount===1?"":"s")+
+                          " covering "+(c.coverageLabel||"—")+" of this provider's OpenRouter tokens"+
+                          " · equal-weighted "+(c.equalAvgLabel||"—")+
+                          " · "+(c.modelCount||0)+" models priced in this quarter"+
+                          (c.qoqLabel?" · QoQ "+c.qoqLabel:"")+(c.yoyLabel?" · YoY "+c.yoyLabel:""))
+                      :(c.avgLabel||"—")+" avg · "+(c.modelCount||0)+" models in this quarter · "+(c.obsCount||0)+" daily observations"+(c.qoqLabel?" · QoQ "+c.qoqLabel:"")+(c.yoyLabel?" · YoY "+c.yoyLabel:"");
                     return(
                       <td key={c.slug} style={{padding:"10px 10px",borderBottom:"1px solid #f9fafb",fontFamily:"monospace",textAlign:"right",fontWeight:600,color,whiteSpace:"nowrap"}}
                           title={tip}>
                         <div>{main}</div>
-                        <div style={{fontSize:9,color:"#9ca3af",fontWeight:400,marginTop:1}}>{sub}</div>
+                        <div style={{fontSize:9,color:withheld?"#d1d5db":"#9ca3af",fontWeight:400,marginTop:1}}>{sub}</div>
                       </td>
                     );
                   })}
@@ -884,13 +959,23 @@ function ModelPricingHistoryBlock(){
         <span>·</span>
         <span><b style={{color:"#374151"}}>Depth:</b> begins {state.data?.earliestDateObserved||"2025-07-28"}</span>
         <span>·</span>
-        <span><b style={{color:"#374151"}}>Method:</b> equal-weighted mean of (model, day) observations per provider per quarter — model mix reflects what was available in that quarter, not a fixed basket</span>
+        <span><b style={{color:"#374151"}}>Method:</b> {weighted
+          ?"each model's mean price in the quarter, weighted by the tokens it served on OpenRouter; weeks are split across a quarter boundary pro-rata by day"
+          :"equal-weighted mean of (model, day) observations per provider per quarter — model mix reflects what was available in that quarter, not a fixed basket"}</span>
         <span>·</span>
+        {weighted&&(<>
+          <span><b style={{color:"#374151"}}>Gate:</b> a cell publishes only at ≥{wMeta?Math.round(wMeta.minCoverage*100):40}% measured coverage across ≥{wMeta?wMeta.minWeightedModels:2} priced models; otherwise withheld with a reason</span>
+          <span>·</span>
+          <span><b style={{color:"#374151"}}>Matching:</b> OpenRouter model names are mapped to priced models by exact match after normalising version and date suffixes — never fuzzy; an unmatched model counts against coverage instead of borrowing a price</span>
+          <span>·</span>
+          <span><b style={{color:"#374151"}}>Token split:</b> OpenRouter reports one count per model for prompt and completion combined, so the same weights apply to the input and output views</span>
+          <span>·</span>
+        </>)}
         <span><b style={{color:"#374151"}}>YoY:</b> appears only when a true year-ago quarter exists upstream</span>
         <span>·</span>
         <span><b style={{color:"#374151"}}>Backfill:</b> none — real snapshots only</span>
         <span>·</span>
-        <span><b style={{color:"#374151"}}>Source:</b> api.pricepertoken.com provider pricing history</span>
+        <span><b style={{color:"#374151"}}>Source:</b> api.pricepertoken.com provider pricing history{weighted?" · weights from openrouter.ai/rankings weekly token series":""}</span>
       </div>
     </div>
   );
