@@ -788,8 +788,12 @@ function ModelPricingHistoryBlock(){
           {wMeta&&wMeta.providerSeriesLatestWeek&&(
             <> Coverage can only be measured through <b>{wMeta.providerSeriesLatestWeek}</b>, the last week of the
             provider-total capture{wMeta.modelSeriesLatestWeek&&wMeta.modelSeriesLatestWeek>wMeta.providerSeriesLatestWeek
-              ?<> (per-model volumes run to {wMeta.modelSeriesLatestWeek})</>:null}; later quarters are withheld
-            rather than assumed.</>
+              ?<> (per-model volumes run to {wMeta.modelSeriesLatestWeek})</>:null}. A quarter publishes only when
+            <i> every</i> week in it has that denominator, so
+            {wMeta.uncertifiedQuarters?.length
+              ?<> <b>{wMeta.uncertifiedQuarters.join(", ")}</b> {wMeta.uncertifiedQuarters.length===1?"is":"are"} withheld</>
+              :<> any partly-measured quarter is withheld</>} rather than published against coverage
+            measured on only part of it.</>
           )}
         </div>
       )}
@@ -910,7 +914,7 @@ function ModelPricingHistoryBlock(){
                     // reads differently: the sub-label names the gate, and the tooltip
                     // explains it in full rather than leaving a bare dash to interpret.
                     const withheld=weighted&&c.avg===null&&!!c.gate;
-                    const GATE_SHORT={"no-usage":"no OR volume","too-few-models":"1 model only","coverage-unknown":"coverage unverified","low-coverage":"coverage "+(c.coverageLabel||"low")};
+                    const GATE_SHORT={"no-usage":"no paid OR volume","too-few-models":(c.weightedModelCount||1)+" model only","coverage-unknown":"quarter not fully measured","low-coverage":"coverage "+(c.coverageLabel||"low")};
                     if(view==="qoq"){ main=c.qoqLabel||"—"; color=cellColor(c.qoq); sub=c.avgLabel; }
                     else if(view==="yoy"){ main=c.yoyLabel||"—"; color=cellColor(c.yoy); sub=c.avgLabel; }
                     else {
@@ -929,6 +933,7 @@ function ModelPricingHistoryBlock(){
                         :(c.avgLabel||"—")+" token-weighted across "+(c.weightedModelCount||0)+
                           " priced model"+(c.weightedModelCount===1?"":"s")+
                           " covering "+(c.coverageLabel||"—")+" of this provider's OpenRouter tokens"+
+                          (c.topWeightShareLabel?" · largest model is "+c.topWeightShareLabel+" of the weight":"")+
                           " · equal-weighted "+(c.equalAvgLabel||"—")+
                           " · "+(c.modelCount||0)+" models priced in this quarter"+
                           (c.qoqLabel?" · QoQ "+c.qoqLabel:"")+(c.yoyLabel?" · YoY "+c.yoyLabel:""))

@@ -35,9 +35,18 @@
  *
  *   4. Coverage needs a denominator — the provider's total OpenRouter
  *      tokens — which comes from a separate capture
- *      (/api/openrouter-chart-weekly?providers=1). Where that capture does
- *      not reach a quarter, coverage is UNKNOWN and the cell is withheld.
+ *      (/api/openrouter-chart-weekly?providers=1). A quarter is certifiable
+ *      only when EVERY week contributing to it has that denominator. If even
+ *      one week is missing it, the quarter's coverage is UNKNOWN and every
+ *      cell in it is withheld — a partly-certified quarter would publish a
+ *      price computed over more weeks than its coverage figure describes.
  *      It is never assumed to be fine.
+ *
+ *   5. OpenRouter's `:free` variants serve tokens at no charge. Folding them
+ *      into the paid SKU would count free traffic at the paid price and
+ *      inflate a metric whose whole claim is "what was paid", so variant
+ *      SKUs are excluded from the weights AND from the coverage numerator —
+ *      they lower coverage, which is the visible, correct outcome.
  *
  * THE GATE
  * A weighted cell is published only when all three hold:
@@ -157,10 +166,24 @@ function quarterSplit(startStr, endStr) {
   return Array.from(counts, ([quarter, n]) => ({ quarter, fraction: n / days }));
 }
 
-/** Strip an OpenRouter variant suffix: "deepseek-v3:free" → "deepseek-v3". */
-function stripVariant(model) {
-  const i = model.indexOf(':');
-  return i >= 0 ? model.slice(0, i) : model;
+/**
+ * Whether an OpenRouter model name carries a variant suffix (":free" and any
+ * future sibling).
+ *
+ * These are excluded from the weights entirely rather than folded into the
+ * base SKU. `:free` is the one that appears in the captured series today and
+ * it serves tokens at no charge — mapping `x-ai/grok-4.1-fast:free` onto the
+ * paid `grok-4.1-fast` price would count free traffic at the paid rate. It is
+ * not a rounding error: measured across the captured weeks, `:free` is 9.2% of
+ * all named tokens and 11.9% of xAI's, a provider that publishes weighted
+ * cells.
+ *
+ * Any other suffix that appears later is excluded too. A paid routing variant
+ * would only lose us a little coverage, which is visible; guessing that it
+ * prices like the base SKU would silently corrupt the average, which is not.
+ */
+function hasVariantSuffix(model) {
+  return model.indexOf(':') >= 0;
 }
 
 /**
@@ -168,10 +191,14 @@ function stripVariant(model) {
  *
  * @param {object} modelSeries    /api/openrouter-chart-weekly?full=1 payload
  * @param {object} providerSeries /api/openrouter-chart-weekly?providers=1 payload
- * @param {(pptSlug: string, model: string) => string|null} resolveModel
- *        Returns the price-catalog model name for an OpenRouter model name,
- *        or null when the model carries no price. Supplied by the caller so
- *        this module never needs the pricing payload itself.
+ * @param {(pptSlug: string, model: string, quarter: string) => string|null} resolveModel
+ *        Returns the price-catalog model name for an OpenRouter model name AS
+ *        PRICED IN THAT QUARTER, or null otherwise. The quarter argument is
+ *        load-bearing: a catalog spanning all history would count a model as
+ *        covered in a quarter where it has traffic but no price row, while the
+ *        weighted average correctly skips it for want of a price — coverage
+ *        would then advertise volume that contributes nothing. Supplied by the
+ *        caller so this module never needs the pricing payload itself.
  *
  * @returns {{
  *   weights: Map<string, Map<string, Map<string, number>>>,  // quarter → pptSlug → priceModel → tokens
@@ -207,11 +234,20 @@ export function buildUsageWeights(modelSeries, providerSeries, resolveModel) {
     byModel.set(key, (byModel.get(key) || 0) + value);
   };
 
+  // Quarters touched by at least one model week that has no provider-total
+  // counterpart. Their coverage cannot be certified, so no cell in them may
+  // publish — see limit 4 above.
+  const uncertifiedQuarters = new Set();
+
   for (const week of modelWeeks) {
     if (typeof week?.start !== 'string') continue;
     const split = quarterSplit(week.start, week.end);
     if (!split.length) continue;
     const aligned = providerByWeek.has(week.start);
+
+    if (!aligned) {
+      for (const { quarter } of split) uncertifiedQuarters.add(quarter);
+    }
 
     for (const [slug, tokens] of Object.entries(week.allModels || {})) {
       if (slug === 'Others' || !(tokens > 0)) continue;
@@ -219,10 +255,14 @@ export function buildUsageWeights(modelSeries, providerSeries, resolveModel) {
       if (sep <= 0) continue;
       const pptSlug = OR_TO_PPT_PROVIDER[slug.slice(0, sep)];
       if (!pptSlug) continue;                       // provider we do not price
-      const priceModel = resolveModel(pptSlug, stripVariant(slug.slice(sep + 1)));
-      if (!priceModel) continue;                    // named but unpriced — lowers coverage
+      const orModel = slug.slice(sep + 1);
+      if (hasVariantSuffix(orModel)) continue;      // free/variant SKU — not paid volume
 
       for (const { quarter, fraction } of split) {
+        // Resolved per quarter: a model priced in one quarter but not another
+        // must not count as covered in the quarter where it has no price.
+        const priceModel = resolveModel(pptSlug, orModel, quarter);
+        if (!priceModel) continue;                  // named but unpriced — lowers coverage
         bump(weights, quarter, pptSlug, priceModel, tokens * fraction);
         if (aligned) bump(covNumerator, quarter, pptSlug, null, tokens * fraction);
       }
@@ -240,6 +280,7 @@ export function buildUsageWeights(modelSeries, providerSeries, resolveModel) {
 
   const coverage = new Map();
   for (const [quarter, byProvider] of covDenominator) {
+    if (uncertifiedQuarters.has(quarter)) continue; // partly-measured: leave unknown
     const out = new Map();
     for (const [slug, total] of byProvider) {
       if (!(total > 0)) continue;
@@ -257,6 +298,7 @@ export function buildUsageWeights(modelSeries, providerSeries, resolveModel) {
   return {
     weights,
     coverage,
+    uncertifiedQuarters,
     providerSeriesLatestWeek: lastWeek(providerWeeks),
     modelSeriesLatestWeek: lastWeek(modelWeeks),
   };
@@ -273,13 +315,18 @@ export function buildUsageWeights(modelSeries, providerSeries, resolveModel) {
  * @param {Map<string, number>|undefined} modelWeights priceModel → tokens
  * @param {number|null} coverage 0..1, or null when unknown
  *
- * @returns {{avg:number|null, models:number, coverage:number|null, gate:string|null}}
+ * @returns {{avg:number|null, models:number, coverage:number|null,
+ *            topShare:number|null, gate:string|null}}
  *          avg is in the upstream's native $/token unit; the caller scales.
+ *          topShare is the largest single model's share of the weight, so a
+ *          reader can tell a genuine blend from a number one model dominates —
+ *          "4 models" alone does not distinguish the two.
  */
 export function weightedAverage(modelMeans, modelWeights, coverage) {
   let numerator = 0;
   let denominator = 0;
   let models = 0;
+  let topTokens = 0;
 
   for (const [model, tokens] of modelWeights || []) {
     const stat = modelMeans.get(model);
@@ -287,21 +334,23 @@ export function weightedAverage(modelMeans, modelWeights, coverage) {
     numerator += (stat.sum / stat.count) * tokens;
     denominator += tokens;
     models += 1;
+    if (tokens > topTokens) topTokens = tokens;
   }
+  const topShare = denominator > 0 ? topTokens / denominator : null;
 
   if (denominator <= 0) {
-    return { avg: null, models: 0, coverage, gate: 'no-usage' };
+    return { avg: null, models: 0, coverage, topShare: null, gate: 'no-usage' };
   }
   if (models < MIN_WEIGHTED_MODELS) {
-    return { avg: null, models, coverage, gate: 'too-few-models' };
+    return { avg: null, models, coverage, topShare, gate: 'too-few-models' };
   }
   if (coverage === null || coverage === undefined) {
-    return { avg: null, models, coverage: null, gate: 'coverage-unknown' };
+    return { avg: null, models, coverage: null, topShare, gate: 'coverage-unknown' };
   }
   if (coverage < MIN_COVERAGE) {
-    return { avg: null, models, coverage, gate: 'low-coverage' };
+    return { avg: null, models, coverage, topShare, gate: 'low-coverage' };
   }
-  return { avg: numerator / denominator, models, coverage, gate: null };
+  return { avg: numerator / denominator, models, coverage, topShare, gate: null };
 }
 
 /** Human-readable reason a weighted cell was withheld. */
@@ -311,13 +360,14 @@ export function gateReason(gate, coverage, models) {
     : (coverage * 100).toFixed(0) + '%';
   switch (gate) {
     case 'no-usage':
-      return 'No OpenRouter token volume recorded for this provider in this quarter.';
+      return 'No paid OpenRouter token volume recorded for this provider in this quarter ' +
+        '(free-tier variants are excluded from paid weights).';
     case 'too-few-models':
       return 'Only ' + models + ' priced model' + (models === 1 ? '' : 's') +
         ' carried volume — one model is not a provider average.';
     case 'coverage-unknown':
-      return 'Provider-total capture does not reach this quarter, so the share of ' +
-        'volume these weights cover cannot be measured.';
+      return 'The provider-total capture does not cover every week of this quarter, so the ' +
+        'share of volume these weights represent cannot be measured for the whole quarter.';
     case 'low-coverage':
       return 'Weights cover only ' + pct + ' of this provider\'s OpenRouter tokens — ' +
         'below the ' + (MIN_COVERAGE * 100).toFixed(0) + '% needed to call it an average.';

@@ -260,6 +260,8 @@ function buildMatrix(providerResults, metric, weighting) {
       cell.weightedModelCount = w.models;
       cell.coverage = w.coverage === null ? null : round3(w.coverage);
       cell.coverageLabel = w.coverage === null ? null : (w.coverage * 100).toFixed(0) + '%';
+      cell.topWeightShare = w.topShare === null ? null : round3(w.topShare);
+      cell.topWeightShareLabel = w.topShare === null ? null : (w.topShare * 100).toFixed(0) + '%';
       cell.gate = w.gate;
       cell.gateReason = gateReason(w.gate, w.coverage, w.models);
       return cell;
@@ -320,21 +322,31 @@ async function fetchSameOrigin(request, path) {
  * upstream payload. Deriving it from live data rather than a hardcoded table
  * means a renamed or delisted model degrades into "unpriced" — visibly
  * lowering coverage — instead of silently matching the wrong price.
+ *
+ * The catalog is indexed PER QUARTER, not across all history. A model priced
+ * in one quarter and absent in another contributes no weight in the quarter
+ * where it has no price, so counting it as covered there would advertise
+ * volume that never reaches the average. Scoping resolution to the quarter
+ * keeps the coverage figure describing exactly the models that contribute.
  */
 function makeModelResolver(providerResults, priceField) {
-  const catalog = new Map();
+  const catalog = new Map();                       // slug -> quarter -> Set(model)
   for (const pr of providerResults) {
-    const names = new Set();
+    const byQuarter = new Map();
     for (const row of pr.rows) {
       if (typeof row?.model !== 'string' || row.model.includes(':')) continue;
       const v = row?.[priceField];
       if (typeof v !== 'number' || !isFinite(v) || v <= 0) continue;
-      names.add(row.model);
+      const date = row?.date;
+      if (typeof date !== 'string' || date.length < 10) continue;
+      const q = quarterOf(date);
+      if (!byQuarter.has(q)) byQuarter.set(q, new Set());
+      byQuarter.get(q).add(row.model);
     }
-    catalog.set(pr.slug, names);
+    catalog.set(pr.slug, byQuarter);
   }
-  return (pptSlug, orModel) => {
-    const names = catalog.get(pptSlug);
+  return (pptSlug, orModel, quarter) => {
+    const names = catalog.get(pptSlug)?.get(quarter);
     if (!names) return null;
     for (const candidate of priceModelCandidates(orModel)) {
       if (names.has(candidate)) return candidate;
@@ -387,6 +399,7 @@ export async function onRequestGet({ request }) {
       providerSeriesAvailable: !!providerSeries,
       modelSeriesLatestWeek: built.modelSeriesLatestWeek,
       providerSeriesLatestWeek: built.providerSeriesLatestWeek,
+      uncertifiedQuarters: Array.from(built.uncertifiedQuarters).sort().reverse(),
       minCoverage: MIN_COVERAGE,
       minWeightedModels: MIN_WEIGHTED_MODELS,
       providerSlugMap: PPT_TO_OR_PROVIDER,
@@ -394,7 +407,8 @@ export async function onRequestGet({ request }) {
         'OpenRouter is one marketplace, not the whole market — first-party API traffic is not represented.',
         'OpenRouter names only its top models each week and buckets the rest as "Others", which caps measurable coverage.',
         'Token counts combine prompt and completion, so the same weight applies to the input and output averages.',
-        'Coverage needs the provider-total capture; quarters it does not reach are withheld rather than assumed.',
+        'A quarter publishes only when every week in it has a provider-total denominator; a partly-measured quarter is withheld.',
+        '":free" and other variant SKUs are excluded from the weights — folding them into the paid model would price free traffic as paid.',
       ],
     };
   }
