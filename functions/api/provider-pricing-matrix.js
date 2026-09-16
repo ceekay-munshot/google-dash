@@ -48,6 +48,7 @@ import {
   weightedAverage,
   gateReason,
 } from './_usage-weights.js';
+import { fetchMarketShare } from './_openrouter-rankings.js';
 
 const UPSTREAM_BASE = 'https://api.pricepertoken.com/api/provider-pricing-history/';
 const CACHE_TTL = 21600; // 6 hours
@@ -359,6 +360,37 @@ function makeModelResolver(providerResults, priceField) {
   };
 }
 
+/** Latest week start in a {weeks:[{start}]} payload, or null. */
+function lastWeekStart(series) {
+  const weeks = series?.weeks;
+  if (!Array.isArray(weeks) || !weeks.length) return null;
+  return weeks[weeks.length - 1]?.start || null;
+}
+
+/**
+ * Union the captured provider history with the live market-share series,
+ * keyed by week start, live winning on overlap.
+ *
+ * Neither source covers the whole span on its own: the capture reaches back to
+ * 2025-05-26 but stopped on 2026-06-08, while the live dataset starts at
+ * 2025-09-22 and is current. Preferring live on overlap means a week is
+ * described by the authoritative source wherever one exists, and the stale
+ * copy only fills the head of the history it uniquely holds.
+ */
+function mergeProviderWeeks(captured, live) {
+  const byStart = new Map();
+  for (const w of (captured?.weeks || [])) {
+    if (w?.start && w.providers) byStart.set(w.start, w);
+  }
+  for (const w of (live?.weeks || [])) {
+    if (w?.start && w.providers) byStart.set(w.start, w);
+  }
+  if (!byStart.size) return null;
+  return {
+    weeks: [...byStart.keys()].sort().map(start => byStart.get(start)),
+  };
+}
+
 export async function onRequestGet({ request }) {
   const url = new URL(request.url);
   const metric = (url.searchParams.get('metric') || 'input').toLowerCase();
@@ -388,10 +420,23 @@ export async function onRequestGet({ request }) {
   let weighting = null;
   let weightMeta = null;
   if (weight === 'usage') {
-    const [modelSeries, providerSeries] = await Promise.all([
+    // The provider denominator is read LIVE from OpenRouter's market-share
+    // dataset rather than from the browser-captured copy in KV. That capture
+    // silently stopped persisting on 2026-06-09 — its detector rejected the
+    // payload once OpenRouter wrapped it in `{"data":[…]}` — and every
+    // usage-weighted cell for 2026-Q2 and Q3 was withheld for want of a
+    // denominator that was in fact available the whole time. The captured copy
+    // is still merged underneath because it reaches back further (2025-05-26)
+    // than the live dataset (2025-09-22), so the union covers more history
+    // than either alone.
+    const [modelSeries, capturedProviders, liveProviders] = await Promise.all([
       fetchSameOrigin(request, '/api/openrouter-chart-weekly?full=1'),
       fetchSameOrigin(request, '/api/openrouter-chart-weekly?providers=1'),
+      fetchMarketShare('week').catch(e => ({ error: e.message })),
     ]);
+    const liveOk = !!liveProviders && Array.isArray(liveProviders.weeks);
+    const providerSeries = mergeProviderWeeks(capturedProviders, liveOk ? liveProviders : null);
+
     const priceField = metric === 'output' ? 'pricing_completion' : 'pricing_prompt';
     const built = buildUsageWeights(
       modelSeries, providerSeries, makeModelResolver(results, priceField),
@@ -402,9 +447,14 @@ export async function onRequestGet({ request }) {
     const seriesAvailable = !!modelSeries && !!providerSeries;
     weighting = { weights: built.weights, coverage: built.coverage, seriesAvailable };
     weightMeta = {
-      source: 'openrouter.ai/rankings weekly token series, via /api/openrouter-chart-weekly',
+      source: 'weights from openrouter.ai/rankings weekly token series; provider totals ' +
+        'read live from the market-share dataset, merged over the captured history',
       modelSeriesAvailable: !!modelSeries,
       providerSeriesAvailable: !!providerSeries,
+      providerSeriesLive: liveOk,
+      providerSeriesLiveError: liveOk ? null : (liveProviders?.error || 'unavailable'),
+      providerSeriesCapturedLatestWeek: lastWeekStart(capturedProviders),
+      providerSeriesLiveLatestWeek: liveOk ? lastWeekStart(liveProviders) : null,
       modelSeriesLatestWeek: built.modelSeriesLatestWeek,
       providerSeriesLatestWeek: built.providerSeriesLatestWeek,
       uncertifiedQuarters: Array.from(built.uncertifiedQuarters).sort().reverse(),

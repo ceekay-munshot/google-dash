@@ -31,18 +31,86 @@ const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 '
 
 function log(...a) { console.error('[capture-openrouter]', ...a); }
 
-/** Model-level "Top Models" series: {"data":[{x,ys}]} keyed by provider/model slugs. */
-function isModelSeries(body) {
-  if (!body || body.indexOf('"data":[') < 0) return false;
-  if (body.indexOf('"x":"') < 0 || body.indexOf('"ys":') < 0) return false;
-  return /"[a-z][a-z0-9-]*\/[A-Za-z0-9][\w.:-]*":\s*\d/.test(body);
+/**
+ * Classify a chart payload by what its series KEYS say, never by how the
+ * response happens to be wrapped.
+ *
+ * The previous detectors keyed off the envelope: the model series had to
+ * contain `"data":[` and the provider series had to NOT contain it. When
+ * OpenRouter wrapped market-share in the same `{"data":[…]}` envelope as the
+ * model series, `isProviderSeries` began rejecting every provider payload.
+ * The script then exited non-zero while the model POST had already succeeded,
+ * so the model series stayed current and the provider series froze at
+ * 2026-06-08 — stale for fourteen weeks, and the sole reason usage-weighted
+ * pricing had to withhold 2026-Q2 and Q3 for want of a denominator.
+ *
+ * Keys cannot drift the way envelopes do: a model series is keyed by
+ * `provider/model` slugs, a provider series by bare provider names. That is
+ * also exactly how the server-side ingest (`looksModelLevel`) has always
+ * classified these, so client and server now agree by construction.
+ */
+function seriesKind(body) {
+  if (!body || body.indexOf('"ys":') < 0) return null;
+  const points = extractSeriesPoints(body);
+  if (!points || !points.length) return null;
+  const keys = new Set();
+  for (const p of points.slice(-3)) {
+    for (const k of Object.keys(p.ys || {})) keys.add(k);
+  }
+  if (!keys.size) return null;
+  const all = [...keys];
+  const slugLike = all.filter(k => k.includes('/') || k === 'Others').length;
+  if (slugLike >= all.length * 0.5) return 'model';
+  const providerLike = all.filter(k => /^[a-z][a-z0-9-]*$/.test(k)).length;
+  return providerLike >= all.length * 0.5 ? 'provider' : null;
 }
 
-/** Provider-level "Market Share" series: a bare [{x,ys}] keyed by provider names. */
-function isProviderSeries(body) {
-  if (!body || body.indexOf('[{"x":"') < 0) return false;
-  if (body.indexOf('"ys":') < 0 || body.indexOf('"data":[') >= 0) return false;
-  return /"(google|openai|anthropic|deepseek|qwen|tencent|moonshotai|meta-llama|mistralai|x-ai|openrouter)":\s*\d/.test(body);
+/**
+ * Pull the [{x, ys}] array out of a payload, whether it arrives bare, wrapped
+ * in `{"data":[…]}`, or embedded in an RSC stream. Mirrors the tolerance of
+ * parseRSCPayload() on the ingest side.
+ */
+function extractSeriesPoints(body) {
+  const direct = (() => { try { return JSON.parse(body); } catch { return null; } })();
+  const fromValue = (v) => {
+    if (Array.isArray(v) && v.length && v[0] && typeof v[0] === 'object' && 'ys' in v[0]) return v;
+    if (v && typeof v === 'object' && Array.isArray(v.data)) return fromValue(v.data);
+    return null;
+  };
+  const got = fromValue(direct);
+  if (got) return got;
+
+  for (const marker of ['{"data":[', '[{"x":']) {
+    let idx = body.indexOf(marker);
+    while (idx >= 0) {
+      const frag = extractBalancedFrom(body, idx);
+      if (frag) {
+        try {
+          const v = fromValue(JSON.parse(frag));
+          if (v) return v;
+        } catch { /* keep scanning */ }
+      }
+      idx = body.indexOf(marker, idx + 1);
+    }
+  }
+  return null;
+}
+
+/** Slice the balanced JSON value starting at `start` ('{' or '['). */
+function extractBalancedFrom(s, start) {
+  const open = s[start];
+  const close = open === '{' ? '}' : ']';
+  let depth = 0, inStr = false, esc = false;
+  for (let i = start; i < s.length; i++) {
+    const ch = s[i];
+    if (esc) { esc = false; continue; }
+    if (ch === '\\') { esc = true; continue; }
+    if (ch === '"') { inStr = !inStr; continue; }
+    if (inStr) continue;
+    if (ch === open) depth++;
+    else if (ch === close) { depth--; if (depth === 0) return s.slice(start, i + 1); }
+  }
+  return null;
 }
 
 async function captureOnce() {
@@ -57,8 +125,9 @@ async function captureOnce() {
         if (rt !== 'fetch' && rt !== 'xhr' && rt !== 'document') return;
         if (resp.status() !== 200) return;
         const body = await resp.text();
-        if (isModelSeries(body)) modelHits.push({ url: resp.url(), body });
-        else if (isProviderSeries(body)) providerHits.push({ url: resp.url(), body });
+        const kind = seriesKind(body);
+        if (kind === 'model') modelHits.push({ url: resp.url(), body });
+        else if (kind === 'provider') providerHits.push({ url: resp.url(), body });
       } catch (_) { /* body not retrievable — skip */ }
     });
     await page.goto(RANKINGS_URL, { waitUntil: 'domcontentloaded', timeout: 45000 });

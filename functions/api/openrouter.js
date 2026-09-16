@@ -49,8 +49,62 @@
  * • WoW% is week-over-week change as displayed on openrouter.ai/rankings
  */
 
+import { fetchModelUsage } from './_openrouter-rankings.js';
+
 const FIRECRAWL_API_KEY = 'fc-203d41c5b1984cdabee2a7564572efea';
 const FIRECRAWL_BASE    = 'https://api.firecrawl.dev/v1';
+
+/**
+ * "deepseek-v4-flash-20260731" → "DeepSeek V4 Flash 0731"
+ *
+ * The rankings API identifies a model only by slug, so the display name is
+ * derived. The release stamp is shortened to MMDD rather than dropped: two
+ * releases of the same line are distinct models with distinct prices, and
+ * dropping the stamp collapses `deepseek-v4-flash-20260731` and
+ * `-20260423` into one indistinguishable row. This is also how the pre-
+ * regression history rendered them ("DeepSeek V4 Flash 0731").
+ */
+function displayNameFromSlug(slug) {
+  let suffix = '';
+  const base = String(slug)
+    .replace(/-(\d{4})(\d{2})(\d{2})$/, (_, y, m, d) => { suffix = ' ' + m + d; return ''; })
+    .replace(/-(\d{4})-(\d{2})-(\d{2})$/, (_, y, m, d) => { suffix = ' ' + m + d; return ''; });
+  const CASED = {
+    gpt: 'GPT', deepseek: 'DeepSeek', openai: 'OpenAI', xai: 'xAI', ai: 'AI',
+    llama: 'Llama', qwen: 'Qwen', glm: 'GLM', mimo: 'MiMo', minimax: 'MiniMax',
+    oss: 'OSS', vl: 'VL', moe: 'MoE', hy: 'Hy', r1: 'R1', v2: 'V2', v3: 'V3', v4: 'V4',
+  };
+  return base.split('-').map(part => {
+    const lower = part.toLowerCase();
+    if (CASED[lower]) return CASED[lower];
+    if (/^v?\d/.test(lower)) return lower.toUpperCase();
+    return part.charAt(0).toUpperCase() + part.slice(1);
+  }).join(' ') + suffix;
+}
+
+/**
+ * Refuse a ranking that is really the Top Apps table.
+ *
+ * Applied to every acquisition path, not just the one that broke: the failure
+ * mode is an upstream layout change, and any path that reads the page rather
+ * than the API can hit it. A wrong-but-well-formed payload stored silently is
+ * strictly worse than a visible failure, because the dashboard keeps serving
+ * the last good data when a fetch fails but happily overwrites it when one
+ * "succeeds".
+ */
+function assertLooksLikeModels(models) {
+  const APPS = /^(kilo code|cline|codex|pi|omp|freebuff|roo code|chatwise|sillytavern|openrouter api|janitorai|openwebui)$/i;
+  const appish = models.filter(m => APPS.test(String(m.model || '').trim())).length;
+  if (appish > 0) {
+    throw new Error('Rejected: ' + appish + ' rows are applications, not models — ' +
+      'this is the Top Apps table (the 2026-08-18 regression)');
+  }
+  const attributed = models.filter(m => m.provider && m.provider !== 'other').length;
+  if (attributed < models.length * 0.5) {
+    throw new Error('Rejected: only ' + attributed + ' of ' + models.length +
+      ' rows have a real model provider — payload does not look like a model ranking');
+  }
+}
 
 const OR_URLS = {
   week:  'https://openrouter.ai/rankings?view=week',
@@ -126,12 +180,50 @@ export async function onRequestGet({ request }) {
   return ok(payload);
 }
 
-/* ─── Scrape openrouter.ai/rankings ─────────────────────────── */
+/* ─── Rankings acquisition ──────────────────────────────────── */
+/*
+ * Strategy, in order:
+ *   0. OpenRouter's own JSON API — authoritative, no interpretation involved
+ *   1. Firecrawl /extract with structured schema  — fallback
+ *   2. Firecrawl /scrape markdown + parser        — fallback
+ *
+ * Attempt 0 was added after the Firecrawl path silently drifted. The rankings
+ * page carries a Top Models table AND a Top Apps table; the extraction prompt
+ * said "leaderboard rankings table", and from 2026-08-18 it began returning
+ * Apps. The daily history recorded "Kilo Code" and "Cline" as models for a
+ * month, total tokens fell from ~28T to ~1.8T, and Gemini share read zero —
+ * all without a single error, because an LLM reading the wrong table produces
+ * perfectly well-formed output.
+ *
+ * Asking the API removes the interpretation step entirely. Every path now also
+ * passes through validateModelRows(), so a fallback that lands on Apps again
+ * fails loudly instead of being stored.
+ */
 async function scrapeRankings(targetUrl) {
-  /* Strategy:
-   * 1. Firecrawl /extract with structured schema — best result
-   * 2. Firecrawl /scrape markdown + parser — fallback
-   */
+  /* ── Attempt 0: OpenRouter's JSON rankings API ─────────────── */
+  try {
+    const view = targetUrl.includes('view=month') ? 'month' : 'week';
+    const { rows } = await fetchModelUsage(view);
+    const paid = rows.filter(r => r.variant === 'standard');
+    const byModel = new Map();
+    for (const r of paid) {
+      const prev = byModel.get(r.slug);
+      if (prev) prev.tokens += r.totalTokens;
+      else byModel.set(r.slug, { slug: r.slug, provider: r.provider, model: r.model, tokens: r.totalTokens });
+    }
+    const ranked = [...byModel.values()]
+      .sort((a, b) => b.tokens - a.tokens)
+      .map((m, i) => normaliseRow({
+        rank: i + 1,
+        model: displayNameFromSlug(m.model),
+        provider: m.provider,
+        tokens: m.tokens,
+        tokensLabel: formatTotalTokens(m.tokens),
+        wowPct: null,
+        wowLabel: '',
+      }));
+    if (ranked.length >= 20) return { ok: true, models: ranked, via: 'rankings-api' };
+  } catch (_) { /* fall through to the scrape paths */ }
 
   /* ── Attempt 1: structured extract ─────────────────────────── */
   try {
@@ -183,7 +275,9 @@ async function scrapeRankings(targetUrl) {
       const extBody = await extRes.json();
       const rows    = extBody?.data?.rows || extBody?.rows;
       if (Array.isArray(rows) && rows.length >= 5) {
-        return { ok: true, models: rows.map(normaliseRow) };
+        const models = rows.map(normaliseRow);
+        assertLooksLikeModels(models);
+        return { ok: true, models, via: 'firecrawl-extract' };
       }
     }
   } catch (_) { /* fall through */ }
@@ -215,7 +309,8 @@ async function scrapeRankings(targetUrl) {
 
     if (models.length < 5) return { ok: false, error: 'Could not parse rankings from markdown (got ' + models.length + ' rows)' };
 
-    return { ok: true, models };
+    assertLooksLikeModels(models);
+    return { ok: true, models, via: 'firecrawl-markdown' };
   } catch (err) {
     return { ok: false, error: err.message };
   }
