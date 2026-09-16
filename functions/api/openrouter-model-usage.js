@@ -51,6 +51,7 @@ import { fetchModelUsage, weeksBehind, RankingsError } from './_openrouter-ranki
 
 const KV_PREFIX = 'or-model-usage:';
 const KV_INDEX = 'or-model-usage:index';
+const KV_FIRST_SEEN = 'or-model-usage:first-seen';
 const CACHE_TTL = 900; // 15 min
 
 const CORS = {
@@ -134,6 +135,30 @@ function toWeekPayload(rows, weekStart) {
   };
 }
 
+/**
+ * Whether a week SHOULD already have been banked by now.
+ *
+ * Needed so health checks can distinguish "the accumulator is broken" from
+ * "it was only deployed on Wednesday and the week's capture window had already
+ * passed". Without this the very first run alerts on a system working
+ * perfectly, and an alert that cries wolf on day one is one nobody reads on
+ * day ninety.
+ *
+ * A bank is expected once a Monday has elapsed since the endpoint first ran.
+ */
+export function bankOverdue(firstSeen, todayISO, weeksStored) {
+  if (weeksStored > 0) return false;
+  if (!firstSeen) return false;
+  const first = Date.parse(firstSeen.slice(0, 10) + 'T00:00:00Z');
+  const today = Date.parse(todayISO + 'T00:00:00Z');
+  if (!isFinite(first) || !isFinite(today)) return false;
+  // Walk forward from the day after first-seen looking for an elapsed Monday.
+  for (let t = first + DAY_MS; t <= today; t += DAY_MS) {
+    if (new Date(t).getUTCDay() === 1) return true;
+  }
+  return false;
+}
+
 async function readIndex(kv) {
   if (!kv) return [];
   const idx = await kv.get(KV_INDEX, 'json');
@@ -188,6 +213,14 @@ export async function onRequestGet({ request, env }) {
   // so the series keeps filling without depending on a separate scheduled job
   // staying healthy — the failure mode that left the provider series stale for
   // fourteen weeks. A week already banked is not re-fetched.
+  // Record when this endpoint first ran, so health checks can tell a broken
+  // accumulator from a freshly-deployed one.
+  let firstSeen = kv ? await kv.get(KV_FIRST_SEEN) : null;
+  if (kv && !firstSeen) {
+    firstSeen = new Date().toISOString();
+    await kv.put(KV_FIRST_SEEN, firstSeen);
+  }
+
   const index = await readIndex(kv);
   const attribution = attributableWeek(todayISO);
   const alreadyHave = attribution.weekStart && index.includes(attribution.weekStart);
@@ -215,6 +248,10 @@ export async function onRequestGet({ request, env }) {
       latestWeek: latest,
       weeksBehind: weeksBehind(latest),
       modelsInLatestWeek: weeks.length ? weeks[weeks.length - 1].models : 0,
+      firstSeenAt: firstSeen,
+      // True only when a Monday has passed since this endpoint first ran and
+      // nothing has banked — i.e. a real fault, not a fresh deploy.
+      overdue: bankOverdue(firstSeen, todayISO, weeks.length),
       capture,
       note: 'Accumulates OpenRouter\'s full per-model rankings (~500 models, prompt and ' +
         'completion split) one completed ISO week at a time. The weekly chart it ' +

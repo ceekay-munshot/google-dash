@@ -1,0 +1,206 @@
+name: OpenRouter Feed Health
+
+# Watches the OpenRouter data feeds and opens an issue when one goes stale.
+#
+# WHY THIS EXISTS
+# Two feeds broke silently and nobody found out for a long time:
+#
+#   - the provider (market-share) capture stopped persisting on 2026-06-09 and
+#     was still stale fourteen weeks later. Its only symptom was usage-weighted
+#     pricing quietly withholding two quarters.
+#   - the model ranking started returning OpenRouter's Top APPS table on
+#     2026-08-18. For a month the daily history recorded "Kilo Code" and
+#     "Cline" as models, total tokens fell from ~28T to ~1.8T, and Gemini share
+#     read 0%. Nothing errored, because the data was well-formed — just wrong.
+#
+# history-freshness-check.yml only watches /api/history, so neither was covered.
+# A feed that fails loudly gets fixed in a day; a feed that fails quietly costs
+# a quarter of data. This closes that gap for the OpenRouter side.
+#
+# Setup: reuses the existing OPENROUTER_CAPTURE_URL secret to derive the origin.
+# No new secrets.
+
+on:
+  schedule:
+    - cron: '17 9 * * *'
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: 'Optional note (for the audit log)'
+        required: false
+        default: 'manual run'
+
+concurrency:
+  group: openrouter-feed-health
+  cancel-in-progress: false
+
+jobs:
+  check:
+    name: Check OpenRouter feed freshness
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    permissions:
+      contents: read
+      issues: write
+
+    steps:
+      - name: Check feeds
+        id: check
+        env:
+          OPENROUTER_CAPTURE_URL: ${{ secrets.OPENROUTER_CAPTURE_URL }}
+        run: |
+          set -u
+          if [ -z "${OPENROUTER_CAPTURE_URL:-}" ]; then
+            echo "::error::OPENROUTER_CAPTURE_URL secret is not set"; exit 1
+          fi
+          BASE="${OPENROUTER_CAPTURE_URL%%/api/*}"
+          echo "origin=$BASE"
+
+          PROBLEMS=""
+
+          # ── 1. Weekly chart series (models + providers) ──
+          CHART=$(mktemp)
+          curl -sS --max-time 60 --retry 2 "$BASE/api/openrouter-chart-weekly?debug=1" -o "$CHART" || true
+          if jq -e . "$CHART" >/dev/null 2>&1; then
+            M_BEHIND=$(jq -r '.models.weeksBehind // 99'    "$CHART")
+            P_BEHIND=$(jq -r '.providers.weeksBehind // 99' "$CHART")
+            echo "chart models weeksBehind=$M_BEHIND providers weeksBehind=$P_BEHIND"
+            # 2 weeks of slack absorbs a missed run and cron drift.
+            [ "$M_BEHIND" -gt 2 ] 2>/dev/null && PROBLEMS="$PROBLEMS- Weekly MODEL chart is $M_BEHIND weeks behind\n"
+            # The CAPTURED provider series is deliberately NOT alerted on. It is
+            # stale by design now — market-share is read live and supersedes it,
+            # and the captured copy is kept only for the early history the live
+            # dataset does not reach. Alerting on a known-stale-forever feed is
+            # how alerting dies: it fires every day, people mute it, and the next
+            # real failure goes unread. What actually matters is whether the LIVE
+            # denominator is in use, which check 3 below tests directly.
+          else
+            PROBLEMS="$PROBLEMS- /api/openrouter-chart-weekly?debug=1 did not return JSON\n"
+          fi
+
+          # ── 2. Accumulated full per-model catalogue ──
+          MU=$(mktemp)
+          curl -sS --max-time 90 --retry 2 "$BASE/api/openrouter-model-usage?debug=1" -o "$MU" || true
+          if jq -e . "$MU" >/dev/null 2>&1; then
+            STORED=$(jq -r '.weeksStored // 0'  "$MU")
+            BEHIND=$(jq -r '.weeksBehind // 99' "$MU")
+            KV=$(jq -r '.kvBound // false'      "$MU")
+            echo "model-usage weeksStored=$STORED weeksBehind=$BEHIND kvBound=$KV"
+            [ "$KV" != "true" ] && PROBLEMS="$PROBLEMS- HISTORY_KV is not bound for /api/openrouter-model-usage — nothing can accumulate\n"
+            # Allow 2 weeks: a week only banks on Mon/Tue, so one missed run is survivable.
+            if [ "$STORED" -gt 0 ] 2>/dev/null; then
+              [ "$BEHIND" -gt 2 ] 2>/dev/null && PROBLEMS="$PROBLEMS- Full per-model catalogue is $BEHIND weeks behind — usage-weighted coverage will decay back to the top-9 chart\n"
+            else
+              # Nothing banked yet. A week only banks on Mon or Tue, so silence
+              # before the first Wednesday is expected. From Wednesday onward an
+              # empty store means both capture opportunities passed and neither
+              # took — which would otherwise be invisible, since the feed simply
+              # keeps serving the top-9 chart and looks fine.
+              # The endpoint decides this, not the workflow: it knows when it
+              # first ran, so it can tell a real fault from a deploy that landed
+              # after this week's window had already passed.
+              OVERDUE=$(jq -r '.overdue // false' "$MU")
+              if [ "$OVERDUE" = "true" ]; then
+                PROBLEMS="$PROBLEMS- No weeks banked although a Monday has passed since the accumulator went live (first seen $(jq -r '.firstSeenAt // "?"' "$MU"))\n"
+              else
+                echo "::notice::No weeks banked yet — no Monday has elapsed since deploy, not yet a problem"
+              fi
+            fi
+          else
+            PROBLEMS="$PROBLEMS- /api/openrouter-model-usage?debug=1 did not return JSON\n"
+          fi
+
+          # ── 3. Live provider denominator actually in use ──
+          # This is what certifies coverage. If it falls back to the stale
+          # captured copy, cells start being withheld again.
+          PM=$(mktemp)
+          curl -sS --max-time 90 --retry 2 "$BASE/api/provider-pricing-matrix?metric=input&weight=usage" -o "$PM" || true
+          if jq -e . "$PM" >/dev/null 2>&1; then
+            LIVE=$(jq -r '.weighting.providerSeriesLive // false' "$PM")
+            ERR=$(jq -r '.weighting.providerSeriesLiveError // ""' "$PM")
+            CELLS=$(jq -r '[.quarters[].cells[] | select(.avg != null)] | length' "$PM")
+            echo "providerSeriesLive=$LIVE publishedCells=$CELLS"
+            [ "$LIVE" != "true" ] && PROBLEMS="$PROBLEMS- Live market-share denominator unavailable ($ERR) — coverage falls back to the stale capture\n"
+            echo "cells=$CELLS" >> "$GITHUB_OUTPUT"
+          else
+            PROBLEMS="$PROBLEMS- /api/provider-pricing-matrix did not return JSON\n"
+          fi
+
+          # ── 4. The model ranking is models, not apps ──
+          # Cheap direct check for the exact regression that ran for a month.
+          OR=$(mktemp)
+          curl -sS --max-time 90 --retry 2 "$BASE/api/openrouter?view=week&top=30" -o "$OR" || true
+          if jq -e . "$OR" >/dev/null 2>&1; then
+            APPS=$(jq -r '[.models[]? | select(.model | ascii_downcase | test("^(kilo code|cline|codex|pi|omp|freebuff)$"))] | length' "$OR")
+            OTHER=$(jq -r '[.models[]? | select(.provider == "other")] | length' "$OR")
+            TOTAL=$(jq -r '.models | length' "$OR")
+            echo "openrouter rows=$TOTAL appRows=$APPS providerOther=$OTHER"
+            [ "$APPS" -gt 0 ] 2>/dev/null && PROBLEMS="$PROBLEMS- /api/openrouter is returning APPLICATIONS not models ($APPS rows) — the 2026-08-18 regression has returned\n"
+            if [ "$TOTAL" -gt 0 ] 2>/dev/null && [ "$OTHER" -gt $(( TOTAL / 2 )) ] 2>/dev/null; then
+              PROBLEMS="$PROBLEMS- /api/openrouter: $OTHER of $TOTAL rows have provider \"other\" — payload does not look like a model ranking\n"
+            fi
+          else
+            PROBLEMS="$PROBLEMS- /api/openrouter did not return JSON\n"
+          fi
+
+          if [ -n "$PROBLEMS" ]; then
+            printf 'problems<<EOF\n%b\nEOF\n' "$PROBLEMS" >> "$GITHUB_OUTPUT"
+            echo "::error::OpenRouter feed problems detected"
+            printf '%b' "$PROBLEMS"
+            exit 1
+          fi
+          echo "::notice::All OpenRouter feeds healthy"
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "### OpenRouter Feed Health"
+            echo "- Trigger: ${{ github.event_name }}"
+            echo "- Time (UTC): $(date -u '+%Y-%m-%d %H:%M:%S')"
+            echo "- Status: ${{ job.status }}"
+            echo "- Usage-weighted cells published: ${{ steps.check.outputs.cells || 'n/a' }}"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Open or update feed-health issue
+        if: failure()
+        uses: actions/github-script@v7
+        env:
+          PROBLEMS: ${{ steps.check.outputs.problems }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        with:
+          script: |
+            const TITLE = '🔴 OpenRouter feed health';
+            const LABEL = 'openrouter-feed-health';
+            const now = new Date().toISOString().replace('T', ' ').slice(0, 19) + ' UTC';
+            const body = [
+              '**When:** ' + now,
+              '**Run:** ' + process.env.RUN_URL,
+              '',
+              '**Problems found:**',
+              '',
+              (process.env.PROBLEMS || '(none reported)').trim(),
+              '',
+              'These feeds degrade quietly: the dashboard keeps serving its last good',
+              'data, so nothing looks broken on screen. Usage-weighted pricing simply',
+              'starts withholding cells, and the per-model catalogue stops accumulating',
+              'weeks it can never backfill.',
+            ].join('\n');
+            const { data: open } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner, repo: context.repo.repo,
+              state: 'open', labels: LABEL, per_page: 50,
+            });
+            const existing = open.find(i => i.title === TITLE);
+            if (existing) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner, repo: context.repo.repo,
+                issue_number: existing.number, body: '### New failure\n\n' + body,
+              });
+              core.notice('Commented on existing issue #' + existing.number);
+            } else {
+              const { data: created } = await github.rest.issues.create({
+                owner: context.repo.owner, repo: context.repo.repo,
+                title: TITLE, body: '### Initial failure\n\n' + body, labels: [LABEL],
+              });
+              core.notice('Opened issue #' + created.number);
+            }

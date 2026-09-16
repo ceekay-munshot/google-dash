@@ -83,6 +83,37 @@ jobs:
           CAPTURE_TOKEN: ${{ secrets.CAPTURE_TOKEN }}
         run: node scripts/capture-openrouter.mjs
 
+      # ── Bank the full per-model catalogue for the completed week ──
+      # /api/openrouter-model-usage captures on read, so in principle any page
+      # load banks the week. In practice a week is only bankable on the Monday
+      # or Tuesday after it ends, and the source is a rolling window with no
+      # backfill: if nobody loads the dashboard on those two days, that week is
+      # gone for good. This step removes the dependency on someone happening to
+      # visit. It runs even when the capture above failed, because the two feeds
+      # are independent and one failing is no reason to skip the other.
+      - name: Bank completed week of full per-model usage
+        if: always()
+        env:
+          OPENROUTER_CAPTURE_URL: ${{ secrets.OPENROUTER_CAPTURE_URL }}
+        run: |
+          set -u
+          BASE="${OPENROUTER_CAPTURE_URL%%/api/*}"
+          if [ -z "$BASE" ] || [ "$BASE" = "$OPENROUTER_CAPTURE_URL" ]; then
+            echo "::warning::Could not derive origin from OPENROUTER_CAPTURE_URL; skipping"
+            exit 0
+          fi
+          URL="$BASE/api/openrouter-model-usage?refresh=1&debug=1"
+          echo "GET $URL"
+          RESP=$(mktemp)
+          CODE=$(curl -sS -o "$RESP" -w '%{http_code}' --max-time 90 --retry 3 --retry-delay 5 "$URL" || echo 000)
+          echo "HTTP $CODE"
+          cat "$RESP" | head -c 1200; echo
+          # A refusal on Wed-Sun is the designed behaviour, not a failure: only
+          # Mon/Tue captures line up with a completed ISO week.
+          if [ "$CODE" != "200" ]; then
+            echo "::warning::model-usage capture returned HTTP $CODE"
+          fi
+
       - name: Summary
         if: always()
         run: |
