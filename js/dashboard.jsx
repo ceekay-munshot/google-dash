@@ -1950,6 +1950,19 @@ function finPriorPeriodId(periodId){
   }
   return null;
 }
+// The YoY row's comparator is the period one YEAR back, not the one before
+// it. The growth renderer draws both rows, so it has to be told which — using
+// the immediate prior for the YoY row attributes an empty cell to whatever
+// happened last month, which is how an Aug-26 YoY cell with no Aug-25 to
+// compare against ended up reading "measure changed".
+function finYearPriorPeriodId(periodId){
+  if(typeof periodId!=="string")return null;
+  const q=/^(\d{4})-Q([1-4])$/.exec(periodId);
+  if(q)return (+q[1]-1)+"-Q"+q[2];
+  const m=/^(\d{4})-(\d{2})$/.exec(periodId);
+  if(m)return (+m[1]-1)+"-"+m[2];
+  return null;
+}
 
 // A period is only comparable if it actually carries priced days. The feed
 // can deliver provider counts with a null minPricePerHour (which is exactly
@@ -2426,8 +2439,8 @@ function GPUFinancialCorrelationBlock({fHist,fHistErr}){
 
                 {/* Section C: YoY Growth */}
                 <tr><td colSpan={periods.length+1} style={finSectionTh}>YoY Growth</td></tr>
-                {renderFinGrowthRows(GPU_FIN_PRIMARY_ROWS,yoy,periods,false,series,partialKey,boundaryIdx)}
-                {!illustrative&&showSecondary&&renderFinGrowthRows(GPU_FIN_SECONDARY_ROWS,yoy,periods,true,series,partialKey,boundaryIdx)}
+                {renderFinGrowthRows(GPU_FIN_PRIMARY_ROWS,yoy,periods,false,series,partialKey,boundaryIdx,null,true)}
+                {!illustrative&&showSecondary&&renderFinGrowthRows(GPU_FIN_SECONDARY_ROWS,yoy,periods,true,series,partialKey,boundaryIdx,null,true)}
 
                 {/* Spacer */}
                 <tr><td colSpan={periods.length+1} style={{height:8}}></td></tr>
@@ -2614,7 +2627,9 @@ function renderFinBasisRow(basisByPeriod,periods,boundaryIdx){
 // lean on a thinly-priced period on either side still render, but carry a
 // marker so nobody reads "+128.7%" as a clean month-over-month move when one
 // side of it is a 10-day stub.
-function renderFinGrowthRows(rows,growth,periods,dim,series,partialKey,boundaryIdx,reasons){
+function renderFinGrowthRows(rows,growth,periods,dim,series,partialKey,boundaryIdx,reasons,isYoY){
+  const priorIdOf=isYoY?finYearPriorPeriodId:finPriorPeriodId;
+  const priorNoun=isYoY?"the same period last year":"the prior period";
   return rows.map(row=>{
     const row_g=growth[row.sku]||{};
     const row_r=(reasons&&reasons[row.sku])||{};
@@ -2633,7 +2648,7 @@ function renderFinGrowthRows(rows,growth,periods,dim,series,partialKey,boundaryI
             );
           }
           const v=row_g[p.period];
-          const priorId=finPriorPeriodId(p.period);
+          const priorId=priorIdOf(p.period);
           const prior=series&&priorId?finPeriodRec(series,row.sku,priorId):null;
           const curCov=finPricedCoverage(cur), priorCov=finPricedCoverage(prior);
           const thin=v!=null&&((curCov!=null&&curCov<FIN_LOW_COVERAGE)||(priorCov!=null&&priorCov<FIN_LOW_COVERAGE));
@@ -2641,16 +2656,20 @@ function renderFinGrowthRows(rows,growth,periods,dim,series,partialKey,boundaryI
           // API now says which it is, and the difference matters enormously:
           // "we have no data" versus "these two numbers measure different
           // things and comparing them would invent a price move".
+          // Only the first is true here when the comparator is simply absent —
+          // an empty cell must not be blamed on a measure change that sits
+          // somewhere else entirely.
           const refusal=v==null?row_r[p.period]:null;
           const curBasis=finBasis(cur), priorBasis=finBasis(prior);
           const basisBreak=v==null&&curBasis&&priorBasis&&curBasis!==priorBasis;
           const title=v!=null?(
-            "vs "+(priorId||"prior period")+
+            "vs "+(priorId||priorNoun)+
             (curBasis?" · both on the "+FIN_BASIS_SHORT[curBasis]+" basis":"")+
             (curCov!=null?" · this period "+Math.round(curCov*100)+"% priced":"")+
-            (priorCov!=null?" · prior period "+Math.round(priorCov*100)+"% priced":"")+
+            (priorCov!=null?" · "+(isYoY?"year-ago":"prior")+" period "+Math.round(priorCov*100)+"% priced":"")+
             (thin?" · thin coverage on one side — treat as indicative":"")
-          ):(refusal||undefined);
+          ):(refusal
+            ||(priorId&&!prior?"No capture for "+priorId+", so there is nothing to compare "+p.label+" against.":undefined));
           return(
             <td key={p.period} style={{...finTdDim,...bStyle}} title={title}>
               {basisBreak
