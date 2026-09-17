@@ -9,6 +9,7 @@
   },
   "scripts": {
     "build": "node scripts/build-dashboard.mjs",
-    "build:check": "node scripts/build-dashboard.mjs --check"
+    "build:check": "node scripts/build-dashboard.mjs --check",
+    "test": "node --test \"functions/**/__tests__/*.test.mjs\""
   }
 }

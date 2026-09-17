@@ -1677,7 +1677,7 @@ function GPUFinancialSubtab({fHist,fHistErr}){
       <div style={{marginBottom:12}}>
         <div style={{fontSize:14,fontWeight:700,color:"#111827",lineHeight:1.3}}>Period-average GPU pricing for equity correlation</div>
         <div style={{fontSize:11,color:"#9ca3af",marginTop:3}}>
-          Arithmetic mean of daily minPricePerHour by calendar period — real historical GPU pricing only.
+          Arithmetic mean of the daily headline price by calendar period — real historical GPU pricing only, no estimates.
         </div>
       </div>
 
@@ -1987,6 +1987,53 @@ function finBasis(rec){
   return finPrice(rec)!=null?"floor":null;
 }
 const FIN_BASIS_LABEL={median:"median $/hr across providers",floor:"floor of the vendor range (min $/hr)"};
+const FIN_BASIS_SHORT={median:"median",floor:"floor (min)"};
+
+/* ─── Price-basis boundary ──────────────────────────────────
+   The source changed WHAT IT PUBLISHES on 2026-07-28: a vendor min-max range
+   became a single vendor median. The floor of a range and a median are not
+   the same measure — H100 read $0.40 as a floor and $3.39 as a median on
+   consecutive days — so the step in the price row is a change of units, not
+   a market move.
+
+   The matrix used to render both sides of that change as identical blue
+   numbers in one row, with the growth cell merely blank. A reader has no way
+   to see a units change in a blank cell, so it read as an unexplained jump.
+   These helpers find the boundary from the data (never a hard-coded date, so
+   the next shape change explains itself) and the render draws a rule at it. */
+function finBasisByPeriod(series,periods,rows){
+  const out={};
+  for(const p of periods){
+    let b=null;
+    for(const r of rows){
+      const rec=finPeriodRec(series,r.sku,p.period);
+      const rb=finBasis(rec);
+      if(!rb)continue;
+      if(b==null)b=rb;
+      else if(b!==rb){b="mixed";break;}
+    }
+    if(b)out[p.period]=b;
+  }
+  return out;
+}
+// Index of the first column that sits on a different basis than the column
+// before it. The divider is drawn on that column's left edge.
+function finBasisBoundaryIndex(basisByPeriod,periods){
+  let lastSeen=null;
+  for(let i=0;i<periods.length;i++){
+    const b=basisByPeriod[periods[i].period];
+    if(!b)continue;
+    if(lastSeen!=null&&b!==lastSeen)return i;
+    lastSeen=b;
+  }
+  return -1;
+}
+// Left border marking the boundary column. Applied to every cell in that
+// column so the rule runs the full height of the table.
+const FIN_BOUNDARY_BORDER="1.5px dashed #b45309";
+function finBoundaryStyle(isBoundary){
+  return isBoundary?{borderLeft:FIN_BOUNDARY_BORDER}:null;
+}
 function finIsPartial(rec,partialKey){
   if(!rec)return false;
   return !!rec[partialKey];
@@ -2049,6 +2096,28 @@ function GPUFeedIntegrityBanner({dq,periodNoun}){
       head:"GPU capture stalled — last observation "+dq.latestGPUObservationDate,
       body:"That is "+dq.daysSinceLatestGPUObservation+" days ago. Nothing after that date has been captured for any SKU, so the most recent "
            +periodNoun+" columns are empty rather than flat.",
+    });
+  }
+  // A run of days with no capture at all. The month columns just look thin
+  // when this happens, which reads as a quiet market rather than a missing
+  // one — the 2026-08-22 → 2026-09-10 outage is why Sep-26 rests on six days.
+  for(const g of (dq.significantCaptureGaps||[])){
+    notes.push({
+      k:"capgap-"+g.afterDate,
+      sev:"med",
+      head:g.missingDays+" days with no capture: "+g.afterDate+" → "+g.beforeDate,
+      body:"The months either side of the gap rest on fewer days than their length suggests, so their averages are thinner than the column label implies.",
+    });
+  }
+  // The capture writing prices into the wrong field is what blanked August in
+  // the first place. It is repaired on read, but if this count starts growing
+  // again the capture has regressed and the matrix would otherwise look fine.
+  if(dq.remappedPriceDays>0){
+    notes.push({
+      k:"remap",
+      sev:"low",
+      head:dq.remappedPriceDays+" day"+(dq.remappedPriceDays===1?"":"s")+" recovered from the feed's max field",
+      body:"Those captures landed with the price in maxPricePerHour because the source swapped its range for a single figure. They are reclassified as medians on read; the stored snapshots are untouched. A rising count means the capture has regressed.",
     });
   }
   if(dq.monthsMissing?.length||dq.quartersMissing?.length){
@@ -2154,25 +2223,33 @@ function GPUFinancialCorrelationBlock({fHist,fHistErr}){
   const partialKey=effMode==="quarter"?"isQTD":"isMTD";
 
   const hasAnyData=periods.length>0;
-  // How many columns actually carry a price for at least one rendered SKU.
-  // What the price row is actually measuring in the columns on screen. The
-  // basis changed mid-history, so this is derived rather than hard-coded.
+  const rowPoolAll=showSecondary?[...GPU_FIN_PRIMARY_ROWS,...GPU_FIN_SECONDARY_ROWS]:GPU_FIN_PRIMARY_ROWS;
+  const growthReasons=effMode==="quarter"?(effFHist.quarterly?.qoqReason||{}):(effFHist.monthly?.momReason||{});
+
+  // Which measure each column is on, and where it changes. Derived from the
+  // data on screen, never hard-coded to 2026-07-28, so the next time the
+  // source changes shape the matrix explains itself with no code change.
+  const basisByPeriod=finBasisByPeriod(series,periods,rowPoolAll);
+  const boundaryIdx=finBasisBoundaryIndex(basisByPeriod,periods);
+  const hasBasisChange=boundaryIdx>0;
+  const basisBoundary=hasBasisChange
+    ?{before:periods[boundaryIdx-1],after:periods[boundaryIdx],
+      from:basisByPeriod[periods[boundaryIdx-1].period],to:basisByPeriod[periods[boundaryIdx].period]}
+    :null;
+  // The exact day the source switched, from the API's own timeline.
+  const basisChangeDate=(effFHist.priceBasis?.timeline?.changes||[])[0]?.effectiveDate||null;
+
+  // What the price row is actually measuring in the columns on screen.
   const priceBasisNote=(()=>{
-    const pool=showSecondary?[...GPU_FIN_PRIMARY_ROWS,...GPU_FIN_SECONDARY_ROWS]:GPU_FIN_PRIMARY_ROWS;
-    const bases=new Set();
-    for(const p of periods)for(const r of pool){
-      const b=finBasis(finPeriodRec(series,r.sku,p.period));
-      if(b)bases.add(b);
-    }
+    const bases=new Set(Object.values(basisByPeriod).filter(b=>b&&b!=="mixed"));
     if(bases.size===1)return FIN_BASIS_LABEL[[...bases][0]];
-    if(bases.size>1)return "median $/hr where the source publishes one, floor of the vendor range for earlier periods — growth is not computed across the change";
+    if(bases.size>1)return "the source changed measure mid-history — see the row below each column";
     return "period averages of daily $/hr";
   })();
 
-  const pricedPeriodCount=periods.filter(p=>{
-    const pool=showSecondary?[...GPU_FIN_PRIMARY_ROWS,...GPU_FIN_SECONDARY_ROWS]:GPU_FIN_PRIMARY_ROWS;
-    return pool.some(r=>finHasPrice(finPeriodRec(series,r.sku,p.period)));
-  }).length;
+  const pricedPeriodCount=periods.filter(p=>
+    rowPoolAll.some(r=>finHasPrice(finPeriodRec(series,r.sku,p.period)))
+  ).length;
 
   return(
     <div style={{marginBottom:14}}>
@@ -2193,7 +2270,7 @@ function GPUFinancialCorrelationBlock({fHist,fHistErr}){
           })}
         </div>
         <span style={{fontSize:10,color:"#9ca3af",flex:1,minWidth:0}}>
-          Analyst lens · period averages of daily $/hr · quarter labels = quarter-end month (Mar/Jun/Sep/Dec)
+          Analyst lens · period averages of daily $/hr · quarter labels = quarter-end month (Mar/Jun/Sep/Dec) · levels are comparable only within one measure
         </span>
 
         {/* Export. Disabled while the illustrative preview is on — those
@@ -2246,6 +2323,23 @@ function GPUFinancialCorrelationBlock({fHist,fHistErr}){
         </div>
       )}
 
+      {/* Basis-change caption. This is the single most misread thing on the
+          page: the step between the two measures looks like a price move, so
+          it is stated in plain words directly above the table rather than
+          left to a tooltip. Deliberately a neutral caption, not a red alert —
+          the data is correct, it just changed units, and an alarm here would
+          read to a customer as "this product is broken". */}
+      {!illustrative&&hasBasisChange&&basisBoundary&&(
+        <div style={{background:"#fffbeb",border:"0.5px solid #fde68a",borderRadius:6,padding:"8px 11px",marginBottom:8,fontSize:11,color:"#92400e",lineHeight:1.55}}>
+          <b style={{fontWeight:700}}>The source changed what it publishes{basisChangeDate?" on "+basisChangeDate:""}.</b>{" "}
+          Through {basisBoundary.before.label} it gave a per-vendor price range and the figure below is the{" "}
+          <b style={{fontWeight:600}}>{FIN_BASIS_LABEL[basisBoundary.from]}</b>; from {basisBoundary.after.label} it publishes a single{" "}
+          <b style={{fontWeight:600}}>{FIN_BASIS_LABEL[basisBoundary.to]}</b>. A floor is the cheapest listing of ~50 vendors; a median is the middle one,
+          so the step at the dashed line is a change of measure, <b style={{fontWeight:600}}>not a price move</b> — like-for-like, prices have been broadly flat across it.
+          Growth is left uncomputed across the change rather than reported.
+        </div>
+      )}
+
       {/* Matrix or empty */}
       {!hasAnyData?(
         <div style={{background:"#fff",border:"0.5px solid #e5e7eb",borderRadius:8,padding:"14px 16px"}}>
@@ -2261,13 +2355,13 @@ function GPUFinancialCorrelationBlock({fHist,fHistErr}){
               <thead>
                 <tr>
                   <th style={{...finThRow,minWidth:170}}></th>
-                  {periods.map(p=>{
+                  {periods.map((p,ci)=>{
                     // The old badge fired only on isMTD/isQTD, which meant a
                     // 10-day April stub and a fully-captured July rendered
                     // identically. The column now reports what it actually
                     // holds: no capture, captured-but-unpriced, still
                     // running, or thin priced coverage.
-                    const rowPool=showSecondary?[...GPU_FIN_PRIMARY_ROWS,...GPU_FIN_SECONDARY_ROWS]:GPU_FIN_PRIMARY_ROWS;
+                    const rowPool=rowPoolAll;
                     let running=!!p[partialKey];
                     let anyRec=false, anyPriced=false, bestCov=null;
                     for(const row of rowPool){
@@ -2294,7 +2388,9 @@ function GPUFinancialCorrelationBlock({fHist,fHistErr}){
                       badgeTitle="Only "+Math.round(bestCov*100)+"% of the days in "+p.label+" carry a price — averages and growth off this period are indicative.";
                     }
                     return(
-                      <th key={p.period} style={{...finTh,color:anyRec?finTh.color:"#c7cbd1"}} title={badgeTitle||undefined}>
+                      <th key={p.period}
+                          style={{...finTh,color:anyRec?finTh.color:"#c7cbd1",...finBoundaryStyle(ci===boundaryIdx)}}
+                          title={badgeTitle||undefined}>
                         {p.label}
                         {badge&&<span style={{marginLeft:3,fontSize:8,color:badgeColor,fontWeight:600}}>{badge}</span>}
                       </th>
@@ -2310,24 +2406,27 @@ function GPUFinancialCorrelationBlock({fHist,fHistErr}){
                     {priceBasisNote} &middot; hover a cell for the detail
                   </span>
                 </td></tr>
-                {renderFinPriceRows(GPU_FIN_PRIMARY_ROWS,series,periods,partialKey)}
-                {!illustrative&&showSecondary&&renderFinPriceRows(GPU_FIN_SECONDARY_ROWS,series,periods,partialKey,true)}
+                {renderFinPriceRows(GPU_FIN_PRIMARY_ROWS,series,periods,partialKey,false,boundaryIdx)}
+                {!illustrative&&showSecondary&&renderFinPriceRows(GPU_FIN_SECONDARY_ROWS,series,periods,partialKey,true,boundaryIdx)}
+                {/* Only when more than one measure is on screen — otherwise
+                    it is a row of identical words. */}
+                {!illustrative&&hasBasisChange&&renderFinBasisRow(basisByPeriod,periods,boundaryIdx)}
 
                 {/* Spacer */}
                 <tr><td colSpan={periods.length+1} style={{height:8}}></td></tr>
 
                 {/* Section B: QoQ/MoM Growth */}
                 <tr><td colSpan={periods.length+1} style={finSectionTh}>{growthLabel}</td></tr>
-                {renderFinGrowthRows(GPU_FIN_PRIMARY_ROWS,growth,periods,false,series,partialKey)}
-                {!illustrative&&showSecondary&&renderFinGrowthRows(GPU_FIN_SECONDARY_ROWS,growth,periods,true,series,partialKey)}
+                {renderFinGrowthRows(GPU_FIN_PRIMARY_ROWS,growth,periods,false,series,partialKey,boundaryIdx,growthReasons)}
+                {!illustrative&&showSecondary&&renderFinGrowthRows(GPU_FIN_SECONDARY_ROWS,growth,periods,true,series,partialKey,boundaryIdx,growthReasons)}
 
                 {/* Spacer */}
                 <tr><td colSpan={periods.length+1} style={{height:8}}></td></tr>
 
                 {/* Section C: YoY Growth */}
                 <tr><td colSpan={periods.length+1} style={finSectionTh}>YoY Growth</td></tr>
-                {renderFinGrowthRows(GPU_FIN_PRIMARY_ROWS,yoy,periods,false,series,partialKey)}
-                {!illustrative&&showSecondary&&renderFinGrowthRows(GPU_FIN_SECONDARY_ROWS,yoy,periods,true,series,partialKey)}
+                {renderFinGrowthRows(GPU_FIN_PRIMARY_ROWS,yoy,periods,false,series,partialKey,boundaryIdx)}
+                {!illustrative&&showSecondary&&renderFinGrowthRows(GPU_FIN_SECONDARY_ROWS,yoy,periods,true,series,partialKey,boundaryIdx)}
 
                 {/* Spacer */}
                 <tr><td colSpan={periods.length+1} style={{height:8}}></td></tr>
@@ -2336,8 +2435,8 @@ function GPUFinancialCorrelationBlock({fHist,fHistErr}){
                    Not rendered in illustrative mode (placeholder values don't carry it). */}
                 {!illustrative&&<>
                   <tr><td colSpan={periods.length+1} style={finSectionTh}>Provider Count</td></tr>
-                  {renderFinProviderRows(GPU_FIN_PRIMARY_ROWS,series,periods)}
-                  {showSecondary&&renderFinProviderRows(GPU_FIN_SECONDARY_ROWS,series,periods,true)}
+                  {renderFinProviderRows(GPU_FIN_PRIMARY_ROWS,series,periods,false,boundaryIdx)}
+                  {showSecondary&&renderFinProviderRows(GPU_FIN_SECONDARY_ROWS,series,periods,true,boundaryIdx)}
 
                   {/* Spacer */}
                   <tr><td colSpan={periods.length+1} style={{height:8}}></td></tr>
@@ -2347,8 +2446,8 @@ function GPUFinancialCorrelationBlock({fHist,fHistErr}){
                      Customer's "for prices not to go down is a big deal" lens —
                      stable older-gen prices imply tight supply / strong ROI. */}
                   <tr><td colSpan={periods.length+1} style={finSectionTh}>Price Resilience Signal</td></tr>
-                  {renderFinResilienceRows(GPU_FIN_PRIMARY_ROWS,growth,periods,series,partialKey)}
-                  {showSecondary&&renderFinResilienceRows(GPU_FIN_SECONDARY_ROWS,growth,periods,series,partialKey,true)}
+                  {renderFinResilienceRows(GPU_FIN_PRIMARY_ROWS,growth,periods,series,partialKey,false,boundaryIdx)}
+                  {showSecondary&&renderFinResilienceRows(GPU_FIN_SECONDARY_ROWS,growth,periods,series,partialKey,true,boundaryIdx)}
                 </>}
               </tbody>
             </table>
@@ -2376,7 +2475,7 @@ function GPUFinancialCorrelationBlock({fHist,fHistErr}){
 
       {/* Methodology footnote — concise, customer-spec wording. */}
       <div style={{fontSize:10,color:"#9ca3af",lineHeight:1.5,marginTop:6}}>
-        <b style={{color:"#6b7280",fontWeight:600}}>Methodology:</b> GPU prices use real historical minPricePerHour observations — the <b style={{color:"#6b7280",fontWeight:600}}>floor</b> of the vendor range on each day, i.e. the single cheapest listing among the providers quoted — averaged by SKU and calendar period. The floor is volatile and one outlier listing moves it, so read levels against the midpoint and ceiling in each cell's tooltip rather than as a market rate. QoQ/MoM/YoY compare only completed periods; growth for a period still in progress (QTD/MTD) is suppressed. A <sup style={{color:"#b45309",fontWeight:700}}>&deg;</sup> marks a value resting on a period where under {Math.round(FIN_LOW_COVERAGE*100)}% of days carry a price. The column axis is continuous, so a period with no capture stays visible as an empty column. GPU prices are not summed, because there is no meaningful total price across SKUs. Provider count shows observed vendor breadth where available. Stable or rising prices in older GPUs can indicate tight supply or strong ROI.
+        <b style={{color:"#6b7280",fontWeight:600}}>Methodology:</b> GPU prices are real daily observations averaged by SKU and calendar period — no estimates, no backfill. <b style={{color:"#6b7280",fontWeight:600}}>What the source publishes changed mid-history</b>, so a period carries one of two measures: through {basisChangeDate?"2026-07-27":"the earlier periods"} a per-vendor min–max range, of which the <b style={{color:"#6b7280",fontWeight:600}}>floor</b> (the single cheapest listing among ~50 providers) is shown; from {basisChangeDate||"the later periods"} a single <b style={{color:"#6b7280",fontWeight:600}}>median</b> across providers. The two are different statistics and their levels are not comparable — the floor is volatile and one outlier listing moves it, which is why it sits far below the median. A period that straddles the change takes the measure covering most of its days and averages only those days; its tooltip names the other measure and what it averaged. Growth is computed only between periods sharing a measure and only between completed periods; a period still in progress (QTD/MTD) is suppressed, and a cell spanning the change reads <span style={{color:"#b45309",fontWeight:600}}>measure changed</span> rather than a fabricated percentage. A <sup style={{color:"#b45309",fontWeight:700}}>&deg;</sup> marks a value resting on a period where under {Math.round(FIN_LOW_COVERAGE*100)}% of days carry a price. The column axis is continuous, so a period with no capture stays visible as an empty column. GPU prices are not summed, because there is no meaningful total price across SKUs. Provider count shows observed vendor breadth where available. Stable or rising prices in older GPUs can indicate tight supply or strong ROI.
       </div>
 
       {/* Internal diagnostics — illustrative-data toggle lives here so it
@@ -2420,19 +2519,22 @@ function IllustrativeToggle({illustrative,setIllustrative}){
   );
 }
 
-// Price cells carry the FLOOR of the observed vendor range (minPricePerHour
-// — the single cheapest listing of the ~30-50 providers quoted that day), so
-// the tooltip always shows the floor alongside the midpoint, the ceiling and
-// the spread multiple. Without that context an H100 reading "$0.54" looks
-// like a market rate rather than one outlier listing sitting under a $14.90
-// ceiling. Periods built on thin priced coverage get a visible marker.
-function renderFinPriceRows(rows,series,periods,partialKey,dim){
+// Price cells carry whichever measure the source published for that period —
+// the FLOOR of a vendor range through 2026-07-27, the vendor MEDIAN after —
+// so every tooltip names its measure first. Without that an H100 reading
+// "$0.54" looks like a market rate rather than one outlier listing sitting
+// under a $14.90 ceiling, and the step to "$3.34" looks like a price move
+// rather than a change of units. A period that straddles the change also
+// reports the other measure over its own days, which is the number that
+// actually shows the market was flat through the transition.
+// Periods built on thin priced coverage get a visible marker.
+function renderFinPriceRows(rows,series,periods,partialKey,dim,boundaryIdx){
   return rows.map(row=>{
     const byPeriod=Object.fromEntries((series[row.sku]||[]).map(x=>[x.period,x]));
     return(
       <tr key={"price-"+row.sku}>
         <td style={{...finTdRow,color:dim?"#6b7280":"#111827"}}>{row.shortLabel}</td>
-        {periods.map(p=>{
+        {periods.map((p,i)=>{
           const s=byPeriod[p.period];
           const val=finPrice(s);
           const basis=finBasis(s);
@@ -2440,19 +2542,31 @@ function renderFinPriceRows(rows,series,periods,partialKey,dim){
           const thin=val!=null&&cov!=null&&cov<FIN_LOW_COVERAGE;
           const parts=[];
           if(s){
-            parts.push(basis==="median"?"Median "+fmtMoney(val):"Floor (min) "+fmtMoney(val));
+            parts.push((basis==="median"?"Median ":basis==="floor"?"Floor (min) ":"")+fmtMoney(val));
             if(s.avgPriceMidpoint!=null)parts.push("range midpoint "+fmtMoney(s.avgPriceMidpoint));
             if(s.avgMaxPricePerHour!=null)parts.push("ceiling (max) "+fmtMoney(s.avgMaxPricePerHour));
             if(s.avgSpreadMultiple!=null)parts.push("spread "+s.avgSpreadMultiple.toFixed(1)+"x");
             const dp=s.daysWithPriceInMonth!=null?s.daysWithPriceInMonth:s.daysWithPriceInQuarter;
             const dc=s.daysCoveredInMonth!=null?s.daysCoveredInMonth:s.daysCoveredInQuarter;
             const dn=s.monthDayCount!=null?s.monthDayCount:s.quarterDayCount;
-            if(dp!=null&&dn!=null)parts.push(dp+" of "+dn+" days priced"+(dc!=null&&dc!==dp?" ("+dc+" captured)":""));
+            if(dp!=null&&dn!=null)parts.push(dp+" of "+dn+" days priced on this basis"+(dc!=null&&dc!==dp?" ("+dc+" captured)":""));
+            // The straddle period: say plainly that some captured days are
+            // excluded from the average, and what they averaged to. Silently
+            // dropping them is how a 4-day median ends up labelled a month.
+            if(s.mixedBasis&&s.alternateBasis&&s.alternatePricePerHour!=null){
+              const altDays=s.basisDayCounts?s.basisDayCounts[s.alternateBasis]:null;
+              parts.push("the source changed measure inside this period — its "
+                +(altDays!=null?altDays+" ":"")+FIN_BASIS_SHORT[s.alternateBasis]
+                +" day"+(altDays===1?"":"s")+" averaged "+fmtMoney(s.alternatePricePerHour)
+                +" and are excluded from the figure above");
+            }
+            if(s.basisRemapped)parts.push("price recovered from the feed's max field");
           }else{
             parts.push("No capture for "+p.label);
           }
           return(
-            <td key={p.period} style={{...finTd,color:dim?"#6b7280":(val==null?"#d1d5db":finTd.color)}}
+            <td key={p.period}
+                style={{...finTd,color:dim?"#6b7280":(val==null?"#d1d5db":finTd.color),...finBoundaryStyle(i===boundaryIdx)}}
                 title={parts.join(" · ")}>
               {fmtMoney(val)}
               {thin&&<sup style={{color:"#b45309",fontSize:8,fontWeight:700,marginLeft:1}}>&deg;</sup>}
@@ -2464,23 +2578,54 @@ function renderFinPriceRows(rows,series,periods,partialKey,dim){
   });
 }
 
+/* The basis row. Sits directly under the price rows and states, per column,
+   what the number above it measures. This is the row that makes the step
+   self-explanatory: a reader scanning left to right sees "floor · floor ·
+   floor · floor | median · median" and the dashed rule where it changed,
+   instead of an unexplained five-fold jump. Rendered only when more than one
+   basis is on screen — when everything is one measure it would be noise. */
+function renderFinBasisRow(basisByPeriod,periods,boundaryIdx){
+  return(
+    <tr key="basis-row">
+      <td style={{...finTdRow,color:"#6b7280",fontWeight:600,fontSize:10}}>Measure published</td>
+      {periods.map((p,i)=>{
+        const b=basisByPeriod[p.period];
+        const label=b==="mixed"?"mixed":b?FIN_BASIS_SHORT[b]:"—";
+        const known=!!b&&b!=="mixed";
+        return(
+          <td key={p.period} style={{...finTdDim,fontSize:9,...finBoundaryStyle(i===boundaryIdx)}}
+              title={known
+                ?p.label+" is measured as the "+FIN_BASIS_LABEL[b]+"."
+                :b==="mixed"
+                  ?p.label+" contains days measured both ways; each SKU uses whichever measure covers most of its days."
+                  :"No price captured for "+p.label+"."}>
+            <span style={{color:known?(b==="median"?"#1d4ed8":"#6b7280"):"#d1d5db",fontWeight:600,letterSpacing:".02em"}}>{label}</span>
+          </td>
+        );
+      })}
+    </tr>
+  );
+}
+
 // Growth rows honour the methodology note literally: a period that is still
 // running (MTD/QTD) is suppressed rather than compared against a completed
 // prior — a half-finished period average is not a period. Comparisons that
 // lean on a thinly-priced period on either side still render, but carry a
 // marker so nobody reads "+128.7%" as a clean month-over-month move when one
 // side of it is a 10-day stub.
-function renderFinGrowthRows(rows,growth,periods,dim,series,partialKey){
+function renderFinGrowthRows(rows,growth,periods,dim,series,partialKey,boundaryIdx,reasons){
   return rows.map(row=>{
     const row_g=growth[row.sku]||{};
+    const row_r=(reasons&&reasons[row.sku])||{};
     return(
       <tr key={"g-"+row.sku}>
         <td style={{...finTdRow,color:dim?"#6b7280":"#111827"}}>{row.shortLabel}</td>
-        {periods.map(p=>{
+        {periods.map((p,i)=>{
+          const bStyle=finBoundaryStyle(i===boundaryIdx);
           const cur=series?finPeriodRec(series,row.sku,p.period):null;
           if(partialKey&&(p[partialKey]||finIsPartial(cur,partialKey))){
             return(
-              <td key={p.period} style={finTdDim}
+              <td key={p.period} style={{...finTdDim,...bStyle}}
                   title={"Suppressed — "+p.label+" is still in progress; a part-period average is not comparable to a completed prior period."}>
                 <span style={{color:"#d1d5db"}}>&mdash;</span>
               </td>
@@ -2491,16 +2636,27 @@ function renderFinGrowthRows(rows,growth,periods,dim,series,partialKey){
           const prior=series&&priorId?finPeriodRec(series,row.sku,priorId):null;
           const curCov=finPricedCoverage(cur), priorCov=finPricedCoverage(prior);
           const thin=v!=null&&((curCov!=null&&curCov<FIN_LOW_COVERAGE)||(priorCov!=null&&priorCov<FIN_LOW_COVERAGE));
-          const title=v==null?undefined:(
+          // A blank growth cell and a refused growth cell look the same. The
+          // API now says which it is, and the difference matters enormously:
+          // "we have no data" versus "these two numbers measure different
+          // things and comparing them would invent a price move".
+          const refusal=v==null?row_r[p.period]:null;
+          const curBasis=finBasis(cur), priorBasis=finBasis(prior);
+          const basisBreak=v==null&&curBasis&&priorBasis&&curBasis!==priorBasis;
+          const title=v!=null?(
             "vs "+(priorId||"prior period")+
+            (curBasis?" · both on the "+FIN_BASIS_SHORT[curBasis]+" basis":"")+
             (curCov!=null?" · this period "+Math.round(curCov*100)+"% priced":"")+
             (priorCov!=null?" · prior period "+Math.round(priorCov*100)+"% priced":"")+
             (thin?" · thin coverage on one side — treat as indicative":"")
-          );
+          ):(refusal||undefined);
           return(
-            <td key={p.period} style={finTdDim} title={title}>
-              {fmtGrowth(v)}
-              {thin&&<sup style={{color:"#b45309",fontSize:8,fontWeight:700,marginLeft:1}}>&deg;</sup>}
+            <td key={p.period} style={{...finTdDim,...bStyle}} title={title}>
+              {basisBreak
+                // Named rather than left as an em-dash: this is the cell the
+                // customer's eye lands on when asking "why did it jump?".
+                ? <span style={{color:"#b45309",fontSize:9,fontWeight:600,whiteSpace:"nowrap"}}>measure&nbsp;changed</span>
+                : <>{fmtGrowth(v)}{thin&&<sup style={{color:"#b45309",fontSize:8,fontWeight:700,marginLeft:1}}>&deg;</sup>}</>}
             </td>
           );
         })}
@@ -2514,7 +2670,7 @@ function renderFinGrowthRows(rows,growth,periods,dim,series,partialKey){
 // (mean of daily provider counts within the period; rounded for display).
 // Customer's "Where are the providers?" lens: lets the operator see vendor
 // breadth without cluttering the price cells.
-function renderFinProviderRows(rows,series,periods,dim){
+function renderFinProviderRows(rows,series,periods,dim,boundaryIdx){
   const fmtProv=v=>{
     if(v==null||!isFinite(v)||v<=0)return<span style={{color:"#d1d5db"}}>—</span>;
     const n=Math.round(v);
@@ -2525,10 +2681,10 @@ function renderFinProviderRows(rows,series,periods,dim){
     return(
       <tr key={"prov-"+row.sku}>
         <td style={{...finTdRow,color:dim?"#6b7280":"#111827"}}>{row.shortLabel}</td>
-        {periods.map(p=>{
+        {periods.map((p,i)=>{
           const s=byPeriod[p.period];
           return(
-            <td key={p.period} style={finTdDim}
+            <td key={p.period} style={{...finTdDim,...finBoundaryStyle(i===boundaryIdx)}}
                 title={s?Math.round(s.avgProviderCount||0)+" distinct providers observed (avg of daily counts in "+p.label+")":undefined}>
               {fmtProv(s?s.avgProviderCount:null)}
             </td>
@@ -2556,36 +2712,49 @@ function renderFinProviderRows(rows,series,periods,dim){
 //      "no price data", not "Falling".
 //   3. grade a still-running period, or one whose two-period look-back leans
 //      on a thinly-priced stub, without saying so.
-function renderFinResilienceRows(rows,growth,periods,series,partialKey,dim){
-  const blank=(key,title)=>(
-    <td key={key} style={finTdDim} title={title}><span style={{color:"#d1d5db"}}>&mdash;</span></td>
+//   4. grade across a change in what the source publishes. The two-period
+//      look-back needs three periods measured the same way; spanning the
+//      floor→median change would read a units change as a price trend.
+function renderFinResilienceRows(rows,growth,periods,series,partialKey,dim,boundaryIdx){
+  const blank=(key,title,bStyle)=>(
+    <td key={key} style={{...finTdDim,...bStyle}} title={title}><span style={{color:"#d1d5db"}}>&mdash;</span></td>
   );
   return rows.map(row=>{
     const row_g=growth[row.sku]||{};
     return(
       <tr key={"res-"+row.sku}>
         <td style={{...finTdRow,color:dim?"#6b7280":"#111827"}}>{row.shortLabel}</td>
-        {periods.map(p=>{
+        {periods.map((p,idx)=>{
+          const bStyle=finBoundaryStyle(idx===boundaryIdx);
           const cur=finPeriodRec(series,row.sku,p.period);
 
           // No capture at all for this calendar period.
-          if(!cur)return blank(p.period,"No capture recorded for "+p.label+".");
+          if(!cur)return blank(p.period,"No capture recorded for "+p.label+".",bStyle);
 
           // Captured, but the feed delivered no usable price — provider
           // counts alone cannot produce a resilience read.
-          if(!finHasPrice(cur))return blank(p.period,p.label+" was captured but carries no price data, so no resilience signal can be computed.");
+          if(!finHasPrice(cur))return blank(p.period,p.label+" was captured but carries no price data, so no resilience signal can be computed.",bStyle);
 
           // Still running: a part-period average is not comparable.
           if(p[partialKey]||finIsPartial(cur,partialKey))
-            return blank(p.period,p.label+" is still in progress.");
+            return blank(p.period,p.label+" is still in progress.",bStyle);
 
           const priorId=finPriorPeriodId(p.period);
           const prior=priorId?finPeriodRec(series,row.sku,priorId):null;
           const cqp=row_g[p.period];
           const pqp=priorId?row_g[priorId]:null;
 
+          // A resilience read spans three periods. If any adjacent pair among
+          // them was measured differently, the "trend" would be the source
+          // changing units, not the price holding.
+          const prior2Id=priorId?finPriorPeriodId(priorId):null;
+          const prior2=prior2Id?finPeriodRec(series,row.sku,prior2Id):null;
+          const chain=[cur,prior,prior2].map(finBasis);
+          if(chain[0]&&chain.some(b=>b&&b!==chain[0]))
+            return blank(p.period,"Spans a change in what the source publishes ("+chain.filter(Boolean).map(b=>FIN_BASIS_SHORT[b]).join(" vs ")+"), so a two-period trend cannot be read across it.",bStyle);
+
           if(cqp==null||pqp==null||!isFinite(cqp)||!isFinite(pqp))
-            return blank(p.period,"Needs two consecutive completed periods of growth; not available at "+p.label+".");
+            return blank(p.period,"Needs two consecutive completed periods of growth; not available at "+p.label+".",bStyle);
 
           const stable=cqp>=0&&pqp>=0;
           const label=stable?"Stable/up 2Q":"Falling";
@@ -2597,7 +2766,7 @@ function renderFinResilienceRows(rows,growth,periods,series,partialKey,dim){
             +(curCov!=null?" · "+Math.round(curCov*100)+"% priced":"")
             +(thin?" · thin coverage on one side — indicative only":"");
           return(
-            <td key={p.period} style={finTdDim}>
+            <td key={p.period} style={{...finTdDim,...bStyle}}>
               <span style={{fontSize:9,fontWeight:600,padding:"1px 6px",borderRadius:3,background:bg,color:fg,whiteSpace:"nowrap"}} title={title}>
                 {label}{thin&&<sup style={{color:"#b45309",fontSize:8,fontWeight:700,marginLeft:1}}>&deg;</sup>}
               </span>
@@ -2818,12 +2987,20 @@ function GPUQuarterlyBlock({qHist,qHistErr}){
                       {quarters.map(qid=>{
                         const q=byQuarter[qid];
                         if(!q)return <td key={qid} style={{...gpuTd,textAlign:"right",color:"#d1d5db"}}>—</td>;
-                        const close=q.quarterCloseMinPricePerHour;
-                        const avg=q.quarterAverageMinPricePerHour;
+                        // Basis-aware fields with a fallback to the legacy
+                        // floor-only ones. The source stopped publishing a
+                        // floor on 2026-07-28, so reading the Min fields
+                        // alone renders every quarter after that as a dash
+                        // even though prices kept arriving.
+                        const close=q.quarterClosePricePerHour!=null?q.quarterClosePricePerHour:q.quarterCloseMinPricePerHour;
+                        const avg=q.quarterAveragePricePerHour!=null?q.quarterAveragePricePerHour:q.quarterAverageMinPricePerHour;
+                        const basis=q.priceBasis;
                         return(
-                          <td key={qid} style={{...gpuTd,textAlign:"right"}}>
+                          <td key={qid} style={{...gpuTd,textAlign:"right"}}
+                              title={basis?"Measured as the "+FIN_BASIS_LABEL[basis]+(q.mixedBasis?" — this quarter also holds days on the other measure, which are excluded":""):undefined}>
                             <div style={{fontWeight:600,color:"#059669"}}>{close!=null?"$"+close.toFixed(2):"—"}{q.isQTD&&<span style={{fontSize:9,color:"#9ca3af",fontWeight:500,marginLeft:3}}>QTD</span>}</div>
                             {avg!=null&&<div style={{fontSize:10,color:"#9ca3af",marginTop:1}}>avg ${avg.toFixed(2)}</div>}
+                            {basis&&<div style={{fontSize:9,color:basis==="median"?"#1d4ed8":"#9ca3af",marginTop:1}}>{FIN_BASIS_SHORT[basis]}</div>}
                             {q.lowCoverage&&<div style={{fontSize:9,color:"#b45309",marginTop:1}}>⚠ low coverage</div>}
                           </td>
                         );
@@ -2872,6 +3049,20 @@ function BootstrapExplainer({since,currentQuarterId,currentQuarter,firstQoQQuart
   );
 }
 
+/* Quarter close/average on the quarter's OWN measure, falling back to the
+   legacy floor-only fields for a payload that predates them. Reading the Min
+   fields directly renders every quarter after 2026-07-27 as a dash, because
+   that is when the source stopped publishing a floor — the prices kept
+   arriving, just as a median. */
+function qClose(q){
+  if(!q)return null;
+  return q.quarterClosePricePerHour!=null?q.quarterClosePricePerHour:q.quarterCloseMinPricePerHour;
+}
+function qAvg(q){
+  if(!q)return null;
+  return q.quarterAveragePricePerHour!=null?q.quarterAveragePricePerHour:q.quarterAverageMinPricePerHour;
+}
+
 function MiniStat({label,value,sub,warn}){
   return(
     <div style={{background:"#fff",border:"0.5px solid #e5e7eb",borderRadius:8,padding:"8px 10px"}}>
@@ -2891,22 +3082,42 @@ function QoQCard({short,c,sig}){
   const sigBg=sig==="loosening"?"#dcfce7":sig==="tightening"?"#fee2e2":sig==="stable"?"#f3f4f6":"#f3f4f6";
   const sigFg=sig==="loosening"?"#059669":sig==="tightening"?"#dc2626":sig==="stable"?"#6b7280":"#9ca3af";
   const sigLabel=sig==="loosening"?"loosening":sig==="tightening"?"tightening":sig==="stable"?"stable":null;
+  // The two closes are printed side by side underneath. Across a change of
+  // measure that line reads as a price move all by itself — $0.29 → $3.38 —
+  // even with the percentage suppressed, so the card says what happened
+  // instead of showing a bare arrow over an unexplained pair.
+  const basisChanged=!!c.basisChanged;
   return(
-    <div style={{background:"#fff",border:"0.5px solid #e5e7eb",borderRadius:8,padding:"10px 12px"}}>
+    <div style={{background:"#fff",border:"0.5px solid "+(basisChanged?"#fde68a":"#e5e7eb"),borderRadius:8,padding:"10px 12px"}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:6}}>
         <div style={{...S.lbl,color:"#6b7280",fontSize:9}}>
           {short} · QoQ {c.currentIsQTD&&<span style={{color:"#9ca3af",fontWeight:500}}>(QTD)</span>}
         </div>
         {sigLabel&&<span style={{fontSize:9,padding:"1px 6px",borderRadius:3,background:sigBg,color:sigFg,fontWeight:600,textTransform:"uppercase",letterSpacing:".04em"}}>{sigLabel}</span>}
       </div>
-      <div style={{display:"flex",alignItems:"baseline",gap:6,marginTop:4}}>
-        <span style={{fontSize:16,fontWeight:700,color}}>{arrow}&nbsp;{fmtPct(pct)}</span>
-        <span style={{fontSize:11,color:"#6b7280"}}>close $/hr</span>
-      </div>
-      <div style={{fontSize:10,color:"#9ca3af",marginTop:3}}>
-        {c.priorQuarter} ${c.priorClose?.toFixed(2)} → {c.currentQuarter} ${c.currentClose?.toFixed(2)}
-        {c.providerDelta!=null&&<> · providers {fmtInt(c.providerDelta)}</>}
-      </div>
+      {basisChanged?(
+        <>
+          <div style={{fontSize:11,fontWeight:700,color:"#b45309",marginTop:5,lineHeight:1.35}}>
+            Measure changed between these quarters
+          </div>
+          <div style={{fontSize:10,color:"#92400e",marginTop:3,lineHeight:1.45}}>
+            {c.priorQuarter} is the {FIN_BASIS_SHORT[c.priorBasis]||c.priorBasis} (${c.priorClose?.toFixed(2)}); {c.currentQuarter} is the {FIN_BASIS_SHORT[c.currentBasis]||c.currentBasis} (${c.currentClose?.toFixed(2)}).
+            Different statistics — the gap between them is not a price move, so no QoQ is shown.
+          </div>
+          {c.providerDelta!=null&&<div style={{fontSize:10,color:"#9ca3af",marginTop:3}}>providers {fmtInt(c.providerDelta)}</div>}
+        </>
+      ):(
+        <>
+          <div style={{display:"flex",alignItems:"baseline",gap:6,marginTop:4}}>
+            <span style={{fontSize:16,fontWeight:700,color}}>{arrow}&nbsp;{fmtPct(pct)}</span>
+            <span style={{fontSize:11,color:"#6b7280"}}>close $/hr{c.currentBasis?" ("+FIN_BASIS_SHORT[c.currentBasis]+")":""}</span>
+          </div>
+          <div style={{fontSize:10,color:"#9ca3af",marginTop:3}}>
+            {c.priorQuarter} ${c.priorClose?.toFixed(2)} → {c.currentQuarter} ${c.currentClose?.toFixed(2)}
+            {c.providerDelta!=null&&<> · providers {fmtInt(c.providerDelta)}</>}
+          </div>
+        </>
+      )}
       {c.lowCoverageFlag&&<div style={{fontSize:9,color:"#b45309",marginTop:2}}>⚠ low-coverage quarter — close may be imprecise</div>}
     </div>
   );
@@ -2923,11 +3134,11 @@ function QTDNowCard({short,cur,since,firstQoQQuarter}){
         </div>
       </div>
       <div style={{display:"flex",alignItems:"baseline",gap:6,marginTop:4}}>
-        <span style={{fontSize:16,fontWeight:700,color:"#059669"}}>{cur.quarterCloseMinPricePerHour!=null?"$"+cur.quarterCloseMinPricePerHour.toFixed(2):"—"}</span>
-        <span style={{fontSize:11,color:"#6b7280"}}>close $/hr</span>
+        <span style={{fontSize:16,fontWeight:700,color:"#059669"}}>{qClose(cur)!=null?"$"+qClose(cur).toFixed(2):"—"}</span>
+        <span style={{fontSize:11,color:"#6b7280"}}>close $/hr{cur.priceBasis?" ("+FIN_BASIS_SHORT[cur.priceBasis]+")":""}</span>
       </div>
       <div style={{fontSize:10,color:"#9ca3af",marginTop:3}}>
-        avg ${cur.quarterAverageMinPricePerHour!=null?cur.quarterAverageMinPricePerHour.toFixed(2):"—"}
+        avg ${qAvg(cur)!=null?qAvg(cur).toFixed(2):"—"}
         {cur.quarterCloseProviderCount!=null&&<> · {cur.quarterCloseProviderCount} providers</>}
         {cur.quarterCloseSpreadMultiple!=null&&<> · spread {cur.quarterCloseSpreadMultiple.toFixed(1)}×</>}
       </div>
@@ -2985,11 +3196,13 @@ function CurrentQuarterSnapshotTable({trackedSKUs,currentQuarterBySku,firstQoQQu
                     <div style={{fontWeight:600,color:"#111827"}}>{sku}</div>
                     <div style={{fontSize:10,color:"#9ca3af",marginTop:1}}>{cur.quarter}{cur.isQTD?" · QTD":""}</div>
                   </td>
-                  <td style={{...gpuTd,textAlign:"right",color:"#059669",fontWeight:600}}>
-                    {cur.quarterCloseMinPricePerHour!=null?"$"+cur.quarterCloseMinPricePerHour.toFixed(2):"—"}
+                  <td style={{...gpuTd,textAlign:"right",color:"#059669",fontWeight:600}}
+                      title={cur.priceBasis?"Measured as the "+FIN_BASIS_LABEL[cur.priceBasis]:undefined}>
+                    {qClose(cur)!=null?"$"+qClose(cur).toFixed(2):"—"}
+                    {cur.priceBasis&&<div style={{fontSize:9,fontWeight:500,color:cur.priceBasis==="median"?"#1d4ed8":"#9ca3af"}}>{FIN_BASIS_SHORT[cur.priceBasis]}</div>}
                   </td>
                   <td style={{...gpuTd,textAlign:"right",color:"#374151"}}>
-                    {cur.quarterAverageMinPricePerHour!=null?"$"+cur.quarterAverageMinPricePerHour.toFixed(2):"—"}
+                    {qAvg(cur)!=null?"$"+qAvg(cur).toFixed(2):"—"}
                   </td>
                   <td style={{...gpuTd,textAlign:"right",color:"#374151"}}>{cur.quarterCloseProviderCount??"—"}</td>
                   <td style={{...gpuTd,textAlign:"right",color:"#6b7280"}}>{cur.quarterCloseSpreadMultiple!=null?cur.quarterCloseSpreadMultiple.toFixed(1)+"×":"—"}</td>
@@ -3050,7 +3263,7 @@ function QoQComparisonTable({trackedSKUs,qoq,series,signals,currentQuarterBySku}
                   <td style={gpuTd}><span style={{fontWeight:600,color:"#111827"}}>{sku}</span></td>
                   <td style={{...gpuTd,textAlign:"right",color:"#374151"}}>{c?.priorClose!=null?"$"+c.priorClose.toFixed(2):"—"}</td>
                   <td style={{...gpuTd,textAlign:"right",color:"#059669",fontWeight:600}}>
-                    {c?.currentClose!=null?"$"+c.currentClose.toFixed(2):(cur?.quarterCloseMinPricePerHour!=null?"$"+cur.quarterCloseMinPricePerHour.toFixed(2):"—")}
+                    {c?.currentClose!=null?"$"+c.currentClose.toFixed(2):(qClose(cur)!=null?"$"+qClose(cur).toFixed(2):"—")}
                     {(c?.currentIsQTD||cur?.isQTD)&&<span style={{fontSize:9,color:"#9ca3af",fontWeight:500,marginLeft:3}}>QTD</span>}
                   </td>
                   <td style={{...gpuTd,textAlign:"right"}}><QoQCell v={c?.qoqPct} suffix="%"/></td>

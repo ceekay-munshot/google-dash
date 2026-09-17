@@ -118,7 +118,13 @@ function levelsSheet(name,heading,sub,labels,series,skus,partialKey){
     "The figure the dashboard charts. Median across providers where the source publishes one; the floor of the vendor range for earlier periods. The row below states which applies to each period — do not compare a median against a floor.");
   block("Price basis",
     r=>({v:basisOf(r)==="median"?"median":basisOf(r)==="floor"?"floor (min)":"",s:XS.text}),
-    "Which measure the headline row above is carrying for that period.");
+    "Which measure the headline row above is carrying for that period. The source switched from a per-vendor range to a single median on 2026-07-28, so the step between the two is a change of measure, not a price move.");
+  block("Days behind the headline",
+    r=>int(r?r.basisDaysUsed:null),
+    "How many priced days the headline average above actually rests on. A period that straddles the change uses only the days on its own measure.");
+  block("Other measure in this period — $/hr",
+    r=>money(r&&r.mixedBasis?r.alternatePricePerHour:null),
+    "Only populated for a period that straddles the change: what its days on the OTHER measure averaged. Comparing this against the neighbouring period on that same measure shows the market move with the units change taken out.");
   block("Median price — $/hr (period average)",
     r=>money(r?r.avgMedianPricePerHour:null),
     "Median listing across providers. This is a market rate.");
@@ -210,8 +216,8 @@ function growthSheet(name,heading,sub,labels,series,growthMap,yoyMap,skus,partia
 
 /* ─── Daily raw: long format, one row per SKU-day ─── */
 function dailySheet(daily,skus){
-  const head=["Date","GPU model","Median $/hr","Floor $/hr (min)","Range midpoint $/hr","Ceiling $/hr (max)",
-              "Spread absolute $","Spread multiple (x)","Provider count","Has price"];
+  const head=["Date","GPU model","Measure","Headline $/hr","Median $/hr","Floor $/hr (min)","Range midpoint $/hr","Ceiling $/hr (max)",
+              "Spread absolute $","Spread multiple (x)","Provider count","Has price","Recovered from max field"];
   const rows=[head.map(h=>H(h))];
   const order=skus.map(s=>s.sku);
   const known=new Set(order);
@@ -227,11 +233,19 @@ function dailySheet(daily,skus){
   const labelOf=Object.fromEntries(skus.map(s=>[s.sku,s.shortLabel]));
   for(const date of [...byDate.keys()].sort()){
     for(const{sku,p}of byDate.get(date)){
-      const priced=(p.minPricePerHour!=null&&isFinite(p.minPricePerHour))
-                 ||(p.medianPricePerHour!=null&&isFinite(p.medianPricePerHour));
+      // dailyPrice/dailyBasis come from the API's normalization, so a day
+      // whose price was captured into the wrong field reads as priced here
+      // rather than as a hole. Older payloads predate the fields.
+      const dailyPrice=p.dailyPrice!=null&&isFinite(p.dailyPrice)?p.dailyPrice
+        :(p.medianPricePerHour!=null&&isFinite(p.medianPricePerHour)?p.medianPricePerHour
+        :(p.minPricePerHour!=null&&isFinite(p.minPricePerHour)?p.minPricePerHour:null));
+      const dailyBasis=p.dailyBasis||(p.medianPricePerHour!=null?"median":p.minPricePerHour!=null?"floor":null);
+      const priced=dailyPrice!=null;
       rows.push([
         {v:date,s:XS.text},
         {v:labelOf[sku]||sku,s:XS.text},
+        {v:dailyBasis==="median"?"median":dailyBasis==="floor"?"floor (min)":"",s:XS.text},
+        money(dailyPrice),
         money(p.medianPricePerHour),
         money(p.minPricePerHour),
         money(p.priceMidpoint),
@@ -240,12 +254,13 @@ function dailySheet(daily,skus){
         mult(p.spreadMultiple),
         int(p.providerCount),
         {v:priced?"yes":"NO",s:priced?XS.text:XS.warn},
+        {v:p.basisRemapped?"yes":"",s:XS.text},
       ]);
     }
   }
   return{
     name:"Daily raw observations",
-    cols:[{w:13},{w:26},{w:15},{w:18},{w:20},{w:18},{w:17},{w:19},{w:15},{w:11}],
+    cols:[{w:13},{w:26},{w:13},{w:15},{w:15},{w:18},{w:20},{w:18},{w:17},{w:19},{w:15},{w:11},{w:23}],
     freeze:{row:1},
     filter:"A1:"+colLetter(head.length)+Math.max(1,rows.length),
     rows,
@@ -278,7 +293,29 @@ function qualitySheet(fHist,skus){
     rows.push([{v:"Calendar months with no capture at all: "+dq.monthsMissing.join(", "),s:XS.warn}]);
   if(dq.monthsUnpriced&&dq.monthsUnpriced.length)
     rows.push([{v:"Months captured but carrying no price: "+dq.monthsUnpriced.join(", "),s:XS.warn}]);
+  for(const g of (dq.significantCaptureGaps||[])){
+    rows.push([{v:"No capture for "+g.missingDays+" days between "+g.afterDate+" and "+g.beforeDate
+      +". The months either side rest on fewer days than their length implies.",s:XS.warn}]);
+  }
+  if(dq.remappedPriceDays)
+    rows.push([{v:dq.remappedPriceDays+" captured days carried their price in maxPricePerHour because the source replaced its vendor range with a single figure. They are reclassified as medians when this workbook is built; the stored snapshots are unchanged.",s:XS.text}]);
   rows.push([]);
+
+  // The change of measure, stated as its own block — it is the single thing
+  // most likely to be misread as a price move.
+  const pb=fHist.priceBasis;
+  if(pb&&pb.hasChange){
+    rows.push(section("Change in what the source publishes",6));
+    for(const c of (pb.timeline.changes||[])){
+      rows.push([{v:"On "+c.effectiveDate+" the source stopped publishing a "+(c.from==="floor"?"per-vendor min-max range (headline = the cheapest listing)":c.from)
+        +" and began publishing a single "+(c.to==="median"?"median across providers":c.to)
+        +". Levels either side of that date are different statistics and are not comparable; growth across it is left blank rather than reported.",s:XS.bad}]);
+    }
+    for(const seg of (pb.timeline.segments||[])){
+      rows.push([TXT(seg.from+" → "+seg.to),TXT(seg.basis==="floor"?"floor (min $/hr)":seg.basis),int(seg.days),TXT("captured days on this measure")]);
+    }
+    rows.push([]);
+  }
 
   const covBlock=(heading,labels,series,dayKey,priceKey,denomKey)=>{
     rows.push(section(heading,6));
@@ -315,10 +352,10 @@ function readmeSheet(fHist,generatedAt){
 
   rows.push(section("What is in this workbook",4));
   const item=(a,b)=>rows.push([{v:a,s:XS.keyLabel},{v:b,s:XS.textWrap}]);
-  item("Monthly $ per hour","Floor, midpoint and ceiling $/hr per GPU model per calendar month, plus provider count, spread and priced-day coverage.");
+  item("Monthly $ per hour","Headline $/hr per GPU model per calendar month, the measure it is on, plus floor, midpoint, ceiling, provider count, spread and priced-day coverage.");
   item("Quarterly $ per hour","The same measures aggregated by calendar quarter. Quarter columns are labelled by quarter-end month (Mar/Jun/Sep/Dec).");
-  item("MoM growth","Month-over-month and year-over-year change in the floor price, plus the price resilience signal.");
-  item("QoQ growth","Quarter-over-quarter and year-over-year change in the floor price, plus the price resilience signal.");
+  item("MoM growth","Month-over-month and year-over-year change in the headline price, plus the price resilience signal. Blank across a change of measure.");
+  item("QoQ growth","Quarter-over-quarter and year-over-year change in the headline price, plus the price resilience signal. Blank across a change of measure.");
   item("Daily raw observations","Every captured day for every SKU — the source rows every average above is built from.");
   item("Data quality","Feed status and per-period coverage. Start here.");
   rows.push([]);
@@ -363,7 +400,7 @@ export function buildGPUPricingWorkbook(fHist,daily,skus){
 
   if(mLabels.length)sheets.push(levelsSheet(
     "Monthly $ per hour","GPU rental $ per hour — by model, by month",
-    "Period averages of daily observations · floor / midpoint / ceiling · generated "+generatedAt,
+    "Period averages of daily observations · headline / floor / midpoint / ceiling · generated "+generatedAt,
     mLabels,mSeries,skus,"isMTD"));
 
   if(qLabels.length)sheets.push(levelsSheet(
@@ -373,12 +410,12 @@ export function buildGPUPricingWorkbook(fHist,daily,skus){
 
   if(mLabels.length)sheets.push(growthSheet(
     "MoM growth","GPU rental $ per hour — month-over-month",
-    "Change in the floor price · red = price rose, green = price fell · generated "+generatedAt,
+    "Change in the headline price · red = price rose, green = price fell · generated "+generatedAt,
     mLabels,mSeries,fHist.monthly?.mom||{},fHist.monthly?.yoy||{},skus,"isMTD","MoM"));
 
   if(qLabels.length)sheets.push(growthSheet(
     "QoQ growth","GPU rental $ per hour — quarter-over-quarter",
-    "Change in the floor price · red = price rose, green = price fell · generated "+generatedAt,
+    "Change in the headline price · red = price rose, green = price fell · generated "+generatedAt,
     qLabels,qSeries,fHist.quarterly?.qoq||{},fHist.quarterly?.yoy||{},skus,"isQTD","QoQ"));
 
   if(daily&&daily.series&&Object.keys(daily.series).length)sheets.push(dailySheet(daily,skus));
