@@ -22,6 +22,7 @@
  */
 import { build } from 'esbuild';
 import { readFileSync, writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 
@@ -32,6 +33,28 @@ const HTML = resolve(ROOT, 'index.html');
 // it (rather than a byte offset) keeps the splice correct if the inline
 // bootstrap scripts above it ever grow or shrink.
 const BUNDLE_OPENER = '(()=>{var ';
+
+/**
+ * A short content hash of the dashboard source, injected as __BUILD__ and used
+ * as a cache key on the API fetches.
+ *
+ * The API caches its responses at the edge for six hours, which is what keeps
+ * a 35MB upstream fan-out affordable. The cost is that a deploy could not
+ * reach anyone until that cache expired — a fix would sit invisible for hours
+ * while the old payload kept being served. An earlier attempt used a
+ * five-minute time bucket instead, which gave every bucket its own cache key,
+ * re-ran the fan-out constantly and took the upstream down.
+ *
+ * Hashing the SOURCE gets both: the key changes exactly once per code change,
+ * so a deploy invalidates the cache once and then caches normally. It is
+ * derived from file contents rather than a timestamp so the build stays
+ * deterministic and `--check` remains a reliable guard.
+ */
+const BUILD_ID = createHash('sha256')
+  .update(readFileSync(resolve(ROOT, 'js/dashboard.jsx')))
+  .update(readFileSync(resolve(ROOT, 'js/.dashboard-entry.jsx')))
+  .digest('hex')
+  .slice(0, 8);
 
 const result = await build({
   entryPoints: [resolve(ROOT, 'js/.dashboard-entry.jsx')],
@@ -44,7 +67,7 @@ const result = await build({
   // no dead-code elimination and a materially slower render path shipped to
   // production. The committed bundle has always been a production build, so
   // omitting the define here would silently regress it on the next rebuild.
-  define: { 'process.env.NODE_ENV': '"production"' },
+  define: { 'process.env.NODE_ENV': '"production"', __BUILD__: JSON.stringify(BUILD_ID) },
   // esbuild defaults to 'eof' when bundling; stated explicitly so a default
   // change upstream cannot quietly rewrite the whole file.
   legalComments: 'eof',

@@ -81,7 +81,14 @@ function jsonResp(data, status = 200, extraHeaders = {}) {
     status,
     headers: {
       'Content-Type': 'application/json',
-      'Cache-Control': 'public, max-age=' + CACHE_TTL + ', s-maxage=' + CACHE_TTL,
+      // max-age=0 for the browser, s-maxage for shared caches. The old header
+      // put the full 6 hours in the BROWSER cache, which bought no upstream
+      // protection at all (the expensive pricepertoken fan-out is already
+      // subrequest-cached via cf.cacheTtl) and pinned whatever a tab first
+      // loaded -- good or degraded -- for six hours. Two tabs opened minutes
+      // apart could therefore disagree about the same URL indefinitely.
+      // Revalidating costs one cheap function call per load.
+      'Cache-Control': 'public, max-age=0, must-revalidate, s-maxage=' + CACHE_TTL,
       ...CORS,
       ...extraHeaders,
     },
@@ -669,8 +676,16 @@ export async function onRequestGet({ request }) {
     }
   }
 
+  // A response that lost providers must NOT be cached. Every 200 used to carry
+  // a six-hour cache regardless of content, so a single flaky moment upstream
+  // was pinned at the edge and served to everyone for six hours — which is why
+  // the dashboard kept showing "upstream temporarily unavailable" long after
+  // the upstream had recovered, and why two browser tabs on the same URL
+  // disagreed: one held the cached failure, the other a healthy response.
+  const degraded = results.some(r => r.error);
   return jsonResp({
     success: true,
+    degraded,
     metric,
     weight,
     weighting: weightMeta,
@@ -695,7 +710,7 @@ export async function onRequestGet({ request }) {
     // the retries are the only thing hiding it.
     providerRetries: results.filter(r => !r.error && r.attempts > 1)
       .map(r => ({ slug: r.slug, attempts: r.attempts })),
-  });
+  }, 200, degraded ? { 'Cache-Control': 'no-store' } : {});
 }
 
 export async function onRequestOptions() {
