@@ -694,6 +694,10 @@ function PricingShareSignalBlock(){
      - Per-cell model count is surfaced so the reader can judge
        composition drift.
 ═══════════════════════════════════════════════════════ */
+/* Injected by scripts/build-dashboard.mjs as a hash of this file's contents.
+   Falls back to "dev" when the module is loaded outside that build (tests). */
+const BUILD=typeof __BUILD__!=="undefined"?__BUILD__:"dev";
+
 function ModelPricingHistoryBlock(){
   const[metric,setMetric]=useState("input");
   const[view,setView]=useState("avg"); // "avg" | "qoq" | "yoy"
@@ -707,16 +711,13 @@ function ModelPricingHistoryBlock(){
   useEffect(()=>{
     let cancelled=false;
     setState(s=>({...s,phase:"loading"}));
-    // NO cache-buster here, deliberately. This endpoint fans out to
-    // pricepertoken for all eight providers — roughly 35MB of upstream JSON per
-    // cache miss. The 6-hour edge cache is what keeps that to a handful of
-    // fetches a day. Adding "&v=<5-minute bucket>" (as the peer matrix does,
-    // where the upstream is one small request) gave every bucket its own cache
-    // key, so the fan-out ran again and again and the upstream started failing
-    // six providers at a time — the dashboard rendered "upstream temporarily
-    // unavailable" with an empty table. The response already carries
-    // max-age=0, must-revalidate, so browsers revalidate without help.
-    fetch("/api/provider-pricing-matrix?metric="+metric+"&weight="+weight)
+    // Keyed on the build hash, never on the clock. This endpoint fans out to
+    // pricepertoken for all eight providers, so a key that changes on a timer
+    // (the "&v=<5-minute bucket>" the peer matrix uses, where the upstream is
+    // one small request) gave every bucket its own cache key, re-ran the
+    // fan-out, and made the upstream fail six providers at a time. A build
+    // hash changes exactly once per deploy: one cold fetch, then reuse.
+    fetch("/api/provider-pricing-matrix?metric="+metric+"&weight="+weight+"&b="+BUILD)
       .then(r=>r.json())
       .then(d=>{ if(cancelled) return;
         if(!d.success) setState({phase:"error",data:null,error:d.error||"Unknown error"});

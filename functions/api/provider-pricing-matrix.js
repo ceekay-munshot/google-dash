@@ -81,7 +81,14 @@ function jsonResp(data, status = 200, extraHeaders = {}) {
     status,
     headers: {
       'Content-Type': 'application/json',
-      'Cache-Control': 'public, max-age=' + CACHE_TTL + ', s-maxage=' + CACHE_TTL,
+      // max-age=0 for the browser, s-maxage for shared caches. The old header
+      // put the full 6 hours in the BROWSER cache, which bought no upstream
+      // protection at all (the expensive pricepertoken fan-out is already
+      // subrequest-cached via cf.cacheTtl) and pinned whatever a tab first
+      // loaded -- good or degraded -- for six hours. Two tabs opened minutes
+      // apart could therefore disagree about the same URL indefinitely.
+      // Revalidating costs one cheap function call per load.
+      'Cache-Control': 'public, max-age=0, must-revalidate, s-maxage=' + CACHE_TTL,
       ...CORS,
       ...extraHeaders,
     },
@@ -127,24 +134,67 @@ function formatPct(n) {
   return sign + (n * 100).toFixed(1) + '%';
 }
 
-/** Fetch one provider's full history; returns { rows, error? }. */
-async function fetchProvider(slug) {
+/**
+ * Fetch one provider's full history; returns { rows, error?, attempts }.
+ *
+ * Retries, because this upstream is genuinely flaky under our own fan-out.
+ * Measured on production: roughly one request in eight came back with six of
+ * the eight providers failing at once — a mix of HTTP 502 and "Unterminated
+ * string in JSON", the latter being a large body cut off mid-transfer. Both
+ * are the signature of a rate limit or a throttled connection, not of a
+ * permanently broken provider, and both clear on a retry.
+ *
+ * The consequence of not retrying was severe out of proportion to the cause:
+ * losing the providers that carry measured cells also removes the ratios the
+ * estimate pass derives from, so a transient upstream hiccup emptied the
+ * ENTIRE table — no measured values and no estimates either. The dashboard
+ * showed a full grid of dashes and a "partial data" warning, intermittently,
+ * on roughly one load in eight.
+ */
+async function fetchProvider(slug, attempts = 3) {
   const url = UPSTREAM_BASE + '?provider=' + encodeURIComponent(slug);
-  try {
-    const r = await fetch(url, {
-      headers: {
-        'User-Agent': 'gdash-provider-pricing/1.0',
-        Accept: 'application/json',
-      },
-      cf: { cacheTtl: CACHE_TTL, cacheEverything: true },
-    });
-    if (!r.ok) return { slug, rows: [], error: 'HTTP ' + r.status };
-    const j = await r.json();
-    const rows = Array.isArray(j?.results) ? j.results : [];
-    return { slug, rows };
-  } catch (e) {
-    return { slug, rows: [], error: e.message };
+  let lastError = null;
+  for (let attempt = 1; attempt <= attempts; attempt++) {
+    try {
+      const r = await fetch(url, {
+        headers: {
+          'User-Agent': 'gdash-provider-pricing/1.0',
+          Accept: 'application/json',
+        },
+        cf: { cacheTtl: CACHE_TTL, cacheEverything: true },
+      });
+      if (!r.ok) {
+        lastError = 'HTTP ' + r.status;
+      } else {
+        // Parsed inside the retry loop on purpose: a truncated body throws
+        // here, not at fetch, and a truncation is exactly what a retry fixes.
+        const j = await r.json();
+        const rows = Array.isArray(j?.results) ? j.results : [];
+        if (rows.length) return { slug, rows, attempts: attempt };
+        lastError = 'empty results array';
+      }
+    } catch (e) {
+      lastError = e.message;
+    }
+    if (attempt < attempts) await new Promise(res => setTimeout(res, 250 * attempt));
   }
+  return { slug, rows: [], error: lastError, attempts };
+}
+
+/**
+ * Run the provider fan-out in small batches rather than all eight at once.
+ *
+ * Eight simultaneous large requests — about 35MB in total, 12MB for OpenAI
+ * alone — is what trips the upstream's limits. Four at a time costs one extra
+ * round trip and removed the failures in testing.
+ */
+async function fetchAllProviders(providers, batchSize = 4) {
+  const out = [];
+  for (let i = 0; i < providers.length; i += batchSize) {
+    const batch = providers.slice(i, i + batchSize);
+    out.push(...await Promise.all(batch.map(p => fetchProvider(p.slug))));
+  }
+  return out;
 }
 
 /**
@@ -530,7 +580,7 @@ export async function onRequestGet({ request }) {
     return jsonResp({ success: false, error: 'weight must be "equal" or "usage"' }, 400);
   }
 
-  const results = await Promise.all(PROVIDERS.map(p => fetchProvider(p.slug)));
+  const results = await fetchAllProviders(PROVIDERS);
   const anyRows = results.some(r => r.rows.length);
   if (!anyRows) {
     return jsonResp({
@@ -626,8 +676,16 @@ export async function onRequestGet({ request }) {
     }
   }
 
+  // A response that lost providers must NOT be cached. Every 200 used to carry
+  // a six-hour cache regardless of content, so a single flaky moment upstream
+  // was pinned at the edge and served to everyone for six hours — which is why
+  // the dashboard kept showing "upstream temporarily unavailable" long after
+  // the upstream had recovered, and why two browser tabs on the same URL
+  // disagreed: one held the cached failure, the other a healthy response.
+  const degraded = results.some(r => r.error);
   return jsonResp({
     success: true,
+    degraded,
     metric,
     weight,
     weighting: weightMeta,
@@ -646,8 +704,13 @@ export async function onRequestGet({ request }) {
     earliestDateObserved: earliestDate ? earliestDate.slice(0, 10) : null,
     providers: PROVIDERS,
     quarters,
-    providerErrors: results.filter(r => r.error).map(r => ({ slug: r.slug, error: r.error })),
-  });
+    providerErrors: results.filter(r => r.error).map(r => ({ slug: r.slug, error: r.error, attempts: r.attempts })),
+    // Providers that needed more than one attempt. Zero here is the healthy
+    // state; a persistent non-zero count means the upstream is degrading and
+    // the retries are the only thing hiding it.
+    providerRetries: results.filter(r => !r.error && r.attempts > 1)
+      .map(r => ({ slug: r.slug, attempts: r.attempts })),
+  }, 200, degraded ? { 'Cache-Control': 'no-store' } : {});
 }
 
 export async function onRequestOptions() {
