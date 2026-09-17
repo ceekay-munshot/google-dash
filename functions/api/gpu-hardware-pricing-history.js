@@ -75,6 +75,20 @@
  *   }
  */
 
+import {
+  BASIS_FLOOR,
+  BASIS_MEDIAN,
+  BASIS_LABEL,
+  normalizeDailyPoint,
+  periodHeadline,
+  pricedDatesForBasis,
+  periodGrowth,
+  growthRefusalReason,
+  detectBasisTimeline,
+  basisChangeForPeriods,
+  pctChange,
+} from './_gpu-price-basis.js';
+
 const CORS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, OPTIONS',
@@ -178,7 +192,13 @@ export async function onRequestGet({ request, env }) {
     for (const m of snap.gpu.models) {
       const sku = m.gpuModel;
       if (!series[sku]) series[sku] = [];
-      series[sku].push({
+      // Normalize on the way in, once, so every view below (daily, quarter,
+      // financial) and every consumer of this endpoint sees the same measure
+      // in the same field. The 2026-07-28 → 2026-08-21 captures carry their
+      // price in maxPricePerHour because the parser of the day was still
+      // looking for a range; normalizeDailyPoint moves it to the median
+      // field it belongs in. See _gpu-price-basis.js for why that is safe.
+      series[sku].push(normalizeDailyPoint({
         date,
         minPricePerHour: m.minPricePerHour,
         maxPricePerHour: m.maxPricePerHour,
@@ -188,9 +208,9 @@ export async function onRequestGet({ request, env }) {
         spreadMultiple: m.spreadMultiple,
         priceMidpoint: m.priceMidpoint,
         _real: real,
-      });
+      }));
       if (!latestBySku[sku]) {
-        latestBySku[sku] = { date, ...m, _real: real };
+        latestBySku[sku] = normalizeDailyPoint({ date, ...m, _real: real });
       }
     }
   }
@@ -226,10 +246,42 @@ export async function onRequestGet({ request, env }) {
         continue;
       }
       const prior = pts[priorIdx];
+      // The requested window and the window actually measured are two
+      // different things once the feed has a gap in it. Between 2026-08-21
+      // and 2026-09-11 nothing was captured, so the "7-day" comparator was
+      // silently 26 days old and still labelled d7. Report the real span.
+      const actualSpanDays = Math.round(
+        (Date.parse(latest.date + 'T00:00:00Z') - Date.parse(prior.date + 'T00:00:00Z')) / 86400000
+      );
+      // Price deltas are computed on the headline measure, and only when both
+      // ends were measured the same way. A floor compared to a median is a
+      // change of units, not a price move.
+      const comparableBasis =
+        latest.dailyBasis && prior.dailyBasis && latest.dailyBasis === prior.dailyBasis
+          ? latest.dailyBasis
+          : null;
+      const priceDeltaPct = comparableBasis ? pctChange(latest.dailyPrice, prior.dailyPrice) : null;
       out[sku] = {
         status: 'ok',
         latestDate: latest.date,
         priorDate: prior.date,
+        requestedWindowDays: nDays,
+        actualSpanDays,
+        // A comparator more than half again as old as asked for is not the
+        // window it claims to be; consumers should say so rather than print
+        // "7D" over a 26-day move.
+        windowStretched: actualSpanDays > nDays * 1.5,
+        priceBasis: comparableBasis,
+        latestBasis: latest.dailyBasis || null,
+        priorBasis: prior.dailyBasis || null,
+        basisChanged: !!(latest.dailyBasis && prior.dailyBasis && latest.dailyBasis !== prior.dailyBasis),
+        priceDeltaAbs:
+          comparableBasis && latest.dailyPrice != null && prior.dailyPrice != null
+            ? +(latest.dailyPrice - prior.dailyPrice).toFixed(4)
+            : null,
+        priceDeltaPct,
+        // Retained under their original names so existing consumers keep
+        // working; they mean "floor delta" and are null outside the floor era.
         minDeltaAbs:
           latest.minPricePerHour != null && prior.minPricePerHour != null
             ? +(latest.minPricePerHour - prior.minPricePerHour).toFixed(4)
@@ -258,17 +310,49 @@ export async function onRequestGet({ request, env }) {
   const d30 = mkComparison(30);
 
   // Signal classification — uses the 7D window.
-  // loosening: providers ↑ or min price ↓ meaningfully (>= 2%)
-  // tightening: providers ↓ or min price ↑ meaningfully (>= 2%)
+  // loosening: providers ↑ or price ↓ meaningfully (>= 2%)
+  // tightening: providers ↓ or price ↑ meaningfully (>= 2%)
   // stable: small movement in both dimensions
+  //
+  // A signal is a market claim, so it is refused whenever the evidence has
+  // gone missing rather than quietly falling back to whatever is left. Two
+  // ways that used to happen:
+  //   • the price delta went null when the feed stopped publishing a floor,
+  //     leaving provider count as the sole input. GB200 then read
+  //     "tightening" because one vendor dropped off a listing page.
+  //   • the comparator drifted to 26 days old across the capture gap and the
+  //     move was still labelled a 7-day signal.
   const signals = {};
+  const signalBasis = {};
   for (const sku of availableSKUs) {
     const c = d7[sku];
     if (!c || c.status !== 'ok') {
       signals[sku] = 'insufficient-data';
+      signalBasis[sku] = { reason: 'no comparable observation 7 days back' };
       continue;
     }
-    const pricePct = c.minDeltaPct;
+    if (c.priceDeltaPct == null) {
+      signals[sku] = 'insufficient-data';
+      signalBasis[sku] = {
+        reason: c.basisChanged
+          ? 'the price measure changed between ' + c.priorDate + ' (' + c.priorBasis + ') and ' +
+            c.latestDate + ' (' + c.latestBasis + '), so the two are not comparable'
+          : 'no price on one side of the comparison',
+        priorDate: c.priorDate,
+        latestDate: c.latestDate,
+      };
+      continue;
+    }
+    if (c.windowStretched) {
+      signals[sku] = 'insufficient-data';
+      signalBasis[sku] = {
+        reason: 'nearest comparator is ' + c.actualSpanDays + ' days old, not 7 — capture gap',
+        priorDate: c.priorDate,
+        latestDate: c.latestDate,
+      };
+      continue;
+    }
+    const pricePct = c.priceDeltaPct;
     const providerDelta = c.providerDelta;
     const priceDown = pricePct != null && pricePct <= -2;
     const priceUp = pricePct != null && pricePct >= 2;
@@ -342,6 +426,8 @@ export async function onRequestGet({ request, env }) {
     series,
     comparisons: { d7, d30 },
     signals,
+    signalBasis,
+    basisTimeline: detectBasisTimeline(series),
   });
 }
 
@@ -412,6 +498,17 @@ function aggregateQuartersForSKU(series, todayStr) {
     const quarterAvgProviders = avg(providers);
     const quarterAvgSpread = avg(spreads);
 
+    // The min-price fields above are floor-era only: the source stopped
+    // publishing a floor on 2026-07-28, so open/close/average would all read
+    // null for any quarter after that while the rows kept arriving. The
+    // headline fields below carry whatever measure the quarter is actually
+    // on, and say which, so a quarter never renders as priceless just
+    // because the source renamed its field.
+    const head = periodHeadline(pts);
+    const pricedPts = pts.filter(p => p.dailyBasis === head.priceBasis && p.dailyPrice != null);
+    const firstPriced = pricedPts[0] || null;
+    const lastPriced = pricedPts[pricedPts.length - 1] || null;
+
     return {
       quarter: g.id,
       year: g.year,
@@ -427,6 +524,16 @@ function aggregateQuartersForSKU(series, todayStr) {
       quarterOpenMinPricePerHour: first.minPricePerHour,
       quarterCloseMinPricePerHour: last.minPricePerHour,
       quarterAverageMinPricePerHour: quarterAvgMin != null ? +quarterAvgMin.toFixed(4) : null,
+      // Basis-aware open/close/average — use these in preference to the
+      // Min fields above, and never compare across a differing priceBasis.
+      priceBasis: head.priceBasis,
+      quarterOpenPricePerHour: firstPriced ? firstPriced.dailyPrice : null,
+      quarterClosePricePerHour: lastPriced ? lastPriced.dailyPrice : null,
+      quarterAveragePricePerHour: head.headlinePricePerHour,
+      quarterOpenDate: firstPriced ? firstPriced.date : null,
+      quarterCloseDate: lastPriced ? lastPriced.date : null,
+      mixedBasis: head.mixedBasis,
+      basisDayCounts: head.basisDayCounts,
       quarterLowMinPricePerHour: mins.length ? Math.min.apply(null, mins.filter(n => typeof n === 'number')) : null,
       quarterHighMinPricePerHour: mins.length ? Math.max.apply(null, mins.filter(n => typeof n === 'number')) : null,
       quarterCloseProviderCount: last.providerCount,
@@ -440,8 +547,12 @@ function aggregateQuartersForSKU(series, todayStr) {
   });
 }
 
+// A supply signal is a claim about the market, so it needs a price move to
+// rest on. With no comparable price the only input left is vendor count, and
+// one provider dropping off a listing page would read as "tightening" — a
+// market call manufactured out of a directory edit.
 function classifyQoQSignal(qoqPct, providerDelta) {
-  if (qoqPct == null && providerDelta == null) return 'insufficient-data';
+  if (qoqPct == null) return 'insufficient-data';
   const priceDown = qoqPct != null && qoqPct <= -2;
   const priceUp = qoqPct != null && qoqPct >= 2;
   const providersUp = providerDelta != null && providerDelta > 0;
@@ -469,12 +580,17 @@ function buildQuarterResponse(ctx) {
     if (agg.length >= 2) {
       const current = agg[agg.length - 1];
       const prior = agg[agg.length - 2];
-      const currentClose = current.quarterCloseMinPricePerHour;
-      const priorClose = prior.quarterCloseMinPricePerHour;
-      const qoqAbs = (currentClose != null && priorClose != null) ? +(currentClose - priorClose).toFixed(4) : null;
-      const qoqPct = (currentClose != null && priorClose && priorClose > 0)
-        ? +(((currentClose - priorClose) / priorClose) * 100).toFixed(2)
-        : null;
+      // Close on the quarter's own measure, not on the floor field, which is
+      // empty for every quarter after the source dropped its range.
+      const currentClose = current.quarterClosePricePerHour;
+      const priorClose = prior.quarterClosePricePerHour;
+      // A close-to-close move only means something when both closes measure
+      // the same thing. Across the change the two are different statistics,
+      // so the comparison is refused rather than reported as a price move.
+      const basisComparable = !!(current.priceBasis && prior.priceBasis && current.priceBasis === prior.priceBasis);
+      const qoqAbs = (basisComparable && currentClose != null && priorClose != null)
+        ? +(currentClose - priorClose).toFixed(4) : null;
+      const qoqPct = basisComparable ? pctChange(currentClose, priorClose) : null;
       const providerDelta = (current.quarterCloseProviderCount != null && prior.quarterCloseProviderCount != null)
         ? current.quarterCloseProviderCount - prior.quarterCloseProviderCount
         : null;
@@ -499,6 +615,10 @@ function buildQuarterResponse(ctx) {
         currentCoverageRatio: current.coverageRatioWithinQuarter,
         priorCoverageRatio: prior.coverageRatioWithinQuarter,
         lowCoverageFlag: current.lowCoverage || prior.lowCoverage,
+        currentBasis: current.priceBasis,
+        priorBasis: prior.priceBasis,
+        basisComparable,
+        basisChanged: !!(current.priceBasis && prior.priceBasis && current.priceBasis !== prior.priceBasis),
       };
       signals[sku] = classifyQoQSignal(qoqPct, providerDelta);
     } else {
@@ -624,37 +744,12 @@ function avgOrNull(arr) {
   return valid.reduce((a, b) => a + b, 0) / valid.length;
 }
 
-// Median is preferred over the floor when both exist: it is a market rate,
-// whereas the floor is the single cheapest listing among ~50 vendors and one
-// outlier moves it (H100 floors of $0.40 sat under a $14.90 ceiling). Which
-// one a period actually has is recorded so nothing downstream has to guess.
-function headline(arr) {
-  const median = avgOrNull(arr.map(p => p.medianPricePerHour));
-  if (median != null) {
-    return { headlinePricePerHour: +median.toFixed(4), priceBasis: 'median' };
-  }
-  const floor = avgOrNull(arr.map(p => p.minPricePerHour));
-  if (floor != null) {
-    return { headlinePricePerHour: +floor.toFixed(4), priceBasis: 'floor' };
-  }
-  return { headlinePricePerHour: null, priceBasis: null };
-}
-
-// Growth is only meaningful between two periods measured the same way. When
-// the basis changes (the upstream swapped range for median mid-history) the
-// comparison is refused rather than reported as a price move — the number
-// would otherwise read as a ~700% jump that never happened in the market.
-function periodGrowth(cur, prior) {
-  if (!cur || !prior) return null;
-  if (!cur.priceBasis || !prior.priceBasis) return null;
-  if (cur.priceBasis !== prior.priceBasis) return null;
-  return pctChange(cur.headlinePricePerHour, prior.headlinePricePerHour);
-}
-
-function pctChange(curr, prior) {
-  if (curr == null || prior == null || prior === 0) return null;
-  return +(((curr - prior) / prior) * 100).toFixed(2);
-}
+// headline(), periodGrowth() and pctChange() now live in _gpu-price-basis.js.
+// The rule they implement changed in one important way: a period that
+// straddles a basis change takes the basis of the MAJORITY of its priced
+// days and averages only those days, instead of preferring any median it can
+// find. July 2026 holds 27 floor days and 4 median days — under the old rule
+// its "monthly average" was a 4-day median wearing a month's label.
 
 function buildFinancialResponse(ctx) {
   const { series, trackingSinceReal, latestRealDate, trackingSince, latestDate,
@@ -700,15 +795,15 @@ function buildFinancialResponse(ctx) {
       // "days covered" alone overstates how much of the period actually
       // carries a price. Every downstream average, growth and coverage badge
       // needs the priced count to be honest.
-      const pricedDates = new Set(
-        arr.filter(p => typeof p.minPricePerHour === 'number' && isFinite(p.minPricePerHour))
-           .map(p => p.date)
-      );
+      const head = periodHeadline(arr);
+      // Coverage is measured against the basis this period actually reports.
+      // Counting a straddle month's 4 median days towards a floor headline
+      // would overstate how much of the month the printed number rests on.
+      const pricedDates = head.priceBasis
+        ? pricedDatesForBasis(arr, head.priceBasis)
+        : new Set();
       const daysWithPrice = pricedDates.size;
-      const medianDates = new Set(
-        arr.filter(p => typeof p.medianPricePerHour === 'number' && isFinite(p.medianPricePerHour))
-           .map(p => p.date)
-      );
+      const medianDates = pricedDatesForBasis(arr, BASIS_MEDIAN);
       months.push({
         period: mid,
         label: monthLabel(y, m),
@@ -720,19 +815,25 @@ function buildFinancialResponse(ctx) {
         daysWithPriceInMonth: daysWithPrice,
         monthDayCount: effectiveDays,
         coverageRatioWithinMonth: coverage,
+        // Share of the period that the PRINTED number actually rests on. The
+        // old Math.max(floorDays, medianDays) was there to stop a
+        // median-only month reading as 0% priced; the basis-aware count
+        // makes that unnecessary, and taking the max would now inflate a
+        // straddle month by counting days its average excludes.
         pricedCoverageRatioWithinMonth: effectiveDays > 0
-          ? +(Math.max(daysWithPrice, medianDates.size) / effectiveDays).toFixed(3) : null,
+          ? +(daysWithPrice / effectiveDays).toFixed(3) : null,
         isPartialMonth: isMTD || daysCovered < denom,
         isMTD,
-        hasPrice: daysWithPrice > 0 || medianDates.size > 0,
+        hasPrice: head.headlinePricePerHour != null,
         daysWithMedianInMonth: medianDates.size,
         hasMedian: medianDates.size > 0,
-        // The headline figure the matrix renders. The upstream replaced its
-        // min-max range with a single median part-way through this history,
-        // so which measure is available depends on the period. The basis is
-        // published alongside the number and growth refuses to compare
-        // across a basis change (see periodGrowth below).
-        ...headline(arr),
+        // The headline figure the matrix renders, plus which measure it is,
+        // how many days of each measure the period holds, and — for a period
+        // that straddles the change — what the OTHER measure averaged over
+        // its own days. That last field is what answers "why did September
+        // jump?": July's own median days sat at ~$3.06, so measured the same
+        // way as September nothing jumped.
+        ...head,
         avgMinPricePerHour: roundMaybe(avgOrNull(arr.map(p => p.minPricePerHour)), 4),
         avgMaxPricePerHour: roundMaybe(avgOrNull(arr.map(p => p.maxPricePerHour)), 4),
         avgMedianPricePerHour: roundMaybe(avgOrNull(arr.map(p => p.medianPricePerHour)), 4),
@@ -755,15 +856,12 @@ function buildFinancialResponse(ctx) {
       const isQTD = qid === todayQuarterId;
       const effectiveDays = isQTD ? daysInclusive(start, today) : denom;
       const coverage = effectiveDays > 0 ? +(daysCovered / effectiveDays).toFixed(3) : null;
-      const pricedDatesQ = new Set(
-        arr.filter(p => typeof p.minPricePerHour === 'number' && isFinite(p.minPricePerHour))
-           .map(p => p.date)
-      );
+      const headQ = periodHeadline(arr);
+      const pricedDatesQ = headQ.priceBasis
+        ? pricedDatesForBasis(arr, headQ.priceBasis)
+        : new Set();
       const daysWithPriceQ = pricedDatesQ.size;
-      const medianDatesQ = new Set(
-        arr.filter(p => typeof p.medianPricePerHour === 'number' && isFinite(p.medianPricePerHour))
-           .map(p => p.date)
-      );
+      const medianDatesQ = pricedDatesForBasis(arr, BASIS_MEDIAN);
       quarters.push({
         period: qid,
         label: quarterEndLabel(y, qi),
@@ -776,13 +874,13 @@ function buildFinancialResponse(ctx) {
         quarterDayCount: effectiveDays,
         coverageRatioWithinQuarter: coverage,
         pricedCoverageRatioWithinQuarter: effectiveDays > 0
-          ? +(Math.max(daysWithPriceQ, medianDatesQ.size) / effectiveDays).toFixed(3) : null,
+          ? +(daysWithPriceQ / effectiveDays).toFixed(3) : null,
         isPartialQuarter: isQTD || daysCovered < denom,
         isQTD,
-        hasPrice: daysWithPriceQ > 0 || medianDatesQ.size > 0,
+        hasPrice: headQ.headlinePricePerHour != null,
         daysWithMedianInQuarter: medianDatesQ.size,
         hasMedian: medianDatesQ.size > 0,
-        ...headline(arr),
+        ...headQ,
         avgMinPricePerHour: roundMaybe(avgOrNull(arr.map(p => p.minPricePerHour)), 4),
         avgMaxPricePerHour: roundMaybe(avgOrNull(arr.map(p => p.maxPricePerHour)), 4),
         avgMedianPricePerHour: roundMaybe(avgOrNull(arr.map(p => p.medianPricePerHour)), 4),
@@ -848,16 +946,24 @@ function buildFinancialResponse(ctx) {
     });
 
   // Growth matrices: MoM / QoQ / YoY (per SKU, keyed by period id, value = pct or null).
+  // Every null is accompanied by a reason, because "the cell is empty" and
+  // "these two numbers measure different things" look identical on screen
+  // and mean completely different things to a reader. The reason strings are
+  // what the matrix puts in the tooltip of a blank growth cell.
   const mom = {};
   const qoq = {};
   const yoyMonth = {};
   const yoyQuarter = {};
+  const momReason = {};
+  const qoqReason = {};
 
   for (const sku of availableSKUs) {
     mom[sku] = {};
     qoq[sku] = {};
     yoyMonth[sku] = {};
     yoyQuarter[sku] = {};
+    momReason[sku] = {};
+    qoqReason[sku] = {};
 
     // MoM
     const months = monthlyBySku[sku];
@@ -866,6 +972,9 @@ function buildFinancialResponse(ctx) {
       const priorId = priorMonthId(cur.period);
       const prior = monthByPeriod[priorId];
       mom[sku][cur.period] = periodGrowth(cur, prior);
+      if (mom[sku][cur.period] == null) {
+        momReason[sku][cur.period] = growthRefusalReason(cur, prior, prior ? prior.label : priorId);
+      }
       const yoyId = yearPriorMonthId(cur.period);
       const yoyPrior = monthByPeriod[yoyId];
       yoyMonth[sku][cur.period] = periodGrowth(cur, yoyPrior);
@@ -878,6 +987,9 @@ function buildFinancialResponse(ctx) {
       const priorId = priorQuarterId(cur.period);
       const prior = quarterByPeriod[priorId];
       qoq[sku][cur.period] = periodGrowth(cur, prior);
+      if (qoq[sku][cur.period] == null) {
+        qoqReason[sku][cur.period] = growthRefusalReason(cur, prior, prior ? prior.label : priorId);
+      }
       const yoyId = yearPriorQuarterId(cur.period);
       const yoyPrior = quarterByPeriod[yoyId];
       yoyQuarter[sku][cur.period] = periodGrowth(cur, yoyPrior);
@@ -901,8 +1013,10 @@ function buildFinancialResponse(ctx) {
     for (const p of (series[sku] || [])) {
       observationDates.add(p.date);
       if (!latestGPUObservationDate || p.date > latestGPUObservationDate) latestGPUObservationDate = p.date;
-      const anyPrice = (typeof p.minPricePerHour === 'number' && isFinite(p.minPricePerHour))
-        || (typeof p.medianPricePerHour === 'number' && isFinite(p.medianPricePerHour));
+      // dailyPrice is the post-normalization headline, so a day whose price
+      // was captured into the wrong field counts as priced here rather than
+      // being reported as a hole in the feed.
+      const anyPrice = typeof p.dailyPrice === 'number' && isFinite(p.dailyPrice);
       if (anyPrice) {
         pricedDatesAll.add(p.date);
         if (!latestPricedObservationDate || p.date > latestPricedObservationDate) latestPricedObservationDate = p.date;
@@ -915,6 +1029,35 @@ function buildFinancialResponse(ctx) {
 
   const monthsMissing  = monthlyLabels.filter(l => !l.hasData).map(l => l.period);
   const monthsUnpriced = monthlyLabels.filter(l => l.hasData && !l.hasPrice).map(l => l.period);
+
+  // ── Capture gaps ─────────────────────────────────────────────────────
+  // A run of calendar days with no observation at all, inside the tracked
+  // window. The month columns already thin out when this happens, but a
+  // reader cannot tell a thin month from a short one without being told
+  // where the hole is. The 2026-08-22 → 2026-09-10 outage is why September
+  // shows six days and August twenty-one.
+  const sortedObservationDates = Array.from(observationDates).sort();
+  const captureGaps = [];
+  for (let i = 1; i < sortedObservationDates.length; i++) {
+    const prevD = Date.parse(sortedObservationDates[i - 1] + 'T00:00:00Z');
+    const curD = Date.parse(sortedObservationDates[i] + 'T00:00:00Z');
+    const missing = Math.round((curD - prevD) / 86400000) - 1;
+    if (missing > 0) {
+      captureGaps.push({
+        afterDate: sortedObservationDates[i - 1],
+        beforeDate: sortedObservationDates[i],
+        missingDays: missing,
+      });
+    }
+  }
+  // Only gaps long enough to visibly distort a monthly average are worth
+  // surfacing to a customer; a single missed cron slot is noise.
+  const significantCaptureGaps = captureGaps.filter(g => g.missingDays >= 5);
+
+  // ── Basis changes ────────────────────────────────────────────────────
+  const basisTimeline = detectBasisTimeline(series);
+  const monthBasis = basisChangeForPeriods(monthlyBySku, monthlyLabels.map(l => l.period));
+  const quarterBasis = basisChangeForPeriods(quarterlyBySku, quarterlyLabels.map(l => l.period));
 
   const dataQuality = {
     // Staleness is measured against the GPU feed itself, never against the
@@ -940,6 +1083,33 @@ function buildFinancialResponse(ctx) {
     monthsUnpriced,
     quartersMissing:  quarterlyLabels.filter(l => !l.hasData).map(l => l.period),
     quartersUnpriced: quarterlyLabels.filter(l => l.hasData && !l.hasPrice).map(l => l.period),
+    captureGaps,
+    significantCaptureGaps,
+    // How many days were rescued out of maxPricePerHour by the era-2 remap.
+    // Kept visible rather than silent: if this number ever starts growing
+    // again it means the capture has regressed to writing prices into the
+    // wrong field, and the matrix would otherwise just look fine.
+    remappedPriceDays: (() => {
+      const d = new Set();
+      for (const sku of availableSKUs) {
+        for (const p of (series[sku] || [])) if (p.basisRemapped) d.add(p.date);
+      }
+      return d.size;
+    })(),
+  };
+
+  // Everything the UI needs to explain the step in the price row without
+  // hard-coding a date: which measure each period is on, where the boundary
+  // falls, and which periods straddle it.
+  const priceBasisInfo = {
+    timeline: basisTimeline,
+    currentBasis: basisTimeline.currentBasis,
+    labels: BASIS_LABEL,
+    monthly: monthBasis,
+    quarterly: quarterBasis,
+    // Set when more than one measure appears in the window on screen; the
+    // matrix uses this to decide whether to render the basis row at all.
+    hasChange: (basisTimeline.changes || []).length > 0,
   };
 
   return jsonResp({
@@ -962,17 +1132,25 @@ function buildFinancialResponse(ctx) {
       labels: monthlyLabels,
       series: monthlyBySku,
       mom,
+      momReason,
       yoy: yoyMonth,
     },
     quarterly: {
       labels: quarterlyLabels,
       series: quarterlyBySku,
       qoq,
+      qoqReason,
       yoy: yoyQuarter,
     },
+    priceBasis: priceBasisInfo,
     methodology: {
       avgBasis: 'daily',
-      note: 'Period averages are arithmetic means of daily minPricePerHour within the period. QoQ/YoY/MoM = (current period avg - prior period avg) / prior period avg × 100. Only real snapshots are included (synthetic backfill excluded by default).',
+      note:
+        'Period averages are arithmetic means of the daily headline price within the period. ' +
+        'The source changed what it publishes mid-history: through 2026-07-27 it gave a vendor min-max range and the headline is the FLOOR (min $/hr); from 2026-07-28 it publishes a single vendor MEDIAN. ' +
+        'A period takes the basis of the majority of its priced days and averages only those days. ' +
+        'MoM/QoQ/YoY = (current period avg - prior period avg) / prior period avg x 100, computed only when both periods share a basis — a floor compared against a median is a change of measure, not a price move. ' +
+        'Only real snapshots are included (synthetic backfill excluded by default).',
     },
   });
 }
@@ -1056,8 +1234,16 @@ function emptyFinancialResponse(reason) {
     secondarySKUs: FINANCIAL_SECONDARY_SKUS,
     trackedSKUs: TRACKED_SKUS,
     availableSKUs: [],
-    monthly: { labels: [], series: {}, mom: {}, yoy: {} },
-    quarterly: { labels: [], series: {}, qoq: {}, yoy: {} },
+    monthly: { labels: [], series: {}, mom: {}, momReason: {}, yoy: {} },
+    quarterly: { labels: [], series: {}, qoq: {}, qoqReason: {}, yoy: {} },
+    priceBasis: {
+      timeline: { segments: [], changes: [], currentBasis: null },
+      currentBasis: null,
+      labels: BASIS_LABEL,
+      monthly: { basisByPeriod: {}, mixedPeriods: [], boundaries: [] },
+      quarterly: { basisByPeriod: {}, mixedPeriods: [], boundaries: [] },
+      hasChange: false,
+    },
     dataQuality: {
       latestGPUObservationDate: null,
       latestPricedObservationDate: null,
@@ -1073,6 +1259,9 @@ function emptyFinancialResponse(reason) {
       monthsUnpriced: [],
       quartersMissing: [],
       quartersUnpriced: [],
+      captureGaps: [],
+      significantCaptureGaps: [],
+      remappedPriceDays: 0,
     },
     note: reason,
   });
