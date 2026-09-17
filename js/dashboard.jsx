@@ -707,7 +707,16 @@ function ModelPricingHistoryBlock(){
   useEffect(()=>{
     let cancelled=false;
     setState(s=>({...s,phase:"loading"}));
-    fetch("/api/provider-pricing-matrix?metric="+metric+"&weight="+weight+"&v="+Math.floor(Date.now()/3e5))
+    // NO cache-buster here, deliberately. This endpoint fans out to
+    // pricepertoken for all eight providers — roughly 35MB of upstream JSON per
+    // cache miss. The 6-hour edge cache is what keeps that to a handful of
+    // fetches a day. Adding "&v=<5-minute bucket>" (as the peer matrix does,
+    // where the upstream is one small request) gave every bucket its own cache
+    // key, so the fan-out ran again and again and the upstream started failing
+    // six providers at a time — the dashboard rendered "upstream temporarily
+    // unavailable" with an empty table. The response already carries
+    // max-age=0, must-revalidate, so browsers revalidate without help.
+    fetch("/api/provider-pricing-matrix?metric="+metric+"&weight="+weight)
       .then(r=>r.json())
       .then(d=>{ if(cancelled) return;
         if(!d.success) setState({phase:"error",data:null,error:d.error||"Unknown error"});
