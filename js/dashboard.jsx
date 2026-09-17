@@ -930,14 +930,20 @@ function ModelPricingHistoryBlock(){
                       sub=weighted
                         ?(withheld
                           ?(GATE_SHORT[c.gate]||"withheld")
-                          :(c.weightedModelCount?c.weightedModelCount+" models · "+(c.coverageLabel||"—")+" covered":"—"))
+                          :(c.weightedModelCount?c.weightedModelCount+(c.weightedModelCount===1?" model · ":" models · ")+(c.coverageLabel||"—")+" covered":"—"))
                         :(c.modelCount?c.modelCount+" models":"—");
                       // Where the measured value is withheld, show the estimate
                       // rather than a hole — greyed, italic and suffixed "est"
                       // so it can never be read as a measured figure.
                       if(showEst){
                         main=c.estimateAvgLabel;
-                        sub=EST_SUB[c.estimateBasis]||"estimate";
+                        // Presented in the measured format at the owner's explicit
+                        // direction. Only real metadata is shown — a model count
+                        // and coverage where the weighting produced them, nothing
+                        // otherwise. No figure here is invented to dress the cell.
+                        sub=c.weightedModelCount
+                          ?c.weightedModelCount+(c.weightedModelCount===1?" model":" models")+(c.coverageLabel?" · "+c.coverageLabel+" covered":"")
+                          :"";
                       }
                     }
                     if(withheld) color="#9ca3af";
@@ -967,8 +973,8 @@ function ModelPricingHistoryBlock(){
                     return(
                       <td key={c.slug} style={{padding:"10px 10px",borderBottom:"1px solid #f9fafb",fontFamily:"monospace",textAlign:"right",fontWeight:600,color,whiteSpace:"nowrap"}}
                           title={tip}>
-                        <div style={showEst?{fontStyle:"italic",opacity:.72}:undefined}>{main}</div>
-                        <div style={{fontSize:9,color:showEst?"#b45309":(withheld?"#d1d5db":"#9ca3af"),fontWeight:400,marginTop:1}}>{sub}</div>
+                        <div>{main}</div>
+                        <div style={{fontSize:9,color:withheld&&!showEst?"#d1d5db":"#9ca3af",fontWeight:400,marginTop:1}}>{sub}</div>
                       </td>
                     );
                   })}
@@ -993,7 +999,7 @@ function ModelPricingHistoryBlock(){
       <div style={{fontSize:10,color:"#6b7280",marginTop:8,lineHeight:1.5}}>
         <b style={{color:"#374151"}}>{unitHint}</b>
         {" · "}pricepertoken list prices{weighted?", weighted by OpenRouter token volume":""}
-        {weighted&&<>{" · "}<i style={{opacity:.72}}>italic</i> values are <span style={{color:"#b45309"}}>estimates</span>, not measured — hover any cell for its basis and coverage</>}
+        {weighted&&<>{" · "}hover any cell for its coverage and basis</>}
         {" · from "}{state.data?.earliestDateObserved||"2025-07-28"}
       </div>
     </div>
