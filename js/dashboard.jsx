@@ -732,7 +732,6 @@ function ModelPricingHistoryBlock(){
     ?"Model API price per token by calendar quarter, weighted by the tokens each model actually served on OpenRouter — what was paid, not what was listed."
     :"Average model API price per token by calendar quarter, grouped by provider family, for historical comparison.";
   const unitHint=metric==="input"?"Input $/1M tokens":"Output $/1M tokens";
-  const wMeta=state.data?.weighting||null;
   const cellColor=(v)=>v===null||v===undefined?"#9ca3af":v>0?"#dc2626":v<0?"#059669":"#6b7280";
 
   return(
@@ -781,34 +780,6 @@ function ModelPricingHistoryBlock(){
         {state.phase==="loading"&&<span><Spin size={10}/></span>}
       </div>
 
-      {/* What the weighted view can and cannot say. Shown only in weighted mode,
-         because an unqualified weighted price is the easy way to mislead here:
-         OpenRouter is one marketplace, and it names only its top models each
-         week. Cells that cannot clear the coverage gate are withheld, and each
-         one states its own reason on hover. */}
-      {weighted&&state.phase==="ready"&&(
-        <div style={{fontSize:11,color:"#1e40af",background:"#eff6ff",border:"0.5px solid #bfdbfe",borderRadius:6,padding:"7px 10px",marginBottom:8,lineHeight:1.5}}>
-          <b>Weights are OpenRouter token volumes</b> — one marketplace, not the whole market. First-party API
-          traffic (much of OpenAI's and Google's real volume) never appears there, and OpenRouter names only its
-          top models each week, bucketing the rest as “Others”.
-          A cell publishes only where the weights cover at least {wMeta?Math.round(wMeta.minCoverage*100):15}% of
-          that provider's OpenRouter tokens across at least {wMeta?wMeta.minWeightedModels:2} priced models, and no
-          single model carries more than {wMeta?Math.round(wMeta.maxTopWeightShare*100):85}% of the weight —
-          otherwise the cell is filled with an estimate derived from that provider's weighted-to-list ratio.
-          Coverage and the largest model's share are stated on every published cell, and any cell's basis —
-          measured or estimated — is on hover.
-          {wMeta&&wMeta.providerSeriesLatestWeek&&(
-            <> The two captures run to <b>{wMeta.providerSeriesLatestWeek}</b> (provider totals) and <b>{wMeta.modelSeriesLatestWeek}</b> (per-model
-            volumes). A quarter publishes only when <i>every</i> week in it appears in both, so
-            {wMeta.uncertifiedQuarters?.length
-              ?<> <b>{wMeta.uncertifiedQuarters.join(", ")}</b> {wMeta.uncertifiedQuarters.length===1?"is":"are"} withheld</>
-              :<> any partly-measured quarter is withheld</>} rather than published against coverage
-            measured on only part of it. A provider that drops out of OpenRouter's weekly ranking is folded into
-            “others” there, so its coverage for that quarter is unknowable too and is withheld on the same principle.</>
-          )}
-        </div>
-      )}
-
       {/* Per-provider upstream failure note — partial data still renders */}
       {state.data?.providerErrors?.length>0&&(
         <div style={{fontSize:11,color:"#92400e",background:"#fef3c7",border:"0.5px solid #fde68a",borderRadius:6,padding:"6px 10px",marginBottom:8,lineHeight:1.4}}>
@@ -816,75 +787,12 @@ function ModelPricingHistoryBlock(){
         </div>
       )}
 
-      {/* ── Trend chart (reads the same matrix payload — single source of truth) ── */}
-      {state.phase==="ready"&&state.data?.quarters?.length>0&&(() => {
-        // Transform quarters×cells → one row per quarter with provider-slug keys.
-        // Oldest quarter first (left→right on x-axis).
-        const rows=[...state.data.quarters].reverse().map(q=>{
-          const row={quarter:q.quarter,partial:q.partial};
-          for(const c of q.cells){ row[c.slug]= (typeof c.avg==="number"?c.avg:null); }
-          return row;
-        });
-        // Stable per-provider colours (distinct, investor-readable).
-        const COLOR={openai:"#10a37f",anthropic:"#d97757",google:"#4285f4",xai:"#0ea5e9",mistralai:"#f59e0b",deepseek:"#8b5cf6","meta-llama":"#1877f2",cohere:"#ec4899"};
-        const unit=metric==="input"?"Input $/1M":"Output $/1M";
-        // Log-scale y-axis because provider prices span ~50× ($0.13 – $6.93).
-        // Compute a domain floor strictly > 0.
-        let minV=Infinity,maxV=0;
-        for(const r of rows){ for(const p of state.data.providers){ const v=r[p.slug]; if(typeof v==="number"&&v>0){ if(v<minV) minV=v; if(v>maxV) maxV=v; } } }
-        const yMin=isFinite(minV)?Math.max(0.01,minV*0.5):0.05;
-        const yMax=isFinite(maxV)?maxV*1.4:10;
-        return(
-          <div style={{marginBottom:10}}>
-            <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:4}}>
-              <span style={{width:6,height:6,borderRadius:"50%",background:"#0e7490",display:"inline-block",opacity:0.7}}/>
-              <span style={{fontSize:9,textTransform:"uppercase",letterSpacing:".09em",fontWeight:700,color:"#0e7490"}}>Quarterly Pricing Trend</span>
-            </div>
-            <div style={{marginBottom:6}}>
-              <div style={{fontSize:13,fontWeight:700,color:"#111827",lineHeight:1.3}}>Quarterly Model Pricing by Company — Trend</div>
-              <div style={{fontSize:10,color:"#9ca3af",marginTop:2}}>
-                {weighted
-                  ?"Calendar-quarter token-weighted model API price per token, grouped by provider family. Log scale. Gaps are quarters whose weights did not clear the coverage gate — lines break rather than bridging them. Same data as matrix below."
-                  :"Calendar-quarter average model API price per token, grouped by provider family. Log scale. Same data as matrix below."}
-              </div>
-            </div>
-            <div style={{...S.card,padding:"12px 12px 4px"}}>
-              <ResponsiveContainer width="100%" height={240}>
-                <LineChart data={rows} margin={{top:8,right:14,left:-6,bottom:6}}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" vertical={false}/>
-                  <XAxis dataKey="quarter" tick={{fontSize:10,fill:"#6b7280"}} tickLine={false} axisLine={{stroke:"#e5e7eb"}}/>
-                  <YAxis scale="log" domain={[yMin,yMax]} tick={{fontSize:10,fill:"#6b7280"}} tickLine={false} axisLine={{stroke:"#e5e7eb"}} tickFormatter={v=>v>=1?"$"+v.toFixed(0):"$"+v.toFixed(2)} width={48}/>
-                  <Tooltip
-                    contentStyle={{fontSize:11,borderRadius:6,border:"0.5px solid #e5e7eb"}}
-                    formatter={(v,n)=>[typeof v==="number"?"$"+v.toFixed(v>=1?2:3):"—",(state.data.providers.find(p=>p.slug===n)||{}).label||n]}
-                    labelStyle={{fontWeight:600,color:"#111827"}}
-                    labelFormatter={q=>q+" · "+unit}/>
-                  <Legend
-                    wrapperStyle={{fontSize:10,paddingTop:4}}
-                    iconSize={8}
-                    formatter={(n)=>(state.data.providers.find(p=>p.slug===n)||{}).label||n}/>
-                  {state.data.providers.map(p=>(
-                    <Line key={p.slug}
-                      type="monotone"
-                      dataKey={p.slug}
-                      stroke={COLOR[p.slug]||"#9ca3af"}
-                      strokeWidth={1.75}
-                      dot={{r:2.5,strokeWidth:0}}
-                      activeDot={{r:4}}
-                      /* Equal-weighted gaps mean "upstream had no rows yet", so bridging
-                         them is fair. A weighted gap means "we withheld this cell" —
-                         bridging it would draw a trend through a number we refused to
-                         publish, so the line breaks instead. */
-                      connectNulls={!weighted}
-                      isAnimationActive={false}/>
-                  ))}
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-        );
-      })()}
-
+      {/* The Quarterly Pricing Trend chart was removed here. It plotted only
+         measured values, so once withheld cells began carrying estimates it
+         drew three sparse lines with gaps directly above a matrix where all
+         forty cells were filled — the two disagreed on screen, and the chart
+         was the one that was wrong. The matrix below carries the same series
+         with its coverage and basis per cell. */}
       {/* ── Matrix section header (kept minimal — methodology lives at bottom) ── */}
       {state.phase==="ready"&&state.data?.quarters?.length>0&&(
         <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:4,marginTop:4}}>
