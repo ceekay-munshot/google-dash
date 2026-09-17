@@ -247,12 +247,93 @@ function buildMatrix(providerResults, metric, weighting) {
       cell.coverageLabel = w.coverage === null ? null : (w.coverage * 100).toFixed(0) + '%';
       cell.topWeightShare = w.topShare === null ? null : round3(w.topShare);
       cell.topWeightShareLabel = w.topShare === null ? null : (w.topShare * 100).toFixed(0) + '%';
+      // A withheld cell still gets an ESTIMATE so the table can be read across
+      // without holes. It is never presented as measured: the UI renders it
+      // greyed and suffixed "est", and `estimateBasis` says where it came from.
+      //   provisional — the weighting computed this from real tokens; the gate
+      //                 withheld it because the basis was too thin to publish
+      //                 as measured. Real arithmetic, narrow evidence.
+      //   modelled    — no usage data at all, so there was nothing to compute.
+      //                 Filled in a second pass from the provider's own
+      //                 measured weighted-to-list ratio.
+      if (w.provisional !== null) {
+        // Kept for reference and tooltips only. NOT used as the estimate: a
+        // provisional built from one or two models is a sample of a lineup, not
+        // an estimate of its blend, and mixing the two methods across a row
+        // produced nonsense — OpenAI swinging $5.50 to $0.039 between quarters
+        // purely because one quarter fell back to a different method.
+        cell.provisionalAvg = round3(w.provisional * 1_000_000);
+        cell.provisionalAvgLabel = formatPrice(w.provisional * 1_000_000);
+      }
       cell.gate = w.gate;
       cell.gateReason = gateReason(w.gate, w.coverage, w.models);
       return cell;
     });
     return { quarter: q, cells };
   });
+
+  // ── Second pass: model an estimate for cells with no usage data at all ──
+  // Nothing was computable for these, so the estimate comes from how far this
+  // provider's MEASURED weighted prices sat below its list prices, applied to
+  // the list price here. Providers with no measured cell anywhere fall back to
+  // the cross-provider median ratio, which is a weaker basis and is reported as
+  // such. Ratios observed live span 0.33–1.09, so these carry real uncertainty
+  // and are labelled, never published as measured.
+  if (weighting) {
+    // ONE method for every estimate, so a row reads consistently: take how far
+    // this provider's weighted price sits below its list price, and apply that
+    // ratio to the list price of the quarter being estimated.
+    //
+    // The ratio is sourced in descending order of evidence:
+    //   measured    — from this provider's published cells. Strongest.
+    //   provisional — from its own computed-but-withheld cells, using only
+    //                 those resting on at least two models, since a
+    //                 single-model figure describes a model and not a lineup.
+    //   peer        — the median ratio across all measured cells anywhere.
+    //                 Weakest, and flagged as such.
+    const measured = new Map();
+    const provisional = new Map();
+    const allMeasured = [];
+    for (const row of rows) {
+      for (const c of row.cells) {
+        if (!(c.equalAvg > 0)) continue;
+        if (c.avg !== null) {
+          const r = c.avg / c.equalAvg;
+          if (isFinite(r) && r > 0) {
+            if (!measured.has(c.slug)) measured.set(c.slug, []);
+            measured.get(c.slug).push(r);
+            allMeasured.push(r);
+          }
+        } else if (c.provisionalAvg > 0 && (c.weightedModelCount || 0) >= 2) {
+          const r = c.provisionalAvg / c.equalAvg;
+          if (isFinite(r) && r > 0) {
+            if (!provisional.has(c.slug)) provisional.set(c.slug, []);
+            provisional.get(c.slug).push(r);
+          }
+        }
+      }
+    }
+    const mean = (a) => a.reduce((x, y) => x + y, 0) / a.length;
+    allMeasured.sort((a, b) => a - b);
+    const peer = allMeasured.length ? allMeasured[Math.floor(allMeasured.length / 2)] : null;
+    for (const row of rows) {
+      for (const c of row.cells) {
+        if (c.avg !== null || !(c.equalAvg > 0)) continue;
+        const own = measured.get(c.slug);
+        const prov = provisional.get(c.slug);
+        let ratio = null, basis = null;
+        if (own && own.length) { ratio = mean(own); basis = 'measured-ratio'; }
+        else if (prov && prov.length) { ratio = mean(prov); basis = 'provisional-ratio'; }
+        else if (peer) { ratio = peer; basis = 'peer-ratio'; }
+        if (!ratio) continue;
+        const est = c.equalAvg * ratio;
+        c.estimateAvg = round3(est);
+        c.estimateAvgLabel = formatPrice(est);
+        c.estimateBasis = basis;
+        c.estimateRatio = round3(ratio);
+      }
+    }
+  }
 
   // Attach QoQ / YoY per cell (against same provider, adjacent periods).
   // Null-safe: if the comparison quarter is absent or has null avg, leave null.

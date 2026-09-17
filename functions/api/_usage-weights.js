@@ -425,29 +425,35 @@ export function weightedAverage(modelWeights, coverage, seriesAvailable = true) 
     if (entry.tokens > topTokens) topTokens = entry.tokens;
   }
   const topShare = tokens > 0 ? topTokens / tokens : null;
+  // The value the weighting actually produced, returned whatever the gate then
+  // decides. A withheld cell is not a cell we could not compute — it is one we
+  // computed on a basis too thin to publish as measured. Keeping the number
+  // lets the UI offer it as an explicit estimate rather than leaving a hole,
+  // without it ever being mistaken for a measured value.
+  const provisional = tokens > 0 ? cost / tokens : null;
 
   // Checked before "no usage": an outage is not evidence that nobody used
   // anything, and reporting it as zero volume would be a false statement
   // about the market rather than about our data.
   if (!seriesAvailable) {
-    return { avg: null, models: 0, coverage: null, topShare: null, gate: 'series-unavailable' };
+    return { avg: null, provisional: null, models: 0, coverage: null, topShare: null, gate: 'series-unavailable' };
   }
   if (tokens <= 0) {
-    return { avg: null, models: 0, coverage, topShare: null, gate: 'no-usage' };
+    return { avg: null, provisional: null, models: 0, coverage, topShare: null, gate: 'no-usage' };
   }
   if (models < MIN_WEIGHTED_MODELS) {
-    return { avg: null, models, coverage, topShare, gate: 'too-few-models' };
+    return { avg: null, provisional, models, coverage, topShare, gate: 'too-few-models' };
   }
   if (coverage === null || coverage === undefined) {
-    return { avg: null, models, coverage: null, topShare, gate: 'coverage-unknown' };
+    return { avg: null, provisional, models, coverage: null, topShare, gate: 'coverage-unknown' };
   }
   if (coverage < MIN_COVERAGE) {
-    return { avg: null, models, coverage, topShare, gate: 'low-coverage' };
+    return { avg: null, provisional, models, coverage, topShare, gate: 'low-coverage' };
   }
   if (topShare !== null && topShare > MAX_TOP_WEIGHT_SHARE) {
-    return { avg: null, models, coverage, topShare, gate: 'single-model-dominated' };
+    return { avg: null, provisional, models, coverage, topShare, gate: 'single-model-dominated' };
   }
-  return { avg: cost / tokens, models, coverage, topShare, gate: null };
+  return { avg: cost / tokens, provisional, models, coverage, topShare, gate: null };
 }
 
 /** Human-readable reason a weighted cell was withheld. */

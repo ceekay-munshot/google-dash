@@ -915,6 +915,13 @@ function ModelPricingHistoryBlock(){
                     // reads differently: the sub-label names the gate, and the tooltip
                     // explains it in full rather than leaving a bare dash to interpret.
                     const withheld=weighted&&c.avg===null&&!!c.gate;
+                    // An estimate is offered only where the measured value was withheld AND the
+// server produced one. Two bases, and the sub-label says which: "provisional"
+// is real arithmetic on evidence too thin to publish as measured; "modelled"
+// had no usage at all and is inferred from this provider's own measured
+// weighted-to-list ratio (or peers', which is weaker still).
+                    const showEst=weighted&&c.avg===null&&c.estimateAvgLabel&&view==="avg";
+                    const EST_SUB={"measured-ratio":"est · own ratio","provisional-ratio":"est · partial data","peer-ratio":"est · peer ratio"};
                     const GATE_SHORT={"series-unavailable":"weights unavailable","no-usage":"no paid OR volume","too-few-models":(c.weightedModelCount||1)+" model only","coverage-unknown":"coverage not measurable","low-coverage":"coverage "+(c.coverageLabel||"low"),"single-model-dominated":"1 model is "+(c.topWeightShareLabel||"most")};
                     if(view==="qoq"){ main=c.qoqLabel||"—"; color=cellColor(c.qoq); sub=c.avgLabel; }
                     else if(view==="yoy"){ main=c.yoyLabel||"—"; color=cellColor(c.yoy); sub=c.avgLabel; }
@@ -925,10 +932,28 @@ function ModelPricingHistoryBlock(){
                           ?(GATE_SHORT[c.gate]||"withheld")
                           :(c.weightedModelCount?c.weightedModelCount+" models · "+(c.coverageLabel||"—")+" covered":"—"))
                         :(c.modelCount?c.modelCount+" models":"—");
+                      // Where the measured value is withheld, show the estimate
+                      // rather than a hole — greyed, italic and suffixed "est"
+                      // so it can never be read as a measured figure.
+                      if(showEst){
+                        main=c.estimateAvgLabel;
+                        sub=EST_SUB[c.estimateBasis]||"estimate";
+                      }
                     }
                     if(withheld) color="#9ca3af";
+                    const EST_WHY={
+                      "measured-ratio":"this provider's own measured weighted-to-list ratio",
+                      "provisional-ratio":"this provider's partial usage data, which was too thin to publish as measured",
+                      "peer-ratio":"the median weighted-to-list ratio across providers that could be measured",
+                    };
                     const tip=weighted
-                      ?(withheld
+                      ?(showEst
+                        ?"ESTIMATE, not measured — "+c.estimateAvgLabel+", from "+
+                          (EST_WHY[c.estimateBasis]||"an inferred ratio")+
+                          " ("+(c.estimateRatio!=null?"x"+c.estimateRatio.toFixed(2):"—")+
+                          " of the $"+(c.equalAvg!=null?c.equalAvg.toFixed(3):"—")+" list price). "+
+                          "Measured value withheld because: "+(c.gateReason||"it did not clear the gate")
+                      :withheld
                         ?"Withheld — "+(c.gateReason||"did not clear the coverage gate")+
                           " Equal-weighted for reference: "+(c.equalAvgLabel||"—")+"."
                         :(c.avgLabel||"—")+" token-weighted across "+(c.weightedModelCount||0)+
@@ -942,8 +967,8 @@ function ModelPricingHistoryBlock(){
                     return(
                       <td key={c.slug} style={{padding:"10px 10px",borderBottom:"1px solid #f9fafb",fontFamily:"monospace",textAlign:"right",fontWeight:600,color,whiteSpace:"nowrap"}}
                           title={tip}>
-                        <div>{main}</div>
-                        <div style={{fontSize:9,color:withheld?"#d1d5db":"#9ca3af",fontWeight:400,marginTop:1}}>{sub}</div>
+                        <div style={showEst?{fontStyle:"italic",opacity:.72}:undefined}>{main}</div>
+                        <div style={{fontSize:9,color:showEst?"#b45309":(withheld?"#d1d5db":"#9ca3af"),fontWeight:400,marginTop:1}}>{sub}</div>
                       </td>
                     );
                   })}
@@ -959,29 +984,17 @@ function ModelPricingHistoryBlock(){
         </div>
       )}
 
-      {/* Methodology strip — compact, investor-grade transparency */}
-      <div style={{display:"flex",flexWrap:"wrap",gap:"4px 10px",fontSize:10,color:"#6b7280",marginTop:8,lineHeight:1.5}}>
-        <span><b style={{color:"#374151"}}>Unit:</b> {unitHint}</span>
-        <span>·</span>
-        <span><b style={{color:"#374151"}}>Depth:</b> begins {state.data?.earliestDateObserved||"2025-07-28"}</span>
-        <span>·</span>
-        <span><b style={{color:"#374151"}}>Method:</b> {weighted
-          ?"tokens served each week, charged at that week's price, summed over the quarter — not a quarterly mean price, so mid-quarter repricing is not spread over traffic that never paid it; boundary weeks split pro-rata by day"
-          :"equal-weighted mean of (model, day) observations per provider per quarter — a model priced on more days carries proportionally more of the mean; model mix reflects what was available in that quarter, not a fixed basket"}</span>
-        <span>·</span>
-        {weighted&&(<>
-          <span><b style={{color:"#374151"}}>Gate:</b> a cell publishes only at ≥{wMeta?Math.round(wMeta.minCoverage*100):15}% measured coverage across ≥{wMeta?wMeta.minWeightedModels:2} priced models, with no single model above {wMeta?Math.round(wMeta.maxTopWeightShare*100):85}% of the weight; otherwise withheld with a reason</span>
-          <span>·</span>
-          <span><b style={{color:"#374151"}}>Matching:</b> OpenRouter model names are mapped to priced models by exact match after normalising version and date suffixes — never fuzzy; an unmatched model counts against coverage instead of borrowing a price</span>
-          <span>·</span>
-          <span><b style={{color:"#374151"}}>Token split:</b> OpenRouter reports one count per model for prompt and completion combined, so the same weights apply to the input and output views</span>
-          <span>·</span>
-        </>)}
-        <span><b style={{color:"#374151"}}>YoY:</b> appears only when a true year-ago quarter exists upstream</span>
-        <span>·</span>
-        <span><b style={{color:"#374151"}}>Backfill:</b> none — real snapshots only</span>
-        <span>·</span>
-        <span><b style={{color:"#374151"}}>Source:</b> api.pricepertoken.com provider pricing history{weighted?" · weights from openrouter.ai/rankings weekly token series":""}</span>
+      {/* Footnote — one line. The full methodology used to live here as nine
+         chained clauses, which nobody reads and which crowded the table it was
+         meant to support. What a reader actually needs at a glance is the unit,
+         whether a number is measured or estimated, and where it came from.
+         Every cell still carries its own coverage, model count and — for an
+         estimate — its basis, on hover. */}
+      <div style={{fontSize:10,color:"#6b7280",marginTop:8,lineHeight:1.5}}>
+        <b style={{color:"#374151"}}>{unitHint}</b>
+        {" · "}pricepertoken list prices{weighted?", weighted by OpenRouter token volume":""}
+        {weighted&&<>{" · "}<i style={{opacity:.72}}>italic</i> values are <span style={{color:"#b45309"}}>estimates</span>, not measured — hover any cell for its basis and coverage</>}
+        {" · from "}{state.data?.earliestDateObserved||"2025-07-28"}
       </div>
     </div>
   );
