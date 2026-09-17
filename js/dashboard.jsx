@@ -707,7 +707,7 @@ function ModelPricingHistoryBlock(){
   useEffect(()=>{
     let cancelled=false;
     setState(s=>({...s,phase:"loading"}));
-    fetch("/api/provider-pricing-matrix?metric="+metric+"&weight="+weight)
+    fetch("/api/provider-pricing-matrix?metric="+metric+"&weight="+weight+"&v="+Math.floor(Date.now()/3e5))
       .then(r=>r.json())
       .then(d=>{ if(cancelled) return;
         if(!d.success) setState({phase:"error",data:null,error:d.error||"Unknown error"});
@@ -785,8 +785,9 @@ function ModelPricingHistoryBlock(){
           A cell publishes only where the weights cover at least {wMeta?Math.round(wMeta.minCoverage*100):15}% of
           that provider's OpenRouter tokens across at least {wMeta?wMeta.minWeightedModels:2} priced models, and no
           single model carries more than {wMeta?Math.round(wMeta.maxTopWeightShare*100):85}% of the weight —
-          otherwise it shows “—” and names the reason on hover. Coverage and the largest model's share are stated on
-          every published cell, so a thinly-covered number can be read as one. Nothing is estimated to fill a gap.
+          otherwise the cell is filled with an estimate derived from that provider's weighted-to-list ratio.
+          Coverage and the largest model's share are stated on every published cell, and any cell's basis —
+          measured or estimated — is on hover.
           {wMeta&&wMeta.providerSeriesLatestWeek&&(
             <> The two captures run to <b>{wMeta.providerSeriesLatestWeek}</b> (provider totals) and <b>{wMeta.modelSeriesLatestWeek}</b> (per-model
             volumes). A quarter publishes only when <i>every</i> week in it appears in both, so
