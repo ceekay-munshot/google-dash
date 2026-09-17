@@ -840,7 +840,6 @@ function ModelPricingHistoryBlock(){
 // had no usage at all and is inferred from this provider's own measured
 // weighted-to-list ratio (or peers', which is weaker still).
                     const showEst=weighted&&c.avg===null&&c.estimateAvgLabel&&view==="avg";
-                    const EST_SUB={"measured-ratio":"est · own ratio","provisional-ratio":"est · partial data","peer-ratio":"est · peer ratio"};
                     const GATE_SHORT={"series-unavailable":"weights unavailable","no-usage":"no paid OR volume","too-few-models":(c.weightedModelCount||1)+" model only","coverage-unknown":"coverage not measurable","low-coverage":"coverage "+(c.coverageLabel||"low"),"single-model-dominated":"1 model is "+(c.topWeightShareLabel||"most")};
                     if(view==="qoq"){ main=c.qoqLabel||"—"; color=cellColor(c.qoq); sub=c.avgLabel; }
                     else if(view==="yoy"){ main=c.yoyLabel||"—"; color=cellColor(c.yoy); sub=c.avgLabel; }
@@ -852,8 +851,7 @@ function ModelPricingHistoryBlock(){
                           :(c.weightedModelCount?c.weightedModelCount+(c.weightedModelCount===1?" model · ":" models · ")+(c.coverageLabel||"—")+" covered":"—"))
                         :(c.modelCount?c.modelCount+" models":"—");
                       // Where the measured value is withheld, show the estimate
-                      // rather than a hole — greyed, italic and suffixed "est"
-                      // so it can never be read as a measured figure.
+                      // rather than a hole.
                       if(showEst){
                         main=c.estimateAvgLabel;
                         // Presented in the measured format at the owner's explicit
@@ -865,7 +863,10 @@ function ModelPricingHistoryBlock(){
                           :"";
                       }
                     }
-                    if(withheld) color="#9ca3af";
+                    // Grey marks an EMPTY cell, not an estimated one. An estimate is
+                    // rendered in the measured colour at the owner's explicit
+                    // direction, so it cannot be read as weaker data on a slide.
+                    if(withheld&&!showEst) color="#9ca3af";
                     const EST_WHY={
                       "measured-ratio":"this provider's own measured weighted-to-list ratio",
                       "provisional-ratio":"this provider's partial usage data, which was too thin to publish as measured",
