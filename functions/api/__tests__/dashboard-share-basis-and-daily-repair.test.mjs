@@ -213,7 +213,8 @@ async function loadRepair() {
   const from = raw.indexOf(REPAIR_FROM), to = raw.indexOf(REPAIR_TO);
   assert.ok(from > 0 && to > from, 'the daily-repair helper block has moved or been renamed');
   const block = raw.slice(from, to) +
-    '\nexport { orDayCorruption, isoWeekStartOf, repairDailySnapshots, orIsAttributedRanking };\n';
+    '\nexport { orDayCorruption, isoWeekStartOf, repairDailySnapshots, orIsAttributedRanking,' +
+    ' comparableWeeklyTotal };\n';
   const js = transformSync(block, { loader: 'jsx', jsx: 'automatic' }).code;
   const tmp = join(ROOT, 'functions/api/__tests__/.daily-repair.mjs');
   try {
@@ -269,9 +270,42 @@ test('the ISO week containing a corrupted day is the one whose total replaces it
   assert.equal(m.isoWeekStartOf(''), null);
 });
 
+/**
+ * A chart week as /api/openrouter-chart-weekly?full=1 serves it. `totalRaw` is
+ * the WHOLE ys including OpenRouter's "Others" rollup; `allModels` is the
+ * per-model series. The daily rows these substitute for are a top-30 model
+ * sum with no Others in them, so the comparable figure is rebuilt from
+ * allModels and totalRaw is deliberately NOT the number used.
+ */
+const chartWeek = () => ({
+  start: '2026-08-17',
+  end: '2026-08-23',
+  totalRaw: 40e12,              // includes Others — the WRONG basis for a daily row
+  allModels: {
+    'google/gemini-2.5-flash': 15e12,
+    'openai/gpt-5': 8e12,
+    'anthropic/claude-sonnet-4': 4.4e12,
+    Others: 12.6e12,            // must be excluded
+  },
+});
+
+test('the substituted total is on the same basis as the days beside it', async () => {
+  const m = await loadRepair();
+  // Top-30 named model series, Others excluded: 15 + 8 + 4.4 = 27.4T.
+  assert.equal(m.comparableWeeklyTotal(chartWeek()), 27.4e12);
+  // Not the whole-ys figure, which would step the repaired days up by 12.6T.
+  assert.notEqual(m.comparableWeeklyTotal(chartWeek()), 40e12);
+  // A week carrying only totalRaw has no comparable figure in it, and none is
+  // manufactured from the one that is on a different denominator.
+  assert.equal(m.comparableWeeklyTotal({ start: '2026-08-17', totalRaw: 40e12 }), null);
+  assert.equal(m.comparableWeeklyTotal(null), null);
+  // Others alone is not a model total.
+  assert.equal(m.comparableWeeklyTotal({ allModels: { Others: 9e12 } }), null);
+});
+
 test('the total is recovered from the chart series and marked; the ordering is refused', async () => {
   const m = await loadRepair();
-  const weeks = [{ start: '2026-08-17', end: '2026-08-23', totalRaw: 27.4e12 }];
+  const weeks = [chartWeek()];
   const out = m.repairDailySnapshots(
     [modelDay('2026-09-20'), appsDay('2026-08-22'), modelDay('2026-08-16')], weeks);
 
@@ -281,7 +315,8 @@ test('the total is recovered from the chart series and marked; the ordering is r
 
   const fixed = out.snapshots[1];
   // The figure that DOES exist, put back — not the 1.8T collapse.
-  assert.equal(fixed.openrouterSummary.totalTokensRaw, 27.4e12);
+  assert.equal(fixed.openrouterSummary.totalTokensRaw, 27.4e12,
+    'the substituted total must be the top-30 model sum, not the whole-ys figure');
   assert.equal(fixed.orTotalSubstituted, true);
   assert.equal(fixed.orTotalSourceWeek, '2026-08-17');
   assert.equal(fixed.orCapturedTotalRaw, 1.8e12,
@@ -298,6 +333,26 @@ test('the total is recovered from the chart series and marked; the ordering is r
   assert.equal(out.snapshots[0], out.snapshots[0]);
   assert.equal(out.snapshots[0].openrouterSummary.totalTokensRaw, 28e12);
   assert.equal(out.snapshots[2].orCorrupt, undefined);
+});
+
+test('a chart week on the wrong denominator is not used as a substitute', async () => {
+  const m = await loadRepair();
+  // The week covers the day, but carries only the whole-ys total. Using it
+  // would redraw the repaired day as a step up — a change of measure shown as
+  // a change of level, which is the fault being repaired.
+  const out = m.repairDailySnapshots([appsDay('2026-08-22')],
+    [{ start: '2026-08-17', end: '2026-08-23', totalRaw: 40e12 }]);
+  assert.equal(out.substituted, 0);
+  assert.equal(out.unsubstituted, 1);
+  assert.equal(out.snapshots[0].orTotalSubstituted, false);
+  assert.equal(out.snapshots[0].openrouterSummary.totalTokensRaw, 0);
+});
+
+test('the daily view asks for the per-model series it needs to rebuild the total', () => {
+  const body = REGIONS.get('HistoryTabCanonical');
+  assert.match(body, /openrouter-chart-weekly\?full=1/,
+    'the daily view reads the chart without ?full=1, so allModels is absent and ' +
+    'no like-for-like total can ever be rebuilt');
 });
 
 test('with no chart series there is no substitute, and the row is not given one', async () => {

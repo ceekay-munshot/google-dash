@@ -6209,6 +6209,32 @@ function isoWeekStartOf(dateISO){
   return d.toISOString().slice(0,10);
 }
 
+/* The daily capture's total is the sum of the top-30 MODEL rows it stored
+   (history-capture.js:174) — OpenRouter's "Others" rollup is not in it. The
+   chart week's `totalRaw` IS the whole ys including Others, so substituting
+   one for the other swaps the denominator and redraws the repaired days as a
+   step up. That is the same class of fault as the corruption being repaired:
+   a change of measure rendered as a change of level.
+
+   `allModels` (served by ?full=1) carries the per-model series, so the
+   like-for-like figure can be rebuilt — the top 30 named model series with
+   Others excluded, which is what the daily rows are. Without allModels there
+   is no comparable total and none is substituted. */
+const OR_DAILY_DEPTH=30;
+function comparableWeeklyTotal(wk){
+  const ys=wk&&wk.allModels;
+  if(!ys||typeof ys!=="object")return null;
+  const vals=[];
+  for(const k in ys){
+    if(k==="Others")continue;
+    const v=Number(ys[k]);
+    if(v>0)vals.push(v);
+  }
+  if(!vals.length)return null;
+  vals.sort((a,b)=>b-a);
+  return vals.slice(0,OR_DAILY_DEPTH).reduce((a,b)=>a+b,0);
+}
+
 /**
  * Recover the total, refuse the ordering, state both.
  *
@@ -6229,7 +6255,7 @@ function repairDailySnapshots(snaps,chartWeeks){
     const kind=orDayCorruption(sn.or);
     if(!kind)return sn;
     const wk=byWeek.get(isoWeekStartOf(sn.date))||null;
-    const total=wk&&wk.totalRaw>0?wk.totalRaw:null;
+    const total=comparableWeeklyTotal(wk);
     if(total!=null)substituted++;else unsubstituted++;
     return {
       ...sn,
@@ -6273,7 +6299,7 @@ function HistoryTabCanonical(){
 
     const primary=fetch(url).then(r=>r.ok?r.json():Promise.reject(new Error("HTTP "+r.status)));
     const chart=view==="daily"
-      ? fetch("/api/openrouter-chart-weekly").then(r=>r.ok?r.json():null).catch(()=>null)
+      ? fetch("/api/openrouter-chart-weekly?full=1").then(r=>r.ok?r.json():null).catch(()=>null)
       : Promise.resolve(null);
 
     Promise.all([primary,chart])
@@ -6571,11 +6597,11 @@ function HistoryTabCanonical(){
             The 2026-08-18 → 2026-09-15 capture stored OpenRouter's Top <i>Apps</i> table, so those days
             recorded applications as models and a total that collapsed from ~28T to ~1.8T. Drawn verbatim
             that collapse reads as a demand trend; it is not one.
-            {repair.substituted>0&&<> <b>{repair.substituted}</b> of them now show the true weekly total for their ISO
-              week, taken from the model weekly chart series (<code style={{fontFamily:"monospace"}}>or-chart:series</code>),
-              marked <span style={{padding:"0 4px",borderRadius:3,background:"#ede9fe",color:"#5b21b6",fontWeight:600}}>chart</span>.</>}
-            {repair.unsubstituted>0&&<> <b>{repair.unsubstituted}</b> ha{repair.unsubstituted===1?"s":"ve"} no substitute
-              because the chart series could not be read.</>}
+            {repair.substituted>0&&<> <b>{repair.substituted}</b> of them now show the top-30 model total for their ISO
+              week, rebuilt from the model weekly chart series (<code style={{fontFamily:"monospace"}}>or-chart:series</code>)
+              on the same basis these daily rows use, marked <span style={{padding:"0 4px",borderRadius:3,background:"#ede9fe",color:"#5b21b6",fontWeight:600}}>chart</span>.</>}
+            {repair.unsubstituted>0&&<> <b>{repair.unsubstituted}</b> ha{repair.unsubstituted===1?"s":"ve"} no substitute,
+              because no like-for-like weekly figure could be rebuilt for their ISO week.</>}
             {" "}The daily top-30 <b>ordering</b> for these days is not recoverable — OpenRouter's rankings API is a
             rolling trailing window with no history — so it is left refused, not invented.
           </div>
@@ -6664,9 +6690,9 @@ function HistoryTabCanonical(){
                     <td style={{padding:"7px 12px",color:"#111827"}}>{periodLabel}</td>
                     <td style={{padding:"7px 12px",color:"#111827",textAlign:"right",fontVariantNumeric:"tabular-nums"}}>
                       {lost&&!s.orTotalSubstituted
-                        ? <span title={"This day's stored total ("+fmtTokShort(s.orCapturedTotalRaw)+") is the Top Apps table's, not the model ranking's, and the chart weekly series could not be read to substitute the real one."} style={{fontSize:10.5,color:"#92400e",cursor:"help"}}>no countable total</span>
+                        ? <span title={"This day's stored total ("+fmtTokShort(s.orCapturedTotalRaw)+") is the Top Apps table's, not the model ranking's, and no like-for-like weekly figure could be rebuilt from the chart series for its ISO week."} style={{fontSize:10.5,color:"#92400e",cursor:"help"}}>no countable total</span>
                         : <>{fmtTokShort(orTok(s))}
-                            {s.orTotalSubstituted&&<span title={"Weekly total for the ISO week of "+s.orTotalSourceWeek+", from the model weekly chart series (or-chart:series). This day's own capture held the Top Apps table and recorded "+fmtTokShort(s.orCapturedTotalRaw)+"."} style={{marginLeft:5,padding:"0 4px",borderRadius:3,background:"#ede9fe",color:"#5b21b6",fontSize:9.5,fontWeight:600,cursor:"help"}}>chart</span>}
+                            {s.orTotalSubstituted&&<span title={"Top-30 model total for the ISO week of "+s.orTotalSourceWeek+", rebuilt from the model weekly chart series (or-chart:series) on the same basis these daily rows use \u2014 the top 30 named model series, OpenRouter's \u201cOthers\u201d rollup excluded. This day's own capture held the Top Apps table and recorded "+fmtTokShort(s.orCapturedTotalRaw)+"."} style={{marginLeft:5,padding:"0 4px",borderRadius:3,background:"#ede9fe",color:"#5b21b6",fontSize:9.5,fontWeight:600,cursor:"help"}}>chart</span>}
                           </>}
                     </td>
                     <td style={{padding:"7px 12px",color:"#374151"}}>{top?prettyModel(top.slug||top.model):lost?lostCell("ordering"):"—"}</td>
@@ -6690,7 +6716,7 @@ function HistoryTabCanonical(){
       <div style={{fontSize:10,color:"#9ca3af",marginTop:8,lineHeight:1.5}}>
         {view==="daily" ? (<>
           Metric: <strong style={{color:"#6b7280"}}>OR weekly total (rolling)</strong> — sum of top-30 model tokens scraped from <code>openrouter.ai/rankings?view=week</code> at our daily capture time. OpenRouter has no native daily metric; every captured number is a weekly rolling total observed on a specific day. <strong>This tab is internal capture diagnostics, not investor-facing</strong> — for completed-week and quarterly analysis use the Weekly and QTD tabs, which read the chart-native series directly.
-          <br/>Days whose capture was OpenRouter's Top <strong>Apps</strong> table (2026-08-18 → 2026-09-15) are detected by the same tests the capture path applies — an application name among the rows, or fewer than half the rows naming a model maker. Their total is replaced by the model weekly chart series' figure for the ISO week containing the day, marked <span style={{padding:"0 4px",borderRadius:3,background:"#ede9fe",color:"#5b21b6",fontWeight:600}}>chart</span> in the table and drawn as a purple point on the sparkline. Their <strong>ordering is refused</strong>: the rankings API is a rolling trailing window with no history, so no top-30 list for a past day can be rebuilt, and none is invented here.
+          <br/>Days whose capture was OpenRouter's Top <strong>Apps</strong> table (2026-08-18 → 2026-09-15) are detected by the same tests the capture path applies — an application name among the rows, or fewer than half the rows naming a model maker. Their total is replaced by the top-30 model total for the ISO week containing the day, rebuilt from the model weekly chart series on the same basis the daily rows use — the top 30 named model series, OpenRouter's &ldquo;Others&rdquo; rollup excluded, so the substituted figure is comparable to the days either side of it rather than a larger measure. Marked <span style={{padding:"0 4px",borderRadius:3,background:"#ede9fe",color:"#5b21b6",fontWeight:600}}>chart</span> in the table and drawn as a purple point on the sparkline. Their <strong>ordering is refused</strong>: the rankings API is a rolling trailing window with no history, so no top-30 list for a past day can be rebuilt, and none is invented here.
         </>):view==="weekly"?(<>
           Source: <code>/api/openrouter-chart-weekly</code> — extracted from the same Next.js RSC payload (<code>self.__next_f.push</code>) that drives the OpenRouter Top Models live chart embedded above. Each row is one ISO week. Totals are <strong>Σ ys</strong> across all model series including OR's "Others" rollup, matching the chart tooltip's <strong>Total</strong> field exactly (modulo observation time within a partial week — the value grows as the week progresses).
           {raw_pace_note(state.data)}
