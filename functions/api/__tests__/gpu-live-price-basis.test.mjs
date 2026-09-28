@@ -108,7 +108,12 @@ const INFRA = region('function GPUInfraMonitoringSubtab(', '\nconst gpuTh=');
 test('a live KPI card survives a SKU that only has a median', () => {
   const c = code(INFRA);
   assert.doesNotMatch(c, /r\.minPricePerHour==null/, 'the cards still drop every SKU without a floor');
-  assert.match(c, /if\(!r\|\|livePrice\(r\)==null\)return null;/);
+  // This once asserted the `return null` that DELETED an unpriced card. That
+  // line was the narrower form of the same bug: the card survived a
+  // median-only SKU but vanished when neither field resolved. The intent —
+  // a median-only SKU keeps its card and shows the median — is what is pinned.
+  assert.doesNotMatch(c, /if\(!r\|\|livePrice\(r\)==null\)return null;/,
+    'an unpriced SKU is deleted from the grid again');
   assert.match(c, /value:fmtUSD\(livePrice\(r\)\)/);
 });
 
@@ -221,4 +226,22 @@ test('the feed-integrity banner does not name a field the dashboard stopped need
 test('the unpriced-period badge says "no price", not "no minPricePerHour"', () => {
   assert.doesNotMatch(SRC, /returned no minPricePerHour/);
   assert.match(SRC, /was captured but the feed returned no price, so every price cell is blank\./);
+});
+
+/* ── A tracked SKU is never silently removed ──────────────────────────────
+   Two versions of the same mistake shipped here. The first guarded the card on
+   minPricePerHour and emptied all four when the source stopped publishing a
+   range. The fix resolved the median correctly but still returned null — and
+   so deleted the tile — when neither field resolved. The grid is auto-fit, so
+   the gap closes: a reader looking at three cards has no way to know a fourth
+   SKU is tracked at all. Against "no number should be missing since dashboard
+   has all data", silently dropping the subject is the worst available answer.
+   The card stays and says what is missing. */
+test('a tracked SKU with no price keeps its card and states why', () => {
+  const src = code(region('const kpiCards=', 'const widest='));
+  assert.doesNotMatch(src, /if\(!r\|\|livePrice\(r\)==null\)return null;/,
+    'an unpriced SKU is deleted from the grid again, taking any sign it is tracked with it');
+  assert.match(src, /missing:true/, 'nothing marks the card as unpriced');
+  assert.match(src, /no price in this listing/, 'the card does not say what is missing');
+  assert.match(src, /not in this listing/, 'a SKU absent from the feed is not distinguished');
 });

@@ -2102,8 +2102,22 @@ function GPUInfraMonitoringSubtab({data,loadErr,updatedTxt,histView,setHistView,
     // Guarding on minPricePerHour is what emptied all four cards: the source
     // stopped publishing a vendor range on 2026-07-28, so that field is null on
     // every row while the median it publishes instead sits in the same payload.
-    if(!r||livePrice(r)==null)return null;
     const short=sku.replace(/^Nvidia\s+/i,"");
+    /* Dropping the card was the second version of the same mistake. The first
+       guarded on minPricePerHour and emptied all four when the source stopped
+       publishing a range; this one resolves the median correctly but still
+       deletes the tile when NEITHER field resolves. The grid is auto-fit, so
+       the gap closes and a reader looking at three cards cannot know a fourth
+       existed — the SKU is simply gone, along with any sign that it is tracked.
+       Silently removing a tracked SKU is the worst available answer to a
+       missing price: the card stays and says what is missing. */
+    if(!r||livePrice(r)==null)return{
+      sku,label:short+" $/hr",value:"—",
+      sub:!r?"not in this listing"
+        :data?.stale?"no price in the cached listing"+(data.staleReason?" ("+data.staleReason+")":"")
+        :"no price in this listing",
+      missing:true,
+    };
     return{
       // "cheapest" was only true of the old floor measure; the label names
       // whichever measure the row actually carries.
@@ -2167,8 +2181,11 @@ function GPUInfraMonitoringSubtab({data,loadErr,updatedTxt,histView,setHistView,
       ):(
         <>
           <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(160px,1fr))",gap:8,marginBottom:10}}>
+            {/* A card with no price is kept but muted, so a tracked SKU reads as
+                tracked-and-unpriced rather than looking like a live figure. */}
             {kpiCards.map(c=>(
-              <KBox key={c.sku} label={c.label} value={c.value} sub={c.sub} bg="#ecfeff" fg="#0e7490"/>
+              <KBox key={c.sku} label={c.label} value={c.value} sub={c.sub}
+                    bg={c.missing?"#f9fafb":"#ecfeff"} fg={c.missing?"#9ca3af":"#0e7490"}/>
             ))}
             <KBox label="Most providers on one GPU" value={widest?.providerCount||"—"}           sub={widest?widest.gpuModel+" · not a total across GPUs":null} bg="#f0fdf4" fg="#059669"/>
             <KBox label="GPU models tracked"      value={modelCount||"—"}                       sub="parsed from source" bg="#eff6ff" fg="#1d4ed8"/>
