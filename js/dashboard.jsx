@@ -322,6 +322,18 @@ function quarterPeriodSpan(quarterId,unit){
   return Math.round((end-start)/86400000);
 }
 
+/* "8 of 13 weeks" — but never "8 of  weeks". If the endpoint stops publishing
+   the quarter's period count the line degrades to what is still true ("8
+   weeks") rather than to a sentence with a hole in it, and if the row's own
+   count is missing it says so in words instead of rendering nothing. */
+function periodSpanLabel(rowPeriods,quarterPeriods,unit){
+  const u=unit||"period";
+  if(typeof rowPeriods!=="number")return "period count not published";
+  if(typeof quarterPeriods!=="number"||quarterPeriods<=0)
+    return rowPeriods+" "+u+(rowPeriods===1?"":"s");
+  return rowPeriods+" of "+quarterPeriods+" "+u+(quarterPeriods===1?"":"s");
+}
+
 /* One quarter's share coverage in words: how many periods stood behind it,
    how many a whole quarter holds, and — when it is short — that it is short.
    A quarter still in progress is short for a reason the reader already has,
@@ -354,7 +366,9 @@ function PricingSharePartialView({ header, quarter, basis={}, sourceNote }){
   const x0=sx(0);
 
   // Dot color: bias by price direction only (no share-QoQ regime available)
-  const dotColor=(pq)=>pq<=-0.02?"#2563eb":pq>=0.02?"#dc2626":"#6b7280";
+  // A refused price comparison has no direction to colour by — grey, not the
+  // "hold" grey by accident but because there is no number.
+  const dotColor=(pq)=>typeof pq!=="number"?"#d1d5db":pq<=-0.02?"#2563eb":pq>=0.02?"#dc2626":"#6b7280";
 
   // Smart label placement (flip + vertical stacking) — same logic as full view
   const dotData=rows.map(r=>({
@@ -384,8 +398,14 @@ function PricingSharePartialView({ header, quarter, basis={}, sourceNote }){
     placed.push({...d,lx,ly:d.y+dy,lAnchor,lw});
   });
 
-  // Sort table by current share descending so the dominant provider reads first
-  const tableRows=[...rows].sort((a,b)=>b.shareAvg-a.shareAvg);
+  // Sort table by current share descending so the dominant provider reads first.
+  // The SCATTER needs both numbers — a dot cannot be placed without an x and a
+  // y — so `rows` stays filtered. The TABLE does not: a provider whose price
+  // comparison the matrix refused still has a share level that is fully known,
+  // and dropping the whole row deletes it behind nothing at all. Same rule the
+  // full view applies; the two must not disagree about which providers exist.
+  const tableRows=(quarter.rows||[]).filter(r=>typeof r.shareAvg==="number")
+    .sort((a,b)=>b.shareAvg-a.shareAvg);
   const biggestCut=[...rows].filter(r=>r.priceQoq<0).sort((a,b)=>a.priceQoq-b.priceQoq)[0];
   const biggestUp=[...rows].filter(r=>r.priceQoq>0).sort((a,b)=>b.priceQoq-a.priceQoq)[0];
   const topShare=[...rows].sort((a,b)=>b.shareAvg-a.shareAvg)[0];
@@ -481,10 +501,10 @@ function PricingSharePartialView({ header, quarter, basis={}, sourceNote }){
                     {r.label}
                   </td>
                   <td style={{padding:"8px 10px",borderBottom:"1px solid #f9fafb",fontFamily:"monospace",color:"#111827"}}>{r.avgLabel}</td>
-                  <td title={r.priceQoqReason||undefined} style={{padding:"8px 10px",borderBottom:"1px solid #f9fafb",fontFamily:"monospace",fontWeight:r.priceRefused?500:600,fontSize:r.priceRefused?10:undefined,cursor:r.priceQoqReason?"help":undefined,color:r.priceRefused?"#6b7280":r.priceQoq>0?"#dc2626":r.priceQoq<0?"#059669":"#6b7280"}}>{r.priceQoqLabel}</td>
+                  <td title={r.priceQoqReason||undefined} style={{padding:"8px 10px",borderBottom:"1px solid #f9fafb",fontFamily:typeof r.priceQoq==="number"?"monospace":"inherit",fontWeight:typeof r.priceQoq==="number"?600:500,fontSize:typeof r.priceQoq==="number"?undefined:10,cursor:r.priceQoqReason?"help":undefined,color:typeof r.priceQoq!=="number"?"#6b7280":r.priceQoq>0?"#dc2626":r.priceQoq<0?"#059669":"#6b7280"}}>{r.priceQoqLabel}</td>
                   <td style={{padding:"8px 10px",borderBottom:"1px solid #f9fafb",fontFamily:"monospace",color:"#111827"}}>
                     {r.shareAvgLabel}
-                    <div style={{fontFamily:"inherit",fontSize:9.5,color:"#9ca3af",marginTop:1}}>{r.sharePeriods} of {quarter.sharePeriods} {shareUnit}{quarter.sharePeriods===1?"":"s"}</div>
+                    <div style={{fontFamily:"inherit",fontSize:9.5,color:"#9ca3af",marginTop:1}}>{periodSpanLabel(r.sharePeriods,quarter.sharePeriods,shareUnit)}</div>
                   </td>
                 </tr>
               ))}
@@ -764,13 +784,13 @@ function PricingShareSignalBlock(){
                     {r.label}
                   </td>
                   <td style={{padding:"8px 10px",borderBottom:"1px solid #f9fafb",fontFamily:"monospace",color:"#111827"}}>{r.avgLabel}</td>
-                  <td title={r.priceQoqReason||undefined} style={{padding:"8px 10px",borderBottom:"1px solid #f9fafb",fontFamily:"monospace",fontWeight:r.priceRefused?500:600,fontSize:r.priceRefused?10:undefined,cursor:r.priceQoqReason?"help":undefined,color:r.priceRefused?"#6b7280":r.priceQoq>0?"#dc2626":r.priceQoq<0?"#059669":"#6b7280"}}>{r.priceQoqLabel}</td>
+                  <td title={r.priceQoqReason||undefined} style={{padding:"8px 10px",borderBottom:"1px solid #f9fafb",fontFamily:typeof r.priceQoq==="number"?"monospace":"inherit",fontWeight:typeof r.priceQoq==="number"?600:500,fontSize:typeof r.priceQoq==="number"?undefined:10,cursor:r.priceQoqReason?"help":undefined,color:typeof r.priceQoq!=="number"?"#6b7280":r.priceQoq>0?"#dc2626":r.priceQoq<0?"#059669":"#6b7280"}}>{r.priceQoqLabel}</td>
                   {/* The level, with the periods it was averaged over — the
                       server publishes two decimals under 1% so a small but
                       real share cannot round to "0.0%" and read as absent. */}
                   <td style={{padding:"8px 10px",borderBottom:"1px solid #f9fafb",fontFamily:"monospace",color:"#111827"}}>
                     {r.shareAvgLabel}
-                    <div style={{fontFamily:"inherit",fontSize:9.5,color:"#9ca3af",marginTop:1}}>{r.sharePeriods} of {latest.sharePeriods} {shareUnit}{latest.sharePeriods===1?"":"s"}</div>
+                    <div style={{fontFamily:"inherit",fontSize:9.5,color:"#9ca3af",marginTop:1}}>{periodSpanLabel(r.sharePeriods,latest.sharePeriods,shareUnit)}</div>
                   </td>
                   {/* No share change is ever imputed. When the prior quarter
                       held no observation of this provider at the comparison

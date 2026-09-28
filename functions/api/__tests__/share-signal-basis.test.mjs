@@ -245,3 +245,51 @@ test('depth is decided per comparison, not once across the whole window', async 
   assert.ok(Math.abs(googleIn(d, '2026-Q3').shareAvg - 40) < 0.01,
     'got ' + googleIn(d, '2026-Q3').shareAvg);
 });
+
+/**
+ * The fallback must not reintroduce the fault the live series was brought in
+ * to remove. The stored capture changed population on 2026-09-16: before it,
+ * all traffic; from it, paid only. 2026-Q3 holds days on both sides of that
+ * line, and 2026-Q2 holds none — so averaging Q3's days together and calling
+ * the gap to Q2 a share move is reading a change of measure as a change of
+ * share. The post-break days are sound observations of a different thing, and
+ * are set aside by name rather than blended in.
+ */
+test('the fallback does not average across the 2026-09-16 change of population', async () => {
+  // Q3: 10 all-traffic days where google holds 60% of the listed tokens, then
+  // 10 paid-only days where it holds 20%. Blending them yields ~40%; counting
+  // only the days on one population yields 60%.
+  const paidDay = (date) => ({
+    date,
+    source: 'cron',
+    or: [
+      { rank: 1, model: 'gpt-5', provider: 'openai', tokRaw: 65 },
+      { rank: 2, model: 'gemini-2.5-pro', provider: 'google', tokRaw: 20 },
+      { rank: 3, model: 'claude-sonnet-4', provider: 'anthropic', tokRaw: 15 },
+    ],
+  });
+  const d = await run({
+    weeks: null, // force the stored fallback
+    snapshots: [
+      ...days('2026-05-01', 20),
+      ...days('2026-09-01', 10),
+      ...days('2026-09-16', 10, paidDay),
+    ],
+  });
+
+  assert.equal(d.shareBasis.source, 'stored-daily');
+  const g = googleIn(d, '2026-Q3');
+  assert.ok(g, 'google missing from 2026-Q3');
+  assert.ok(Math.abs(g.shareAvg - 60) < 0.01,
+    'the paid-only days were averaged in — got ' + g.shareAvg + '%, a measure, not a share');
+  assert.equal(g.sharePeriods, 10, 'only the ten all-traffic days may stand behind the figure');
+
+  // And the reader is told, by name, what was set aside and why.
+  const why = d.shareBasis.excludedDays.find(x => x.reason === 'variantFiltered');
+  assert.ok(why, 'the refused days are not reported — a blank with no reason on screen');
+  assert.equal(why.days, 10);
+  assert.match(why.label, /2026-09-16/);
+  assert.match(why.label, /paid/i);
+  assert.match(d.sourceNote, /2026-09-16/,
+    'the sources line must say the comparison does not span the break');
+});

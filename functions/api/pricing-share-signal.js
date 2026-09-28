@@ -35,7 +35,15 @@
  * week that denominator is every provider OpenRouter names plus its "others"
  * bucket; for a fallback day it is the tokens of the top `depth` providers in
  * that day's stored list. Share of a quarter is the mean of the period shares
- * in which the provider was observed. Joining (by normalized provider slug)
+ * in which the provider was observed.
+ *
+ * The FALLBACK carries the same rule the live series makes unnecessary: a
+ * stored day dated on or after 2026-09-16 is not counted (uncountedReason →
+ * 'variantFiltered'). Without it the fallback would do exactly what the live
+ * series was brought in to stop — average ~48 all-traffic days with ~13
+ * paid-only ones and call the difference a share move. So neither path ever
+ * spans that break; the fallback simply keeps to the all-traffic days, and
+ * shareBasis.excludedDays reports how many it set aside and why. Joining (by normalized provider slug)
  * with the pricing matrix yields per-(provider, quarter) rows with priceQoq
  * and shareQoq in the same period.
  *
@@ -147,6 +155,20 @@ function priorQuarterKey(key) {
  */
 const APP_NAME_HINTS = /^(kilo code|cline|codex|pi|omp|freebuff|roo code|chatwise|sillytavern|openrouter api|janitorai|openwebui)$/i;
 
+/**
+ * The day the stored daily capture changed population. From this date
+ * openrouter.js:207 filters the ranking to variant === 'standard' (paid), so
+ * a day on or after it observes PAID traffic and every day before it observes
+ * ALL traffic. The two cannot be averaged into one quarter: that is not a
+ * share moving, it is the measure moving underneath it.
+ *
+ * The rows carry no variant, so the earlier days cannot be re-filtered to
+ * match the later ones, and there is no paid-only prior quarter to compare a
+ * paid-only 2026-Q3 against. The fallback therefore keeps to the population
+ * it has all of — all traffic — and refuses the days that are not on it.
+ */
+const VARIANT_BREAK_DATE = '2026-09-16';
+
 /** Fewer than half the rows naming a model maker: not a model ranking. */
 function isAttributedRanking(rows) {
   const attributed = rows.filter(m => m.provider && m.provider !== 'other').length;
@@ -166,12 +188,22 @@ function isAttributedRanking(rows) {
  *   'notModelRanking' Fewer than half the rows name a model maker. The Top
  *                     Apps window trips this too, but not every row of it
  *                     does — which is why both tests run, not just this one.
+ *   'variantFiltered' Dated on or after VARIANT_BREAK_DATE. The day is a sound
+ *                     observation of PAID traffic; every day before it
+ *                     observes all traffic. Averaging the two into one quarter
+ *                     measures nothing — and 2026-Q3 vs 2026-Q2 is the only
+ *                     comparison this series can support, so without this test
+ *                     the fallback reads a change of measure as a change of
+ *                     share. Last, so a day that is ALSO corrupt reports the
+ *                     more specific reason.
  */
 function uncountedReason(snapshot, rows) {
   if (!isRealSnapshot(snapshot)) return 'backfill';
   if (snapshot && snapshot.source === 'autofill-gap') return 'autofillGap';
   if (rows.some(m => APP_NAME_HINTS.test(String(m.model || '').trim()))) return 'topAppsTable';
   if (!isAttributedRanking(rows)) return 'notModelRanking';
+  const day = typeof snapshot.date === 'string' ? snapshot.date.slice(0, 10) : '';
+  if (day && day >= VARIANT_BREAK_DATE) return 'variantFiltered';
   return null;
 }
 
@@ -181,6 +213,8 @@ const EXCLUSION_LABELS = {
   autofillGap: 'One capture re-dated to fill a gap — not an independent day',
   topAppsTable: 'Stored list is OpenRouter\'s Top Apps table, not Top Models',
   notModelRanking: 'Fewer than half the rows name a model maker',
+  variantFiltered: 'Captured on or after 2026-09-16, when the capture began ' +
+    'filtering to paid traffic — a different population from the days before it',
 };
 
 /**
@@ -399,15 +433,17 @@ export async function onRequestGet({ request }) {
     measure: useLive ? 'all-traffic' : 'as-captured',
     label: useLive
       ? 'all OpenRouter traffic, paid and free'
-      : 'stored daily OpenRouter top-N captures, as captured',
+      : 'all OpenRouter traffic, paid and free — stored daily top-N captures before 2026-09-16',
     note: useLive
       ? 'Weekly per-provider tokens from OpenRouter\'s market-share dataset. ' +
         'A paid-only history does not exist — the stored daily rankings were filtered to ' +
         'paid traffic on 2026-09-16 and carry no variant before that — so this counts all ' +
         'traffic, free included, and is NOT the same number the stored snapshots produced.'
       : 'The live weekly series could not be read, so share falls back to the stored daily ' +
-        'snapshots. Their basis changed on 2026-09-16, when the capture began filtering to ' +
-        'paid traffic only, so a comparison spanning that date compares two measures.',
+        'top-N captures. Their population changed on 2026-09-16, when the capture began ' +
+        'filtering to paid traffic, so days from that date are NOT counted and no comparison ' +
+        'spans it: what is left is all-traffic days only, measured as share of the top ' +
+        'providers each day listed rather than of the whole marketplace.',
     fallback: !useLive,
     liveError: useLive ? null : liveError,
     // The live weekly series, when it is the one in use.
@@ -482,16 +518,23 @@ export async function onRequestGet({ request }) {
         avg: c.avg,
         avgLabel: c.avgLabel,
         priceQoq,
+        // Never a bare dash. A refused comparison says which refusal; an
+        // absent one says the prior quarter held no comparable figure. Both
+        // carry priceQoqReason, so the cell has its reason on hover too.
         priceQoqLabel: (typeof priceQoq === 'number')
           ? ((priceQoq >= 0 ? '+' : '') + (priceQoq * 100).toFixed(1) + '%')
           : measureChanged ? 'measure changed'
           : tooFewMatched ? 'too few models'
-          : '—',
+          : 'no prior quarter',
         priceReg,
         priceRefused,
         priceRefusedKind: measureChanged ? 'measure_changed' : tooFewMatched ? 'too_few_matched' : null,
         priceMeasureChanged: measureChanged,
-        priceQoqReason: priceRefused ? (c.qoqReason || null) : null,
+        priceQoqReason: priceRefused
+          ? (c.qoqReason || null)
+          : (typeof priceQoq === 'number' ? null
+            : 'The pricing matrix published no comparable average for ' + (slugToLabel[slug] || slug) +
+              ' in ' + (prior || 'the prior quarter') + ', so no price change can be computed. None is imputed.'),
         shareAvg,
         // Two decimals under 1%: a provider with a small but real share must
         // not be rounded to "0.0%", which reads as absent.
@@ -610,10 +653,12 @@ export async function onRequestGet({ request }) {
         ? 'Market share: OpenRouter\'s weekly market-share series — all traffic, free included, ' +
           'since no paid-only history exists — averaged over the weeks of each quarter. ' +
           'Each week\'s denominator is every provider OpenRouter names plus its "others" bucket.'
-        : 'Market share: canonical HISTORY_KV daily snapshots of OpenRouter top-N by weekly tokens, ' +
-          'averaged over the counted days of each quarter. The live weekly series was unavailable (' +
-          liveError + '). Gap-fill copies, re-dated autofill days and days holding the Top Apps ' +
-          'table are not counted; shareBasis.excludedDays says how many and why.') + ' ' +
+        : 'Market share: canonical HISTORY_KV daily snapshots of OpenRouter top-N by weekly tokens ' +
+          '— all traffic, free included — averaged over the counted days of each quarter. The live ' +
+          'weekly series was unavailable (' + liveError + '). Gap-fill copies, re-dated autofill ' +
+          'days, days holding the Top Apps table and days from 2026-09-16 on (when the capture ' +
+          'began filtering to paid traffic, a different population) are not counted, so no ' +
+          'comparison spans that change; shareBasis.excludedDays says how many and why.') + ' ' +
       'Both quarters of a comparison are read to the same number of providers (quarters[].shareDepth), ' +
       'decided from those two quarters alone. ' +
       'Providers outside that depth during a quarter are omitted, never imputed.',

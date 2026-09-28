@@ -328,3 +328,59 @@ test('the corrupted rows render a reason, never a bare dash', async () => {
   assert.match(body, /substituted:!!s\.orTotalSubstituted/,
     'the sparkline draws substituted points indistinguishably from captured ones');
 });
+
+/**
+ * The partial view had the same fault the full view was just fixed for: it
+ * built its table from `rows`, which is filtered to providers carrying BOTH a
+ * price change and a share level. A provider whose price comparison the matrix
+ * refused therefore vanished from the table — and the partial view's whole
+ * subject is the share LEVEL, which that provider has. Two surfaces of the same
+ * quarter must not disagree about which providers exist.
+ */
+test('the partial view keeps every provider whose share level is known', () => {
+  const body = REGIONS.get('PricingSharePartialView');
+  assert.ok(body, 'PricingSharePartialView is no longer a top-level function');
+  assert.match(body, /const tableRows=\(quarter\.rows\|\|\[\]\)\.filter\(r=>typeof r\.shareAvg==="number"\)/,
+    'the partial table is still built from the scatter-filtered rows, so a provider ' +
+    'with a refused price comparison is dropped along with its known share level');
+  // The scatter still needs both numbers — a dot has an x and a y.
+  assert.match(body, /const rows=\(quarter\.rows\|\|\[\]\)\.filter\(r=>typeof r\.priceQoq==="number"&&typeof r\.shareAvg==="number"\)/,
+    'the scatter must keep requiring both numbers');
+  assert.match(body, /dotColor=\(pq\)=>typeof pq!=="number"/,
+    'the row dot still colours a missing price change as though it had a direction');
+});
+
+/**
+ * "8 of 13 weeks" must never degrade to "8 of  weeks". Both views read the
+ * quarter's period count straight out of the payload; a server that stops
+ * publishing it would leave a sentence with a hole in it.
+ */
+test('the period sub-line cannot render a hole where a count is missing', () => {
+  assert.ok(REGIONS.get('periodSpanLabel'), 'periodSpanLabel is gone');
+  const body = bodyOf(['periodSpanLabel']);
+  assert.match(body, /period count not published/,
+    'a row with no period count renders nothing instead of saying so');
+  const views = bodyOf(['PricingSharePartialView', 'PricingShareSignalBlock']);
+  assert.ok(!/\{r\.sharePeriods\} of \{(quarter|latest)\.sharePeriods\}/.test(views),
+    'a view still interpolates the quarter period count unguarded');
+  assert.equal((views.match(/periodSpanLabel\(r\.sharePeriods/g) || []).length, 2,
+    'both views must route the sub-line through periodSpanLabel');
+});
+
+/**
+ * No bare dash in the Price QoQ column. The server now labels an absent
+ * comparison "no prior quarter" and publishes priceQoqReason for it, so the
+ * cell must be titled by that reason on every row, not only refused ones.
+ */
+test('a missing price change is titled with its reason, not left as a dash', () => {
+  const views = bodyOf(['PricingSharePartialView', 'PricingShareSignalBlock']);
+  assert.equal((views.match(/title=\{r\.priceQoqReason\|\|undefined\}/g) || []).length, 2,
+    'both price cells must carry priceQoqReason as their hover');
+  assert.ok(!/color:r\.priceRefused\?"#6b7280"/.test(views),
+    'the price cell still styles by priceRefused alone, so an absent (not refused) ' +
+    'comparison renders in the colour of a real number');
+  assert.match(SHARE_API, /: 'no prior quarter',/,
+    'pricing-share-signal.js still emits a bare em dash for an absent price change');
+  assert.match(SHARE_API, /no comparable average for/,
+    'the absent price change carries no reason for the screen to show');
+});
