@@ -6237,6 +6237,18 @@ function comparableWeeklyTotal(wk){
   }
   if(!vals.length)return null;
   vals.sort((a,b)=>b-a);
+  /* The days this stands in for are a genuine top-30 sum (history-capture.js
+     fetches ?top=30 and slices to 30). This series carries however many names
+     the chart payload happened to include — nine, in every stored week — so
+     slicing to 30 is a no-op and the sum silently counts a SMALLER population
+     than the days beside it. Drawn on one axis that is a change of measure
+     rendered as a change of level: the repaired stretch would plot as a trough
+     roughly half the height of its neighbours, because the rest of the week's
+     tokens sit in "Others" and are excluded here but counted there.
+     Fixing the denominator is not possible from this payload, so the
+     substitution is refused and the already-built unsubstituted path says on
+     screen that no like-for-like weekly figure could be rebuilt. */
+  if(vals.length<OR_DAILY_DEPTH)return null;
   return vals.slice(0,OR_DAILY_DEPTH).reduce((a,b)=>a+b,0);
 }
 

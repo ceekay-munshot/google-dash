@@ -86,6 +86,8 @@ import {
   periodHeadline,
   pricedDatesForBasis,
   periodGrowth,
+  periodGrowthDetail,
+  basisLinkBetween,
   growthRefusalReason,
   detectBasisTimeline,
   basisChangeForPeriods,
@@ -1008,6 +1010,29 @@ function buildFinancialResponse(ctx) {
   const yoyQuarter = {};
   const momReason = {};
   const qoqReason = {};
+  /* When the two sides are measured differently, the comparison is made on the
+     basis they SHARE via the period that straddles the change, not on their
+     headlines. That is a real number and it is shown — but it is not the same
+     thing as a headline-to-headline move, so the note says which days it rests
+     on. Present only for linked cells. Without this the sibling dashboard
+     printed +15.15% for Aug-2026 while this one printed a blank claiming the
+     two were "not comparable" — same store, same SKU, same month. */
+  const momNote = {};
+  const qoqNote = {};
+  const yoyMonthNote = {};
+  const yoyQuarterNote = {};
+
+  // Fill one growth cell, using the straddle period between the two sides as
+  // the conversion when their headlines are measured differently.
+  const fillGrowth = (records, cur, prior, priorId, pct, reason, note) => {
+    const link = basisLinkBetween(records, cur, prior);
+    const detail = periodGrowthDetail(cur, prior, link);
+    pct[cur.period] = detail ? detail.pct : null;
+    if (detail && detail.note) note[cur.period] = detail.note;
+    if (pct[cur.period] == null && reason) {
+      reason[cur.period] = growthRefusalReason(cur, prior, prior ? prior.label : priorId, link);
+    }
+  };
 
   for (const sku of availableSKUs) {
     mom[sku] = {};
@@ -1016,6 +1041,10 @@ function buildFinancialResponse(ctx) {
     yoyQuarter[sku] = {};
     momReason[sku] = {};
     qoqReason[sku] = {};
+    momNote[sku] = {};
+    qoqNote[sku] = {};
+    yoyMonthNote[sku] = {};
+    yoyQuarterNote[sku] = {};
 
     // MoM
     const months = monthlyBySku[sku];
@@ -1023,13 +1052,10 @@ function buildFinancialResponse(ctx) {
     for (const cur of months) {
       const priorId = priorMonthId(cur.period);
       const prior = monthByPeriod[priorId];
-      mom[sku][cur.period] = periodGrowth(cur, prior);
-      if (mom[sku][cur.period] == null) {
-        momReason[sku][cur.period] = growthRefusalReason(cur, prior, prior ? prior.label : priorId);
-      }
+      fillGrowth(months, cur, prior, priorId, mom[sku], momReason[sku], momNote[sku]);
       const yoyId = yearPriorMonthId(cur.period);
-      const yoyPrior = monthByPeriod[yoyId];
-      yoyMonth[sku][cur.period] = periodGrowth(cur, yoyPrior);
+      fillGrowth(months, cur, monthByPeriod[yoyId], yoyId,
+                 yoyMonth[sku], null, yoyMonthNote[sku]);
     }
 
     // QoQ + YoY (quarter)
@@ -1038,13 +1064,10 @@ function buildFinancialResponse(ctx) {
     for (const cur of quarters) {
       const priorId = priorQuarterId(cur.period);
       const prior = quarterByPeriod[priorId];
-      qoq[sku][cur.period] = periodGrowth(cur, prior);
-      if (qoq[sku][cur.period] == null) {
-        qoqReason[sku][cur.period] = growthRefusalReason(cur, prior, prior ? prior.label : priorId);
-      }
+      fillGrowth(quarters, cur, prior, priorId, qoq[sku], qoqReason[sku], qoqNote[sku]);
       const yoyId = yearPriorQuarterId(cur.period);
-      const yoyPrior = quarterByPeriod[yoyId];
-      yoyQuarter[sku][cur.period] = periodGrowth(cur, yoyPrior);
+      fillGrowth(quarters, cur, quarterByPeriod[yoyId], yoyId,
+                 yoyQuarter[sku], null, yoyQuarterNote[sku]);
     }
   }
 
@@ -1169,6 +1192,8 @@ function buildFinancialResponse(ctx) {
       series: monthlyBySku,
       mom,
       momReason,
+      momNote,
+      yoyNote: yoyMonthNote,
       yoy: yoyMonth,
     },
     quarterly: {
@@ -1176,6 +1201,8 @@ function buildFinancialResponse(ctx) {
       series: quarterlyBySku,
       qoq,
       qoqReason,
+      qoqNote,
+      yoyNote: yoyQuarterNote,
       yoy: yoyQuarter,
     },
     priceBasis: priceBasisInfo,

@@ -289,12 +289,21 @@ const chartWeek = () => ({
   },
 });
 
+/** A week carrying `n` named series plus an Others bucket. */
+function weekOfDepth(n, each = 1e12) {
+  const allModels = { Others: 12.6e12 };
+  for (let i = 0; i < n; i++) allModels['maker/model-' + i] = each;
+  return { start: '2026-08-17', allModels };
+}
+
 test('the substituted total is on the same basis as the days beside it', async () => {
   const m = await loadRepair();
-  // Top-30 named model series, Others excluded: 15 + 8 + 4.4 = 27.4T.
-  assert.equal(m.comparableWeeklyTotal(chartWeek()), 27.4e12);
-  // Not the whole-ys figure, which would step the repaired days up by 12.6T.
-  assert.notEqual(m.comparableWeeklyTotal(chartWeek()), 40e12);
+  // The days this stands in for are a genuine top-30 sum: history-capture.js
+  // fetches ?top=30 and slices to 30. A week carrying 30 named series can
+  // supply a comparable figure, with Others excluded on both sides.
+  assert.equal(m.comparableWeeklyTotal(weekOfDepth(30)), 30e12);
+  // Not the whole-ys figure, which would step the repaired days UP by Others.
+  assert.notEqual(m.comparableWeeklyTotal(weekOfDepth(30)), 42.6e12);
   // A week carrying only totalRaw has no comparable figure in it, and none is
   // manufactured from the one that is on a different denominator.
   assert.equal(m.comparableWeeklyTotal({ start: '2026-08-17', totalRaw: 40e12 }), null);
@@ -303,9 +312,26 @@ test('the substituted total is on the same basis as the days beside it', async (
   assert.equal(m.comparableWeeklyTotal({ allModels: { Others: 9e12 } }), null);
 });
 
+test('a shallower series is refused, not summed under a top-30 label', async () => {
+  // The stored chart series carries NINE named models in every week, and
+  // slice(0, 30) over nine is a no-op. Summing it and captioning it "the top 30
+  // named model series" counts roughly half the week's tokens — Others holds
+  // 45-52% — while the days beside it count a real top 30. On one axis that
+  // draws a four-week trough that is entirely an artefact of the denominator:
+  // a change of measure rendered as a change of level, which is the fault this
+  // repair exists to remove.
+  const m = await loadRepair();
+  assert.equal(m.comparableWeeklyTotal(chartWeek()), null,
+    'a 3-series week was summed and labelled a top-30 total');
+  assert.equal(m.comparableWeeklyTotal(weekOfDepth(9)), null,
+    'nine named series is what the stored weeks actually carry; it is not a top-30 sum');
+  assert.equal(m.comparableWeeklyTotal(weekOfDepth(29)), null,
+    'one short is still a different population');
+});
+
 test('the total is recovered from the chart series and marked; the ordering is refused', async () => {
   const m = await loadRepair();
-  const weeks = [chartWeek()];
+  const weeks = [weekOfDepth(30)];
   const out = m.repairDailySnapshots(
     [modelDay('2026-09-20'), appsDay('2026-08-22'), modelDay('2026-08-16')], weeks);
 
@@ -315,7 +341,7 @@ test('the total is recovered from the chart series and marked; the ordering is r
 
   const fixed = out.snapshots[1];
   // The figure that DOES exist, put back — not the 1.8T collapse.
-  assert.equal(fixed.openrouterSummary.totalTokensRaw, 27.4e12,
+  assert.equal(fixed.openrouterSummary.totalTokensRaw, 30e12,
     'the substituted total must be the top-30 model sum, not the whole-ys figure');
   assert.equal(fixed.orTotalSubstituted, true);
   assert.equal(fixed.orTotalSourceWeek, '2026-08-17');
@@ -333,6 +359,24 @@ test('the total is recovered from the chart series and marked; the ordering is r
   assert.equal(out.snapshots[0], out.snapshots[0]);
   assert.equal(out.snapshots[0].openrouterSummary.totalTokensRaw, 28e12);
   assert.equal(out.snapshots[2].orCorrupt, undefined);
+});
+
+test('a corrupt day with no deep-enough week is refused, not filled from a shallower one', async () => {
+  // The honest half of the same rule. The stored chart weeks carry nine named
+  // series, so in production this is the path most corrupt days take: no
+  // like-for-like weekly figure can be rebuilt, and the row says so rather
+  // than showing a number counted on a smaller population.
+  const m = await loadRepair();
+  const out = m.repairDailySnapshots([modelDay('2026-09-20'), appsDay('2026-08-22')], [chartWeek()]);
+
+  assert.equal(out.corrupt, 1);
+  assert.equal(out.substituted, 0, 'a 3-series week was used to fill a top-30 figure');
+  assert.equal(out.unsubstituted, 1);
+
+  const day = out.snapshots[1];
+  assert.ok(!day.orTotalSubstituted, 'a total was manufactured from the wrong denominator');
+  assert.equal(day.orRankingLost, true, 'the ordering is still refused and explained');
+  assert.doesNotMatch(JSON.stringify(day.or), /Kilo Code/i, '"Kilo Code" survived as a model');
 });
 
 test('a chart week on the wrong denominator is not used as a substitute', async () => {
