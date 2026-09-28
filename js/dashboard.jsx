@@ -298,7 +298,12 @@ function ShareBasisBanner({basis}){
       )}
       {excluded.length>0&&(
         <div style={{marginTop:4}}>
-          <b>{basis.countedDays} stored capture day{basis.countedDays===1?"":"s"} countable</b>
+          {/* These counts describe the STORED daily captures. On the live path
+              those days are not what the figures above rest on, and a reader
+              could otherwise take "29 refused" as applying to the weekly
+              numbers beside them. Say which series they belong to. */}
+          {live&&<span style={{opacity:0.85}}>Separately, of the stored daily captures (which the figures above do <i>not</i> use): </span>}
+          <b>{basis.countedDays} {live?"":"stored capture "}day{basis.countedDays===1?"":"s"} countable</b>
           {" · "}{basis.excludedDayTotal} refused — {excluded.map((x,i)=>(
             <span key={x.reason}>{i>0?"; ":""}<b>{x.days}</b> {x.label.charAt(0).toLowerCase()+x.label.slice(1)}</span>
           ))}.
