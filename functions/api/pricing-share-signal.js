@@ -113,6 +113,20 @@ function classifyShare(deltaPP) {
   return 'flat';
 }
 
+// A provider whose price change the matrix declined to compute. Deliberately
+// outside the 3x3 table: no price regime applies, so no read-through is
+// claimed. "Insufficient data" would be the wrong words — the data is there
+// and the matrix said exactly why it would not divide one figure by the other.
+const TOO_FEW_MATCHED_REGIME = {
+  label: 'Too few models to compare',
+  note: 'The provider\'s lineup changed too much between the two quarters for a like-for-like price change, so none is computed and no price read is made.',
+};
+
+const MEASURE_CHANGED_REGIME = {
+  label: 'Price measure changed',
+  note: 'The source changed how it reports this provider\'s prices between the two quarters, so the price change is not computed and no price read is made.',
+};
+
 /** Human-readable regime label + short interpretation. */
 function regimeFor(priceReg, shareReg) {
   const key = priceReg + '|' + shareReg;
@@ -215,7 +229,13 @@ export async function onRequestGet({ request }) {
       const slug = c.slug;
       if (typeof c.avg !== 'number') continue;
       const priorCell = (priorQuarter && priorQuarter.cells.find(x => x.slug === slug)) || null;
-      const priceQoq = (typeof c.qoq === 'number') ? c.qoq : null;
+      // The matrix now publishes WHY it withheld a change. Reading only c.qoq
+      // loses that: a refused cell and a cell with no prior quarter look
+      // identical, and both end up labelled "Insufficient data".
+      const measureChanged = c.qoqMeasureChanged === true;
+      const tooFewMatched  = c.qoqTooFewMatched === true;
+      const priceRefused   = measureChanged || tooFewMatched;
+      const priceQoq = (!priceRefused && typeof c.qoq === 'number') ? c.qoq : null;
 
       const shareAvg = shareNow && shareNow.get(slug);
       const sharePrev = sharePrior && sharePrior.get(slug);
@@ -227,9 +247,13 @@ export async function onRequestGet({ request }) {
       // quarter) are skipped — being explicit about what we don't know.
       if (typeof shareAvg !== 'number') continue;
 
-      const priceReg = classifyPrice(priceQoq);
+      const priceReg = priceRefused
+        ? (measureChanged ? 'measure_changed' : 'too_few_matched')
+        : classifyPrice(priceQoq);
       const shareReg = classifyShare(shareQoqPP);
-      const regime   = regimeFor(priceReg, shareReg);
+      const regime   = priceRefused
+        ? (measureChanged ? MEASURE_CHANGED_REGIME : TOO_FEW_MATCHED_REGIME)
+        : regimeFor(priceReg, shareReg);
 
       rows.push({
         slug,
@@ -237,8 +261,16 @@ export async function onRequestGet({ request }) {
         avg: c.avg,
         avgLabel: c.avgLabel,
         priceQoq,
-        priceQoqLabel: (typeof priceQoq === 'number') ? ((priceQoq >= 0 ? '+' : '') + (priceQoq * 100).toFixed(1) + '%') : '—',
+        priceQoqLabel: (typeof priceQoq === 'number')
+          ? ((priceQoq >= 0 ? '+' : '') + (priceQoq * 100).toFixed(1) + '%')
+          : measureChanged ? 'measure changed'
+          : tooFewMatched ? 'too few models'
+          : '—',
         priceReg,
+        priceRefused,
+        priceRefusedKind: measureChanged ? 'measure_changed' : tooFewMatched ? 'too_few_matched' : null,
+        priceMeasureChanged: measureChanged,
+        priceQoqReason: priceRefused ? (c.qoqReason || null) : null,
         shareAvg,
         shareAvgLabel: shareAvg.toFixed(1) + '%',
         sharePrev: (typeof sharePrev === 'number') ? sharePrev : null,
@@ -262,7 +294,13 @@ export async function onRequestGet({ request }) {
   let callouts = [];
   const latestObj = allQuarterRows.find(x => x.quarter === latestComparable);
   if (latestObj) {
-    const r = latestObj.rows.filter(x => typeof x.priceQoq === 'number' && typeof x.shareQoqPP === 'number');
+    // Callouts that read price AGAINST share need both. Callouts that read
+    // share alone need only share — dropping a provider from those because its
+    // PRICE comparison was refused throws away a figure that is fully known.
+    const r = latestObj.rows.filter(x =>
+      !x.priceRefused && typeof x.priceQoq === 'number' && typeof x.shareQoqPP === 'number');
+    const shareRows = latestObj.rows.filter(x =>
+      typeof x.shareQoqPP === 'number' && (typeof x.priceQoq === 'number' || x.priceRefused));
 
     const by = (fn) => [...r].sort(fn);
 
@@ -274,7 +312,7 @@ export async function onRequestGet({ request }) {
       detail: biggestCut.priceQoqLabel + ' input · share ' + biggestCut.shareQoqLabel,
     });
 
-    const strongestGainer = by((a,b) => b.shareQoqPP - a.shareQoqPP)[0];
+    const strongestGainer = [...shareRows].sort((a,b) => b.shareQoqPP - a.shareQoqPP)[0];
     if (strongestGainer && strongestGainer.shareQoqPP > 0) callouts.push({
       kind: 'strongest_share_gain',
       title: 'Strongest share gainer',

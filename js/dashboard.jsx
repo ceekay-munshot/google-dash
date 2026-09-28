@@ -400,7 +400,7 @@ function PricingSharePartialView({ header, quarter }){
                     {r.label}
                   </td>
                   <td style={{padding:"8px 10px",borderBottom:"1px solid #f9fafb",fontFamily:"monospace",color:"#111827"}}>{r.avgLabel}</td>
-                  <td style={{padding:"8px 10px",borderBottom:"1px solid #f9fafb",fontFamily:"monospace",fontWeight:600,color:r.priceQoq>0?"#dc2626":r.priceQoq<0?"#059669":"#6b7280"}}>{r.priceQoqLabel}</td>
+                  <td title={r.priceQoqReason||undefined} style={{padding:"8px 10px",borderBottom:"1px solid #f9fafb",fontFamily:"monospace",fontWeight:r.priceRefused?500:600,fontSize:r.priceRefused?10:undefined,cursor:r.priceQoqReason?"help":undefined,color:r.priceRefused?"#6b7280":r.priceQoq>0?"#dc2626":r.priceQoq<0?"#059669":"#6b7280"}}>{r.priceQoqLabel}</td>
                   <td style={{padding:"8px 10px",borderBottom:"1px solid #f9fafb",fontFamily:"monospace",color:"#111827"}}>{r.shareAvgLabel}</td>
                 </tr>
               ))}
@@ -652,7 +652,7 @@ function PricingShareSignalBlock(){
                     {r.label}
                   </td>
                   <td style={{padding:"8px 10px",borderBottom:"1px solid #f9fafb",fontFamily:"monospace",color:"#111827"}}>{r.avgLabel}</td>
-                  <td style={{padding:"8px 10px",borderBottom:"1px solid #f9fafb",fontFamily:"monospace",fontWeight:600,color:r.priceQoq>0?"#dc2626":r.priceQoq<0?"#059669":"#6b7280"}}>{r.priceQoqLabel}</td>
+                  <td title={r.priceQoqReason||undefined} style={{padding:"8px 10px",borderBottom:"1px solid #f9fafb",fontFamily:"monospace",fontWeight:r.priceRefused?500:600,fontSize:r.priceRefused?10:undefined,cursor:r.priceQoqReason?"help":undefined,color:r.priceRefused?"#6b7280":r.priceQoq>0?"#dc2626":r.priceQoq<0?"#059669":"#6b7280"}}>{r.priceQoqLabel}</td>
                   <td style={{padding:"8px 10px",borderBottom:"1px solid #f9fafb",fontFamily:"monospace",fontWeight:600,color:r.shareQoqPP>0?"#059669":r.shareQoqPP<0?"#dc2626":"#6b7280"}}>{r.shareQoqLabel}</td>
                   <td style={{padding:"8px 10px",borderBottom:"1px solid #f9fafb",fontSize:11,color:"#374151",lineHeight:1.35}}>
                     <div style={{fontWeight:600,color:"#111827"}}>{r.regimeLabel}</div>
@@ -697,6 +697,95 @@ function PricingShareSignalBlock(){
 /* Injected by scripts/build-dashboard.mjs as a hash of this file's contents.
    Falls back to "dev" when the module is loaded outside that build (tests). */
 const BUILD=typeof __BUILD__!=="undefined"?__BUILD__:"dev";
+
+/* ═══════════════════════════════════════════════════════
+   CHANGE-OF-MEASURE / LIKE-FOR-LIKE ANNOTATIONS
+   Shared by every model-pricing table below.
+
+   The pricing endpoints now publish, per figure, WHY it is blank and WHAT
+   it rests on. Rendering the number alone and dropping the rest collapses
+   four different situations onto one grey em dash — no prior period, no
+   rows at all, a weighted cell the coverage gate withheld, and a comparison
+   the server deliberately refused — and a reader cannot tell them apart.
+   Everything here exists so a cell can say which it is.
+
+   Amber (#b45309) is already this dashboard's "there is a note here" colour
+   — the QTD/MTD partial badge and the GPU thin-coverage marker use it — so
+   a marker in it reads as an annotation, not as an error.
+═══════════════════════════════════════════════════════ */
+const BREAK_AMBER="#b45309";
+
+/* A refused comparison, NAMED. A refused cell must never look like an empty
+   one: "no data" and "these two figures measure different things" mean
+   opposite things to a reader. The reason itself rides on the cell's title,
+   where the caller has it. */
+function measureChangedTag(){
+  return <span style={{color:BREAK_AMBER,fontSize:9,fontWeight:600,whiteSpace:"nowrap"}}>measure&nbsp;changed</span>;
+}
+/* The other refusal the peer matrix can reach: the two periods share no
+   listing of the model, so a change would compare different SKUs. */
+function listingChangedTag(){
+  return <span style={{color:BREAK_AMBER,fontSize:9,fontWeight:600,whiteSpace:"nowrap"}}>listing&nbsp;changed</span>;
+}
+/* And the provider matrix's third: fewer than two models were priced in both
+   quarters, so there is nothing to compare like for like. */
+function tooFewModelsTag(){
+  return <span style={{color:BREAK_AMBER,fontSize:9,fontWeight:600,whiteSpace:"nowrap"}}>too&nbsp;few&nbsp;models</span>;
+}
+/* A blank with a reason that is neither a refusal nor a gap in the data —
+   "no prior quarter", "no price for this provider here". Still a dash, but a
+   dotted underline says the dash is explained on hover rather than silent. */
+function explainedDash(){
+  return <span style={{color:"#9ca3af",borderBottom:"1px dotted #d1d5db",cursor:"help"}}>—</span>;
+}
+
+/* Marks a LEVEL the source reported after it changed what it reports.
+   MeasureBreakCaption is this marker's legend and the two must ship
+   together: ACP once dropped the caption and kept the dagger, leaving a
+   symbol on screen that no text on the page resolved. */
+function afterChangeMark(){
+  return <sup style={{color:BREAK_AMBER,fontSize:8,fontWeight:700,marginLeft:1}}>&dagger;</sup>;
+}
+/* Marks a CHANGE taken across that day — restated onto the earlier measure
+   at the change's exact factor, so the two sides compare like with like.
+   The figure is real, so the marker is quiet and the number keeps its own
+   directional colour; the restatement is explained on hover. */
+function linkedMark(){
+  return <sup style={{color:BREAK_AMBER,fontSize:8,fontWeight:700,marginLeft:1}}>&Dagger;</sup>;
+}
+
+/* Tooltip for a price cell. basis is the date of the change it was reported
+   after (absent, or the sentinel "origin", on the original measure); left
+   counts observations from the other side that the average leaves out. */
+function afterChangeTitle(basis,left){
+  const parts=[];
+  if(basis&&basis!=="origin")parts.push("As the source reports it after its "+basis+" change — not comparable with figures from before that date.");
+  if(left)parts.push(left+" daily observation"+(left===1?"":"s")+" from the other side of the change "+(left===1?"is":"are")+" left out, so this average rests on one measure.");
+  return parts.length?parts.join(" "):null;
+}
+
+/* The caption for a table whose history contains a day on which the source
+   changed what it reports. It is the legend for BOTH markers above, and it
+   carries the one thing a reader cannot otherwise reconcile: across that day
+   the LEVEL shown is still the figure the source reports today, so a touched
+   model prints a halved dollar amount beside a roughly flat percentage. That
+   pair is correct and reads as a bug unless the caption says why. */
+function MeasureBreakCaption({mb}){
+  const s=mb?.summary;
+  if(!s)return null;
+  // Neutral grey, not amber: growth is linked across the change now, so this
+  // is the key to the markers, not a warning about the figures.
+  return(
+    <div role="note" style={{background:"#f9fafb",border:"0.5px solid #e5e7eb",borderRadius:6,padding:"8px 11px",marginTop:8,fontSize:11,color:"#4b5563",lineHeight:1.55}}>
+      <b style={{fontWeight:700,color:"#374151"}}>{s.headline}</b>{" "}{s.detail}{" "}
+      A <sup style={{color:BREAK_AMBER,fontWeight:700}}>&dagger;</sup> marks a price reported after the change;
+      a <sup style={{color:BREAK_AMBER,fontWeight:700}}>&Dagger;</sup> marks a change restated onto the earlier measure so the two sides compare like with like.
+      {" "}Prices are shown exactly as the source reports them today, so a model the change touched shows a
+      {" "}<b style={{fontWeight:600}}>halved dollar figure beside a roughly flat percentage</b> — both are right: what the
+      source reports changed, the price did not.
+    </div>
+  );
+}
 
 function ModelPricingHistoryBlock(){
   const[metric,setMetric]=useState("input");
@@ -834,15 +923,62 @@ function ModelPricingHistoryBlock(){
                     // reads differently: the sub-label names the gate, and the tooltip
                     // explains it in full rather than leaving a bare dash to interpret.
                     const withheld=weighted&&c.avg===null&&!!c.gate;
-                    // An estimate is offered only where the measured value was withheld AND the
-// server produced one. Two bases, and the sub-label says which: "provisional"
-// is real arithmetic on evidence too thin to publish as measured; "modelled"
-// had no usage at all and is inferred from this provider's own measured
-// weighted-to-list ratio (or peers', which is weaker still).
-                    const showEst=weighted&&c.avg===null&&c.estimateAvgLabel&&view==="avg";
+                    // An estimate is offered only where the measured value was withheld
+                    // AND the server produced one. Two bases, and the sub-label says
+                    // which: "provisional" is real arithmetic on evidence too thin to
+                    // publish as measured; "modelled" had no usage at all and is
+                    // inferred from this provider's own measured weighted-to-list
+                    // ratio (or peers', which is weaker still).
+                    // hasEst holds in EVERY view, not just Avg: QoQ/YoY are now taken
+                    // from the same estimated figure the Avg column shows, so the
+                    // tooltip has to be able to say so there too.
+                    const hasEst=weighted&&c.avg===null&&!!c.estimateAvgLabel;
+                    const showEst=hasEst&&view==="avg";
                     const GATE_SHORT={"series-unavailable":"weights unavailable","no-usage":"no paid OR volume","too-few-models":(c.weightedModelCount||1)+" model only","coverage-unknown":"coverage not measurable","low-coverage":"coverage "+(c.coverageLabel||"low"),"single-model-dominated":"1 model is "+(c.topWeightShareLabel||"most")};
-                    if(view==="qoq"){ main=c.qoqLabel||"—"; color=cellColor(c.qoq); sub=c.avgLabel; }
-                    else if(view==="yoy"){ main=c.yoyLabel||"—"; color=cellColor(c.yoy); sub=c.avgLabel; }
+                    // The per-key annotations the endpoint now publishes beside each
+                    // change. Without them four different situations — no prior quarter,
+                    // no rows, a weighted cell the gate withheld, and a comparison the
+                    // server refused — all arrive as an absent key and print the same
+                    // silent dash, while the Avg cell one row up explains itself.
+                    const k=view==="qoq"?"qoq":view==="yoy"?"yoy":null;
+                    const g=k?{
+                      value:c[k], label:c[k+"Label"],
+                      measureChanged:!!c[k+"MeasureChanged"], tooFew:!!c[k+"TooFewMatched"],
+                      matched:c[k+"MatchedModels"], lineup:c[k+"LineupModels"],
+                      thin:!!c[k+"LowMatchedShare"], linked:!!c[k+"Linked"],
+                      estimated:!!c[k+"Estimated"],
+                      reason:c[k+"Reason"]||null, note:c[k+"Note"]||null,
+                    }:null;
+                    // A refusal names itself in the cell. Every other blank keeps the
+                    // dash but carries its reason on hover — including the last case,
+                    // where the server said nothing because there is simply no price.
+                    const refusedTag=g&&g.value==null
+                      ?(g.measureChanged?measureChangedTag():g.tooFew?tooFewModelsTag():null)
+                      :null;
+                    const blankWhy=g&&g.value==null
+                      ?(g.reason
+                        ||(withheld&&!hasEst
+                          ?"Not computed: this quarter's usage-weighted price was withheld, so there is nothing to compare it from."
+                          :"Not computed: no price for this provider in this quarter."))
+                      :null;
+                    // A figure computed on under half the lineup is still correct for the
+                    // models it names, so it is shown — drawn back, and saying outright
+                    // how many of how many it speaks for.
+                    const weak=!!(g&&g.thin&&g.value!=null);
+                    // Model-day growth is like-for-like: measured on the models priced in
+                    // BOTH quarters, so the lineup average would not reconcile with it and
+                    // the sub-label says what it rests on instead.
+                    const shownLevel=hasEst?c.estimateAvgLabel:c.avgLabel;
+                    const growthSub=()=>g.matched==null?shownLevel
+                      :g.value!=null
+                        ?(g.thin?g.matched+" of "+(g.lineup||c.modelCount||0)+" models like-for-like"
+                                :g.matched+(g.matched===1?" model":" models")+" like-for-like")
+                        :g.matched+" of "+(g.lineup||c.modelCount||0)+" in both qtrs";
+                    if(k){
+                      main=refusedTag||(g.value!=null?<>{g.label}{g.linked&&linkedMark()}</>:explainedDash());
+                      color=cellColor(g.value);
+                      sub=growthSub();
+                    }
                     else {
                       main=c.avgLabel;
                       sub=weighted
@@ -866,14 +1002,14 @@ function ModelPricingHistoryBlock(){
                     // Grey marks an EMPTY cell, not an estimated one. An estimate is
                     // rendered in the measured colour at the owner's explicit
                     // direction, so it cannot be read as weaker data on a slide.
-                    if(withheld&&!showEst) color="#9ca3af";
+                    if(withheld&&!hasEst) color="#9ca3af";
                     const EST_WHY={
                       "measured-ratio":"this provider's own measured weighted-to-list ratio",
                       "provisional-ratio":"this provider's partial usage data, which was too thin to publish as measured",
                       "peer-ratio":"the median weighted-to-list ratio across providers that could be measured",
                     };
                     const tip=weighted
-                      ?(showEst
+                      ?(hasEst
                         ?"ESTIMATE, not measured — "+c.estimateAvgLabel+", from "+
                           (EST_WHY[c.estimateBasis]||"an inferred ratio")+
                           " ("+(c.estimateRatio!=null?"x"+c.estimateRatio.toFixed(2):"—")+
@@ -890,11 +1026,20 @@ function ModelPricingHistoryBlock(){
                           " · "+(c.modelCount||0)+" models priced in this quarter"+
                           (c.qoqLabel?" · QoQ "+c.qoqLabel:"")+(c.yoyLabel?" · YoY "+c.yoyLabel:""))
                       :(c.avgLabel||"—")+" avg · "+(c.modelCount||0)+" models in this quarter · "+(c.obsCount||0)+" daily observations"+(c.qoqLabel?" · QoQ "+c.qoqLabel:"")+(c.yoyLabel?" · YoY "+c.yoyLabel:"");
+                    // A price reported after the source changed what it reports is
+                    // marked; MeasureBreakCaption under the table is that mark's legend.
+                    const afterChange=!!c.basis&&c.basis!=="origin";
+                    const title=[
+                      blankWhy,
+                      g&&g.value!=null?g.note:null,
+                      tip,
+                      afterChangeTitle(afterChange?c.basis:null,c.basisExcludedObs),
+                    ].filter(Boolean).join(" · ");
                     return(
-                      <td key={c.slug} style={{padding:"10px 10px",borderBottom:"1px solid #f9fafb",fontFamily:"monospace",textAlign:"right",fontWeight:600,color,whiteSpace:"nowrap"}}
-                          title={tip}>
-                        <div>{main}</div>
-                        <div style={{fontSize:9,color:withheld&&!showEst?"#d1d5db":"#9ca3af",fontWeight:400,marginTop:1}}>{sub}</div>
+                      <td key={c.slug} style={{padding:"10px 10px",borderBottom:"1px solid #f9fafb",fontFamily:"monospace",textAlign:"right",fontWeight:weak?500:600,color,whiteSpace:"nowrap"}}
+                          title={title||undefined}>
+                        <div style={weak?{opacity:.82}:undefined}>{main}{view==="avg"&&afterChange&&main&&afterChangeMark()}</div>
+                        <div style={{fontSize:9,color:weak?BREAK_AMBER:(withheld&&!hasEst?"#d1d5db":"#9ca3af"),fontWeight:400,marginTop:1}}>{sub}</div>
                       </td>
                     );
                   })}
@@ -919,9 +1064,15 @@ function ModelPricingHistoryBlock(){
       <div style={{fontSize:10,color:"#6b7280",marginTop:8,lineHeight:1.5}}>
         <b style={{color:"#374151"}}>{unitHint}</b>
         {" · "}pricepertoken list prices{weighted?", weighted by OpenRouter token volume":""}
+        {" · QoQ/YoY compare only the models priced in both quarters, so a model being listed or retired is never read as a price move"}
         {weighted&&<>{" · "}hover any cell for its coverage and basis</>}
+        {" · hover any dash for why it is blank"}
         {" · from "}{state.data?.earliestDateObserved||"2025-07-28"}
       </div>
+      {/* The legend for the dagger on post-change prices and the double dagger
+         on linked changes above. It ships WITH the markers, never apart from
+         them: a symbol whose key is missing is worse than no symbol at all. */}
+      <MeasureBreakCaption mb={state.data?.measureBreaks}/>
     </div>
   );
 }
@@ -1095,6 +1246,10 @@ function ModelPricingMatrixTable(){
   const frontierRef=(data?.frontierReference||[]);
   const externalCatalog=data?.externalCatalog||null;
   const coverage=data?.coverage||null;
+  // "Has a comparator", not "has a number": the endpoint sets this true when a
+  // rep had a year-ago period at all, even where the change itself was refused.
+  // So a refused YoY no longer also draws the "No comparator yet" note beneath
+  // the section title — the cell's own reason is the right and only account.
   const yoyAvailable=coverage?coverage[G.yoyAvailableKey]!==false:true;
   if(!periods.length||!reps.length){
     return(
@@ -1158,8 +1313,13 @@ function ModelPricingMatrixTable(){
     const matchedSummary=(rep.matchedModels||[]).length
       ? rep.matchedModels.length+" upstream variant"+(rep.matchedModels.length===1?"":"s")+" matched: "+rep.matchedModels.join(", ")
       : "no upstream model matched";
+    // Listings that matched the name but that the source prices as a separate
+    // SKU — left out of every figure in this row, each with the evidence.
+    // Without this the row would simply be missing a listing with no account
+    // of it anywhere on the page.
+    const setAside=(rep.setAsideModels||[]).map(x=>"Left out "+x.model+" — "+x.reason);
     return(
-      <td style={tdFirst} title={matchedSummary}>
+      <td style={tdFirst} title={[matchedSummary,...setAside].join("\n")}>
         <div style={{lineHeight:1.25}}>
           <div style={{fontWeight:600,color:"#111827"}}>{rep.label}</div>
           <div style={{fontSize:10,color:"#9ca3af",fontFamily:"ui-monospace,SFMono-Regular,Menlo,monospace"}}>{rep.modelDisplay}</div>
@@ -1172,16 +1332,55 @@ function ModelPricingMatrixTable(){
       {renderModelLabel(rep)}
       {periods.map(p=>{
         const val=rep[metricKey]?.[p.id];
-        return(<td key={p.id} style={tdMain}>{fmtPrice(val)}</td>);
+        // Which measure this level rests on, and how many observations from
+        // the other side of the change it leaves out.
+        const basis=rep.priceBasis?.[metricKey]?.[p.id];
+        const why=afterChangeTitle(basis,rep.basisExcludedObs?.[metricKey]?.[p.id]);
+        return(
+          <td key={p.id} style={tdMain} title={why||undefined}>
+            {fmtPrice(val)}{val!=null&&basis&&basis!=="origin"&&afterChangeMark()}
+          </td>
+        );
       })}
     </tr>
   );
+  // YoY needs the same period a year earlier, and the source's history only
+  // starts at earliestDateObserved: every period before that has no year-ago
+  // price by construction. Said on hover so a run of dashes in the YoY rows
+  // reads as "not yet possible" rather than "missing".
+  const historyStart=data.earliestDateObserved||null;
+  const historyStartPid=historyStart
+    ?(gran==="month"?historyStart.slice(0,7):historyStart.slice(0,4)+"-Q"+(Math.floor((+historyStart.slice(5,7)-1)/3)+1))
+    :null;
+  const hasYearAgo=pid=>{const ya=finYearPriorPeriodId(pid);return!!historyStartPid&&!!ya&&ya>=historyStartPid;};
+  const isYoY=key=>key===G.yoy.input||key===G.yoy.output;
+  // Four things could empty a change cell and they do not mean the same thing:
+  // the source changed what it reports between the two periods, the two
+  // periods share no listing of this model, there is no year-ago period at
+  // all, or there is simply no price. Each gets its own words. A change that
+  // WAS computed across the source's change of reporting is a real number and
+  // is shown as one, with a quiet marker and the restatement on hover.
   const renderChangeRow=(rep,key)=>(
     <tr key={key+"-"+rep.key}>
       {renderModelLabel(rep)}
       {periods.map(p=>{
         const val=rep[key]?.[p.id];
-        return(<td key={p.id} style={tdDim}>{fmtChange(val)}</td>);
+        const measureWhy=val==null?rep.measureChanged?.[key]?.[p.id]:null;
+        const listingWhy=val==null&&!measureWhy?rep.listingChanged?.[key]?.[p.id]:null;
+        const linkedWhy=val!=null?rep.linkedChange?.[key]?.[p.id]:null;
+        const noYearAgo=val==null&&!measureWhy&&!listingWhy&&isYoY(key)&&!hasYearAgo(p.id)&&historyStart
+          ?"No year-ago price to compare with: the source's price history starts "+historyStart+"."
+          :null;
+        const why=measureWhy||listingWhy||linkedWhy||noYearAgo
+          ||(val==null?"No price for this model in both "+periodIdToLabel(p.id,gran)+" and the period it is compared with.":null);
+        return(
+          <td key={p.id} style={tdDim} title={why||undefined}>
+            {measureWhy?measureChangedTag()
+              :listingWhy?listingChangedTag()
+              :val==null?explainedDash()
+              :<>{fmtChange(val)}{linkedWhy&&linkedMark()}</>}
+          </td>
+        );
       })}
     </tr>
   );
@@ -1305,9 +1504,26 @@ function ModelPricingMatrixTable(){
                               );
                             }
                             const val=row[section.key]?.[p.id];
+                            if(section.kind==="price"){
+                              const basis=row.priceBasis?.[section.key]?.[p.id];
+                              return(
+                                <td key={p.id} style={tdMain} title={afterChangeTitle(basis)||undefined}>
+                                  {fmtPrice(val)}{val!=null&&basis&&basis!=="origin"&&afterChangeMark()}
+                                </td>
+                              );
+                            }
+                            // Same rule as the matrix above, on this surface's own
+                            // field names (chgInput / momInput): a refused change is
+                            // named and a linked one is shown as the real number it is.
+                            const measureWhy=val==null?row.measureChanged?.[section.key]?.[p.id]:null;
+                            const linkedWhy=val!=null?row.linkedChange?.[section.key]?.[p.id]:null;
+                            const why=measureWhy||linkedWhy
+                              ||(val==null?"No frontier price in both "+periodIdToLabel(p.id,gran)+" and the period before it, so the frontier's cost change is not computed.":null);
                             return(
-                              <td key={p.id} style={section.kind==="price"?tdMain:tdDim}>
-                                {section.kind==="price"?fmtPrice(val):fmtChange(val)}
+                              <td key={p.id} style={tdDim} title={why||undefined}>
+                                {measureWhy?measureChangedTag()
+                                  :val==null?explainedDash()
+                                  :<>{fmtChange(val)}{linkedWhy&&linkedMark()}</>}
                               </td>
                             );
                           })}
@@ -1429,8 +1645,13 @@ function ModelPricingMatrixTable(){
       })()}
 
       <div style={{fontSize:10,color:"#9ca3af",lineHeight:1.5,marginTop:6}}>
-        <b style={{color:"#6b7280",fontWeight:600}}>Methodology:</b> Prices use pricepertoken historical model-level rows, averaged by {G.bucketWord} and shown as $/1M tokens. {G.chgLabel}/YoY compare only valid full historical periods; {G.partialBadge} growth is suppressed. Fixed representative models keep growth math comparable; the Frontier Reference shows how the latest frontier label — and its price — change by period. Alternate-billing SKUs (<code style={{fontFamily:"ui-monospace,SFMono-Regular,Menlo,monospace"}}>:batch</code>, <code style={{fontFamily:"ui-monospace,SFMono-Regular,Menlo,monospace"}}>:beta</code>, <code style={{fontFamily:"ui-monospace,SFMono-Regular,Menlo,monospace"}}>:thinking</code>) and sibling product lines (GPT-5 Pro vs GPT-5, <code style={{fontFamily:"ui-monospace,SFMono-Regular,Menlo,monospace"}}>-customtools</code>, <code style={{fontFamily:"ui-monospace,SFMono-Regular,Menlo,monospace"}}>-fast</code>) are excluded from every average — each would otherwise register as a price move when only the upstream catalog changed. Firecrawl is used only as an advisory model-discovery signal, never for pricing math.
+        <b style={{color:"#6b7280",fontWeight:600}}>Methodology:</b> Prices use pricepertoken historical model-level rows, averaged by {G.bucketWord} and shown as $/1M tokens. {G.chgLabel}/YoY compare only valid full historical periods; {G.partialBadge} growth is suppressed. Fixed representative models keep growth math comparable; the Frontier Reference shows how the latest frontier label — and its price — change by period. Alternate-billing SKUs (<code style={{fontFamily:"ui-monospace,SFMono-Regular,Menlo,monospace"}}>:batch</code>, <code style={{fontFamily:"ui-monospace,SFMono-Regular,Menlo,monospace"}}>:beta</code>, <code style={{fontFamily:"ui-monospace,SFMono-Regular,Menlo,monospace"}}>:thinking</code>) and sibling product lines (GPT-5 Pro vs GPT-5, <code style={{fontFamily:"ui-monospace,SFMono-Regular,Menlo,monospace"}}>-customtools</code>, <code style={{fontFamily:"ui-monospace,SFMono-Regular,Menlo,monospace"}}>-fast</code>) are excluded from every average — each would otherwise register as a price move when only the upstream catalog changed. Each row is priced from the model's own listing; a dated snapshot the source prices differently from the model itself is a separate SKU and is left out (hover the model name), and {G.chgLabel}/YoY compare only the listings both periods carry, so a listing arriving or leaving never reads as a price move. Firecrawl is used only as an advisory model-discovery signal, never for pricing math.
+        {data.measureBreaks?.summary&&<> Where the source changed what it reports mid-history, each period averages one measure only and a price reported after it carries a <sup style={{color:BREAK_AMBER,fontWeight:700}}>&dagger;</sup>; {G.chgLabel}/YoY across the change compare like with like — each model the change moved is compared at its reported price times the change's exact factor, marked <sup style={{color:BREAK_AMBER,fontWeight:700}}>&Dagger;</sup>. Only a model first listed after the change cannot be linked, and reads <span style={{color:BREAK_AMBER,fontWeight:600}}>measure changed</span>.</>}
       </div>
+      {/* The legend for both markers used in the tables above. Rendered from
+         the same response that produces the markers, so the two cannot drift
+         apart — a dagger on screen with no key is unreadable. */}
+      <MeasureBreakCaption mb={data.measureBreaks}/>
     </div>
   );
 }
@@ -5019,7 +5240,19 @@ function GoogleGeminiPricingTable(){
                           <div style={{fontSize:10,color:"#9ca3af",fontFamily:"ui-monospace,SFMono-Regular,Menlo,monospace"}}>{r.sub}</div>
                         </div>
                       </td>
-                      {periods.map(p=>(<td key={p.id} style={tdMain}>{fmtPrice(r.model[priceKey]?.[p.id])}</td>))}
+                      {periods.map(p=>{
+                        const v=r.model[priceKey]?.[p.id];
+                        // Which measure this period's level rests on — a level
+                        // reported after the source changed what it reports is not
+                        // comparable with one from before, and says so.
+                        const basis=r.model.priceBasis?.[priceKey]?.[p.id];
+                        const why=afterChangeTitle(basis,r.model.basisExcludedObs?.[priceKey]?.[p.id]);
+                        return(
+                          <td key={p.id} style={tdMain} title={why||undefined}>
+                            {fmtPrice(v)}{v!=null&&basis&&basis!=="origin"&&afterChangeMark()}
+                          </td>
+                        );
+                      })}
                     </tr>
                   );
                 }
@@ -5028,7 +5261,27 @@ function GoogleGeminiPricingTable(){
                   return(
                     <tr key={i}>
                       <td style={{...tdFirst,padding:"4px 10px 6px 30px",color:"#6b7280",fontSize:10}}>{r.label}</td>
-                      {periods.map(p=>(<td key={p.id} style={tdDim}>{fmtChange(r.model[growthKey]?.[p.id])}</td>))}
+                      {periods.map(p=>{
+                        const v=r.model[growthKey]?.[p.id];
+                        // Same four-way distinction as the peer matrix: refused
+                        // because the source changed what it reports, refused
+                        // because the two periods share no listing, computed across
+                        // the change and restated onto the earlier measure, or
+                        // simply absent. Never one dash for all four.
+                        const measureWhy=v==null?r.model.measureChanged?.[growthKey]?.[p.id]:null;
+                        const listingWhy=v==null&&!measureWhy?r.model.listingChanged?.[growthKey]?.[p.id]:null;
+                        const linkedWhy=v!=null?r.model.linkedChange?.[growthKey]?.[p.id]:null;
+                        const why=measureWhy||listingWhy||linkedWhy
+                          ||(v==null?"No price for this model in both "+labelOf(p.id)+" and the period before it, so there is nothing to compare.":null);
+                        return(
+                          <td key={p.id} style={tdDim} title={why||undefined}>
+                            {measureWhy?measureChangedTag()
+                              :listingWhy?listingChangedTag()
+                              :v==null?explainedDash()
+                              :<>{fmtChange(v)}{linkedWhy&&linkedMark()}</>}
+                          </td>
+                        );
+                      })}
                     </tr>
                   );
                 }
@@ -5039,8 +5292,12 @@ function GoogleGeminiPricingTable(){
         </div>
       </div>
       <div style={{fontSize:10,color:"#9ca3af",lineHeight:1.5,marginTop:6}}>
-        {models.length} Google/Gemini models from pricepertoken historical rows. Models sorted by most-recent observation per tier. Specialty includes image, audio, TTS, embedding, computer-use modes.
+        {models.length} Google/Gemini models from pricepertoken historical rows. Models sorted by most-recent observation per tier. Specialty includes image, audio, TTS, embedding, computer-use modes. Hover any dash for why that cell is blank.
       </div>
+      {/* Legend for the markers the rows above print. Google's models are the
+         ones the 2026-07-10 change touched hardest, so this table is the one
+         where a halved price beside a flat percentage most needs explaining. */}
+      <MeasureBreakCaption mb={data.measureBreaks}/>
     </div>
   );
 }

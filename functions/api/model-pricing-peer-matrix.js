@@ -37,6 +37,8 @@
  *     (mini / lite / flash / haiku / nano / micro). This catches dated /
  *     preview / exp variants of the same model class while rejecting
  *     same-family-different-tier names.
+ *   Matching decides which listings ARE the model; it does not decide which
+ *   of them price it. See "Which listings price a representative" below.
  *
  * Response shape:
  *   {
@@ -47,6 +49,9 @@
  *         key, provider, tier, label, modelDisplay, chosenCandidateNorms,
  *         input, output, qoqInput, qoqOutput, yoyInput, yoyOutput,
  *         obsCount, matchedModels, hasData,
+ *         setAsideModels: [{ model, reason }],            // separately priced SKUs
+ *         priceBasis, basisExcludedObs, measureChanged,   // _model-price-basis.js
+ *         listingChanged,                                 // changes refused: no shared listing
  *         repFreshness: {
  *           status: 'OK' | 'WATCH' | 'REVIEW' | 'STALE',
  *           reason: '...combined evidence sentence...',
@@ -83,6 +88,22 @@
  * human decision; this audit just tells the operator when their fixed reps
  * may be stale.
  */
+
+import {
+  readPrice,
+  rowDay,
+  buildBasisBook,
+  createTally,
+  tallyFor,
+  addToTally,
+  mergeTallies,
+  resolveTally,
+  resolvePeriodTallies,
+  growthSeries,
+  periodLabel,
+  sparse,
+  describeMeasureBreaks,
+} from './_model-price-basis.js';
 
 const UPSTREAM_BASE = 'https://api.pricepertoken.com/api/provider-pricing-history/';
 const CACHE_TTL = 86400; // 24 hours — Firecrawl + pricepertoken responses both
@@ -528,6 +549,159 @@ function modelMatches(modelStr, targetNorm) {
   return true;
 }
 
+/* ─────────────────────────────────────────────────────────────────────
+   Which listings price a representative.
+
+   modelMatches() finds every upstream listing of a model: its OWN name
+   (gpt-4o — the name that normalizes exactly to a candidate norm) and its
+   dated / preview re-publishes (gpt-4o-2024-08-06, gemini-2.5-pro-preview).
+   The source publishes a price for each listing, and they are not always the
+   same product: OpenAI still sells the pinned May-2024 snapshot
+   gpt-4o-2024-05-13 at $5 / $15 while gpt-4o is $2.50 / $10. Averaging every
+   listing's rows reported GPT-4o at $3.125 / $11.25 — a price no GPT-4o SKU
+   has — and would have reported a -20% "price cut" the day the snapshot was
+   delisted, with no price changing anywhere.
+
+   The rule, per period:
+
+     1. The model's own name prices it. A re-publish adds nothing when it
+        carries the same price and describes a different SKU when it does
+        not, so neither moves the number while the own name is listed.
+     2. Re-publishes stand in only for a period the own name is not listed
+        (the source can list a dated name before, or after, the alias).
+     3. A re-publish that the source ever prices differently from the own
+        name on a day it lists both is a separately priced SKU. It never
+        stands in and is reported, with the evidence, in setAsideModels.
+
+   Changes are like-for-like: QoQ / MoM / YoY compare only the listings both
+   periods carry, chosen by the same rule. A listing arriving or leaving —
+   Gemini 3 Pro Preview handing over to 3.1 Pro Preview, an alias appearing
+   after its dated name — therefore never registers as a price move. Where
+   the two periods share no listing at all, the change is refused and says
+   why (listingChanged), in the manner of _model-price-basis.js.
+
+   Nothing the source published is altered: every figure is the average of
+   prices it reported for a listing of the model.
+   ───────────────────────────────────────────────────────────────────── */
+
+/** The listings, of those given, that price a period: own names when any are present, else the rest. */
+function pricingListings(names, ownNorms) {
+  const all = Array.from(names).sort();
+  const own = all.filter(m => ownNorms.has(normalizeModel(m)));
+  return own.length ? own : all;
+}
+
+function fmtPerM(v) {
+  if (v === null) return 'no price';
+  const x = v * 1_000_000;
+  return '$' + (x >= 1 ? x.toFixed(2) : x.toFixed(3));
+}
+
+/**
+ * Re-publishes the source prices differently from the model's own name on a
+ * day it lists both (rule 3). Returns Map(model -> reason), the reason citing
+ * the first such day.
+ */
+function setAsideListings(rows, ownNorms) {
+  const ownByDay = new Map();
+  const others = [];
+  for (const row of rows) {
+    const day = rowDay(row);
+    if (!day || typeof row?.model !== 'string') continue;
+    if (ownNorms.has(normalizeModel(row.model))) {
+      let list = ownByDay.get(day);
+      if (!list) ownByDay.set(day, (list = []));
+      list.push(row);
+    } else {
+      others.push(row);
+    }
+  }
+  others.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+  const out = new Map();
+  for (const row of others) {
+    if (out.has(row.model)) continue;
+    const day = rowDay(row);
+    const own = ownByDay.get(day);
+    if (!own) continue;
+    const same = own.some(o => ['input', 'output'].every(m => readPrice(o, m) === readPrice(row, m)));
+    if (same) continue;
+    const o = own[0];
+    out.set(row.model,
+      'On ' + day + ' the source listed ' + row.model + ' at ' +
+      fmtPerM(readPrice(row, 'input')) + ' input / ' + fmtPerM(readPrice(row, 'output')) + ' output per 1M tokens and ' +
+      o.model + ' at ' + fmtPerM(readPrice(o, 'input')) + ' / ' + fmtPerM(readPrice(o, 'output')) +
+      '. It is a separately priced SKU, not this model\'s price, so it is left out of every figure in this row.');
+  }
+  return out;
+}
+
+/** The per-listing tallies of one period, created on first use. */
+function listingsFor(map, pid) {
+  let m = map.get(pid);
+  if (!m) map.set(pid, (m = new Map()));
+  return m;
+}
+
+/** period -> the tally its level rests on (rule 1 / 2 applied to its listings). */
+function levelTallies(byPeriod, ownNorms) {
+  const out = new Map();
+  for (const [pid, listings] of byPeriod) {
+    out.set(pid, mergeTallies(pricingListings(listings.keys(), ownNorms).map(m => listings.get(m))));
+  }
+  return out;
+}
+
+function listingChangeReason(cur, prior, priorLabel) {
+  return (
+    'Not comparable: the source lists this model as ' + cur.join(', ') + ' here and as ' +
+    prior.join(', ') + ' in ' + priorLabel + '. No listing appears in both periods, so the gap ' +
+    'would compare different listings, not a price move.'
+  );
+}
+
+/**
+ * Like-for-like change for one series. byPeriod is period -> listing -> tally.
+ * Each pair of periods is compared over the listings both carry, picked by
+ * the same rule as the level; the comparison itself — and its refusal across
+ * a change of measure — is growthSeries() from _model-price-basis.js.
+ *
+ * Returns { growth, measureChanged, listingChanged, linked }, each
+ * { [pid]: ... }; `linked` holds the note for a change taken across the
+ * source's change of reporting (see linkedGrowth in _model-price-basis.js).
+ */
+function likeForLikeGrowth(byPeriod, priorOf, { skip = null, events = [], ownNorms }) {
+  const growth = {}, measureChanged = {}, listingChanged = {}, linked = {};
+  for (const [pid, cur] of byPeriod) {
+    if (pid === skip) continue;
+    const ppid = priorOf(pid);
+    const prior = ppid ? byPeriod.get(ppid) : null;
+    if (!prior || !cur.size || !prior.size) continue;
+    const shared = pricingListings([...cur.keys()].filter(m => prior.has(m)), ownNorms);
+    if (!shared.length) {
+      listingChanged[pid] = listingChangeReason(
+        pricingListings(cur.keys(), ownNorms), pricingListings(prior.keys(), ownNorms), periodLabel(ppid));
+      continue;
+    }
+    const pair = resolvePeriodTallies(new Map([
+      [pid, mergeTallies(shared.map(m => cur.get(m)))],
+      [ppid, mergeTallies(shared.map(m => prior.get(m)))],
+    ]));
+    const one = growthSeries(pair.levels, p => (p === pid ? ppid : null), { events });
+    if (pid in one.growth) {
+      growth[pid] = one.growth[pid];
+      // Across the source's change of reporting, linked at its exact factor.
+      if (pid in one.linked) linked[pid] = one.linked[pid];
+    } else if (pid in one.measureChanged) measureChanged[pid] = one.measureChanged[pid];
+  }
+  return { growth, measureChanged, listingChanged, linked };
+}
+
+/** Whether any of a rep's change `fields` had a prior period — computed or refused. */
+function hadComparator(rep, ...fields) {
+  return fields.some(f => [rep[f], rep.measureChanged?.[f], rep.listingChanged?.[f]]
+    .some(m => Object.keys(m || {}).length > 0));
+}
+
 function quarterOf(dateStr) {
   const y = parseInt(dateStr.slice(0, 4), 10);
   const m = parseInt(dateStr.slice(5, 7), 10);
@@ -594,7 +768,63 @@ function currentMonthKey() {
   return d.getUTCFullYear() + '-' + String(d.getUTCMonth() + 1).padStart(2, '0');
 }
 
-function round3(n) { return Math.round(n * 1000) / 1000; }
+/**
+ * Levels and changes for one priced series, at quarter and month grain.
+ *
+ * `t` holds four period -> listing -> tally maps (qIn, qOut, mIn, mOut), and
+ * `ownNorms` the normalized names that ARE the model (see "Which listings
+ * price a representative"). Every level rests on one measure and every change
+ * is computed — or refused — by _model-price-basis.js, like-for-like over the
+ * listings both periods carry. The in-progress quarter and month are left out
+ * of every change, as before.
+ *
+ * priceBasis / basisExcludedObs / measureChanged / listingChanged are keyed by
+ * the field they annotate (input, inputMonthly, qoqInput, momOutput, ...), so
+ * a renderer looks one up with the key it already reads the value by. All are
+ * sparse — only periods off the original measure, only refused changes — and
+ * absent altogether on a series nothing touched.
+ */
+function periodSeries(t, todayQ, todayM, books, ownNorms) {
+  const lvl = byPeriod => resolvePeriodTallies(levelTallies(byPeriod, ownNorms));
+  const qIn = lvl(t.qIn), qOut = lvl(t.qOut);
+  const mIn = lvl(t.mIn), mOut = lvl(t.mOut);
+  const evIn = books.input.events, evOut = books.output.events;
+  const g = (byPeriod, priorFn, skip, events) => likeForLikeGrowth(byPeriod, priorFn, { skip, events, ownNorms });
+  const qoqIn  = g(t.qIn, priorQuarter, todayQ, evIn),   qoqOut  = g(t.qOut, priorQuarter, todayQ, evOut);
+  const yoyIn  = g(t.qIn, yearAgoQuarter, todayQ, evIn), yoyOut  = g(t.qOut, yearAgoQuarter, todayQ, evOut);
+  const momIn  = g(t.mIn, priorMonth, todayM, evIn),     momOut  = g(t.mOut, priorMonth, todayM, evOut);
+  const yoyMIn = g(t.mIn, yearAgoMonth, todayM, evIn),   yoyMOut = g(t.mOut, yearAgoMonth, todayM, evOut);
+  return {
+    input: qIn.values, output: qOut.values,
+    inputMonthly: mIn.values, outputMonthly: mOut.values,
+    qoqInput: qoqIn.growth, qoqOutput: qoqOut.growth,
+    momInput: momIn.growth, momOutput: momOut.growth,
+    yoyInput: yoyIn.growth, yoyOutput: yoyOut.growth,
+    yoyInputMonthly: yoyMIn.growth, yoyOutputMonthly: yoyMOut.growth,
+    priceBasis: sparse({ input: qIn.basis, output: qOut.basis, inputMonthly: mIn.basis, outputMonthly: mOut.basis }),
+    basisExcludedObs: sparse({ input: qIn.excluded, output: qOut.excluded, inputMonthly: mIn.excluded, outputMonthly: mOut.excluded }),
+    measureChanged: sparse({
+      qoqInput: qoqIn.measureChanged, qoqOutput: qoqOut.measureChanged,
+      momInput: momIn.measureChanged, momOutput: momOut.measureChanged,
+      yoyInput: yoyIn.measureChanged, yoyOutput: yoyOut.measureChanged,
+      yoyInputMonthly: yoyMIn.measureChanged, yoyOutputMonthly: yoyMOut.measureChanged,
+    }),
+    linkedChange: sparse({
+      qoqInput: qoqIn.linked, qoqOutput: qoqOut.linked,
+      momInput: momIn.linked, momOutput: momOut.linked,
+      yoyInput: yoyIn.linked, yoyOutput: yoyOut.linked,
+      yoyInputMonthly: yoyMIn.linked, yoyOutputMonthly: yoyMOut.linked,
+    }),
+    listingChanged: sparse({
+      qoqInput: qoqIn.listingChanged, qoqOutput: qoqOut.listingChanged,
+      momInput: momIn.listingChanged, momOutput: momOut.listingChanged,
+      yoyInput: yoyIn.listingChanged, yoyOutput: yoyOut.listingChanged,
+      yoyInputMonthly: yoyMIn.listingChanged, yoyOutputMonthly: yoyMOut.listingChanged,
+    }),
+    // Observations each level rests on; callers turn this into obsCount.
+    _n: { input: qIn.n, output: qOut.n, inputMonthly: mIn.n, outputMonthly: mOut.n },
+  };
+}
 
 /* Per-model history aggregation — used for the Google all-models view.
    Reads a provider fetch result and returns one entry per distinct upstream
@@ -602,7 +832,7 @@ function round3(n) { return Math.round(n * 1000) / 1000; }
    change ratios. Matches the same scaling, partial-period suppression, and
    field-name conventions used by the rep-level math above so the client
    renderer can reuse its formatters. */
-function buildPerModelHistory(providerData, todayQ, todayM) {
+function buildPerModelHistory(providerData, todayQ, todayM, books) {
   if (!providerData || !Array.isArray(providerData.rows) || !providerData.rows.length) return [];
 
   const byModel = new Map();
@@ -618,8 +848,9 @@ function buildPerModelHistory(providerData, todayQ, todayM) {
         firstDate: row.date,
         lastDate: row.date,
         obsCount: 0,
-        qBuckets: new Map(),
-        mBuckets: new Map(),
+        // period -> listing -> tally, per metric and grain (see periodSeries);
+        // the one listing is this model
+        qIn: new Map(), qOut: new Map(), mIn: new Map(), mOut: new Map(),
       };
       byModel.set(key, entry);
     }
@@ -627,70 +858,39 @@ function buildPerModelHistory(providerData, todayQ, todayM) {
     if (row.date > entry.lastDate)  entry.lastDate  = row.date;
     entry.obsCount += 1;
 
+    const day = rowDay(row);
     const qid = quarterOf(row.date);
     const mid = monthOf(row.date);
-    if (!entry.qBuckets.has(qid)) entry.qBuckets.set(qid, { sumIn:0, nIn:0, sumOut:0, nOut:0 });
-    if (!entry.mBuckets.has(mid)) entry.mBuckets.set(mid, { sumIn:0, nIn:0, sumOut:0, nOut:0 });
-    const qb = entry.qBuckets.get(qid);
-    const mb = entry.mBuckets.get(mid);
-    const inP  = row?.pricing_prompt;
-    const outP = row?.pricing_completion;
-    if (typeof inP  === 'number' && isFinite(inP)  && inP  >= 0) { qb.sumIn  += inP;  qb.nIn  += 1; mb.sumIn  += inP;  mb.nIn  += 1; }
-    if (typeof outP === 'number' && isFinite(outP) && outP >= 0) { qb.sumOut += outP; qb.nOut += 1; mb.sumOut += outP; mb.nOut += 1; }
+    const qIn = tallyFor(listingsFor(entry.qIn, qid), key), qOut = tallyFor(listingsFor(entry.qOut, qid), key);
+    const mIn = tallyFor(listingsFor(entry.mIn, mid), key), mOut = tallyFor(listingsFor(entry.mOut, mid), key);
+    // >= 0 on purpose: each model is its own row here, so a genuinely free
+    // model shows as free (the rep math below keeps > 0).
+    const inP  = readPrice(row, 'input',  { allowZero: true });
+    const outP = readPrice(row, 'output', { allowZero: true });
+    if (inP !== null) {
+      const b = books.input.basisOf(providerData.slug, row.model, day);
+      const l = books.input.linkOf(providerData.slug, row.model, day);
+      addToTally(qIn, b, inP, undefined, l); addToTally(mIn, b, inP, undefined, l);
+    }
+    if (outP !== null) {
+      const b = books.output.basisOf(providerData.slug, row.model, day);
+      const l = books.output.linkOf(providerData.slug, row.model, day);
+      addToTally(qOut, b, outP, undefined, l); addToTally(mOut, b, outP, undefined, l);
+    }
   }
 
   const out = [];
   for (const e of byModel.values()) {
-    const input = {}, output = {};
-    for (const [qid, b] of e.qBuckets) {
-      input[qid]  = b.nIn  ? round3((b.sumIn  / b.nIn)  * 1_000_000) : null;
-      output[qid] = b.nOut ? round3((b.sumOut / b.nOut) * 1_000_000) : null;
-    }
-    const inputMonthly = {}, outputMonthly = {};
-    for (const [mid, b] of e.mBuckets) {
-      inputMonthly[mid]  = b.nIn  ? round3((b.sumIn  / b.nIn)  * 1_000_000) : null;
-      outputMonthly[mid] = b.nOut ? round3((b.sumOut / b.nOut) * 1_000_000) : null;
-    }
-
-    // Per-quarter QoQ/YoY (same partial-period suppression as the rep math)
-    const qoqInput = {}, qoqOutput = {}, yoyInput = {}, yoyOutput = {};
-    for (const qid of Object.keys(input)) {
-      if (qid === todayQ) continue;
-      const pq = priorQuarter(qid), yq = yearAgoQuarter(qid);
-      const inCur = input[qid], outCur = output[qid];
-      const inPri = input[pq],  outPri = output[pq];
-      const inYa  = input[yq],  outYa  = output[yq];
-      if (inCur  != null && inPri  != null && inPri  > 0) qoqInput[qid]  = round3((inCur  - inPri)  / inPri);
-      if (inCur  != null && inYa   != null && inYa   > 0) yoyInput[qid]  = round3((inCur  - inYa)   / inYa);
-      if (outCur != null && outPri != null && outPri > 0) qoqOutput[qid] = round3((outCur - outPri) / outPri);
-      if (outCur != null && outYa  != null && outYa  > 0) yoyOutput[qid] = round3((outCur - outYa)  / outYa);
-    }
-
-    const momInput = {}, momOutput = {}, yoyInputMonthly = {}, yoyOutputMonthly = {};
-    for (const mid of Object.keys(inputMonthly)) {
-      if (mid === todayM) continue;
-      const pm = priorMonth(mid), ym = yearAgoMonth(mid);
-      const inCur = inputMonthly[mid], outCur = outputMonthly[mid];
-      const inPri = inputMonthly[pm],  outPri = outputMonthly[pm];
-      const inYa  = inputMonthly[ym], outYa  = outputMonthly[ym];
-      if (inCur  != null && inPri  != null && inPri  > 0) momInput[mid]         = round3((inCur  - inPri)  / inPri);
-      if (inCur  != null && inYa   != null && inYa   > 0) yoyInputMonthly[mid]  = round3((inCur  - inYa)   / inYa);
-      if (outCur != null && outPri != null && outPri > 0) momOutput[mid]        = round3((outCur - outPri) / outPri);
-      if (outCur != null && outYa  != null && outYa  > 0) yoyOutputMonthly[mid] = round3((outCur - outYa)  / outYa);
-    }
-
+    // Same partial-period suppression and the same change-of-measure rule as
+    // the rep math, from the same routine.
+    const { _n, ...series } = periodSeries(e, todayQ, todayM, books, new Set([e.norm]));
     out.push({
       model: e.model,
       norm: e.norm,
       firstDate: e.firstDate.slice(0, 10),
       lastDate: e.lastDate.slice(0, 10),
       obsCount: e.obsCount,
-      input, output,
-      inputMonthly, outputMonthly,
-      qoqInput, qoqOutput,
-      momInput, momOutput,
-      yoyInput, yoyOutput,
-      yoyInputMonthly, yoyOutputMonthly,
+      ...series,
     });
   }
 
@@ -880,8 +1080,10 @@ function computeRepFreshness(rep, providerData, externalCatalog) {
   //     same model class, intentionally),
   //   - have firstDate strictly later than the rep's own firstDate,
   //   - have ≥REP_FRESHNESS_PP_STABLE_OBS observations.
-  // Aggregate per distinct upstream model name.
-  const repModelSet = new Set(rep.matchedModels || []);
+  // Aggregate per distinct upstream model name. A set-aside listing matched
+  // the rep's name too — it is a separately priced SKU of this model, not a
+  // newer one — so it is part of the set.
+  const repModelSet = new Set([...(rep.matchedModels || []), ...(rep.setAsideModels || []).map(s => s.model)]);
   // A candidate model that is a version-bump sibling of any rep norm
   // (e.g. claude-opus-4.7 vs rep claude-opus-4) or a tier sibling
   // (e.g. gpt-5-mini vs rep gpt-5) is the SAME class for fixed-rep
@@ -991,6 +1193,16 @@ export async function onRequestGet({ request, env }) {
     }, 502, { 'Cache-Control': 'no-store' });
   }
 
+  // Which measure every row sits on, decided once from this response's own
+  // rows (see _model-price-basis.js). Input and output are detected
+  // separately: the source could change one without the other.
+  const books = {
+    input: buildBasisBook(fetched, 'input'),
+    output: buildBasisBook(fetched, 'output'),
+  };
+  const todayQ = currentQuarterKey();
+  const todayM = currentMonthKey();
+
   const allQuarters = new Set();
   const allMonths = new Set();
   let earliestDate = null;
@@ -998,8 +1210,10 @@ export async function onRequestGet({ request, env }) {
   // For each rep model, walk its candidate list and pick the FIRST candidate
   // with at least one matching upstream row. Each candidate may declare a
   // SET of norms (`norms: [...]`) — when a flagship transitions across
-  // closely-related sub-versions (e.g. Gemini 3 Pro → 3.1 Pro), all matching
-  // rows from the set are aggregated into one continuous series.
+  // closely-related sub-versions (e.g. Gemini 3 Pro → 3.1 Pro), each norm's
+  // own name prices the row while it is listed, into one continuous series.
+  // Which matched listings price a period, and what a change compares, is the
+  // rule under "Which listings price a representative".
   // Buckets are accumulated at BOTH quarter and month granularity so the
   // client can render either view without a second round-trip.
   const reps = PEER_MODELS.map(rep => {
@@ -1018,9 +1232,11 @@ export async function onRequestGet({ request, env }) {
       }
     }
 
+    const ownNorms = new Set(chosen ? (chosen.norms || [chosen.norm]) : []);
+    const setAside = setAsideListings(matched, ownNorms);
     const matchedModelSet = new Set();
-    const buckets = new Map();
-    const monthBuckets = new Map();
+    // period -> listing -> tally, per metric and grain (see periodSeries)
+    const t = { qIn: new Map(), qOut: new Map(), mIn: new Map(), mOut: new Map() };
     for (const row of matched) {
       const dateStr = row?.date;
       if (typeof dateStr !== 'string' || dateStr.length < 10) continue;
@@ -1029,38 +1245,40 @@ export async function onRequestGet({ request, env }) {
       const mid = monthOf(dateStr);
       allQuarters.add(qid);
       allMonths.add(mid);
-      if (!buckets.has(qid)) buckets.set(qid, { sumIn: 0, nIn: 0, sumOut: 0, nOut: 0 });
-      if (!monthBuckets.has(mid)) monthBuckets.set(mid, { sumIn: 0, nIn: 0, sumOut: 0, nOut: 0 });
-      const b = buckets.get(qid);
-      const mb = monthBuckets.get(mid);
-      const inP  = row?.pricing_prompt;
-      const outP = row?.pricing_completion;
+      if (setAside.has(row.model)) continue;
+      const day = rowDay(row);
+      const qIn = listingsFor(t.qIn, qid), qOut = listingsFor(t.qOut, qid);
+      const mIn = listingsFor(t.mIn, mid), mOut = listingsFor(t.mOut, mid);
       // Strictly > 0: a $0.00 observation on a paid model class is a free /
       // experimental SKU that upstream files under the same family (Google's
       // gemini-2.5-pro-exp-* rows are $0.00). Averaging those in drags the
       // rep's price toward zero and reads as a price cut that never happened.
       // buildPerModelHistory below keeps >= 0 on purpose — there each model is
       // its own row, so a genuinely free model should show as free.
-      if (typeof inP  === 'number' && isFinite(inP)  && inP  > 0) { b.sumIn  += inP;  b.nIn  += 1; mb.sumIn  += inP;  mb.nIn  += 1; }
-      if (typeof outP === 'number' && isFinite(outP) && outP > 0) { b.sumOut += outP; b.nOut += 1; mb.sumOut += outP; mb.nOut += 1; }
+      const inP  = readPrice(row, 'input');
+      const outP = readPrice(row, 'output');
+      if (inP !== null) {
+        const b = books.input.basisOf(rep.providerSlug, row.model, day);
+        const l = books.input.linkOf(rep.providerSlug, row.model, day);
+        addToTally(tallyFor(qIn, row.model), b, inP, row.model, l); addToTally(tallyFor(mIn, row.model), b, inP, row.model, l);
+      }
+      if (outP !== null) {
+        const b = books.output.basisOf(rep.providerSlug, row.model, day);
+        const l = books.output.linkOf(rep.providerSlug, row.model, day);
+        addToTally(tallyFor(qOut, row.model), b, outP, row.model, l); addToTally(tallyFor(mOut, row.model), b, outP, row.model, l);
+      }
       if (row.model) matchedModelSet.add(row.model);
     }
 
-    const input = {}, output = {}, obsCount = {};
-    for (const [qid, b] of buckets) {
-      // Upstream is $/token; scale to $/1M for display parity with the rest
-      // of the dashboard's pricing surfaces.
-      input[qid]  = b.nIn  ? round3((b.sumIn  / b.nIn)  * 1_000_000) : null;
-      output[qid] = b.nOut ? round3((b.sumOut / b.nOut) * 1_000_000) : null;
-      obsCount[qid] = b.nIn || b.nOut;
-    }
-
-    const inputMonthly = {}, outputMonthly = {}, monthObsCount = {};
-    for (const [mid, mb] of monthBuckets) {
-      inputMonthly[mid]  = mb.nIn  ? round3((mb.sumIn  / mb.nIn)  * 1_000_000) : null;
-      outputMonthly[mid] = mb.nOut ? round3((mb.sumOut / mb.nOut) * 1_000_000) : null;
-      monthObsCount[mid] = mb.nIn || mb.nOut;
-    }
+    // Upstream is $/token; periodSeries scales to $/1M for display parity
+    // with the rest of the dashboard's pricing surfaces, prices each period
+    // from the model's own listing, puts its level on one measure, and
+    // computes every change like-for-like with the refusal rule.
+    const { _n, ...series } = periodSeries(t, todayQ, todayM, books, ownNorms);
+    const obsCount = {}, monthObsCount = {};
+    for (const qid of Object.keys(series.input)) obsCount[qid] = _n.input[qid] || _n.output[qid];
+    for (const mid of Object.keys(series.inputMonthly)) monthObsCount[mid] = _n.inputMonthly[mid] || _n.outputMonthly[mid];
+    const { input, output, inputMonthly, outputMonthly } = series;
 
     return {
       key: rep.key,
@@ -1081,55 +1299,34 @@ export async function onRequestGet({ request, env }) {
       inputMonthly,
       outputMonthly,
       monthObsCount,
+      // QoQ / YoY (quarterly) and MoM / YoY (monthly) for input + output.
+      // The in-progress quarter and month are suppressed so a partial
+      // average is never compared against a full one, and a comparison
+      // across a change of measure is refused, its reason in measureChanged.
+      // Each compares only the listings both periods carry; where they share
+      // none, it is refused with its reason in listingChanged.
+      qoqInput: series.qoqInput,
+      qoqOutput: series.qoqOutput,
+      yoyInput: series.yoyInput,
+      yoyOutput: series.yoyOutput,
+      momInput: series.momInput,
+      momOutput: series.momOutput,
+      yoyInputMonthly: series.yoyInputMonthly,
+      yoyOutputMonthly: series.yoyOutputMonthly,
+      priceBasis: series.priceBasis,
+      basisExcludedObs: series.basisExcludedObs,
+      measureChanged: series.measureChanged,
+      listingChanged: series.listingChanged,
+      // A change taken across the source's change of reporting, linked at its
+      // exact factor: the note for the cell's tooltip.
+      linkedChange: series.linkedChange,
+      // Listings of this model the row may be priced from, and those that
+      // matched its name but that the source prices as a separate SKU.
       matchedModels: Array.from(matchedModelSet).sort(),
-      _buckets: buckets,
+      setAsideModels: Array.from(setAside, ([model, reason]) => ({ model, reason }))
+        .sort((a, b) => (a.model < b.model ? -1 : 1)),
     };
   });
-
-  const todayQ = currentQuarterKey();
-  const todayM = currentMonthKey();
-
-  // Compute QoQ / YoY for input + output. Suppress for the QTD quarter so
-  // partial-quarter averages don't get compared against full quarters.
-  // Same logic mirrored at month granularity into momInput/momOutput/
-  // yoyInputMonthly/yoyOutputMonthly so consumers can pick the granularity
-  // they want without a second round-trip.
-  for (const rep of reps) {
-    rep.qoqInput = {};
-    rep.qoqOutput = {};
-    rep.yoyInput = {};
-    rep.yoyOutput = {};
-    for (const qid of Object.keys(rep.input)) {
-      if (qid === todayQ) continue;
-      const pq = priorQuarter(qid);
-      const yq = yearAgoQuarter(qid);
-      const inCur = rep.input[qid],  outCur = rep.output[qid];
-      const inPri = rep.input[pq],   outPri = rep.output[pq];
-      const inYa  = rep.input[yq],   outYa  = rep.output[yq];
-      if (inCur  != null && inPri  != null && inPri  > 0) rep.qoqInput[qid]  = round3((inCur  - inPri)  / inPri);
-      if (inCur  != null && inYa   != null && inYa   > 0) rep.yoyInput[qid]  = round3((inCur  - inYa)   / inYa);
-      if (outCur != null && outPri != null && outPri > 0) rep.qoqOutput[qid] = round3((outCur - outPri) / outPri);
-      if (outCur != null && outYa  != null && outYa  > 0) rep.yoyOutput[qid] = round3((outCur - outYa)  / outYa);
-    }
-
-    rep.momInput = {};
-    rep.momOutput = {};
-    rep.yoyInputMonthly = {};
-    rep.yoyOutputMonthly = {};
-    for (const mid of Object.keys(rep.inputMonthly)) {
-      if (mid === todayM) continue; // suppress MTD vs full-month comparisons
-      const pm = priorMonth(mid);
-      const ym = yearAgoMonth(mid);
-      const inCur = rep.inputMonthly[mid],  outCur = rep.outputMonthly[mid];
-      const inPri = rep.inputMonthly[pm],   outPri = rep.outputMonthly[pm];
-      const inYa  = rep.inputMonthly[ym],   outYa  = rep.outputMonthly[ym];
-      if (inCur  != null && inPri  != null && inPri  > 0) rep.momInput[mid]         = round3((inCur  - inPri)  / inPri);
-      if (inCur  != null && inYa   != null && inYa   > 0) rep.yoyInputMonthly[mid]  = round3((inCur  - inYa)   / inYa);
-      if (outCur != null && outPri != null && outPri > 0) rep.momOutput[mid]        = round3((outCur - outPri) / outPri);
-      if (outCur != null && outYa  != null && outYa  > 0) rep.yoyOutputMonthly[mid] = round3((outCur - outYa)  / outYa);
-    }
-    delete rep._buckets;
-  }
 
   // Quarters chronological so the renderer reads left → right
   const quarters = Array.from(allQuarters).sort().map(qid => {
@@ -1164,7 +1361,7 @@ export async function onRequestGet({ request, env }) {
      deliberately separate) measure from the fixed-rep matrix above, which is
      the one to read for same-model repricing. The UI labels both. */
   function buildFrontierSeries(provider, rules, periodOf, currentPeriodKey, priorPeriodFn, yearAgoPeriodFn) {
-    // period -> model -> price accumulator
+    // period -> model -> { in, out } tallies, each observation on its measure
     const byPeriod = new Map();
     for (const row of provider?.rows || []) {
       if (typeof row?.date !== 'string' || row.date.length < 10) continue;
@@ -1175,22 +1372,23 @@ export async function onRequestGet({ request, env }) {
       // Alternate-billing rows never represent the frontier — same exclusion
       // the rep math applies, for the same reason.
       if (ALT_BILLING_SKU.test(row.model)) continue;
-      const acc = models.get(row.model) || { sumIn: 0, nIn: 0, sumOut: 0, nOut: 0 };
-      const inP = row?.pricing_prompt, outP = row?.pricing_completion;
-      if (typeof inP  === 'number' && isFinite(inP)  && inP  > 0) { acc.sumIn  += inP;  acc.nIn  += 1; }
-      if (typeof outP === 'number' && isFinite(outP) && outP > 0) { acc.sumOut += outP; acc.nOut += 1; }
+      const acc = models.get(row.model) || { in: createTally(), out: createTally() };
+      const day = rowDay(row);
+      const inP = readPrice(row, 'input'), outP = readPrice(row, 'output');
+      if (inP  !== null) addToTally(acc.in,  books.input.basisOf(provider.slug, row.model, day),  inP,  row.model, books.input.linkOf(provider.slug, row.model, day));
+      if (outP !== null) addToTally(acc.out, books.output.basisOf(provider.slug, row.model, day), outP, row.model, books.output.linkOf(provider.slug, row.model, day));
       models.set(row.model, acc);
     }
 
-    const cells = {}, input = {}, output = {};
+    const cells = {}, tIn = new Map(), tOut = new Map();
     for (const [pid, models] of byPeriod) {
       // Feed the picker each model observed in THIS period with its own
-      // average input price, so "priciest variant of the winning generation"
-      // is decided on what the period actually charged.
-      const entries = Array.from(models.entries()).map(([model, acc]) => ({
-        model,
-        avgInput: acc.nIn ? (acc.sumIn / acc.nIn) * 1_000_000 : null,
-      }));
+      // average input price, on one measure, so "priciest variant of the
+      // winning generation" is decided on what the period actually charged.
+      const entries = Array.from(models.entries()).map(([model, acc]) => {
+        const r = resolveTally(acc.in);
+        return { model, avgInput: r.mean === null ? null : r.mean * 1_000_000 };
+      });
       const picked = pickFrontier(entries, rules);
       if (!picked) { cells[pid] = null; continue; }
       cells[pid] = {
@@ -1201,33 +1399,33 @@ export async function onRequestGet({ request, env }) {
         viaFallback: picked.viaFallback,
         matchedVariants: picked.matchedVariants,
       };
-      // Price the frontier across every variant of the winning model class
-      // in this period (dated re-publishes of the same model).
-      let sumIn = 0, nIn = 0, sumOut = 0, nOut = 0;
-      for (const m of picked.matchedVariants) {
-        const acc = models.get(m);
-        if (!acc) continue;
-        sumIn += acc.sumIn; nIn += acc.nIn; sumOut += acc.sumOut; nOut += acc.nOut;
-      }
-      input[pid]  = nIn  ? round3((sumIn  / nIn)  * 1_000_000) : null;
-      output[pid] = nOut ? round3((sumOut / nOut) * 1_000_000) : null;
+      // Price the frontier from the winning model's own listing, on one
+      // measure — the rule the rep rows use (pricingListings). Its dated
+      // re-publishes are named in matchedVariants but never averaged in: one
+      // the source prices differently is a separate SKU.
+      const pricedFrom = pricingListings(picked.matchedVariants, new Set([normalizeModel(picked.model)]));
+      tIn.set(pid, mergeTallies(pricedFrom.map(m => models.get(m)?.in)));
+      tOut.set(pid, mergeTallies(pricedFrom.map(m => models.get(m)?.out)));
     }
+    const rIn = resolvePeriodTallies(tIn), rOut = resolvePeriodTallies(tOut);
 
     // Period-over-period and year-over-year on the frontier cost series.
-    // Suppressed for the in-progress period, same rule as the rep matrix.
-    const chgInput = {}, chgOutput = {}, yoyInput = {}, yoyOutput = {};
-    for (const pid of Object.keys(input)) {
-      if (pid === currentPeriodKey) continue;
-      const pp = priorPeriodFn(pid), yp = yearAgoPeriodFn(pid);
-      const inCur = input[pid],  outCur = output[pid];
-      const inPri = input[pp],   outPri = output[pp];
-      const inYa  = input[yp],   outYa  = output[yp];
-      if (inCur  != null && inPri  != null && inPri  > 0) chgInput[pid]  = round3((inCur  - inPri)  / inPri);
-      if (outCur != null && outPri != null && outPri > 0) chgOutput[pid] = round3((outCur - outPri) / outPri);
-      if (inCur  != null && inYa   != null && inYa   > 0) yoyInput[pid]  = round3((inCur  - inYa)   / inYa);
-      if (outCur != null && outYa  != null && outYa  > 0) yoyOutput[pid] = round3((outCur - outYa)  / outYa);
-    }
-    return { cells, input, output, chgInput, chgOutput, yoyInput, yoyOutput };
+    // Suppressed for the in-progress period, same rule as the rep matrix, and
+    // refused across a change of measure, same rule again.
+    const g = (res, fn, events) => growthSeries(res.levels, fn, { skip: currentPeriodKey, events });
+    const chgIn = g(rIn, priorPeriodFn, books.input.events),   chgOut = g(rOut, priorPeriodFn, books.output.events);
+    const yoyIn = g(rIn, yearAgoPeriodFn, books.input.events), yoyOut = g(rOut, yearAgoPeriodFn, books.output.events);
+    return {
+      cells,
+      input: rIn.values, output: rOut.values,
+      chgInput: chgIn.growth, chgOutput: chgOut.growth,
+      yoyInput: yoyIn.growth, yoyOutput: yoyOut.growth,
+      basisIn: rIn.basis, basisOut: rOut.basis,
+      refusedChgIn: chgIn.measureChanged, refusedChgOut: chgOut.measureChanged,
+      refusedYoyIn: yoyIn.measureChanged, refusedYoyOut: yoyOut.measureChanged,
+      linkedChgIn: chgIn.linked, linkedChgOut: chgOut.linked,
+      linkedYoyIn: yoyIn.linked, linkedYoyOut: yoyOut.linked,
+    };
   }
 
   const frontierReference = FRONTIER_REFERENCE_PROVIDERS.map(prov => {
@@ -1288,6 +1486,20 @@ export async function onRequestGet({ request, env }) {
       momOutput: m.chgOutput,
       yoyInputMonthly: m.yoyInput,
       yoyOutputMonthly: m.yoyOutput,
+      // Same annotations as the rep rows, keyed by the field they annotate.
+      priceBasis: sparse({ input: q.basisIn, output: q.basisOut, inputMonthly: m.basisIn, outputMonthly: m.basisOut }),
+      measureChanged: sparse({
+        chgInput: q.refusedChgIn, chgOutput: q.refusedChgOut,
+        yoyInput: q.refusedYoyIn, yoyOutput: q.refusedYoyOut,
+        momInput: m.refusedChgIn, momOutput: m.refusedChgOut,
+        yoyInputMonthly: m.refusedYoyIn, yoyOutputMonthly: m.refusedYoyOut,
+      }),
+      linkedChange: sparse({
+        chgInput: q.linkedChgIn, chgOutput: q.linkedChgOut,
+        yoyInput: q.linkedYoyIn, yoyOutput: q.linkedYoyOut,
+        momInput: m.linkedChgIn, momOutput: m.linkedChgOut,
+        yoyInputMonthly: m.linkedYoyIn, yoyOutputMonthly: m.linkedYoyOut,
+      }),
     };
   });
 
@@ -1324,7 +1536,7 @@ export async function onRequestGet({ request, env }) {
   // let the renderer decide how to group, so the classifier stays close to
   // the visual logic.
   const googleProvider = byProvider.get('google');
-  const googleModels = buildPerModelHistory(googleProvider, todayQ, todayM);
+  const googleModels = buildPerModelHistory(googleProvider, todayQ, todayM, books);
 
   // External catalog is OPTIONAL — used only for discovery/freshness drift.
   // Pricing math (avg, QoQ, YoY) above is fully sourced from pricepertoken
@@ -1364,10 +1576,25 @@ export async function onRequestGet({ request, env }) {
       'Alternate-billing SKUs (:batch, :beta, :thinking, :free, :extended, :exacto) and ' +
       'sibling product lines (gpt-5-pro vs gpt-5, *-customtools, *-fast) are excluded from ' +
       'every price average, as are $0.00 experimental rows — each of these would otherwise ' +
-      'register as a price move when only the upstream catalog changed. externalCatalog (when ' +
+      'register as a price move when only the upstream catalog changed. Each row is priced from ' +
+      'the model\'s own listing (gpt-4o); dated or preview re-publishes of it stand in only for a ' +
+      'period the own listing is absent, and one the source prices differently from the model ' +
+      'itself (gpt-4o-2024-05-13) is a separate SKU and is left out. Changes compare only the ' +
+      'listings both periods carry, so a listing arriving or leaving is never read as a price ' +
+      'move; where the two periods share none, the change is not computed. Where the source changed ' +
+      'what it reports — many models moving by one exact factor on the same day — each period ' +
+      'averages one measure only and changes across it are not computed. externalCatalog (when ' +
       'enabled) is a Firecrawl-discovered list of models the provider currently ' +
       'documents, used purely as a freshness audit signal — pricing math never reads it.',
     earliestDateObserved: earliestDate ? earliestDate.slice(0, 10) : null,
+    // Every day on which the source changed what it reports, found from this
+    // response's own rows, and the plain-words caption the matrix shows for it.
+    measureBreaks: {
+      input: books.input.events,
+      output: books.output.events,
+      summary: describeMeasureBreaks([books.input.events, books.output.events],
+        slug => PEER_MODELS.find(r => r.providerSlug === slug)?.provider || slug),
+    },
     // Coverage — lets the client explain an empty change section instead of
     // rendering a wall of dashes with no reason given. Upstream history
     // starts 2025-07-28, so no QUARTER yet has a year-ago comparator (the
@@ -1377,10 +1604,13 @@ export async function onRequestGet({ request, env }) {
     coverage: {
       quarterCount: quarters.length,
       monthCount: months.length,
-      quarterlyYoYAvailable: reps.some(r => Object.keys(r.yoyInput || {}).length > 0
-                                         || Object.keys(r.yoyOutput || {}).length > 0),
-      monthlyYoYAvailable:   reps.some(r => Object.keys(r.yoyInputMonthly || {}).length > 0
-                                         || Object.keys(r.yoyOutputMonthly || {}).length > 0),
+      //
+      // "Has a comparator", not "has a number": a YoY refused because the
+      // source changed what it reports in between, or because the two periods
+      // share no listing, still HAD its year-ago period, and must not be
+      // explained away as "no comparator yet".
+      quarterlyYoYAvailable: reps.some(r => hadComparator(r, 'yoyInput', 'yoyOutput')),
+      monthlyYoYAvailable:   reps.some(r => hadComparator(r, 'yoyInputMonthly', 'yoyOutputMonthly')),
     },
     quarters,
     months,
