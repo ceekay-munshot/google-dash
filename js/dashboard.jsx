@@ -261,14 +261,91 @@ function FilingAnchorRow(){
   );
 }
 
+/* ── SHARE BASIS — what the share column actually counts ──────────
+   The share figures on this page used to come from the stored daily
+   captures. They do not any more: /api/pricing-share-signal reads
+   OpenRouter's weekly market-share series, which counts ALL OpenRouter
+   traffic, free tiers included. The stored daily rankings were filtered to
+   paid traffic on 2026-09-16 and carry no variant before it, so a paid-only
+   history does not exist and cannot be reconstructed — all-traffic is not a
+   preference, it is the only basis with history.
+
+   Same column, different measure. Printing the new number under the old
+   caption would be exactly the silent substitution the endpoint refuses to
+   make, so the basis is NAMED wherever a share figure or a share change
+   appears. `basis` is shareBasis: one shape on the live and the fallback
+   path, so this renders without branching on which one answered. */
+function ShareBasisBanner({basis}){
+  if(!basis)return null;
+  // Both flags must agree before this is presented as the live weekly basis.
+  // `fallback` is the endpoint's own verdict; disagreement is read the safe
+  // way, as a fallback, because the fallback caption claims less.
+  const live=basis.fallback!==true&&basis.source==="live-weekly";
+  const excluded=basis.excludedDays||[];
+  return(
+    <div style={{background:live?"#f5f3ff":"#fffbeb",border:"0.5px solid "+(live?"#ddd6fe":"#fde68a"),borderRadius:8,padding:"8px 12px",marginBottom:12,fontSize:11,color:live?"#4c1d95":"#78350f",lineHeight:1.5}}>
+      <div>
+        <b>Share basis: {basis.label}</b>
+        {live
+          ? <> — all OpenRouter traffic, including free tiers. This is <i>not</i> the paid-only figure the stored snapshots produced; the two are different measures and must not be read as the same number.</>
+          : <> — the live weekly series could not be read{basis.liveError?" ("+basis.liveError+")":""}, so share falls back to the stored daily captures.</>}
+      </div>
+      {basis.note&&<div style={{marginTop:3,opacity:0.85}}>{basis.note}</div>}
+      {live&&basis.weeks>0&&(
+        <div style={{marginTop:3,opacity:0.85}}>
+          {basis.weeks} weekly period{basis.weeks===1?"":"s"} read · {basis.firstWeek} to {basis.lastWeek}.
+        </div>
+      )}
+      {excluded.length>0&&(
+        <div style={{marginTop:4}}>
+          <b>{basis.countedDays} stored capture day{basis.countedDays===1?"":"s"} countable</b>
+          {" · "}{basis.excludedDayTotal} refused — {excluded.map((x,i)=>(
+            <span key={x.reason}>{i>0?"; ":""}<b>{x.days}</b> {x.label.charAt(0).toLowerCase()+x.label.slice(1)}</span>
+          ))}.
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* Periods a WHOLE quarter would hold, so a quarter resting on fewer can say
+   so instead of wearing a label its coverage does not support. 13 ISO weeks
+   on the weekly basis; the quarter's own calendar days on the stored-daily
+   one. Returns null for anything that is not a YYYY-Qn key. */
+function quarterPeriodSpan(quarterId,unit){
+  const m=/^(\d{4})-Q([1-4])$/.exec(String(quarterId||""));
+  if(!m)return null;
+  if(unit==="week")return 13;
+  const y=+m[1],q=+m[2];
+  const start=Date.UTC(y,(q-1)*3,1);
+  const end=q===4?Date.UTC(y+1,0,1):Date.UTC(y,q*3,1);
+  return Math.round((end-start)/86400000);
+}
+
+/* One quarter's share coverage in words: how many periods stood behind it,
+   how many a whole quarter holds, and — when it is short — that it is short.
+   A quarter still in progress is short for a reason the reader already has,
+   so it is named as QTD rather than reported as a shortfall. */
+function shareCoverageNote(quarterId,periods,unit,partial){
+  if(typeof periods!=="number")return null;
+  const u=unit||"period";
+  const span=quarterPeriodSpan(quarterId,u);
+  const word=u+(periods===1?"":"s");
+  if(partial)return periods+" "+word+" so far (quarter still in progress)";
+  if(span!=null&&periods<span)return periods+" of "+span+" "+u+"s — the rest were not countable";
+  return periods+" "+word;
+}
+
 /* Partial-mode render: used when KV share history hasn't yet crossed a
    quarter boundary, so shareQoqPP is null everywhere. We pivot the Y axis
    from "share QoQ (pp)" to "current share (%)" — still useful because the
    reader can see which providers moved price AND where they sit in share
    rank right now. Disappears automatically once a prior-quarter snapshot
    exists in KV and the main block is renderable again. */
-function PricingSharePartialView({ header, quarter }){
+function PricingSharePartialView({ header, quarter, basis={}, sourceNote }){
   const rows=(quarter.rows||[]).filter(r=>typeof r.priceQoq==="number"&&typeof r.shareAvg==="number");
+  const shareUnit=quarter.sharePeriodUnit||"period";
+  const coverage=shareCoverageNote(quarter.quarter,quarter.sharePeriods,shareUnit,quarter.partial);
   const W=520,H=360,pL=44,pR=18,pT=22,pB=32;
   const xMax=Math.max(5,...rows.map(r=>Math.abs(r.priceQoq*100)))*1.15;
   const yMax=Math.max(5,...rows.map(r=>r.shareAvg))*1.12;
@@ -321,9 +398,13 @@ function PricingSharePartialView({ header, quarter }){
         {quarter.partial&&<span style={{marginLeft:5,fontSize:9,background:"#ecfeff",color:"#0e7490",padding:"1px 5px",borderRadius:3,fontWeight:600}}>QTD</span>}
         <span style={{color:"#9ca3af"}}> · {rows.length} providers · partial view</span>
       </div>
+      {/* The measure, before any share figure below it — this view shows the
+          share LEVEL, and the level moved basis too. */}
+      <ShareBasisBanner basis={basis}/>
       {/* Explanation banner */}
       <div style={{background:"#fffbeb",border:"0.5px solid #fde68a",borderRadius:8,padding:"8px 12px",marginBottom:12,fontSize:11,color:"#78350f",lineHeight:1.45}}>
-        <b>Share QoQ pending.</b> Prior-quarter KV snapshots not yet captured, so share-delta can't be computed. Showing Price QoQ vs <i>current</i> share % instead — full view returns automatically once the next quarter of snapshots lands.
+        <b>Share QoQ pending.</b> No prior quarter is observable at the comparison depth, so share-delta can't be computed. Showing Price QoQ vs <i>current</i> share % instead — the full view returns automatically once a prior quarter is observable.
+        {typeof quarter.shareDepth==="number"&&<> Read to the top <b>{quarter.shareDepth}</b> providers{coverage?<>, on {coverage}</>:null}.</>}
       </div>
       {/* Callouts limited to what's computable from a single quarter */}
       <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(210px,1fr))",gap:8,marginBottom:12}}>
@@ -387,7 +468,7 @@ function PricingSharePartialView({ header, quarter }){
           <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
             <thead>
               <tr>
-                {["Provider","Avg Price /1M","Price QoQ","Current Share"].map(h=>(
+                {["Provider","Avg Price /1M","Price QoQ","Current Share ("+(basis.measure==="all-traffic"?"all OR traffic":"as captured")+")"].map(h=>(
                   <th key={h} style={{...S.lbl,textAlign:"left",padding:"8px 10px",borderBottom:"1px solid #f3f4f6",background:"#fafafa"}}>{h}</th>
                 ))}
               </tr>
@@ -401,7 +482,10 @@ function PricingSharePartialView({ header, quarter }){
                   </td>
                   <td style={{padding:"8px 10px",borderBottom:"1px solid #f9fafb",fontFamily:"monospace",color:"#111827"}}>{r.avgLabel}</td>
                   <td title={r.priceQoqReason||undefined} style={{padding:"8px 10px",borderBottom:"1px solid #f9fafb",fontFamily:"monospace",fontWeight:r.priceRefused?500:600,fontSize:r.priceRefused?10:undefined,cursor:r.priceQoqReason?"help":undefined,color:r.priceRefused?"#6b7280":r.priceQoq>0?"#dc2626":r.priceQoq<0?"#059669":"#6b7280"}}>{r.priceQoqLabel}</td>
-                  <td style={{padding:"8px 10px",borderBottom:"1px solid #f9fafb",fontFamily:"monospace",color:"#111827"}}>{r.shareAvgLabel}</td>
+                  <td style={{padding:"8px 10px",borderBottom:"1px solid #f9fafb",fontFamily:"monospace",color:"#111827"}}>
+                    {r.shareAvgLabel}
+                    <div style={{fontFamily:"inherit",fontSize:9.5,color:"#9ca3af",marginTop:1}}>{r.sharePeriods} of {quarter.sharePeriods} {shareUnit}{quarter.sharePeriods===1?"":"s"}</div>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -409,9 +493,10 @@ function PricingSharePartialView({ header, quarter }){
         </div>
       </div>
       <div style={{display:"flex",flexWrap:"wrap",gap:"4px 10px",fontSize:10,color:"#6b7280",marginTop:8,lineHeight:1.5}}>
-        <span><b style={{color:"#374151"}}>Scope:</b> partial view — Price QoQ shown, Share QoQ unavailable until a prior-quarter KV snapshot exists</span>
-        <span>·</span>
-        <span><b style={{color:"#374151"}}>Sources:</b> pricepertoken provider pricing history + canonical HISTORY_KV OpenRouter snapshots</span>
+        <span><b style={{color:"#374151"}}>Scope:</b> partial view — Price QoQ shown, Share QoQ unavailable until a prior quarter is observable at this depth</span>
+      </div>
+      <div style={{fontSize:10,color:"#9ca3af",marginTop:4,lineHeight:1.5}}>
+        <b style={{color:"#6b7280"}}>Sources:</b> {sourceNote}
       </div>
     </div>
   );
@@ -507,7 +592,7 @@ function PricingShareSignalBlock(){
         </div>
       );
     }
-    return <PricingSharePartialView header={header} quarter={partialQuarter}/>;
+    return <PricingSharePartialView header={header} quarter={partialQuarter} basis={d.shareBasis} sourceNote={d.sourceNote}/>;
   }
 
   /* SVG quadrant — Price QoQ % on x, Share QoQ pp on y.
@@ -516,7 +601,19 @@ function PricingShareSignalBlock(){
      they never collide with dots near the origin. H is tuned so the SVG
      renders tall enough to visually balance the signal table alongside it. */
   const W=520,H=360,pL=40,pR=18,pT=22,pB=32;
+  /* The SCATTER needs both numbers — a dot cannot be placed without an x and
+     a y. The TABLE does not: a provider whose price comparison the matrix
+     refused, or whose share had no prior-quarter observation at the
+     comparison depth, still has figures that are fully known, and dropping
+     the whole row hid them behind nothing at all. The table therefore shows
+     every row the quarter published and states the reason in the cell that
+     cannot carry a number. */
   const rows=latest.rows.filter(r=>typeof r.priceQoq==="number"&&typeof r.shareQoqPP==="number");
+  const tableRows=latest.rows;
+  const basis=d.shareBasis||{};
+  const shareUnit=latest.sharePeriodUnit||"period";
+  const coverageNow=shareCoverageNote(latest.quarter,latest.sharePeriods,shareUnit,latest.partial);
+  const coveragePrior=shareCoverageNote(d.priorComparable,latest.priorSharePeriods,shareUnit,false);
   let xMax=Math.max(5,...rows.map(r=>Math.abs(r.priceQoq*100)))*1.15;
   let yMax=Math.max(1,...rows.map(r=>Math.abs(r.shareQoqPP)))*1.3;
   const sx=(v)=>pL+((v+xMax)/(2*xMax))*(W-pL-pR);
@@ -561,11 +658,26 @@ function PricingShareSignalBlock(){
     <div style={{marginBottom:16}}>
       {header}
 
+      {/* What the share column counts — named before any share figure below it. */}
+      <ShareBasisBanner basis={basis}/>
+
       {/* Latest-quarter tag */}
-      <div style={{fontSize:11,color:"#6b7280",marginBottom:8}}>
+      <div style={{fontSize:11,color:"#6b7280",marginBottom:4}}>
         Latest comparable quarter: <b style={{color:"#111827",fontFamily:"monospace"}}>{d.latestComparable}</b>
         {latest.partial&&<span style={{marginLeft:5,fontSize:9,background:"#ecfeff",color:"#0e7490",padding:"1px 5px",borderRadius:3,fontWeight:600}}>QTD</span>}
-        <span style={{color:"#9ca3af"}}> vs {d.priorComparable} · {rows.length} providers observed in both dimensions</span>
+        <span style={{color:"#9ca3af"}}> vs {d.priorComparable} · {tableRows.length} providers, {rows.length} with both a price and a share change</span>
+      </div>
+
+      {/* What the comparison rests on. shareDepth is the number of providers
+          BOTH quarters were read to — share of a 10-row list is structurally
+          larger than share of a 30-row list, so neither side is read deeper
+          than the other. sharePeriods / priorSharePeriods say how much of
+          each quarter actually stood behind it, so a quarter carrying fewer
+          periods than its label implies is not presented as a whole one. */}
+      <div style={{fontSize:10.5,color:"#6b7280",marginBottom:10,lineHeight:1.5}}>
+        Read to the top <b style={{color:"#374151"}}>{latest.shareDepth}</b> providers in both quarters
+        {coverageNow&&<> · <b style={{color:"#374151"}}>{d.latestComparable}</b>: {coverageNow}</>}
+        {coveragePrior&&<> · <b style={{color:"#374151"}}>{d.priorComparable}</b>: {coveragePrior}</>}
       </div>
 
       {/* Callout chips */}
@@ -639,13 +751,13 @@ function PricingShareSignalBlock(){
           <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
             <thead>
               <tr>
-                {["Provider","Avg Price /1M","Price QoQ","Share QoQ","Regime / Interpretation"].map(h=>(
+                {["Provider","Avg Price /1M","Price QoQ","Share ("+(basis.measure==="all-traffic"?"all OR traffic":"as captured")+")","Share QoQ","Regime / Interpretation"].map(h=>(
                   <th key={h} style={{...S.lbl,textAlign:"left",padding:"8px 10px",borderBottom:"1px solid #f3f4f6",background:"#fafafa"}}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {rows.map(r=>(
+              {tableRows.map(r=>(
                 <tr key={r.slug}>
                   <td style={{padding:"8px 10px",borderBottom:"1px solid #f9fafb",fontWeight:600,color:"#111827",whiteSpace:"nowrap"}}>
                     <span style={{display:"inline-block",width:8,height:8,borderRadius:"50%",background:regimeColor(r.priceReg,r.shareReg),marginRight:6,verticalAlign:"middle"}}/>
@@ -653,7 +765,24 @@ function PricingShareSignalBlock(){
                   </td>
                   <td style={{padding:"8px 10px",borderBottom:"1px solid #f9fafb",fontFamily:"monospace",color:"#111827"}}>{r.avgLabel}</td>
                   <td title={r.priceQoqReason||undefined} style={{padding:"8px 10px",borderBottom:"1px solid #f9fafb",fontFamily:"monospace",fontWeight:r.priceRefused?500:600,fontSize:r.priceRefused?10:undefined,cursor:r.priceQoqReason?"help":undefined,color:r.priceRefused?"#6b7280":r.priceQoq>0?"#dc2626":r.priceQoq<0?"#059669":"#6b7280"}}>{r.priceQoqLabel}</td>
-                  <td style={{padding:"8px 10px",borderBottom:"1px solid #f9fafb",fontFamily:"monospace",fontWeight:600,color:r.shareQoqPP>0?"#059669":r.shareQoqPP<0?"#dc2626":"#6b7280"}}>{r.shareQoqLabel}</td>
+                  {/* The level, with the periods it was averaged over — the
+                      server publishes two decimals under 1% so a small but
+                      real share cannot round to "0.0%" and read as absent. */}
+                  <td style={{padding:"8px 10px",borderBottom:"1px solid #f9fafb",fontFamily:"monospace",color:"#111827"}}>
+                    {r.shareAvgLabel}
+                    <div style={{fontFamily:"inherit",fontSize:9.5,color:"#9ca3af",marginTop:1}}>{r.sharePeriods} of {latest.sharePeriods} {shareUnit}{latest.sharePeriods===1?"":"s"}</div>
+                  </td>
+                  {/* No share change is ever imputed. When the prior quarter
+                      held no observation of this provider at the comparison
+                      depth the cell says so — absence from the weekly series
+                      means folded into OpenRouter's "others" bucket, which is
+                      unknown, not zero. Never a bare dash. */}
+                  <td title={typeof r.shareQoqPP==="number"?undefined:("No observation of "+r.label+" in "+d.priorComparable+" among the top "+latest.shareDepth+" providers, so no change can be computed. Absence from the series means folded into OpenRouter's \u201cothers\u201d bucket \u2014 unknown, not zero. No share is imputed.")}
+                      style={{padding:"8px 10px",borderBottom:"1px solid #f9fafb",fontFamily:typeof r.shareQoqPP==="number"?"monospace":"inherit",fontWeight:600,cursor:typeof r.shareQoqPP==="number"?undefined:"help",color:r.shareQoqPP>0?"#059669":r.shareQoqPP<0?"#dc2626":"#6b7280"}}>
+                    {typeof r.shareQoqPP==="number"
+                      ? <>{r.shareQoqLabel}<div style={{fontFamily:"inherit",fontSize:9.5,fontWeight:400,color:"#9ca3af",marginTop:1}}>vs {r.sharePrevPeriods} {shareUnit}{r.sharePrevPeriods===1?"":"s"} in {d.priorComparable}</div></>
+                      : <span style={{fontSize:10,fontWeight:500}}>not in the top {latest.shareDepth} in {d.priorComparable}</span>}
+                  </td>
                   <td style={{padding:"8px 10px",borderBottom:"1px solid #f9fafb",fontSize:11,color:"#374151",lineHeight:1.35}}>
                     <div style={{fontWeight:600,color:"#111827"}}>{r.regimeLabel}</div>
                     <div style={{color:"#6b7280",marginTop:1}}>{r.note}</div>
@@ -665,15 +794,20 @@ function PricingShareSignalBlock(){
         </div>
       </div>
 
-      {/* Methodology caveat */}
+      {/* Methodology caveat. The source line is the endpoint's own sourceNote:
+          it names which series answered, that the weekly figure counts all
+          traffic including free, and the depth both quarters were read to.
+          Hard-coding it here is how the page went on describing the stored
+          daily snapshots after the share signal had stopped reading them. */}
       <div style={{display:"flex",flexWrap:"wrap",gap:"4px 10px",fontSize:10,color:"#6b7280",marginTop:8,lineHeight:1.5}}>
         <span><b style={{color:"#374151"}}>Rules:</b> price cut ≤ −2%, price up ≥ +2%, share gain ≥ +0.3pp, share loss ≤ −0.3pp</span>
         <span>·</span>
         <span><b style={{color:"#374151"}}>Scope:</b> directional ecosystem read-through, not a causal claim</span>
         <span>·</span>
-        <span><b style={{color:"#374151"}}>Omissions:</b> providers outside the OpenRouter top-N during the quarter are excluded, never imputed</span>
-        <span>·</span>
-        <span><b style={{color:"#374151"}}>Sources:</b> pricepertoken provider pricing history + canonical HISTORY_KV OpenRouter snapshots</span>
+        <span><b style={{color:"#374151"}}>Omissions:</b> providers outside the comparison depth during the quarter are excluded, never imputed</span>
+      </div>
+      <div style={{fontSize:10,color:"#9ca3af",marginTop:4,lineHeight:1.5}}>
+        <b style={{color:"#6b7280"}}>Sources:</b> {d.sourceNote}
       </div>
     </div>
   );
@@ -4078,7 +4212,15 @@ function OpenRouterMarketShareEmbed({refreshTick=0}={}){
     row.others=other;
     return row;
   });
-  // Ranked legend — most recent week's provider share.
+  // Ranked legend — the week ACTUALLY SERVED, dated from what the endpoint
+  // published rather than described as "the most recent week". The provider
+  // series merges a live market-share read over the persisted capture; when
+  // the live read fails the stored weeks are still served, and the legend
+  // must not then claim a currency the series does not have.
+  const meta=state.data||{};
+  const live=meta.live||null;
+  const liveOk=live?live.ok!==false:null;
+  const weeksBehind=meta.latestWeekBehind;
   const lastRow=chartData.length?chartData[chartData.length-1]:{};
   const lastTotal=segs.reduce((s,g)=>s+(lastRow[g.key]||0),0)||1;
   const ranked=segs
@@ -4095,8 +4237,20 @@ function OpenRouterMarketShareEmbed({refreshTick=0}={}){
       </div>
       <div style={{fontSize:14,fontWeight:700,color:"#111827",lineHeight:1.3}}>OpenRouter Provider Market Share</div>
       <div style={{fontSize:11,color:"#9ca3af",marginTop:2,marginBottom:8}}>
-        Weekly provider token share across OpenRouter · ecosystem benchmark, not Google revenue
+        Weekly provider token share across OpenRouter · {meta.basis||"all OpenRouter traffic (free and paid)"} · ecosystem benchmark, not Google revenue
       </div>
+
+      {/* A short chart with no explanation on it is the failure this endpoint
+          already shipped once: the provider capture went stale on 2026-06-08
+          and nothing on the page said so for fourteen weeks. When the live
+          read fails the weeks are still shown — no week is dropped — and the
+          reason the series ends where it does is stated here. */}
+      {liveOk===false&&(
+        <div style={{background:"#fffbeb",border:"0.5px solid #fde68a",borderRadius:8,padding:"8px 12px",marginBottom:8,fontSize:11,color:"#78350f",lineHeight:1.45}}>
+          <b>These weeks are the stored capture only.</b> {live.note||"The live market-share read did not answer, so the series ends where the capture ended — it is not current."}
+          {live.error&&<span style={{opacity:0.85}}> ({live.error})</span>}
+        </div>
+      )}
 
       {/* Native provider-share chart — dark panel */}
       <div style={{background:"#0a0a0a",borderRadius:8,border:"0.5px solid #e5e7eb",padding:16,minHeight:520}}>
@@ -4146,7 +4300,16 @@ function OpenRouterMarketShareEmbed({refreshTick=0}={}){
                 ))}
               </BarChart>
             </ResponsiveContainer>
-            <div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:"3px 24px",marginTop:12}}>
+            <div title={liveOk&&live.latestWeek?"Newest week in the live market-share read: "+live.latestWeek:undefined}
+                 style={{fontSize:10.5,color:"#a1a1aa",marginTop:14,marginBottom:4,cursor:liveOk&&live.latestWeek?"help":undefined}}>
+              {meta.latestWeek
+                ? <>Share for the week of <span style={{color:"#fafafa",fontWeight:600}}>{fmtWeek(meta.latestWeek)}{meta.latestWeekEnd?" – "+fmtWeek(meta.latestWeekEnd):""}</span>
+                    {typeof weeksBehind==="number"&&weeksBehind>0
+                      ? <> · {weeksBehind} week{weeksBehind===1?"":"s"} behind the current ISO week</>
+                      : meta.currentWeek?<> · week in progress</>:null}</>
+                : <>No week is dated: the endpoint published no latest week, so this legend cannot say which week it describes.</>}
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:"3px 24px",marginTop:4}}>
               {ranked.map((s,i)=>(
                 <div key={s.key} style={{display:"flex",alignItems:"center",gap:7,fontSize:10.5,color:"#d4d4d8"}}>
                   <span style={{width:14,color:"#71717a",textAlign:"right",flexShrink:0}}>{i+1}</span>
@@ -4161,9 +4324,12 @@ function OpenRouterMarketShareEmbed({refreshTick=0}={}){
         )}
       </div>
 
-      {/* Source note */}
-      <div style={{fontSize:10,color:"#9ca3af",marginTop:5}}>
-        Source: openrouter.ai/rankings · weekly provider token share
+      {/* Source note — the endpoint's own line, which names the traffic this
+          series counts, plus the read that dated it. */}
+      <div style={{fontSize:10,color:"#9ca3af",marginTop:5,lineHeight:1.5}}>
+        Source: {meta.source||"openrouter.ai/rankings · weekly provider token share"}
+        {meta.updatedAt&&<> · updated {String(meta.updatedAt).slice(0,10)}</>}
+        {liveOk&&live.weekCount?<> · live market-share read {live.weekCount} weeks deep{live.readAt?<> at {String(live.readAt).slice(11,16)} UTC</>:null}</>:null}
       </div>
     </div>
   );
@@ -5964,6 +6130,103 @@ function raw_pace_note(data){
   return(<><br/>Our partial-week pace = <strong>{wp.label}</strong> via <code>{wp.method}</code>. OR's own "Weekly Pace" tooltip uses a proprietary forecast we do not replicate; treat ours as a sanity check, not a 1:1 match.</>);
 }
 
+/* ═══════════════════════════════════════════════════════
+   THE 2026-08-18 → 2026-09-15 TOP APPS WINDOW
+
+   For ~29 days the daily capture stored OpenRouter's Top APPS table instead
+   of Top Models. "Kilo Code" and "Cline" are recorded as models, the total
+   collapses from ~28T to ~1.8T and back, and Gemini share reads 0%. Rendered
+   verbatim — which is what this tab did — the sparkline draws that collapse
+   as a real demand trend and the table asserts a #1 model that is an IDE.
+
+   Two things are true about those days and they are not the same thing:
+
+     THE TOTAL EXISTS. `or-chart:series`, the model weekly chart behind the
+     Weekly/QTD views, holds the true weekly total for the ISO week containing
+     each corrupted day. Its capture never broke — only the PROVIDER detector
+     did (_openrouter-rankings.js:8-21). So the figure is recoverable, and it
+     is substituted here with a marker saying where it came from.
+
+     THE ORDERING DOES NOT. The rankings API is a rolling trailing window with
+     no history: there is no request that returns the top-30 models as they
+     stood on 2026-08-22. It cannot be rebuilt and it is not invented. The row
+     says so in the cell that would otherwise hold a rank.
+
+   The tests are GD's own, held verbatim alongside the capture-path copies in
+   _openrouter-rankings.js (APP_NAME_HINTS) and openrouter.js
+   (assertLooksLikeModels); neither module exports them to the browser bundle.
+═══════════════════════════════════════════════════════ */
+const OR_APP_NAME_HINTS=/^(kilo code|cline|codex|pi|omp|freebuff|roo code|chatwise|sillytavern|openrouter api|janitorai|openwebui)$/i;
+
+/** Fewer than half the rows naming a model maker: not a model ranking. */
+function orIsAttributedRanking(rows){
+  const attributed=rows.filter(m=>m.provider&&m.provider!=="other").length;
+  return attributed>=rows.length*0.5;
+}
+
+/* Why a stored day is not a model ranking, or null when it is. Both tests
+   run, not just the attribution one: the Top Apps rows were attributed to
+   real model makers, so the >=50% test alone passes them. */
+function orDayCorruption(rows){
+  const list=rows||[];
+  if(!list.length)return null;
+  if(list.some(m=>OR_APP_NAME_HINTS.test(String(m.model||"").trim())))return "topAppsTable";
+  if(!orIsAttributedRanking(list))return "notModelRanking";
+  return null;
+}
+
+const OR_CORRUPTION_LABEL={
+  topAppsTable:"OpenRouter's Top Apps table was captured here, not Top Models",
+  notModelRanking:"fewer than half the captured rows name a model maker",
+};
+
+/** ISO week start (Monday) of a YYYY-MM-DD day, as YYYY-MM-DD. */
+function isoWeekStartOf(dateISO){
+  const t=Date.parse(String(dateISO||"")+"T00:00:00Z");
+  if(!isFinite(t))return null;
+  const d=new Date(t);
+  d.setUTCDate(d.getUTCDate()-((d.getUTCDay()+6)%7));
+  return d.toISOString().slice(0,10);
+}
+
+/**
+ * Recover the total, refuse the ordering, state both.
+ *
+ * `chartWeeks` are the weeks published by /api/openrouter-chart-weekly — the
+ * same series the Weekly view reads. When one covers the corrupted day, its
+ * totalRaw replaces the corrupted capture's total and the row is marked with
+ * where the figure came from. When the chart could not be read there is no
+ * substitute, and the row says that instead of showing the 1.8T fiction.
+ *
+ * The ranked list is emptied either way. It was never a model ranking, and no
+ * ordering for that day can be reconstructed from any live source.
+ */
+function repairDailySnapshots(snaps,chartWeeks){
+  const byWeek=new Map();
+  for(const w of chartWeeks||[])if(w&&w.start)byWeek.set(w.start,w);
+  let substituted=0,unsubstituted=0;
+  const snapshots=(snaps||[]).map(sn=>{
+    const kind=orDayCorruption(sn.or);
+    if(!kind)return sn;
+    const wk=byWeek.get(isoWeekStartOf(sn.date))||null;
+    const total=wk&&wk.totalRaw>0?wk.totalRaw:null;
+    if(total!=null)substituted++;else unsubstituted++;
+    return {
+      ...sn,
+      or:[],
+      orCorrupt:kind,
+      orCorruptLabel:OR_CORRUPTION_LABEL[kind]||kind,
+      orCapturedTotalRaw:(sn.openrouterSummary&&sn.openrouterSummary.totalTokensRaw)||0,
+      orTotalSubstituted:total!=null,
+      orTotalSourceWeek:total!=null?wk.start:null,
+      orRankingLost:true,
+      orRankingLostReason:"OpenRouter's rankings API is a rolling trailing window with no history, so the top-30 ordering for this day cannot be recovered from any source. It is not reconstructed and not guessed.",
+      openrouterSummary:{...(sn.openrouterSummary||{}),totalTokensRaw:total!=null?total:0},
+    };
+  });
+  return {snapshots,substituted,unsubstituted,corrupt:substituted+unsubstituted};
+}
+
 function HistoryTabCanonical(){
   // Default to Weekly — that's the chart-native investor-facing view that
   // reconciles to the OpenRouter live chart embedded above.
@@ -5978,19 +6241,36 @@ function HistoryTabCanonical(){
     //   weekly + quarterly → /api/openrouter-chart-weekly (the same RSC payload
     //     that drives the live OR chart embedded above; reconciles 1:1 with it)
     //   daily → /api/history?view=daily (our internal capture diagnostics)
+    //
+    // Daily ALSO reads the chart series, because ~29 stored days hold the Top
+    // Apps table rather than a model ranking and the only surviving figure for
+    // them is the chart's weekly total for the ISO week containing each day.
+    // The chart read is allowed to fail: repairDailySnapshots then marks those
+    // days as having no substitute rather than showing the corrupted total.
     const url = view==="daily"
       ? "/api/history?view=daily&range=365"
       : "/api/openrouter-chart-weekly";
 
-    fetch(url)
-      .then(r=>r.ok?r.json():Promise.reject(new Error("HTTP "+r.status)))
-      .then(d=>{
+    const primary=fetch(url).then(r=>r.ok?r.json():Promise.reject(new Error("HTTP "+r.status)));
+    const chart=view==="daily"
+      ? fetch("/api/openrouter-chart-weekly").then(r=>r.ok?r.json():null).catch(()=>null)
+      : Promise.resolve(null);
+
+    Promise.all([primary,chart])
+      .then(([d,ch])=>{
         if(cancelled)return;
         if(!d||d.success===false){
           setState({phase:"error",data:null,error:d?.error||"Unknown error"});
           return;
         }
-        const adapted = view==="daily" ? d : adaptChartNative(d,view);
+        let adapted = view==="daily" ? d : adaptChartNative(d,view);
+        if(view==="daily"){
+          const chartWeeks=(ch&&ch.success!==false&&ch.weeks)||null;
+          const fix=repairDailySnapshots(adapted.snapshots,chartWeeks);
+          adapted={...adapted,
+            snapshots:fix.snapshots,
+            _repair:{...fix,snapshots:undefined,chartRead:!!chartWeeks}};
+        }
         const snaps=adapted.snapshots||[];
         if(!snaps.length){
           setState({phase:"empty",data:adapted,error:null});
@@ -6014,7 +6294,11 @@ function HistoryTabCanonical(){
             },
             source:"local",
           })).reverse();
-          setState({phase:"ready",data:{view:"daily",snapshots:local,count:local.length,trackingSinceDate:local.length?local[local.length-1].date:null,_localFallback:true},error:null});
+          // The local cache holds the same corrupted days the canonical store
+          // does, so it gets the same refusal. No chart series is available on
+          // this path, so no total can be substituted and the rows say so.
+          const localFix=repairDailySnapshots(local,null);
+          setState({phase:"ready",data:{view:"daily",snapshots:localFix.snapshots,count:localFix.snapshots.length,trackingSinceDate:localFix.snapshots.length?localFix.snapshots[localFix.snapshots.length-1].date:null,_localFallback:true,_repair:{...localFix,snapshots:undefined,chartRead:false}},error:null});
           return;
         }
         setState({phase:"error",data:null,error:err.message||"Fetch failed"});
@@ -6097,6 +6381,7 @@ function HistoryTabCanonical(){
   const d=state.data;
   const snaps=d.snapshots||[];
   const trackingSinceDate=d.trackingSinceDate;
+  const repair=d._repair||null;
 
   function fmtDate(s){
     if(!s)return"—";
@@ -6150,6 +6435,10 @@ function HistoryTabCanonical(){
            : (s.periodId||s.date||""),
       tokens:orTok(s),
       partial:!!s.partial,
+      // A substituted point is a real figure from a different series. It is
+      // drawn, because leaving it out redraws the same false collapse as a
+      // gap, and it is marked, because it is not this day's own capture.
+      substituted:!!s.orTotalSubstituted,
     }));
 
   const primaryTok=orTok(primarySnap);
@@ -6241,8 +6530,11 @@ function HistoryTabCanonical(){
           fg={changePct==null?"#6b7280":changePct>=0?"#059669":"#b91c1c"}/>
         <KBox
           label={"Top model · "+(primaryKind==="daily"?"at capture":primaryKind==="completed-week"?"end of week":"latest week in quarter")}
-          value={latestTop?"#"+latestTop.rank+" "+prettyModel(latestTop.slug||latestTop.model):"—"}
-          sub={latestGem?"best Gemini #"+latestGem.rank+" · "+prettyModel(latestGem.slug||latestGem.model):(latestTop?"":"no OR data")}
+          value={latestTop?"#"+latestTop.rank+" "+prettyModel(latestTop.slug||latestTop.model)
+                :primarySnap?.orRankingLost?"not recoverable":"—"}
+          sub={latestGem?"best Gemini #"+latestGem.rank+" · "+prettyModel(latestGem.slug||latestGem.model)
+              :primarySnap?.orRankingLost?"this day captured the Top Apps table; the ordering has no source to rebuild it from"
+              :(latestTop?"":"no OR data")}
           bg="#fef3c7" fg="#a16207"/>
       </div>
 
@@ -6253,6 +6545,21 @@ function HistoryTabCanonical(){
           {" · "}
           {view==="daily"?"daily captures":view==="weekly"?"weekly (completed + current)":"quarterly (completed + current)"}
         </div>
+        {view==="daily"&&repair&&repair.corrupt>0&&(
+          <div style={{background:"#fffbeb",border:"0.5px solid #fde68a",borderRadius:8,padding:"8px 10px",marginBottom:10,fontSize:11,color:"#78350f",lineHeight:1.5}}>
+            <b>{repair.corrupt} captured day{repair.corrupt===1?"":"s"} did not hold a model ranking.</b>{" "}
+            The 2026-08-18 → 2026-09-15 capture stored OpenRouter's Top <i>Apps</i> table, so those days
+            recorded applications as models and a total that collapsed from ~28T to ~1.8T. Drawn verbatim
+            that collapse reads as a demand trend; it is not one.
+            {repair.substituted>0&&<> <b>{repair.substituted}</b> of them now show the true weekly total for their ISO
+              week, taken from the model weekly chart series (<code style={{fontFamily:"monospace"}}>or-chart:series</code>),
+              marked <span style={{padding:"0 4px",borderRadius:3,background:"#ede9fe",color:"#5b21b6",fontWeight:600}}>chart</span>.</>}
+            {repair.unsubstituted>0&&<> <b>{repair.unsubstituted}</b> ha{repair.unsubstituted===1?"s":"ve"} no substitute
+              because the chart series could not be read.</>}
+            {" "}The daily top-30 <b>ordering</b> for these days is not recoverable — OpenRouter's rankings API is a
+            rolling trailing window with no history — so it is left refused, not invented.
+          </div>
+        )}
         {chart.length>=2?(
           <ResponsiveContainer width="100%" height={180}>
             <LineChart data={chart} margin={{top:6,right:14,left:-6,bottom:6}}>
@@ -6260,11 +6567,11 @@ function HistoryTabCanonical(){
               <XAxis dataKey="label" tick={{fontSize:10,fill:"#6b7280"}} tickLine={false} axisLine={{stroke:"#e5e7eb"}}/>
               <YAxis tick={{fontSize:10,fill:"#6b7280"}} tickLine={false} axisLine={{stroke:"#e5e7eb"}} tickFormatter={fmtTokShort} width={50}/>
               <Tooltip
-                formatter={(v,_,payload)=>[fmtTokShort(v)+(payload?.payload?.partial?" · partial":""),"tokens"]}
+                formatter={(v,_,payload)=>[fmtTokShort(v)+(payload?.payload?.partial?" · partial":"")+(payload?.payload?.substituted?" · weekly total from the chart series (this day's capture was the Top Apps table)":""),"tokens"]}
                 labelStyle={{fontSize:11,color:"#374151"}}
                 contentStyle={{fontSize:11,border:"0.5px solid #e5e7eb",borderRadius:6,padding:"6px 10px"}}/>
               <Line type="monotone" dataKey="tokens" stroke="#3b82f6" strokeWidth={2}
-                dot={({cx,cy,payload})=><circle cx={cx} cy={cy} r={3} fill={payload.partial?"#f59e0b":"#3b82f6"}/>}
+                dot={({cx,cy,payload})=><circle cx={cx} cy={cy} r={payload.substituted?3.6:3} fill={payload.substituted?"#7c3aed":payload.partial?"#f59e0b":"#3b82f6"}/>}
                 activeDot={{r:5}} isAnimationActive={false}/>
             </LineChart>
           </ResponsiveContainer>
@@ -6320,13 +6627,30 @@ function HistoryTabCanonical(){
                 // the count doesn't add investor value.
                 if(view!=="daily"&&s.representativeHasOR===false)notes.push("no OR signal");
                 if(s.source&&s.source!=="cron"&&s.source!=="or-chart")notes.push(s.source);
+                if(s.orCorrupt)notes.push(s.orCorrupt==="topAppsTable"?"Top Apps capture":"not a model ranking");
                 const isPartial=s.partial;
+                // A day whose capture was the Top Apps table. The total is
+                // substituted from the chart series where one covers its ISO
+                // week; the ordering is refused outright. Both are said on the
+                // row — neither is a bare dash, and neither is invented.
+                const lost=!!s.orRankingLost;
+                const lostCell=(what)=>(
+                  <span title={s.orRankingLostReason} style={{fontSize:10.5,color:"#92400e",cursor:"help"}}>
+                    {what} not recoverable
+                  </span>
+                );
                 return(
-                  <tr key={key} style={{borderBottom:"1px solid #f3f4f6",background:isPartial?"#fffbeb":undefined}}>
+                  <tr key={key} style={{borderBottom:"1px solid #f3f4f6",background:lost?"#fffdf5":isPartial?"#fffbeb":undefined}}>
                     <td style={{padding:"7px 12px",color:"#111827"}}>{periodLabel}</td>
-                    <td style={{padding:"7px 12px",color:"#111827",textAlign:"right",fontVariantNumeric:"tabular-nums"}}>{fmtTokShort(orTok(s))}</td>
-                    <td style={{padding:"7px 12px",color:"#374151"}}>{top?prettyModel(top.slug||top.model):"—"}</td>
-                    <td style={{padding:"7px 12px",color:"#374151"}}>{gem?"#"+gem.rank+" "+prettyModel(gem.slug||gem.model):"—"}</td>
+                    <td style={{padding:"7px 12px",color:"#111827",textAlign:"right",fontVariantNumeric:"tabular-nums"}}>
+                      {lost&&!s.orTotalSubstituted
+                        ? <span title={"This day's stored total ("+fmtTokShort(s.orCapturedTotalRaw)+") is the Top Apps table's, not the model ranking's, and the chart weekly series could not be read to substitute the real one."} style={{fontSize:10.5,color:"#92400e",cursor:"help"}}>no countable total</span>
+                        : <>{fmtTokShort(orTok(s))}
+                            {s.orTotalSubstituted&&<span title={"Weekly total for the ISO week of "+s.orTotalSourceWeek+", from the model weekly chart series (or-chart:series). This day's own capture held the Top Apps table and recorded "+fmtTokShort(s.orCapturedTotalRaw)+"."} style={{marginLeft:5,padding:"0 4px",borderRadius:3,background:"#ede9fe",color:"#5b21b6",fontSize:9.5,fontWeight:600,cursor:"help"}}>chart</span>}
+                          </>}
+                    </td>
+                    <td style={{padding:"7px 12px",color:"#374151"}}>{top?prettyModel(top.slug||top.model):lost?lostCell("ordering"):"—"}</td>
+                    <td style={{padding:"7px 12px",color:"#374151"}}>{gem?"#"+gem.rank+" "+prettyModel(gem.slug||gem.model):lost?lostCell("rank"):"—"}</td>
                     <td style={{padding:"7px 12px",color:"#6b7280",fontSize:11}}>
                       {notes.length?notes.map((n,j)=>{
                         const isPartialTag=n==="WTD"||n==="QTD"||n==="partial";
@@ -6346,6 +6670,7 @@ function HistoryTabCanonical(){
       <div style={{fontSize:10,color:"#9ca3af",marginTop:8,lineHeight:1.5}}>
         {view==="daily" ? (<>
           Metric: <strong style={{color:"#6b7280"}}>OR weekly total (rolling)</strong> — sum of top-30 model tokens scraped from <code>openrouter.ai/rankings?view=week</code> at our daily capture time. OpenRouter has no native daily metric; every captured number is a weekly rolling total observed on a specific day. <strong>This tab is internal capture diagnostics, not investor-facing</strong> — for completed-week and quarterly analysis use the Weekly and QTD tabs, which read the chart-native series directly.
+          <br/>Days whose capture was OpenRouter's Top <strong>Apps</strong> table (2026-08-18 → 2026-09-15) are detected by the same tests the capture path applies — an application name among the rows, or fewer than half the rows naming a model maker. Their total is replaced by the model weekly chart series' figure for the ISO week containing the day, marked <span style={{padding:"0 4px",borderRadius:3,background:"#ede9fe",color:"#5b21b6",fontWeight:600}}>chart</span> in the table and drawn as a purple point on the sparkline. Their <strong>ordering is refused</strong>: the rankings API is a rolling trailing window with no history, so no top-30 list for a past day can be rebuilt, and none is invented here.
         </>):view==="weekly"?(<>
           Source: <code>/api/openrouter-chart-weekly</code> — extracted from the same Next.js RSC payload (<code>self.__next_f.push</code>) that drives the OpenRouter Top Models live chart embedded above. Each row is one ISO week. Totals are <strong>Σ ys</strong> across all model series including OR's "Others" rollup, matching the chart tooltip's <strong>Total</strong> field exactly (modulo observation time within a partial week — the value grows as the week progresses).
           {raw_pace_note(state.data)}
