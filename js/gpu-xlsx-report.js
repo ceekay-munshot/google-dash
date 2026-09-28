@@ -286,7 +286,7 @@ function qualitySheet(fHist,skus){
   kv("Days captured WITHOUT a price",dq.unpricedDays==null?"—":dq.unpricedDays,dq.unpricedDays?XS.warn:XS.text);
   if(dq.priceFieldDroppedWhileFeedLive){
     rows.push([{v:"The feed kept delivering GPU rows after "+(dq.latestPricedObservationDate||"the last priced date")
-      +" but with no minPricePerHour, so provider counts continued updating while every price cell went blank. That is an upstream shape change, not a flat market.",s:XS.bad}]);
+      +" but they carry no price in any field the parser reads, so provider counts continued updating while every price cell went blank. That is an upstream shape change, not a flat market.",s:XS.bad}]);
     rows.push([]);
   }
   if(dq.monthsMissing&&dq.monthsMissing.length)

@@ -90,12 +90,21 @@ async function localFetch(request, path) {
 
 function normalizeGPU(raw) {
   if (!raw || !raw.ok || !Array.isArray(raw.rows)) return null;
+  // A fallback listing is prices we could not re-fetch, not an observation of
+  // this date. history-capture.js refuses it for the same reason; this endpoint
+  // merges into the same day record and runs exactly when the day is empty, so
+  // it is the path where a stale write would actually land.
+  if (raw.stale) return null;
   const trackedSet = new Set(GPU_TRACKED_SKUS);
   const models = [];
   for (const r of raw.rows) {
     if (!trackedSet.has(r.gpuModel)) continue;
     const min = typeof r.minPricePerHour === 'number' ? r.minPricePerHour : null;
     const max = typeof r.maxPricePerHour === 'number' ? r.maxPricePerHour : null;
+    // The upstream publishes a single median now, so min and max come back
+    // null and the median is the only price there is. It has to travel
+    // through here, or the merge below replaces a priced day with a blank one.
+    const median = typeof r.medianPricePerHour === 'number' ? r.medianPricePerHour : null;
     const spreadAbsolute = (min != null && max != null) ? +(max - min).toFixed(4) : null;
     const spreadMultiple = (min != null && max != null && min > 0) ? +(max / min).toFixed(3) : null;
     const priceMidpoint = (min != null && max != null) ? +((min + max) / 2).toFixed(4) : null;
@@ -106,6 +115,7 @@ function normalizeGPU(raw) {
       providerCount: typeof r.providerCount === 'number' ? r.providerCount : null,
       minPricePerHour: min,
       maxPricePerHour: max,
+      medianPricePerHour: median,
       spreadAbsolute,
       spreadMultiple,
       priceMidpoint,

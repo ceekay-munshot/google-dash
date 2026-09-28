@@ -269,8 +269,9 @@ function normalizePricing(raw) {
  *   minPricePerHour, maxPricePerHour, medianPricePerHour,
  *   spreadAbsolute, spreadMultiple, priceMidpoint
  *
- * If the parser is offline the block is `null` — readers count it as a
- * coverage miss for that day rather than failing the snapshot.
+ * If the parser is offline the block is `null`. The capture loop then keeps
+ * whatever that day already had rather than writing the null over it; only a
+ * day that never had a block is stored as a coverage miss.
  */
 const GPU_TRACKED_SKUS = [
   'Nvidia H100',
@@ -283,6 +284,13 @@ const GPU_TRACKED_SKUS = [
 
 function normalizeGPU(raw) {
   if (!raw || !raw.ok || !Array.isArray(raw.rows)) return null;
+  // /api/gpu-hardware-pricing-data serves its last good listing, marked
+  // `stale: true`, when getdeploying refuses it. Showing slightly-old prices
+  // is right; writing them into permanent history as today's observation is
+  // not — both dashboards read this store as ground truth, and a wrong number
+  // stored invisibly is worse than a visible blank. Treat stale as no
+  // observation: the carry-forward below then keeps whatever the day already had.
+  if (raw.stale) return null;
   const trackedSet = new Set(GPU_TRACKED_SKUS);
   const models = [];
   for (const r of raw.rows) {
@@ -482,16 +490,31 @@ export async function onRequestGet({ request, env }) {
     const dayKey = 'day:' + targetDate;
     const capturedAt = new Date().toISOString();
 
-    // Same-content skip
     const existing = await kv.get(dayKey, 'json');
-    if (existing && existing.hash === hash) {
+
+    // A failed GPU fetch must not erase a good observation. localFetch returns
+    // null on any non-2xx, normalizeGPU turns that (and a stale fallback) into
+    // null, and the snapshot below is a fresh object literal — so one 403 at
+    // the evening cron would overwrite a morning capture that already held real
+    // GPU rows, permanently, since nothing repairs a stored day. Carry the
+    // stored block forward instead. Same record shape, just an older block —
+    // the other dashboard reads this store, so no field is added here.
+    const gpuCarriedForward = !gpu?.models?.length && !!existing?.gpu?.models?.length;
+    const dayGPU = gpuCarriedForward ? existing.gpu : gpu;
+    const dayHash = gpuCarriedForward
+      ? await contentHash({ ...canonicalPayload, gpu: dayGPU })
+      : hash;
+
+    // Same-content skip
+    if (existing && existing.hash === dayHash) {
       results.push({
         date: targetDate,
         action: 'skipped',
         reason: 'Identical content already stored',
-        hash,
+        hash: dayHash,
         isAutofill,
         isBackfill,
+        gpuCarriedForward,
       });
       continue;
     }
@@ -507,7 +530,7 @@ export async function onRequestGet({ request, env }) {
       const prevSnap = await kv.get(priorKey, 'json');
       priorHash = prevSnap?.hash ?? null;
     }
-    const dedup = priorHash === hash;
+    const dedup = priorHash === dayHash;
 
     const source = isAutofill
       ? 'autofill-gap'
@@ -519,7 +542,7 @@ export async function onRequestGet({ request, env }) {
       ts: capturedAt,
       date: targetDate,
       capturedAt,
-      hash,
+      hash: dayHash,
       version: 4,
       source,
       authMethod,
@@ -537,19 +560,23 @@ export async function onRequestGet({ request, env }) {
       filing,
       openrouterSummary,
       pricing,
-      gpu,
+      gpu: dayGPU,
     };
 
     await kv.put(dayKey, JSON.stringify(snapshot));
-    writtenThisRun.set(dayKey, hash);
+    writtenThisRun.set(dayKey, dayHash);
     results.push({
       date: targetDate,
       action: existing ? 'superseded' : 'created',
-      hash,
+      hash: dayHash,
       dedup,
       isAutofill,
       isBackfill,
       source,
+      // Response-only. Without it a run that kept a day's GPU block alive is
+      // indistinguishable from one that captured it, and the operator reading
+      // sources.gpu: "unavailable" would assume the day was lost.
+      gpuCarriedForward,
     });
   }
 

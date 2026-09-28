@@ -1570,7 +1570,7 @@ const GPU_STRATEGIC_ORDER=[
   "Nvidia H100","Nvidia H200","Nvidia B200","Nvidia GB200",
   "Nvidia A100","Nvidia L40S",
 ];
-// KPI cards want just the cheapest by SKU — uses same canonical names.
+// KPI cards want the headline price by SKU — uses same canonical names.
 const GPU_KPI_SKUS=["Nvidia H100","Nvidia H200","Nvidia B200","Nvidia A100"];
 
 function fmtUSD(v){
@@ -1689,10 +1689,26 @@ function GPUFinancialSubtab({fHist,fHistErr}){
   );
 }
 
+/* ─── Live listing price basis ──────────────────────────────
+   The live /api/gpu-hardware-pricing-data rows are not run through
+   normalizeDailyPoint — that happens in the history endpoint — so this panel
+   resolves the measure itself, with the same precedence: a vendor median
+   since 2026-07-28, the floor of the range before it. */
+function liveBasis(r){
+  if(!r)return null;
+  if(r.medianPricePerHour!=null&&isFinite(r.medianPricePerHour))return"median";
+  if(r.minPricePerHour!=null&&isFinite(r.minPricePerHour))return"floor";
+  return null;
+}
+function livePrice(r){
+  const b=liveBasis(r);
+  return b==="median"?r.medianPricePerHour:b==="floor"?r.minPricePerHour:null;
+}
+
 /* ═══════════════════════════════════════════════════════
    SUBTAB: Infra Monitoring (live market plumbing)
-   - Live KPI cards (current spot minimums)
-   - Strategic SKU comparison (live lowest / highest $/hr)
+   - Live KPI cards (current headline price per SKU)
+   - Strategic SKU comparison (live $/hr on the measure the feed publishes)
    - Operational GPU Pricing History (quarter-close / QTD / daily)
    - Live reverse-proxied getdeploying table
 ═══════════════════════════════════════════════════════ */
@@ -1703,18 +1719,37 @@ function GPUInfraMonitoringSubtab({data,loadErr,updatedTxt,histView,setHistView,
 
   const kpiCards=GPU_KPI_SKUS.map(sku=>{
     const r=byName[sku];
-    if(!r||r.minPricePerHour==null)return null;
+    // Guarding on minPricePerHour is what emptied all four cards: the source
+    // stopped publishing a vendor range on 2026-07-28, so that field is null on
+    // every row while the median it publishes instead sits in the same payload.
+    if(!r||livePrice(r)==null)return null;
     const short=sku.replace(/^Nvidia\s+/i,"");
     return{
-      sku,label:"Live cheapest "+short+" $/hr",
-      value:fmtUSD(r.minPricePerHour),
+      // "cheapest" was only true of the old floor measure; the label names
+      // whichever measure the row actually carries.
+      // "Live" is dropped when the listing is a cached fallback — the price is
+      // still the best there is, but it is not current and must not claim to be.
+      sku,label:(data?.stale?"Last ":"Live ")+short+" "+FIN_BASIS_SHORT[liveBasis(r)]+" $/hr",
+      value:fmtUSD(livePrice(r)),
       sub:r.providerCount?r.providerCount+" providers":null,
     };
   }).filter(Boolean);
 
-  const totalProviders=rows.reduce((m,r)=>Math.max(m,r.providerCount||0),0);
+  // The listing gives each model a provider COUNT, never the providers' names,
+  // so how many distinct providers there are across models cannot be derived
+  // from it. "Providers tracked 54+ · across all SKUs" was the single largest
+  // count wearing a total's label; what the data supports is the widest single
+  // listing, named as that.
+  const widest=rows.reduce((b,r)=>(r.providerCount||0)>(b?.providerCount||0)?r:b,null);
   const modelCount=rows.length;
   const tableRows=GPU_STRATEGIC_ORDER.map(n=>byName[n]).filter(Boolean);
+
+  // The price column is NAMED from the measure the rows carry, so a change of
+  // measure renames the column instead of printing a median under a heading
+  // that says "lowest". Null when the rows disagree — then each cell says its own.
+  const tableBases=new Set(tableRows.map(liveBasis).filter(Boolean));
+  const tableBasis=tableBases.size===1?[...tableBases][0]:null;
+  const tableBasisHeading="Live "+(tableBasis?FIN_BASIS_SHORT[tableBasis]+" ":"")+"$/hr";
 
   return(
     <>
@@ -1726,11 +1761,18 @@ function GPUInfraMonitoringSubtab({data,loadErr,updatedTxt,histView,setHistView,
 
       {/* Title + subtitle */}
       <div style={{marginBottom:12}}>
-        <div style={{fontSize:14,fontWeight:700,color:"#111827",lineHeight:1.3}}>Live spot minimums, quarter-close history, and vendor table</div>
+        <div style={{fontSize:14,fontWeight:700,color:"#111827",lineHeight:1.3}}>Live provider pricing, quarter-close history, and vendor table</div>
         <div style={{fontSize:11,color:"#9ca3af",marginTop:3}}>
-          Current cheapest $/hr per SKU across 42+ providers · operational history uses quarter-close (last real snapshot in quarter).
-          {updatedTxt&&<> · <b style={{color:"#6b7280",fontWeight:600}}>Source updated {updatedTxt}</b></>}
+          Current $/hr per SKU across the providers listing it · operational history uses quarter-close (last real snapshot in quarter).
+          {updatedTxt&&!data?.stale&&<> · <b style={{color:"#6b7280",fontWeight:600}}>Source updated {updatedTxt}</b></>}
         </div>
+        {data?.stale&&(
+          <div style={{fontSize:11,color:"#b45309",marginTop:3}}>
+            Source unreachable{data.staleReason?" ("+data.staleReason+")":""} — showing the last
+            listing that parsed{data.fetchedAt?", captured "+data.fetchedAt:""}. These prices are
+            not current, and nothing on this screen was written to history.
+          </div>
+        )}
       </div>
 
       {/* KPI cards */}
@@ -1748,7 +1790,7 @@ function GPUInfraMonitoringSubtab({data,loadErr,updatedTxt,histView,setHistView,
             {kpiCards.map(c=>(
               <KBox key={c.sku} label={c.label} value={c.value} sub={c.sub} bg="#ecfeff" fg="#0e7490"/>
             ))}
-            <KBox label="Providers tracked"       value={totalProviders?totalProviders+"+":"—"} sub="across all SKUs"      bg="#f0fdf4" fg="#059669"/>
+            <KBox label="Most providers on one GPU" value={widest?.providerCount||"—"}           sub={widest?widest.gpuModel+" · not a total across GPUs":null} bg="#f0fdf4" fg="#059669"/>
             <KBox label="GPU models tracked"      value={modelCount||"—"}                       sub="parsed from source" bg="#eff6ff" fg="#1d4ed8"/>
           </div>
 
@@ -1765,21 +1807,26 @@ function GPUInfraMonitoringSubtab({data,loadErr,updatedTxt,histView,setHistView,
                     <tr style={{background:"#fafafa"}}>
                       <th style={gpuTh}>GPU</th>
                       <th style={gpuTh}>VRAM</th>
-                      <th style={{...gpuTh,textAlign:"right"}}>Live&nbsp;lowest&nbsp;$/hr</th>
-                      <th style={{...gpuTh,textAlign:"right"}}>Live&nbsp;highest&nbsp;$/hr</th>
+                      <th style={{...gpuTh,textAlign:"right"}} title={tableBasis?"Measured as the "+FIN_BASIS_LABEL[tableBasis]:undefined}>{tableBasisHeading}</th>
                       <th style={{...gpuTh,textAlign:"right"}}>Providers</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {tableRows.map(r=>(
+                    {tableRows.map(r=>{
+                      const b=liveBasis(r);
+                      return(
                       <tr key={r.gpuModel} style={{borderTop:"0.5px solid #f3f4f6"}}>
                         <td style={gpuTd}><span style={{fontWeight:600,color:"#111827"}}>{r.gpuModel}</span></td>
                         <td style={{...gpuTd,color:"#6b7280"}}>{r.vram||"—"}</td>
-                        <td style={{...gpuTd,textAlign:"right",color:"#059669",fontWeight:600}}>{fmtUSD(r.minPricePerHour)}</td>
-                        <td style={{...gpuTd,textAlign:"right",color:"#374151"}}>{fmtUSD(r.maxPricePerHour)}</td>
+                        <td style={{...gpuTd,textAlign:"right",color:"#059669",fontWeight:600}}
+                            title={b?"Measured as the "+FIN_BASIS_LABEL[b]:undefined}>
+                          {fmtUSD(livePrice(r))}
+                          {!tableBasis&&b&&<div style={{fontSize:9,fontWeight:500,color:b==="median"?"#1d4ed8":"#9ca3af"}}>{FIN_BASIS_SHORT[b]}</div>}
+                        </td>
                         <td style={{...gpuTd,textAlign:"right",color:"#6b7280"}}>{r.providerCount??"—"}</td>
                       </tr>
-                    ))}
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -2083,8 +2130,8 @@ function fmtGrowth(v){
 
    Two failure modes are reported separately because they have different
    fixes: the GPU block no longer arriving at all (capture/cron side), versus
-   the block still arriving with minPricePerHour null (upstream shape change,
-   provider counts keep updating while prices go blank). */
+   the block still arriving with no usable price in any field (upstream shape
+   change, provider counts keep updating while prices go blank). */
 function GPUFeedIntegrityBanner({dq,periodNoun}){
   if(!dq)return null;
   const notes=[];
@@ -2092,8 +2139,8 @@ function GPUFeedIntegrityBanner({dq,periodNoun}){
     notes.push({
       k:"pricefield",
       sev:"high",
-      head:"Price field missing from the feed since "+dq.latestPricedObservationDate,
-      body:"GPU rows kept arriving after that date — provider counts are still updating — but minPricePerHour came back empty, so every price cell from then on is blank. "
+      head:"No usable price in the feed since "+dq.latestPricedObservationDate,
+      body:"GPU rows kept arriving after that date — provider counts are still updating — but they carry no price in any field the parser reads, so every price cell from then on is blank. "
            +dq.unpricedDays+" of "+dq.observationDays+" captured days carry no price.",
     });
   }else if(dq.priceFieldStale&&dq.latestPricedObservationDate){
@@ -2394,7 +2441,7 @@ function GPUFinancialCorrelationBlock({fHist,fHistErr}){
                       badgeTitle="No GPU capture recorded for "+p.label+".";
                     }else if(!anyPriced){
                       badge="no price";badgeColor="#b45309";
-                      badgeTitle=p.label+" was captured but the feed returned no minPricePerHour, so every price cell is blank.";
+                      badgeTitle=p.label+" was captured but the feed returned no price, so every price cell is blank.";
                     }else if(running){
                       badge=effMode==="quarter"?"QTD":"MTD";
                       badgeTitle=p.label+" is still in progress — growth and resilience are suppressed for it.";
@@ -3354,6 +3401,20 @@ function GPUHistoryBlock({hist,histErr,hideHeader}){
   const series=hist.series||{};
   const latestBySku=hist.latest||{};
   const trackedSKUs=hist.trackedSKUs||[];
+  // Prices come from the resolved headline (dailyPrice / dailyBasis), never
+  // minPricePerHour: the source stopped publishing a floor on 2026-07-28, so
+  // that field is empty for every recent day and these cells read as dashes
+  // while the prices kept arriving in the same response. The column is named
+  // from the measure the latest points carry; if the SKUs disagree, each cell
+  // names its own.
+  const latestBases=new Set(trackedSKUs.map(s=>latestBySku[s]?.dailyBasis).filter(Boolean));
+  const latestBasis=latestBases.size===1?[...latestBases][0]:null;
+  const latestPriceHeading="Latest "+(latestBasis?FIN_BASIS_SHORT[latestBasis]+" ":"")+"$/hr";
+  // A spread needs two endpoints, and since the range became a single median
+  // there is only one figure to read — there is no correct spread to show. The
+  // cell states that instead of a dash, which would read as "not looked up".
+  const rangeEndedOn=(hist.basisTimeline?.changes||[]).find(ch=>ch.from==="floor"&&ch.to==="median")?.effectiveDate||null;
+  const spreadBlank="no range published"+(rangeEndedOn?" since "+monthIdToLabel(rangeEndedOn.slice(0,7)):"");
 
   // Empty-state: index exists but no snapshots had a gpu block yet.
   if(!days){
@@ -3391,7 +3452,7 @@ function GPUHistoryBlock({hist,histErr,hideHeader}){
         </div>
       )}
 
-      {/* Trend cards — 7D change in cheapest $/hr per strategic SKU */}
+      {/* Trend cards — 7D change in the headline $/hr per strategic SKU */}
       <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(180px,1fr))",gap:8,marginBottom:10}}>
         {GPU_HISTORY_TREND_SKUS.map(sku=>{
           const c=d7[sku];
@@ -3406,7 +3467,7 @@ function GPUHistoryBlock({hist,histErr,hideHeader}){
               </div>
             );
           }
-          const pct=c.minDeltaPct;
+          const pct=c.priceDeltaPct;
           const providerDelta=c.providerDelta;
           const up=pct!=null&&pct>0;
           const down=pct!=null&&pct<0;
@@ -3424,10 +3485,10 @@ function GPUHistoryBlock({hist,histErr,hideHeader}){
               </div>
               <div style={{display:"flex",alignItems:"baseline",gap:6,marginTop:4}}>
                 <span style={{fontSize:16,fontWeight:700,color}}>{arrow}&nbsp;{pct==null?"—":(pct>0?"+":"")+pct.toFixed(1)+"%"}</span>
-                <span style={{fontSize:11,color:"#6b7280"}}>min $/hr</span>
+                <span style={{fontSize:11,color:"#6b7280"}}>{c.priceBasis?FIN_BASIS_SHORT[c.priceBasis]+" ":""}$/hr</span>
               </div>
               <div style={{fontSize:10,color:"#9ca3af",marginTop:3}}>
-                {latestPt?.minPricePerHour!=null?"now $"+latestPt.minPricePerHour.toFixed(2):"—"}
+                {latestPt?.dailyPrice!=null?"now $"+latestPt.dailyPrice.toFixed(2)+(latestPt.dailyBasis?" "+FIN_BASIS_SHORT[latestPt.dailyBasis]:""):"—"}
                 {providerDelta!=null&&<> · providers {providerDelta>0?"+":""}{providerDelta}</>}
               </div>
             </div>
@@ -3439,19 +3500,20 @@ function GPUHistoryBlock({hist,histErr,hideHeader}){
       <div style={{border:"0.5px solid #e5e7eb",borderRadius:8,overflow:"hidden",background:"#fff",marginBottom:10}}>
         <div style={{padding:"9px 14px",borderBottom:"0.5px solid #f3f4f6",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
           <span style={{fontSize:11,fontWeight:600,color:"#111827"}}>Strategic SKU history</span>
-          <span style={{fontSize:10,color:"#9ca3af"}}>latest vs 7D / 30D prior · loosening = more providers or lower floor</span>
+          <span style={{fontSize:10,color:"#9ca3af"}}>latest vs 7D / 30D prior · loosening = more providers or a lower price</span>
         </div>
         <div style={{overflowX:"auto"}}>
           <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
             <thead>
               <tr style={{background:"#fafafa"}}>
                 <th style={gpuTh}>GPU</th>
-                <th style={{...gpuTh,textAlign:"right"}}>Latest&nbsp;min&nbsp;$/hr</th>
+                <th style={{...gpuTh,textAlign:"right"}} title={latestBasis?"Measured as the "+FIN_BASIS_LABEL[latestBasis]:undefined}>{latestPriceHeading}</th>
                 <th style={{...gpuTh,textAlign:"right"}}>7D&nbsp;Δ</th>
                 <th style={{...gpuTh,textAlign:"right"}}>30D&nbsp;Δ</th>
                 <th style={{...gpuTh,textAlign:"right"}}>Providers</th>
                 <th style={{...gpuTh,textAlign:"right"}}>7D&nbsp;Δ&nbsp;providers</th>
-                <th style={{...gpuTh,textAlign:"right"}}>Spread×</th>
+                <th style={{...gpuTh,textAlign:"right"}}
+                    title={"Ceiling divided by floor of the vendor price range."+(rangeEndedOn?" The source publishes a single median instead of a range from "+rangeEndedOn+", so days after it have no two endpoints to divide.":"")}>Spread×</th>
                 <th style={{...gpuTh,textAlign:"right"}}>Trend (60d)</th>
                 <th style={gpuTh}>Tracking since</th>
               </tr>
@@ -3466,12 +3528,20 @@ function GPUHistoryBlock({hist,histErr,hideHeader}){
                 return(
                   <tr key={sku} style={{borderTop:"0.5px solid #f3f4f6"}}>
                     <td style={gpuTd}><span style={{fontWeight:600,color:"#111827"}}>{sku}</span></td>
-                    <td style={{...gpuTd,textAlign:"right",color:"#059669",fontWeight:600}}>{latestPt?.minPricePerHour!=null?"$"+latestPt.minPricePerHour.toFixed(2):"—"}</td>
-                    <td style={{...gpuTd,textAlign:"right"}}><DeltaCell c={c7} field="minDeltaPct" suffix="%"/></td>
-                    <td style={{...gpuTd,textAlign:"right"}}><DeltaCell c={c30} field="minDeltaPct" suffix="%"/></td>
+                    <td style={{...gpuTd,textAlign:"right",color:"#059669",fontWeight:600}}
+                        title={latestPt?.dailyBasis?"Measured as the "+FIN_BASIS_LABEL[latestPt.dailyBasis]+" · captured "+latestPt.date:undefined}>
+                      {latestPt?.dailyPrice!=null?"$"+latestPt.dailyPrice.toFixed(2):"—"}
+                      {!latestBasis&&latestPt?.dailyBasis&&<div style={{fontSize:9,fontWeight:500,color:latestPt.dailyBasis==="median"?"#1d4ed8":"#9ca3af"}}>{FIN_BASIS_SHORT[latestPt.dailyBasis]}</div>}
+                    </td>
+                    <td style={{...gpuTd,textAlign:"right"}}><DeltaCell c={c7} field="priceDeltaPct" suffix="%"/></td>
+                    <td style={{...gpuTd,textAlign:"right"}}><DeltaCell c={c30} field="priceDeltaPct" suffix="%"/></td>
                     <td style={{...gpuTd,textAlign:"right",color:"#374151"}}>{latestPt?.providerCount??"—"}</td>
                     <td style={{...gpuTd,textAlign:"right"}}><DeltaCell c={c7} field="providerDelta" suffix="" integer/></td>
-                    <td style={{...gpuTd,textAlign:"right",color:"#6b7280"}}>{latestPt?.spreadMultiple?latestPt.spreadMultiple.toFixed(1)+"×":"—"}</td>
+                    <td style={{...gpuTd,textAlign:"right",color:"#6b7280"}}>
+                      {latestPt?.spreadMultiple
+                        ?latestPt.spreadMultiple.toFixed(1)+"×"
+                        :<span style={{fontSize:10,color:"#9ca3af"}}>{spreadBlank}</span>}
+                    </td>
                     <td style={{...gpuTd,textAlign:"right"}}><Sparkline pts={pts}/></td>
                     <td style={{...gpuTd,color:"#9ca3af",fontSize:11}}>{firstDate||"—"}</td>
                   </tr>
@@ -3492,12 +3562,12 @@ function GPUHistoryBlock({hist,histErr,hideHeader}){
           const short=sku.replace(/^Nvidia\s+/i,"");
           if(sig==="loosening"){
             const parts=[];
-            if(c.minDeltaPct!=null&&c.minDeltaPct<=-2)parts.push("min "+c.minDeltaPct.toFixed(1)+"%");
+            if(c.priceDeltaPct!=null&&c.priceDeltaPct<=-2)parts.push((FIN_BASIS_SHORT[c.priceBasis]||"price")+" "+c.priceDeltaPct.toFixed(1)+"%");
             if(c.providerDelta!=null&&c.providerDelta>0)parts.push("+"+c.providerDelta+" providers");
             if(parts.length)msgs.push(short+" loosening ("+parts.join(" · ")+")");
           } else if(sig==="tightening"){
             const parts=[];
-            if(c.minDeltaPct!=null&&c.minDeltaPct>=2)parts.push("min +"+c.minDeltaPct.toFixed(1)+"%");
+            if(c.priceDeltaPct!=null&&c.priceDeltaPct>=2)parts.push((FIN_BASIS_SHORT[c.priceBasis]||"price")+" +"+c.priceDeltaPct.toFixed(1)+"%");
             if(c.providerDelta!=null&&c.providerDelta<0)parts.push(c.providerDelta+" providers");
             if(parts.length)msgs.push(short+" tightening ("+parts.join(" · ")+")");
           }
@@ -3515,7 +3585,16 @@ function GPUHistoryBlock({hist,histErr,hideHeader}){
 
 function DeltaCell({c,field,suffix,integer}){
   if(!c||c.status!=="ok"||c[field]==null){
-    return <span style={{color:"#9ca3af"}}>—</span>;
+    // A missing delta has a reason and the response carries it. A bare dash
+    // reads as a dead feed; the measure having changed under the comparison is
+    // a different thing, and the viewer can only tell if we say so.
+    const why=c&&c.basisChanged&&c.latestBasis&&c.priorBasis
+      ?"Not comparable: measured as "+(FIN_BASIS_SHORT[c.priorBasis]||c.priorBasis)+
+       " then, "+(FIN_BASIS_SHORT[c.latestBasis]||c.latestBasis)+" now."
+      :null;
+    return <span style={{color:"#9ca3af",cursor:why?"help":undefined}} title={why||undefined}>
+      {why?"n/c":"—"}
+    </span>;
   }
   const v=c[field];
   const up=v>0;
@@ -3525,9 +3604,31 @@ function DeltaCell({c,field,suffix,integer}){
   return <span style={{color,fontWeight:600}}>{formatted}{suffix}</span>;
 }
 
+/* Daily headline price on the latest measure only.
+   Plotting minPricePerHour drew only the floor days at the start of the window
+   and presented them as the trend; joining a ~$0.40 floor to a ~$3.39 median
+   would draw a leap that is a change of units, not a price move. Unpriced days
+   carry no basis and do not end the run; a day on the other measure does. */
+function latestBasisRun(pts){
+  if(!pts||!pts.length)return[];
+  // Seed from the newest point that HAS a basis, not simply the newest point:
+  // a single priceless trailing capture would otherwise discard every drawable
+  // day behind it — which is the blank this whole change exists to remove.
+  let end=pts.length-1;
+  while(end>=0&&!pts[end].dailyBasis)end--;
+  if(end<0)return[];
+  const basis=pts[end].dailyBasis;
+  // An unpriced day carries no basis and does not end the run; a day on the
+  // OTHER measure does, because joining them would draw a change of units as
+  // though it were a price move.
+  let start=end;
+  while(start>0&&(pts[start-1].dailyBasis===basis||pts[start-1].dailyBasis==null))start--;
+  return pts.slice(start,end+1).filter(p=>p.dailyBasis===basis)
+            .map(p=>p.dailyPrice).filter(v=>typeof v==="number");
+}
 function Sparkline({pts,w=80,h=22}){
   if(!pts||pts.length<2)return <span style={{color:"#d1d5db",fontSize:10}}>—</span>;
-  const vals=pts.map(p=>p.minPricePerHour).filter(v=>typeof v==="number");
+  const vals=latestBasisRun(pts);
   if(vals.length<2)return <span style={{color:"#d1d5db",fontSize:10}}>—</span>;
   const min=Math.min.apply(null,vals);
   const max=Math.max.apply(null,vals);

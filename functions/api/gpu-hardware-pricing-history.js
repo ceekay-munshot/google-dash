@@ -31,6 +31,9 @@
  *   {
  *     success, view:"daily",
  *     trackingSinceDate, latestDate, daysWithGPU,
+ *       daysWithGPU counts days whose GPU block holds at least one row; a
+ *       capture that came back empty is not a GPU day.
+ *     significantCaptureGaps: [ {afterDate, beforeDate, missingDays} ],
  *     trackedSKUs, availableSKUs,
  *     enough: { d7, d30 },
  *     latest: { "Nvidia H100": {...} },
@@ -115,12 +118,50 @@ function jsonResp(data, status = 200, cache = 'public, max-age=120, s-maxage=300
   });
 }
 
-function isRealSnapshot(snap) {
+/**
+ * A real capture, not a backfill copy or a synthetic seed — the
+ * classification described in this file's header. Exported so every reader of
+ * the daily history answers "does this day count?" with one rule; the
+ * pricing/share read-through applies it to its market-share days.
+ */
+export function isRealSnapshot(snap) {
   if (!snap) return false;
   if (snap.backfill === true) return false;
   const src = typeof snap.source === 'string' ? snap.source : '';
   if (/backfill/i.test(src)) return false;
   return true;
+}
+
+/**
+ * Runs of calendar days with no GPU observation, between two days that have
+ * one. The financial view reports them and the daily view breaks its trend
+ * line at them, so both read this one rule instead of each deciding for
+ * itself how long a hole has to be before it matters.
+ *
+ * `series` must already exclude days whose GPU block came back empty: such a
+ * capture ran and got nothing, which is a gap, not an observation.
+ */
+export const SIGNIFICANT_GAP_DAYS = 5;
+
+export function captureGapsFromSeries(series, skus) {
+  const dates = new Set();
+  for (const sku of skus || []) {
+    for (const p of (series && series[sku]) || []) dates.add(p.date);
+  }
+  const sorted = Array.from(dates).sort();
+  const captureGaps = [];
+  for (let i = 1; i < sorted.length; i++) {
+    const missing = Math.round(
+      (Date.parse(sorted[i] + 'T00:00:00Z') - Date.parse(sorted[i - 1] + 'T00:00:00Z')) / 86400000
+    ) - 1;
+    if (missing > 0) {
+      captureGaps.push({ afterDate: sorted[i - 1], beforeDate: sorted[i], missingDays: missing });
+    }
+  }
+  // Only a run long enough to visibly thin a period is worth telling a reader
+  // about; a single missed cron slot is noise.
+  const significantCaptureGaps = captureGaps.filter(g => g.missingDays >= SIGNIFICANT_GAP_DAYS);
+  return { captureGaps, significantCaptureGaps };
 }
 
 export async function onRequestGet({ request, env }) {
@@ -182,6 +223,13 @@ export async function onRequestGet({ request, env }) {
     if (!snap || !snap.gpu || !Array.isArray(snap.gpu.models)) continue;
     const real = isRealSnapshot(snap);
     if (!real && !keepAll) continue;
+    // A GPU block with no rows is a capture that ran and got nothing. The
+    // 2026-08-22 → 2026-09-10 outage wrote a run of them (models: [],
+    // coverage 0), and counting them overstates how many days were really
+    // observed. They are gaps, not observations: they must not count as GPU
+    // days, nor move the tracking dates.
+    const models = snap.gpu.models.filter(m => m && m.gpuModel);
+    if (!models.length) continue;
     daysWithGPU++;
     if (!latestDate) latestDate = date;
     trackingSince = date; // loop is newest-first, so last non-null wins as earliest
@@ -189,7 +237,7 @@ export async function onRequestGet({ request, env }) {
       if (!latestRealDate) latestRealDate = date;
       trackingSinceReal = date;
     }
-    for (const m of snap.gpu.models) {
+    for (const m of models) {
       const sku = m.gpuModel;
       if (!series[sku]) series[sku] = [];
       // Normalize on the way in, once, so every view below (daily, quarter,
@@ -428,6 +476,9 @@ export async function onRequestGet({ request, env }) {
     signals,
     signalBasis,
     basisTimeline: detectBasisTimeline(series),
+    // Where the daily capture has a hole. The trend line breaks here instead
+    // of drawing a straight price path across days nobody observed.
+    significantCaptureGaps: captureGapsFromSeries(series, availableSKUs).significantCaptureGaps,
   });
 }
 
@@ -690,6 +741,7 @@ function emptyResponse(reason, isQuarter) {
     series: {},
     comparisons: { d7: {}, d30: {} },
     signals: {},
+    significantCaptureGaps: [],
     note: reason,
   });
 }
@@ -1035,24 +1087,8 @@ function buildFinancialResponse(ctx) {
   // window. The month columns already thin out when this happens, but a
   // reader cannot tell a thin month from a short one without being told
   // where the hole is. The 2026-08-22 → 2026-09-10 outage is why September
-  // shows six days and August twenty-one.
-  const sortedObservationDates = Array.from(observationDates).sort();
-  const captureGaps = [];
-  for (let i = 1; i < sortedObservationDates.length; i++) {
-    const prevD = Date.parse(sortedObservationDates[i - 1] + 'T00:00:00Z');
-    const curD = Date.parse(sortedObservationDates[i] + 'T00:00:00Z');
-    const missing = Math.round((curD - prevD) / 86400000) - 1;
-    if (missing > 0) {
-      captureGaps.push({
-        afterDate: sortedObservationDates[i - 1],
-        beforeDate: sortedObservationDates[i],
-        missingDays: missing,
-      });
-    }
-  }
-  // Only gaps long enough to visibly distort a monthly average are worth
-  // surfacing to a customer; a single missed cron slot is noise.
-  const significantCaptureGaps = captureGaps.filter(g => g.missingDays >= 5);
+  // shows six days and August twenty-one. Same rule as the daily view.
+  const { captureGaps, significantCaptureGaps } = captureGapsFromSeries(series, availableSKUs);
 
   // ── Basis changes ────────────────────────────────────────────────────
   const basisTimeline = detectBasisTimeline(series);
