@@ -261,14 +261,108 @@ function FilingAnchorRow(){
   );
 }
 
+/* ── SHARE BASIS — what the share column actually counts ──────────
+   The share figures on this page used to come from the stored daily
+   captures. They do not any more: /api/pricing-share-signal reads
+   OpenRouter's weekly market-share series, which counts ALL OpenRouter
+   traffic, free tiers included. The stored daily rankings were filtered to
+   paid traffic on 2026-09-16 and carry no variant before it, so a paid-only
+   history does not exist and cannot be reconstructed — all-traffic is not a
+   preference, it is the only basis with history.
+
+   Same column, different measure. Printing the new number under the old
+   caption would be exactly the silent substitution the endpoint refuses to
+   make, so the basis is NAMED wherever a share figure or a share change
+   appears. `basis` is shareBasis: one shape on the live and the fallback
+   path, so this renders without branching on which one answered. */
+function ShareBasisBanner({basis}){
+  if(!basis)return null;
+  // Both flags must agree before this is presented as the live weekly basis.
+  // `fallback` is the endpoint's own verdict; disagreement is read the safe
+  // way, as a fallback, because the fallback caption claims less.
+  const live=basis.fallback!==true&&basis.source==="live-weekly";
+  const excluded=basis.excludedDays||[];
+  return(
+    <div style={{background:live?"#f5f3ff":"#fffbeb",border:"0.5px solid "+(live?"#ddd6fe":"#fde68a"),borderRadius:8,padding:"8px 12px",marginBottom:12,fontSize:11,color:live?"#4c1d95":"#78350f",lineHeight:1.5}}>
+      <div>
+        <b>Share basis: {basis.label}</b>
+        {live
+          ? <> — all OpenRouter traffic, including free tiers. This is <i>not</i> the paid-only figure the stored snapshots produced; the two are different measures and must not be read as the same number.</>
+          : <> — the live weekly series could not be read{basis.liveError?" ("+basis.liveError+")":""}, so share falls back to the stored daily captures.</>}
+      </div>
+      {basis.note&&<div style={{marginTop:3,opacity:0.85}}>{basis.note}</div>}
+      {live&&basis.weeks>0&&(
+        <div style={{marginTop:3,opacity:0.85}}>
+          {basis.weeks} weekly period{basis.weeks===1?"":"s"} read · {basis.firstWeek} to {basis.lastWeek}.
+        </div>
+      )}
+      {excluded.length>0&&(
+        <div style={{marginTop:4}}>
+          {/* These counts describe the STORED daily captures. On the live path
+              those days are not what the figures above rest on, and a reader
+              could otherwise take "29 refused" as applying to the weekly
+              numbers beside them. Say which series they belong to. */}
+          {live&&<span style={{opacity:0.85}}>Separately, of the stored daily captures (which the figures above do <i>not</i> use): </span>}
+          <b>{basis.countedDays} {live?"":"stored capture "}day{basis.countedDays===1?"":"s"} countable</b>
+          {" · "}{basis.excludedDayTotal} refused — {excluded.map((x,i)=>(
+            <span key={x.reason}>{i>0?"; ":""}<b>{x.days}</b> {x.label.charAt(0).toLowerCase()+x.label.slice(1)}</span>
+          ))}.
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* Periods a WHOLE quarter would hold, so a quarter resting on fewer can say
+   so instead of wearing a label its coverage does not support. 13 ISO weeks
+   on the weekly basis; the quarter's own calendar days on the stored-daily
+   one. Returns null for anything that is not a YYYY-Qn key. */
+function quarterPeriodSpan(quarterId,unit){
+  const m=/^(\d{4})-Q([1-4])$/.exec(String(quarterId||""));
+  if(!m)return null;
+  if(unit==="week")return 13;
+  const y=+m[1],q=+m[2];
+  const start=Date.UTC(y,(q-1)*3,1);
+  const end=q===4?Date.UTC(y+1,0,1):Date.UTC(y,q*3,1);
+  return Math.round((end-start)/86400000);
+}
+
+/* "8 of 13 weeks" — but never "8 of  weeks". If the endpoint stops publishing
+   the quarter's period count the line degrades to what is still true ("8
+   weeks") rather than to a sentence with a hole in it, and if the row's own
+   count is missing it says so in words instead of rendering nothing. */
+function periodSpanLabel(rowPeriods,quarterPeriods,unit){
+  const u=unit||"period";
+  if(typeof rowPeriods!=="number")return "period count not published";
+  if(typeof quarterPeriods!=="number"||quarterPeriods<=0)
+    return rowPeriods+" "+u+(rowPeriods===1?"":"s");
+  return rowPeriods+" of "+quarterPeriods+" "+u+(quarterPeriods===1?"":"s");
+}
+
+/* One quarter's share coverage in words: how many periods stood behind it,
+   how many a whole quarter holds, and — when it is short — that it is short.
+   A quarter still in progress is short for a reason the reader already has,
+   so it is named as QTD rather than reported as a shortfall. */
+function shareCoverageNote(quarterId,periods,unit,partial){
+  if(typeof periods!=="number")return null;
+  const u=unit||"period";
+  const span=quarterPeriodSpan(quarterId,u);
+  const word=u+(periods===1?"":"s");
+  if(partial)return periods+" "+word+" so far (quarter still in progress)";
+  if(span!=null&&periods<span)return periods+" of "+span+" "+u+"s — the rest were not countable";
+  return periods+" "+word;
+}
+
 /* Partial-mode render: used when KV share history hasn't yet crossed a
    quarter boundary, so shareQoqPP is null everywhere. We pivot the Y axis
    from "share QoQ (pp)" to "current share (%)" — still useful because the
    reader can see which providers moved price AND where they sit in share
    rank right now. Disappears automatically once a prior-quarter snapshot
    exists in KV and the main block is renderable again. */
-function PricingSharePartialView({ header, quarter }){
+function PricingSharePartialView({ header, quarter, basis={}, sourceNote }){
   const rows=(quarter.rows||[]).filter(r=>typeof r.priceQoq==="number"&&typeof r.shareAvg==="number");
+  const shareUnit=quarter.sharePeriodUnit||"period";
+  const coverage=shareCoverageNote(quarter.quarter,quarter.sharePeriods,shareUnit,quarter.partial);
   const W=520,H=360,pL=44,pR=18,pT=22,pB=32;
   const xMax=Math.max(5,...rows.map(r=>Math.abs(r.priceQoq*100)))*1.15;
   const yMax=Math.max(5,...rows.map(r=>r.shareAvg))*1.12;
@@ -277,7 +371,9 @@ function PricingSharePartialView({ header, quarter }){
   const x0=sx(0);
 
   // Dot color: bias by price direction only (no share-QoQ regime available)
-  const dotColor=(pq)=>pq<=-0.02?"#2563eb":pq>=0.02?"#dc2626":"#6b7280";
+  // A refused price comparison has no direction to colour by — grey, not the
+  // "hold" grey by accident but because there is no number.
+  const dotColor=(pq)=>typeof pq!=="number"?"#d1d5db":pq<=-0.02?"#2563eb":pq>=0.02?"#dc2626":"#6b7280";
 
   // Smart label placement (flip + vertical stacking) — same logic as full view
   const dotData=rows.map(r=>({
@@ -307,8 +403,14 @@ function PricingSharePartialView({ header, quarter }){
     placed.push({...d,lx,ly:d.y+dy,lAnchor,lw});
   });
 
-  // Sort table by current share descending so the dominant provider reads first
-  const tableRows=[...rows].sort((a,b)=>b.shareAvg-a.shareAvg);
+  // Sort table by current share descending so the dominant provider reads first.
+  // The SCATTER needs both numbers — a dot cannot be placed without an x and a
+  // y — so `rows` stays filtered. The TABLE does not: a provider whose price
+  // comparison the matrix refused still has a share level that is fully known,
+  // and dropping the whole row deletes it behind nothing at all. Same rule the
+  // full view applies; the two must not disagree about which providers exist.
+  const tableRows=(quarter.rows||[]).filter(r=>typeof r.shareAvg==="number")
+    .sort((a,b)=>b.shareAvg-a.shareAvg);
   const biggestCut=[...rows].filter(r=>r.priceQoq<0).sort((a,b)=>a.priceQoq-b.priceQoq)[0];
   const biggestUp=[...rows].filter(r=>r.priceQoq>0).sort((a,b)=>b.priceQoq-a.priceQoq)[0];
   const topShare=[...rows].sort((a,b)=>b.shareAvg-a.shareAvg)[0];
@@ -321,9 +423,13 @@ function PricingSharePartialView({ header, quarter }){
         {quarter.partial&&<span style={{marginLeft:5,fontSize:9,background:"#ecfeff",color:"#0e7490",padding:"1px 5px",borderRadius:3,fontWeight:600}}>QTD</span>}
         <span style={{color:"#9ca3af"}}> · {rows.length} providers · partial view</span>
       </div>
+      {/* The measure, before any share figure below it — this view shows the
+          share LEVEL, and the level moved basis too. */}
+      <ShareBasisBanner basis={basis}/>
       {/* Explanation banner */}
       <div style={{background:"#fffbeb",border:"0.5px solid #fde68a",borderRadius:8,padding:"8px 12px",marginBottom:12,fontSize:11,color:"#78350f",lineHeight:1.45}}>
-        <b>Share QoQ pending.</b> Prior-quarter KV snapshots not yet captured, so share-delta can't be computed. Showing Price QoQ vs <i>current</i> share % instead — full view returns automatically once the next quarter of snapshots lands.
+        <b>Share QoQ pending.</b> No prior quarter is observable at the comparison depth, so share-delta can't be computed. Showing Price QoQ vs <i>current</i> share % instead — the full view returns automatically once a prior quarter is observable.
+        {typeof quarter.shareDepth==="number"&&<> Read to the top <b>{quarter.shareDepth}</b> providers{coverage?<>, on {coverage}</>:null}.</>}
       </div>
       {/* Callouts limited to what's computable from a single quarter */}
       <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(210px,1fr))",gap:8,marginBottom:12}}>
@@ -387,7 +493,7 @@ function PricingSharePartialView({ header, quarter }){
           <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
             <thead>
               <tr>
-                {["Provider","Avg Price /1M","Price QoQ","Current Share"].map(h=>(
+                {["Provider","Avg Price /1M","Price QoQ","Current Share ("+(basis.measure==="all-traffic"?"all OR traffic":"as captured")+")"].map(h=>(
                   <th key={h} style={{...S.lbl,textAlign:"left",padding:"8px 10px",borderBottom:"1px solid #f3f4f6",background:"#fafafa"}}>{h}</th>
                 ))}
               </tr>
@@ -400,8 +506,11 @@ function PricingSharePartialView({ header, quarter }){
                     {r.label}
                   </td>
                   <td style={{padding:"8px 10px",borderBottom:"1px solid #f9fafb",fontFamily:"monospace",color:"#111827"}}>{r.avgLabel}</td>
-                  <td style={{padding:"8px 10px",borderBottom:"1px solid #f9fafb",fontFamily:"monospace",fontWeight:600,color:r.priceQoq>0?"#dc2626":r.priceQoq<0?"#059669":"#6b7280"}}>{r.priceQoqLabel}</td>
-                  <td style={{padding:"8px 10px",borderBottom:"1px solid #f9fafb",fontFamily:"monospace",color:"#111827"}}>{r.shareAvgLabel}</td>
+                  <td title={r.priceQoqReason||undefined} style={{padding:"8px 10px",borderBottom:"1px solid #f9fafb",fontFamily:typeof r.priceQoq==="number"?"monospace":"inherit",fontWeight:typeof r.priceQoq==="number"?600:500,fontSize:typeof r.priceQoq==="number"?undefined:10,cursor:r.priceQoqReason?"help":undefined,color:typeof r.priceQoq!=="number"?"#6b7280":r.priceQoq>0?"#dc2626":r.priceQoq<0?"#059669":"#6b7280"}}>{r.priceQoqLabel}</td>
+                  <td style={{padding:"8px 10px",borderBottom:"1px solid #f9fafb",fontFamily:"monospace",color:"#111827"}}>
+                    {r.shareAvgLabel}
+                    <div style={{fontFamily:"inherit",fontSize:9.5,color:"#9ca3af",marginTop:1}}>{periodSpanLabel(r.sharePeriods,quarter.sharePeriods,shareUnit)}</div>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -409,9 +518,10 @@ function PricingSharePartialView({ header, quarter }){
         </div>
       </div>
       <div style={{display:"flex",flexWrap:"wrap",gap:"4px 10px",fontSize:10,color:"#6b7280",marginTop:8,lineHeight:1.5}}>
-        <span><b style={{color:"#374151"}}>Scope:</b> partial view — Price QoQ shown, Share QoQ unavailable until a prior-quarter KV snapshot exists</span>
-        <span>·</span>
-        <span><b style={{color:"#374151"}}>Sources:</b> pricepertoken provider pricing history + canonical HISTORY_KV OpenRouter snapshots</span>
+        <span><b style={{color:"#374151"}}>Scope:</b> partial view — Price QoQ shown, Share QoQ unavailable until a prior quarter is observable at this depth</span>
+      </div>
+      <div style={{fontSize:10,color:"#9ca3af",marginTop:4,lineHeight:1.5}}>
+        <b style={{color:"#6b7280"}}>Sources:</b> {sourceNote}
       </div>
     </div>
   );
@@ -507,7 +617,7 @@ function PricingShareSignalBlock(){
         </div>
       );
     }
-    return <PricingSharePartialView header={header} quarter={partialQuarter}/>;
+    return <PricingSharePartialView header={header} quarter={partialQuarter} basis={d.shareBasis} sourceNote={d.sourceNote}/>;
   }
 
   /* SVG quadrant — Price QoQ % on x, Share QoQ pp on y.
@@ -516,7 +626,19 @@ function PricingShareSignalBlock(){
      they never collide with dots near the origin. H is tuned so the SVG
      renders tall enough to visually balance the signal table alongside it. */
   const W=520,H=360,pL=40,pR=18,pT=22,pB=32;
+  /* The SCATTER needs both numbers — a dot cannot be placed without an x and
+     a y. The TABLE does not: a provider whose price comparison the matrix
+     refused, or whose share had no prior-quarter observation at the
+     comparison depth, still has figures that are fully known, and dropping
+     the whole row hid them behind nothing at all. The table therefore shows
+     every row the quarter published and states the reason in the cell that
+     cannot carry a number. */
   const rows=latest.rows.filter(r=>typeof r.priceQoq==="number"&&typeof r.shareQoqPP==="number");
+  const tableRows=latest.rows;
+  const basis=d.shareBasis||{};
+  const shareUnit=latest.sharePeriodUnit||"period";
+  const coverageNow=shareCoverageNote(latest.quarter,latest.sharePeriods,shareUnit,latest.partial);
+  const coveragePrior=shareCoverageNote(d.priorComparable,latest.priorSharePeriods,shareUnit,false);
   let xMax=Math.max(5,...rows.map(r=>Math.abs(r.priceQoq*100)))*1.15;
   let yMax=Math.max(1,...rows.map(r=>Math.abs(r.shareQoqPP)))*1.3;
   const sx=(v)=>pL+((v+xMax)/(2*xMax))*(W-pL-pR);
@@ -561,11 +683,26 @@ function PricingShareSignalBlock(){
     <div style={{marginBottom:16}}>
       {header}
 
+      {/* What the share column counts — named before any share figure below it. */}
+      <ShareBasisBanner basis={basis}/>
+
       {/* Latest-quarter tag */}
-      <div style={{fontSize:11,color:"#6b7280",marginBottom:8}}>
+      <div style={{fontSize:11,color:"#6b7280",marginBottom:4}}>
         Latest comparable quarter: <b style={{color:"#111827",fontFamily:"monospace"}}>{d.latestComparable}</b>
         {latest.partial&&<span style={{marginLeft:5,fontSize:9,background:"#ecfeff",color:"#0e7490",padding:"1px 5px",borderRadius:3,fontWeight:600}}>QTD</span>}
-        <span style={{color:"#9ca3af"}}> vs {d.priorComparable} · {rows.length} providers observed in both dimensions</span>
+        <span style={{color:"#9ca3af"}}> vs {d.priorComparable} · {tableRows.length} providers, {rows.length} with both a price and a share change</span>
+      </div>
+
+      {/* What the comparison rests on. shareDepth is the number of providers
+          BOTH quarters were read to — share of a 10-row list is structurally
+          larger than share of a 30-row list, so neither side is read deeper
+          than the other. sharePeriods / priorSharePeriods say how much of
+          each quarter actually stood behind it, so a quarter carrying fewer
+          periods than its label implies is not presented as a whole one. */}
+      <div style={{fontSize:10.5,color:"#6b7280",marginBottom:10,lineHeight:1.5}}>
+        Read to the top <b style={{color:"#374151"}}>{latest.shareDepth}</b> providers in both quarters
+        {coverageNow&&<> · <b style={{color:"#374151"}}>{d.latestComparable}</b>: {coverageNow}</>}
+        {coveragePrior&&<> · <b style={{color:"#374151"}}>{d.priorComparable}</b>: {coveragePrior}</>}
       </div>
 
       {/* Callout chips */}
@@ -639,21 +776,38 @@ function PricingShareSignalBlock(){
           <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
             <thead>
               <tr>
-                {["Provider","Avg Price /1M","Price QoQ","Share QoQ","Regime / Interpretation"].map(h=>(
+                {["Provider","Avg Price /1M","Price QoQ","Share ("+(basis.measure==="all-traffic"?"all OR traffic":"as captured")+")","Share QoQ","Regime / Interpretation"].map(h=>(
                   <th key={h} style={{...S.lbl,textAlign:"left",padding:"8px 10px",borderBottom:"1px solid #f3f4f6",background:"#fafafa"}}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {rows.map(r=>(
+              {tableRows.map(r=>(
                 <tr key={r.slug}>
                   <td style={{padding:"8px 10px",borderBottom:"1px solid #f9fafb",fontWeight:600,color:"#111827",whiteSpace:"nowrap"}}>
                     <span style={{display:"inline-block",width:8,height:8,borderRadius:"50%",background:regimeColor(r.priceReg,r.shareReg),marginRight:6,verticalAlign:"middle"}}/>
                     {r.label}
                   </td>
                   <td style={{padding:"8px 10px",borderBottom:"1px solid #f9fafb",fontFamily:"monospace",color:"#111827"}}>{r.avgLabel}</td>
-                  <td style={{padding:"8px 10px",borderBottom:"1px solid #f9fafb",fontFamily:"monospace",fontWeight:600,color:r.priceQoq>0?"#dc2626":r.priceQoq<0?"#059669":"#6b7280"}}>{r.priceQoqLabel}</td>
-                  <td style={{padding:"8px 10px",borderBottom:"1px solid #f9fafb",fontFamily:"monospace",fontWeight:600,color:r.shareQoqPP>0?"#059669":r.shareQoqPP<0?"#dc2626":"#6b7280"}}>{r.shareQoqLabel}</td>
+                  <td title={r.priceQoqReason||undefined} style={{padding:"8px 10px",borderBottom:"1px solid #f9fafb",fontFamily:typeof r.priceQoq==="number"?"monospace":"inherit",fontWeight:typeof r.priceQoq==="number"?600:500,fontSize:typeof r.priceQoq==="number"?undefined:10,cursor:r.priceQoqReason?"help":undefined,color:typeof r.priceQoq!=="number"?"#6b7280":r.priceQoq>0?"#dc2626":r.priceQoq<0?"#059669":"#6b7280"}}>{r.priceQoqLabel}</td>
+                  {/* The level, with the periods it was averaged over — the
+                      server publishes two decimals under 1% so a small but
+                      real share cannot round to "0.0%" and read as absent. */}
+                  <td style={{padding:"8px 10px",borderBottom:"1px solid #f9fafb",fontFamily:"monospace",color:"#111827"}}>
+                    {r.shareAvgLabel}
+                    <div style={{fontFamily:"inherit",fontSize:9.5,color:"#9ca3af",marginTop:1}}>{periodSpanLabel(r.sharePeriods,latest.sharePeriods,shareUnit)}</div>
+                  </td>
+                  {/* No share change is ever imputed. When the prior quarter
+                      held no observation of this provider at the comparison
+                      depth the cell says so — absence from the weekly series
+                      means folded into OpenRouter's "others" bucket, which is
+                      unknown, not zero. Never a bare dash. */}
+                  <td title={typeof r.shareQoqPP==="number"?undefined:("No observation of "+r.label+" in "+d.priorComparable+" among the top "+latest.shareDepth+" providers, so no change can be computed. Absence from the series means folded into OpenRouter's \u201cothers\u201d bucket \u2014 unknown, not zero. No share is imputed.")}
+                      style={{padding:"8px 10px",borderBottom:"1px solid #f9fafb",fontFamily:typeof r.shareQoqPP==="number"?"monospace":"inherit",fontWeight:600,cursor:typeof r.shareQoqPP==="number"?undefined:"help",color:r.shareQoqPP>0?"#059669":r.shareQoqPP<0?"#dc2626":"#6b7280"}}>
+                    {typeof r.shareQoqPP==="number"
+                      ? <>{r.shareQoqLabel}<div style={{fontFamily:"inherit",fontSize:9.5,fontWeight:400,color:"#9ca3af",marginTop:1}}>vs {r.sharePrevPeriods} {shareUnit}{r.sharePrevPeriods===1?"":"s"} in {d.priorComparable}</div></>
+                      : <span style={{fontSize:10,fontWeight:500}}>not in the top {latest.shareDepth} in {d.priorComparable}</span>}
+                  </td>
                   <td style={{padding:"8px 10px",borderBottom:"1px solid #f9fafb",fontSize:11,color:"#374151",lineHeight:1.35}}>
                     <div style={{fontWeight:600,color:"#111827"}}>{r.regimeLabel}</div>
                     <div style={{color:"#6b7280",marginTop:1}}>{r.note}</div>
@@ -665,15 +819,20 @@ function PricingShareSignalBlock(){
         </div>
       </div>
 
-      {/* Methodology caveat */}
+      {/* Methodology caveat. The source line is the endpoint's own sourceNote:
+          it names which series answered, that the weekly figure counts all
+          traffic including free, and the depth both quarters were read to.
+          Hard-coding it here is how the page went on describing the stored
+          daily snapshots after the share signal had stopped reading them. */}
       <div style={{display:"flex",flexWrap:"wrap",gap:"4px 10px",fontSize:10,color:"#6b7280",marginTop:8,lineHeight:1.5}}>
         <span><b style={{color:"#374151"}}>Rules:</b> price cut ≤ −2%, price up ≥ +2%, share gain ≥ +0.3pp, share loss ≤ −0.3pp</span>
         <span>·</span>
         <span><b style={{color:"#374151"}}>Scope:</b> directional ecosystem read-through, not a causal claim</span>
         <span>·</span>
-        <span><b style={{color:"#374151"}}>Omissions:</b> providers outside the OpenRouter top-N during the quarter are excluded, never imputed</span>
-        <span>·</span>
-        <span><b style={{color:"#374151"}}>Sources:</b> pricepertoken provider pricing history + canonical HISTORY_KV OpenRouter snapshots</span>
+        <span><b style={{color:"#374151"}}>Omissions:</b> providers outside the comparison depth during the quarter are excluded, never imputed</span>
+      </div>
+      <div style={{fontSize:10,color:"#9ca3af",marginTop:4,lineHeight:1.5}}>
+        <b style={{color:"#6b7280"}}>Sources:</b> {d.sourceNote}
       </div>
     </div>
   );
@@ -697,6 +856,95 @@ function PricingShareSignalBlock(){
 /* Injected by scripts/build-dashboard.mjs as a hash of this file's contents.
    Falls back to "dev" when the module is loaded outside that build (tests). */
 const BUILD=typeof __BUILD__!=="undefined"?__BUILD__:"dev";
+
+/* ═══════════════════════════════════════════════════════
+   CHANGE-OF-MEASURE / LIKE-FOR-LIKE ANNOTATIONS
+   Shared by every model-pricing table below.
+
+   The pricing endpoints now publish, per figure, WHY it is blank and WHAT
+   it rests on. Rendering the number alone and dropping the rest collapses
+   four different situations onto one grey em dash — no prior period, no
+   rows at all, a weighted cell the coverage gate withheld, and a comparison
+   the server deliberately refused — and a reader cannot tell them apart.
+   Everything here exists so a cell can say which it is.
+
+   Amber (#b45309) is already this dashboard's "there is a note here" colour
+   — the QTD/MTD partial badge and the GPU thin-coverage marker use it — so
+   a marker in it reads as an annotation, not as an error.
+═══════════════════════════════════════════════════════ */
+const BREAK_AMBER="#b45309";
+
+/* A refused comparison, NAMED. A refused cell must never look like an empty
+   one: "no data" and "these two figures measure different things" mean
+   opposite things to a reader. The reason itself rides on the cell's title,
+   where the caller has it. */
+function measureChangedTag(){
+  return <span style={{color:BREAK_AMBER,fontSize:9,fontWeight:600,whiteSpace:"nowrap"}}>measure&nbsp;changed</span>;
+}
+/* The other refusal the peer matrix can reach: the two periods share no
+   listing of the model, so a change would compare different SKUs. */
+function listingChangedTag(){
+  return <span style={{color:BREAK_AMBER,fontSize:9,fontWeight:600,whiteSpace:"nowrap"}}>listing&nbsp;changed</span>;
+}
+/* And the provider matrix's third: fewer than two models were priced in both
+   quarters, so there is nothing to compare like for like. */
+function tooFewModelsTag(){
+  return <span style={{color:BREAK_AMBER,fontSize:9,fontWeight:600,whiteSpace:"nowrap"}}>too&nbsp;few&nbsp;models</span>;
+}
+/* A blank with a reason that is neither a refusal nor a gap in the data —
+   "no prior quarter", "no price for this provider here". Still a dash, but a
+   dotted underline says the dash is explained on hover rather than silent. */
+function explainedDash(){
+  return <span style={{color:"#9ca3af",borderBottom:"1px dotted #d1d5db",cursor:"help"}}>—</span>;
+}
+
+/* Marks a LEVEL the source reported after it changed what it reports.
+   MeasureBreakCaption is this marker's legend and the two must ship
+   together: ACP once dropped the caption and kept the dagger, leaving a
+   symbol on screen that no text on the page resolved. */
+function afterChangeMark(){
+  return <sup style={{color:BREAK_AMBER,fontSize:8,fontWeight:700,marginLeft:1}}>&dagger;</sup>;
+}
+/* Marks a CHANGE taken across that day — restated onto the earlier measure
+   at the change's exact factor, so the two sides compare like with like.
+   The figure is real, so the marker is quiet and the number keeps its own
+   directional colour; the restatement is explained on hover. */
+function linkedMark(){
+  return <sup style={{color:BREAK_AMBER,fontSize:8,fontWeight:700,marginLeft:1}}>&Dagger;</sup>;
+}
+
+/* Tooltip for a price cell. basis is the date of the change it was reported
+   after (absent, or the sentinel "origin", on the original measure); left
+   counts observations from the other side that the average leaves out. */
+function afterChangeTitle(basis,left){
+  const parts=[];
+  if(basis&&basis!=="origin")parts.push("As the source reports it after its "+basis+" change — not comparable with figures from before that date.");
+  if(left)parts.push(left+" daily observation"+(left===1?"":"s")+" from the other side of the change "+(left===1?"is":"are")+" left out, so this average rests on one measure.");
+  return parts.length?parts.join(" "):null;
+}
+
+/* The caption for a table whose history contains a day on which the source
+   changed what it reports. It is the legend for BOTH markers above, and it
+   carries the one thing a reader cannot otherwise reconcile: across that day
+   the LEVEL shown is still the figure the source reports today, so a touched
+   model prints a halved dollar amount beside a roughly flat percentage. That
+   pair is correct and reads as a bug unless the caption says why. */
+function MeasureBreakCaption({mb}){
+  const s=mb?.summary;
+  if(!s)return null;
+  // Neutral grey, not amber: growth is linked across the change now, so this
+  // is the key to the markers, not a warning about the figures.
+  return(
+    <div role="note" style={{background:"#f9fafb",border:"0.5px solid #e5e7eb",borderRadius:6,padding:"8px 11px",marginTop:8,fontSize:11,color:"#4b5563",lineHeight:1.55}}>
+      <b style={{fontWeight:700,color:"#374151"}}>{s.headline}</b>{" "}{s.detail}{" "}
+      A <sup style={{color:BREAK_AMBER,fontWeight:700}}>&dagger;</sup> marks a price reported after the change;
+      a <sup style={{color:BREAK_AMBER,fontWeight:700}}>&Dagger;</sup> marks a change restated onto the earlier measure so the two sides compare like with like.
+      {" "}Prices are shown exactly as the source reports them today, so a model the change touched shows a
+      {" "}<b style={{fontWeight:600}}>halved dollar figure beside a roughly flat percentage</b> — both are right: what the
+      source reports changed, the price did not.
+    </div>
+  );
+}
 
 function ModelPricingHistoryBlock(){
   const[metric,setMetric]=useState("input");
@@ -834,15 +1082,62 @@ function ModelPricingHistoryBlock(){
                     // reads differently: the sub-label names the gate, and the tooltip
                     // explains it in full rather than leaving a bare dash to interpret.
                     const withheld=weighted&&c.avg===null&&!!c.gate;
-                    // An estimate is offered only where the measured value was withheld AND the
-// server produced one. Two bases, and the sub-label says which: "provisional"
-// is real arithmetic on evidence too thin to publish as measured; "modelled"
-// had no usage at all and is inferred from this provider's own measured
-// weighted-to-list ratio (or peers', which is weaker still).
-                    const showEst=weighted&&c.avg===null&&c.estimateAvgLabel&&view==="avg";
+                    // An estimate is offered only where the measured value was withheld
+                    // AND the server produced one. Two bases, and the sub-label says
+                    // which: "provisional" is real arithmetic on evidence too thin to
+                    // publish as measured; "modelled" had no usage at all and is
+                    // inferred from this provider's own measured weighted-to-list
+                    // ratio (or peers', which is weaker still).
+                    // hasEst holds in EVERY view, not just Avg: QoQ/YoY are now taken
+                    // from the same estimated figure the Avg column shows, so the
+                    // tooltip has to be able to say so there too.
+                    const hasEst=weighted&&c.avg===null&&!!c.estimateAvgLabel;
+                    const showEst=hasEst&&view==="avg";
                     const GATE_SHORT={"series-unavailable":"weights unavailable","no-usage":"no paid OR volume","too-few-models":(c.weightedModelCount||1)+" model only","coverage-unknown":"coverage not measurable","low-coverage":"coverage "+(c.coverageLabel||"low"),"single-model-dominated":"1 model is "+(c.topWeightShareLabel||"most")};
-                    if(view==="qoq"){ main=c.qoqLabel||"—"; color=cellColor(c.qoq); sub=c.avgLabel; }
-                    else if(view==="yoy"){ main=c.yoyLabel||"—"; color=cellColor(c.yoy); sub=c.avgLabel; }
+                    // The per-key annotations the endpoint now publishes beside each
+                    // change. Without them four different situations — no prior quarter,
+                    // no rows, a weighted cell the gate withheld, and a comparison the
+                    // server refused — all arrive as an absent key and print the same
+                    // silent dash, while the Avg cell one row up explains itself.
+                    const k=view==="qoq"?"qoq":view==="yoy"?"yoy":null;
+                    const g=k?{
+                      value:c[k], label:c[k+"Label"],
+                      measureChanged:!!c[k+"MeasureChanged"], tooFew:!!c[k+"TooFewMatched"],
+                      matched:c[k+"MatchedModels"], lineup:c[k+"LineupModels"],
+                      thin:!!c[k+"LowMatchedShare"], linked:!!c[k+"Linked"],
+                      estimated:!!c[k+"Estimated"],
+                      reason:c[k+"Reason"]||null, note:c[k+"Note"]||null,
+                    }:null;
+                    // A refusal names itself in the cell. Every other blank keeps the
+                    // dash but carries its reason on hover — including the last case,
+                    // where the server said nothing because there is simply no price.
+                    const refusedTag=g&&g.value==null
+                      ?(g.measureChanged?measureChangedTag():g.tooFew?tooFewModelsTag():null)
+                      :null;
+                    const blankWhy=g&&g.value==null
+                      ?(g.reason
+                        ||(withheld&&!hasEst
+                          ?"Not computed: this quarter's usage-weighted price was withheld, so there is nothing to compare it from."
+                          :"Not computed: no price for this provider in this quarter."))
+                      :null;
+                    // A figure computed on under half the lineup is still correct for the
+                    // models it names, so it is shown — drawn back, and saying outright
+                    // how many of how many it speaks for.
+                    const weak=!!(g&&g.thin&&g.value!=null);
+                    // Model-day growth is like-for-like: measured on the models priced in
+                    // BOTH quarters, so the lineup average would not reconcile with it and
+                    // the sub-label says what it rests on instead.
+                    const shownLevel=hasEst?c.estimateAvgLabel:c.avgLabel;
+                    const growthSub=()=>g.matched==null?shownLevel
+                      :g.value!=null
+                        ?(g.thin?g.matched+" of "+(g.lineup||c.modelCount||0)+" models like-for-like"
+                                :g.matched+(g.matched===1?" model":" models")+" like-for-like")
+                        :g.matched+" of "+(g.lineup||c.modelCount||0)+" in both qtrs";
+                    if(k){
+                      main=refusedTag||(g.value!=null?<>{g.label}{g.linked&&linkedMark()}</>:explainedDash());
+                      color=cellColor(g.value);
+                      sub=growthSub();
+                    }
                     else {
                       main=c.avgLabel;
                       sub=weighted
@@ -866,14 +1161,14 @@ function ModelPricingHistoryBlock(){
                     // Grey marks an EMPTY cell, not an estimated one. An estimate is
                     // rendered in the measured colour at the owner's explicit
                     // direction, so it cannot be read as weaker data on a slide.
-                    if(withheld&&!showEst) color="#9ca3af";
+                    if(withheld&&!hasEst) color="#9ca3af";
                     const EST_WHY={
                       "measured-ratio":"this provider's own measured weighted-to-list ratio",
                       "provisional-ratio":"this provider's partial usage data, which was too thin to publish as measured",
                       "peer-ratio":"the median weighted-to-list ratio across providers that could be measured",
                     };
                     const tip=weighted
-                      ?(showEst
+                      ?(hasEst
                         ?"ESTIMATE, not measured — "+c.estimateAvgLabel+", from "+
                           (EST_WHY[c.estimateBasis]||"an inferred ratio")+
                           " ("+(c.estimateRatio!=null?"x"+c.estimateRatio.toFixed(2):"—")+
@@ -890,11 +1185,20 @@ function ModelPricingHistoryBlock(){
                           " · "+(c.modelCount||0)+" models priced in this quarter"+
                           (c.qoqLabel?" · QoQ "+c.qoqLabel:"")+(c.yoyLabel?" · YoY "+c.yoyLabel:""))
                       :(c.avgLabel||"—")+" avg · "+(c.modelCount||0)+" models in this quarter · "+(c.obsCount||0)+" daily observations"+(c.qoqLabel?" · QoQ "+c.qoqLabel:"")+(c.yoyLabel?" · YoY "+c.yoyLabel:"");
+                    // A price reported after the source changed what it reports is
+                    // marked; MeasureBreakCaption under the table is that mark's legend.
+                    const afterChange=!!c.basis&&c.basis!=="origin";
+                    const title=[
+                      blankWhy,
+                      g&&g.value!=null?g.note:null,
+                      tip,
+                      afterChangeTitle(afterChange?c.basis:null,c.basisExcludedObs),
+                    ].filter(Boolean).join(" · ");
                     return(
-                      <td key={c.slug} style={{padding:"10px 10px",borderBottom:"1px solid #f9fafb",fontFamily:"monospace",textAlign:"right",fontWeight:600,color,whiteSpace:"nowrap"}}
-                          title={tip}>
-                        <div>{main}</div>
-                        <div style={{fontSize:9,color:withheld&&!showEst?"#d1d5db":"#9ca3af",fontWeight:400,marginTop:1}}>{sub}</div>
+                      <td key={c.slug} style={{padding:"10px 10px",borderBottom:"1px solid #f9fafb",fontFamily:"monospace",textAlign:"right",fontWeight:weak?500:600,color,whiteSpace:"nowrap"}}
+                          title={title||undefined}>
+                        <div style={weak?{opacity:.82}:undefined}>{main}{view==="avg"&&afterChange&&main&&afterChangeMark()}</div>
+                        <div style={{fontSize:9,color:weak?BREAK_AMBER:(withheld&&!hasEst?"#d1d5db":"#9ca3af"),fontWeight:400,marginTop:1}}>{sub}</div>
                       </td>
                     );
                   })}
@@ -919,9 +1223,15 @@ function ModelPricingHistoryBlock(){
       <div style={{fontSize:10,color:"#6b7280",marginTop:8,lineHeight:1.5}}>
         <b style={{color:"#374151"}}>{unitHint}</b>
         {" · "}pricepertoken list prices{weighted?", weighted by OpenRouter token volume":""}
+        {" · QoQ/YoY compare only the models priced in both quarters, so a model being listed or retired is never read as a price move"}
         {weighted&&<>{" · "}hover any cell for its coverage and basis</>}
+        {" · hover any dash for why it is blank"}
         {" · from "}{state.data?.earliestDateObserved||"2025-07-28"}
       </div>
+      {/* The legend for the dagger on post-change prices and the double dagger
+         on linked changes above. It ships WITH the markers, never apart from
+         them: a symbol whose key is missing is worse than no symbol at all. */}
+      <MeasureBreakCaption mb={state.data?.measureBreaks}/>
     </div>
   );
 }
@@ -1095,6 +1405,10 @@ function ModelPricingMatrixTable(){
   const frontierRef=(data?.frontierReference||[]);
   const externalCatalog=data?.externalCatalog||null;
   const coverage=data?.coverage||null;
+  // "Has a comparator", not "has a number": the endpoint sets this true when a
+  // rep had a year-ago period at all, even where the change itself was refused.
+  // So a refused YoY no longer also draws the "No comparator yet" note beneath
+  // the section title — the cell's own reason is the right and only account.
   const yoyAvailable=coverage?coverage[G.yoyAvailableKey]!==false:true;
   if(!periods.length||!reps.length){
     return(
@@ -1158,8 +1472,13 @@ function ModelPricingMatrixTable(){
     const matchedSummary=(rep.matchedModels||[]).length
       ? rep.matchedModels.length+" upstream variant"+(rep.matchedModels.length===1?"":"s")+" matched: "+rep.matchedModels.join(", ")
       : "no upstream model matched";
+    // Listings that matched the name but that the source prices as a separate
+    // SKU — left out of every figure in this row, each with the evidence.
+    // Without this the row would simply be missing a listing with no account
+    // of it anywhere on the page.
+    const setAside=(rep.setAsideModels||[]).map(x=>"Left out "+x.model+" — "+x.reason);
     return(
-      <td style={tdFirst} title={matchedSummary}>
+      <td style={tdFirst} title={[matchedSummary,...setAside].join("\n")}>
         <div style={{lineHeight:1.25}}>
           <div style={{fontWeight:600,color:"#111827"}}>{rep.label}</div>
           <div style={{fontSize:10,color:"#9ca3af",fontFamily:"ui-monospace,SFMono-Regular,Menlo,monospace"}}>{rep.modelDisplay}</div>
@@ -1172,16 +1491,55 @@ function ModelPricingMatrixTable(){
       {renderModelLabel(rep)}
       {periods.map(p=>{
         const val=rep[metricKey]?.[p.id];
-        return(<td key={p.id} style={tdMain}>{fmtPrice(val)}</td>);
+        // Which measure this level rests on, and how many observations from
+        // the other side of the change it leaves out.
+        const basis=rep.priceBasis?.[metricKey]?.[p.id];
+        const why=afterChangeTitle(basis,rep.basisExcludedObs?.[metricKey]?.[p.id]);
+        return(
+          <td key={p.id} style={tdMain} title={why||undefined}>
+            {fmtPrice(val)}{val!=null&&basis&&basis!=="origin"&&afterChangeMark()}
+          </td>
+        );
       })}
     </tr>
   );
+  // YoY needs the same period a year earlier, and the source's history only
+  // starts at earliestDateObserved: every period before that has no year-ago
+  // price by construction. Said on hover so a run of dashes in the YoY rows
+  // reads as "not yet possible" rather than "missing".
+  const historyStart=data.earliestDateObserved||null;
+  const historyStartPid=historyStart
+    ?(gran==="month"?historyStart.slice(0,7):historyStart.slice(0,4)+"-Q"+(Math.floor((+historyStart.slice(5,7)-1)/3)+1))
+    :null;
+  const hasYearAgo=pid=>{const ya=finYearPriorPeriodId(pid);return!!historyStartPid&&!!ya&&ya>=historyStartPid;};
+  const isYoY=key=>key===G.yoy.input||key===G.yoy.output;
+  // Four things could empty a change cell and they do not mean the same thing:
+  // the source changed what it reports between the two periods, the two
+  // periods share no listing of this model, there is no year-ago period at
+  // all, or there is simply no price. Each gets its own words. A change that
+  // WAS computed across the source's change of reporting is a real number and
+  // is shown as one, with a quiet marker and the restatement on hover.
   const renderChangeRow=(rep,key)=>(
     <tr key={key+"-"+rep.key}>
       {renderModelLabel(rep)}
       {periods.map(p=>{
         const val=rep[key]?.[p.id];
-        return(<td key={p.id} style={tdDim}>{fmtChange(val)}</td>);
+        const measureWhy=val==null?rep.measureChanged?.[key]?.[p.id]:null;
+        const listingWhy=val==null&&!measureWhy?rep.listingChanged?.[key]?.[p.id]:null;
+        const linkedWhy=val!=null?rep.linkedChange?.[key]?.[p.id]:null;
+        const noYearAgo=val==null&&!measureWhy&&!listingWhy&&isYoY(key)&&!hasYearAgo(p.id)&&historyStart
+          ?"No year-ago price to compare with: the source's price history starts "+historyStart+"."
+          :null;
+        const why=measureWhy||listingWhy||linkedWhy||noYearAgo
+          ||(val==null?"No price for this model in both "+periodIdToLabel(p.id,gran)+" and the period it is compared with.":null);
+        return(
+          <td key={p.id} style={tdDim} title={why||undefined}>
+            {measureWhy?measureChangedTag()
+              :listingWhy?listingChangedTag()
+              :val==null?explainedDash()
+              :<>{fmtChange(val)}{linkedWhy&&linkedMark()}</>}
+          </td>
+        );
       })}
     </tr>
   );
@@ -1305,9 +1663,26 @@ function ModelPricingMatrixTable(){
                               );
                             }
                             const val=row[section.key]?.[p.id];
+                            if(section.kind==="price"){
+                              const basis=row.priceBasis?.[section.key]?.[p.id];
+                              return(
+                                <td key={p.id} style={tdMain} title={afterChangeTitle(basis)||undefined}>
+                                  {fmtPrice(val)}{val!=null&&basis&&basis!=="origin"&&afterChangeMark()}
+                                </td>
+                              );
+                            }
+                            // Same rule as the matrix above, on this surface's own
+                            // field names (chgInput / momInput): a refused change is
+                            // named and a linked one is shown as the real number it is.
+                            const measureWhy=val==null?row.measureChanged?.[section.key]?.[p.id]:null;
+                            const linkedWhy=val!=null?row.linkedChange?.[section.key]?.[p.id]:null;
+                            const why=measureWhy||linkedWhy
+                              ||(val==null?"No frontier price in both "+periodIdToLabel(p.id,gran)+" and the period before it, so the frontier's cost change is not computed.":null);
                             return(
-                              <td key={p.id} style={section.kind==="price"?tdMain:tdDim}>
-                                {section.kind==="price"?fmtPrice(val):fmtChange(val)}
+                              <td key={p.id} style={tdDim} title={why||undefined}>
+                                {measureWhy?measureChangedTag()
+                                  :val==null?explainedDash()
+                                  :<>{fmtChange(val)}{linkedWhy&&linkedMark()}</>}
                               </td>
                             );
                           })}
@@ -1429,8 +1804,13 @@ function ModelPricingMatrixTable(){
       })()}
 
       <div style={{fontSize:10,color:"#9ca3af",lineHeight:1.5,marginTop:6}}>
-        <b style={{color:"#6b7280",fontWeight:600}}>Methodology:</b> Prices use pricepertoken historical model-level rows, averaged by {G.bucketWord} and shown as $/1M tokens. {G.chgLabel}/YoY compare only valid full historical periods; {G.partialBadge} growth is suppressed. Fixed representative models keep growth math comparable; the Frontier Reference shows how the latest frontier label — and its price — change by period. Alternate-billing SKUs (<code style={{fontFamily:"ui-monospace,SFMono-Regular,Menlo,monospace"}}>:batch</code>, <code style={{fontFamily:"ui-monospace,SFMono-Regular,Menlo,monospace"}}>:beta</code>, <code style={{fontFamily:"ui-monospace,SFMono-Regular,Menlo,monospace"}}>:thinking</code>) and sibling product lines (GPT-5 Pro vs GPT-5, <code style={{fontFamily:"ui-monospace,SFMono-Regular,Menlo,monospace"}}>-customtools</code>, <code style={{fontFamily:"ui-monospace,SFMono-Regular,Menlo,monospace"}}>-fast</code>) are excluded from every average — each would otherwise register as a price move when only the upstream catalog changed. Firecrawl is used only as an advisory model-discovery signal, never for pricing math.
+        <b style={{color:"#6b7280",fontWeight:600}}>Methodology:</b> Prices use pricepertoken historical model-level rows, averaged by {G.bucketWord} and shown as $/1M tokens. {G.chgLabel}/YoY compare only valid full historical periods; {G.partialBadge} growth is suppressed. Fixed representative models keep growth math comparable; the Frontier Reference shows how the latest frontier label — and its price — change by period. Alternate-billing SKUs (<code style={{fontFamily:"ui-monospace,SFMono-Regular,Menlo,monospace"}}>:batch</code>, <code style={{fontFamily:"ui-monospace,SFMono-Regular,Menlo,monospace"}}>:beta</code>, <code style={{fontFamily:"ui-monospace,SFMono-Regular,Menlo,monospace"}}>:thinking</code>) and sibling product lines (GPT-5 Pro vs GPT-5, <code style={{fontFamily:"ui-monospace,SFMono-Regular,Menlo,monospace"}}>-customtools</code>, <code style={{fontFamily:"ui-monospace,SFMono-Regular,Menlo,monospace"}}>-fast</code>) are excluded from every average — each would otherwise register as a price move when only the upstream catalog changed. Each row is priced from the model's own listing; a dated snapshot the source prices differently from the model itself is a separate SKU and is left out (hover the model name), and {G.chgLabel}/YoY compare only the listings both periods carry, so a listing arriving or leaving never reads as a price move. Firecrawl is used only as an advisory model-discovery signal, never for pricing math.
+        {data.measureBreaks?.summary&&<> Where the source changed what it reports mid-history, each period averages one measure only and a price reported after it carries a <sup style={{color:BREAK_AMBER,fontWeight:700}}>&dagger;</sup>; {G.chgLabel}/YoY across the change compare like with like — each model the change moved is compared at its reported price times the change's exact factor, marked <sup style={{color:BREAK_AMBER,fontWeight:700}}>&Dagger;</sup>. Only a model first listed after the change cannot be linked, and reads <span style={{color:BREAK_AMBER,fontWeight:600}}>measure changed</span>.</>}
       </div>
+      {/* The legend for both markers used in the tables above. Rendered from
+         the same response that produces the markers, so the two cannot drift
+         apart — a dagger on screen with no key is unreadable. */}
+      <MeasureBreakCaption mb={data.measureBreaks}/>
     </div>
   );
 }
@@ -1570,7 +1950,7 @@ const GPU_STRATEGIC_ORDER=[
   "Nvidia H100","Nvidia H200","Nvidia B200","Nvidia GB200",
   "Nvidia A100","Nvidia L40S",
 ];
-// KPI cards want just the cheapest by SKU — uses same canonical names.
+// KPI cards want the headline price by SKU — uses same canonical names.
 const GPU_KPI_SKUS=["Nvidia H100","Nvidia H200","Nvidia B200","Nvidia A100"];
 
 function fmtUSD(v){
@@ -1689,10 +2069,26 @@ function GPUFinancialSubtab({fHist,fHistErr}){
   );
 }
 
+/* ─── Live listing price basis ──────────────────────────────
+   The live /api/gpu-hardware-pricing-data rows are not run through
+   normalizeDailyPoint — that happens in the history endpoint — so this panel
+   resolves the measure itself, with the same precedence: a vendor median
+   since 2026-07-28, the floor of the range before it. */
+function liveBasis(r){
+  if(!r)return null;
+  if(r.medianPricePerHour!=null&&isFinite(r.medianPricePerHour))return"median";
+  if(r.minPricePerHour!=null&&isFinite(r.minPricePerHour))return"floor";
+  return null;
+}
+function livePrice(r){
+  const b=liveBasis(r);
+  return b==="median"?r.medianPricePerHour:b==="floor"?r.minPricePerHour:null;
+}
+
 /* ═══════════════════════════════════════════════════════
    SUBTAB: Infra Monitoring (live market plumbing)
-   - Live KPI cards (current spot minimums)
-   - Strategic SKU comparison (live lowest / highest $/hr)
+   - Live KPI cards (current headline price per SKU)
+   - Strategic SKU comparison (live $/hr on the measure the feed publishes)
    - Operational GPU Pricing History (quarter-close / QTD / daily)
    - Live reverse-proxied getdeploying table
 ═══════════════════════════════════════════════════════ */
@@ -1703,18 +2099,51 @@ function GPUInfraMonitoringSubtab({data,loadErr,updatedTxt,histView,setHistView,
 
   const kpiCards=GPU_KPI_SKUS.map(sku=>{
     const r=byName[sku];
-    if(!r||r.minPricePerHour==null)return null;
+    // Guarding on minPricePerHour is what emptied all four cards: the source
+    // stopped publishing a vendor range on 2026-07-28, so that field is null on
+    // every row while the median it publishes instead sits in the same payload.
     const short=sku.replace(/^Nvidia\s+/i,"");
+    /* Dropping the card was the second version of the same mistake. The first
+       guarded on minPricePerHour and emptied all four when the source stopped
+       publishing a range; this one resolves the median correctly but still
+       deletes the tile when NEITHER field resolves. The grid is auto-fit, so
+       the gap closes and a reader looking at three cards cannot know a fourth
+       existed — the SKU is simply gone, along with any sign that it is tracked.
+       Silently removing a tracked SKU is the worst available answer to a
+       missing price: the card stays and says what is missing. */
+    if(!r||livePrice(r)==null)return{
+      sku,label:short+" $/hr",value:"—",
+      sub:!r?"not in this listing"
+        :data?.stale?"no price in the cached listing"+(data.staleReason?" ("+data.staleReason+")":"")
+        :"no price in this listing",
+      missing:true,
+    };
     return{
-      sku,label:"Live cheapest "+short+" $/hr",
-      value:fmtUSD(r.minPricePerHour),
+      // "cheapest" was only true of the old floor measure; the label names
+      // whichever measure the row actually carries.
+      // "Live" is dropped when the listing is a cached fallback — the price is
+      // still the best there is, but it is not current and must not claim to be.
+      sku,label:(data?.stale?"Last ":"Live ")+short+" "+FIN_BASIS_SHORT[liveBasis(r)]+" $/hr",
+      value:fmtUSD(livePrice(r)),
       sub:r.providerCount?r.providerCount+" providers":null,
     };
   }).filter(Boolean);
 
-  const totalProviders=rows.reduce((m,r)=>Math.max(m,r.providerCount||0),0);
+  // The listing gives each model a provider COUNT, never the providers' names,
+  // so how many distinct providers there are across models cannot be derived
+  // from it. "Providers tracked 54+ · across all SKUs" was the single largest
+  // count wearing a total's label; what the data supports is the widest single
+  // listing, named as that.
+  const widest=rows.reduce((b,r)=>(r.providerCount||0)>(b?.providerCount||0)?r:b,null);
   const modelCount=rows.length;
   const tableRows=GPU_STRATEGIC_ORDER.map(n=>byName[n]).filter(Boolean);
+
+  // The price column is NAMED from the measure the rows carry, so a change of
+  // measure renames the column instead of printing a median under a heading
+  // that says "lowest". Null when the rows disagree — then each cell says its own.
+  const tableBases=new Set(tableRows.map(liveBasis).filter(Boolean));
+  const tableBasis=tableBases.size===1?[...tableBases][0]:null;
+  const tableBasisHeading="Live "+(tableBasis?FIN_BASIS_SHORT[tableBasis]+" ":"")+"$/hr";
 
   return(
     <>
@@ -1726,11 +2155,18 @@ function GPUInfraMonitoringSubtab({data,loadErr,updatedTxt,histView,setHistView,
 
       {/* Title + subtitle */}
       <div style={{marginBottom:12}}>
-        <div style={{fontSize:14,fontWeight:700,color:"#111827",lineHeight:1.3}}>Live spot minimums, quarter-close history, and vendor table</div>
+        <div style={{fontSize:14,fontWeight:700,color:"#111827",lineHeight:1.3}}>Live provider pricing, quarter-close history, and vendor table</div>
         <div style={{fontSize:11,color:"#9ca3af",marginTop:3}}>
-          Current cheapest $/hr per SKU across 42+ providers · operational history uses quarter-close (last real snapshot in quarter).
-          {updatedTxt&&<> · <b style={{color:"#6b7280",fontWeight:600}}>Source updated {updatedTxt}</b></>}
+          Current $/hr per SKU across the providers listing it · operational history uses quarter-close (last real snapshot in quarter).
+          {updatedTxt&&!data?.stale&&<> · <b style={{color:"#6b7280",fontWeight:600}}>Source updated {updatedTxt}</b></>}
         </div>
+        {data?.stale&&(
+          <div style={{fontSize:11,color:"#b45309",marginTop:3}}>
+            Source unreachable{data.staleReason?" ("+data.staleReason+")":""} — showing the last
+            listing that parsed{data.fetchedAt?", captured "+data.fetchedAt:""}. These prices are
+            not current, and nothing on this screen was written to history.
+          </div>
+        )}
       </div>
 
       {/* KPI cards */}
@@ -1745,10 +2181,13 @@ function GPUInfraMonitoringSubtab({data,loadErr,updatedTxt,histView,setHistView,
       ):(
         <>
           <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(160px,1fr))",gap:8,marginBottom:10}}>
+            {/* A card with no price is kept but muted, so a tracked SKU reads as
+                tracked-and-unpriced rather than looking like a live figure. */}
             {kpiCards.map(c=>(
-              <KBox key={c.sku} label={c.label} value={c.value} sub={c.sub} bg="#ecfeff" fg="#0e7490"/>
+              <KBox key={c.sku} label={c.label} value={c.value} sub={c.sub}
+                    bg={c.missing?"#f9fafb":"#ecfeff"} fg={c.missing?"#9ca3af":"#0e7490"}/>
             ))}
-            <KBox label="Providers tracked"       value={totalProviders?totalProviders+"+":"—"} sub="across all SKUs"      bg="#f0fdf4" fg="#059669"/>
+            <KBox label="Most providers on one GPU" value={widest?.providerCount||"—"}           sub={widest?widest.gpuModel+" · not a total across GPUs":null} bg="#f0fdf4" fg="#059669"/>
             <KBox label="GPU models tracked"      value={modelCount||"—"}                       sub="parsed from source" bg="#eff6ff" fg="#1d4ed8"/>
           </div>
 
@@ -1765,21 +2204,26 @@ function GPUInfraMonitoringSubtab({data,loadErr,updatedTxt,histView,setHistView,
                     <tr style={{background:"#fafafa"}}>
                       <th style={gpuTh}>GPU</th>
                       <th style={gpuTh}>VRAM</th>
-                      <th style={{...gpuTh,textAlign:"right"}}>Live&nbsp;lowest&nbsp;$/hr</th>
-                      <th style={{...gpuTh,textAlign:"right"}}>Live&nbsp;highest&nbsp;$/hr</th>
+                      <th style={{...gpuTh,textAlign:"right"}} title={tableBasis?"Measured as the "+FIN_BASIS_LABEL[tableBasis]:undefined}>{tableBasisHeading}</th>
                       <th style={{...gpuTh,textAlign:"right"}}>Providers</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {tableRows.map(r=>(
+                    {tableRows.map(r=>{
+                      const b=liveBasis(r);
+                      return(
                       <tr key={r.gpuModel} style={{borderTop:"0.5px solid #f3f4f6"}}>
                         <td style={gpuTd}><span style={{fontWeight:600,color:"#111827"}}>{r.gpuModel}</span></td>
                         <td style={{...gpuTd,color:"#6b7280"}}>{r.vram||"—"}</td>
-                        <td style={{...gpuTd,textAlign:"right",color:"#059669",fontWeight:600}}>{fmtUSD(r.minPricePerHour)}</td>
-                        <td style={{...gpuTd,textAlign:"right",color:"#374151"}}>{fmtUSD(r.maxPricePerHour)}</td>
+                        <td style={{...gpuTd,textAlign:"right",color:"#059669",fontWeight:600}}
+                            title={b?"Measured as the "+FIN_BASIS_LABEL[b]:undefined}>
+                          {fmtUSD(livePrice(r))}
+                          {!tableBasis&&b&&<div style={{fontSize:9,fontWeight:500,color:b==="median"?"#1d4ed8":"#9ca3af"}}>{FIN_BASIS_SHORT[b]}</div>}
+                        </td>
                         <td style={{...gpuTd,textAlign:"right",color:"#6b7280"}}>{r.providerCount??"—"}</td>
                       </tr>
-                    ))}
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -2083,8 +2527,8 @@ function fmtGrowth(v){
 
    Two failure modes are reported separately because they have different
    fixes: the GPU block no longer arriving at all (capture/cron side), versus
-   the block still arriving with minPricePerHour null (upstream shape change,
-   provider counts keep updating while prices go blank). */
+   the block still arriving with no usable price in any field (upstream shape
+   change, provider counts keep updating while prices go blank). */
 function GPUFeedIntegrityBanner({dq,periodNoun}){
   if(!dq)return null;
   const notes=[];
@@ -2092,8 +2536,8 @@ function GPUFeedIntegrityBanner({dq,periodNoun}){
     notes.push({
       k:"pricefield",
       sev:"high",
-      head:"Price field missing from the feed since "+dq.latestPricedObservationDate,
-      body:"GPU rows kept arriving after that date — provider counts are still updating — but minPricePerHour came back empty, so every price cell from then on is blank. "
+      head:"No usable price in the feed since "+dq.latestPricedObservationDate,
+      body:"GPU rows kept arriving after that date — provider counts are still updating — but they carry no price in any field the parser reads, so every price cell from then on is blank. "
            +dq.unpricedDays+" of "+dq.observationDays+" captured days carry no price.",
     });
   }else if(dq.priceFieldStale&&dq.latestPricedObservationDate){
@@ -2394,7 +2838,7 @@ function GPUFinancialCorrelationBlock({fHist,fHistErr}){
                       badgeTitle="No GPU capture recorded for "+p.label+".";
                     }else if(!anyPriced){
                       badge="no price";badgeColor="#b45309";
-                      badgeTitle=p.label+" was captured but the feed returned no minPricePerHour, so every price cell is blank.";
+                      badgeTitle=p.label+" was captured but the feed returned no price, so every price cell is blank.";
                     }else if(running){
                       badge=effMode==="quarter"?"QTD":"MTD";
                       badgeTitle=p.label+" is still in progress — growth and resilience are suppressed for it.";
@@ -3354,6 +3798,20 @@ function GPUHistoryBlock({hist,histErr,hideHeader}){
   const series=hist.series||{};
   const latestBySku=hist.latest||{};
   const trackedSKUs=hist.trackedSKUs||[];
+  // Prices come from the resolved headline (dailyPrice / dailyBasis), never
+  // minPricePerHour: the source stopped publishing a floor on 2026-07-28, so
+  // that field is empty for every recent day and these cells read as dashes
+  // while the prices kept arriving in the same response. The column is named
+  // from the measure the latest points carry; if the SKUs disagree, each cell
+  // names its own.
+  const latestBases=new Set(trackedSKUs.map(s=>latestBySku[s]?.dailyBasis).filter(Boolean));
+  const latestBasis=latestBases.size===1?[...latestBases][0]:null;
+  const latestPriceHeading="Latest "+(latestBasis?FIN_BASIS_SHORT[latestBasis]+" ":"")+"$/hr";
+  // A spread needs two endpoints, and since the range became a single median
+  // there is only one figure to read — there is no correct spread to show. The
+  // cell states that instead of a dash, which would read as "not looked up".
+  const rangeEndedOn=(hist.basisTimeline?.changes||[]).find(ch=>ch.from==="floor"&&ch.to==="median")?.effectiveDate||null;
+  const spreadBlank="no range published"+(rangeEndedOn?" since "+monthIdToLabel(rangeEndedOn.slice(0,7)):"");
 
   // Empty-state: index exists but no snapshots had a gpu block yet.
   if(!days){
@@ -3391,7 +3849,7 @@ function GPUHistoryBlock({hist,histErr,hideHeader}){
         </div>
       )}
 
-      {/* Trend cards — 7D change in cheapest $/hr per strategic SKU */}
+      {/* Trend cards — 7D change in the headline $/hr per strategic SKU */}
       <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(180px,1fr))",gap:8,marginBottom:10}}>
         {GPU_HISTORY_TREND_SKUS.map(sku=>{
           const c=d7[sku];
@@ -3406,7 +3864,7 @@ function GPUHistoryBlock({hist,histErr,hideHeader}){
               </div>
             );
           }
-          const pct=c.minDeltaPct;
+          const pct=c.priceDeltaPct;
           const providerDelta=c.providerDelta;
           const up=pct!=null&&pct>0;
           const down=pct!=null&&pct<0;
@@ -3424,10 +3882,10 @@ function GPUHistoryBlock({hist,histErr,hideHeader}){
               </div>
               <div style={{display:"flex",alignItems:"baseline",gap:6,marginTop:4}}>
                 <span style={{fontSize:16,fontWeight:700,color}}>{arrow}&nbsp;{pct==null?"—":(pct>0?"+":"")+pct.toFixed(1)+"%"}</span>
-                <span style={{fontSize:11,color:"#6b7280"}}>min $/hr</span>
+                <span style={{fontSize:11,color:"#6b7280"}}>{c.priceBasis?FIN_BASIS_SHORT[c.priceBasis]+" ":""}$/hr</span>
               </div>
               <div style={{fontSize:10,color:"#9ca3af",marginTop:3}}>
-                {latestPt?.minPricePerHour!=null?"now $"+latestPt.minPricePerHour.toFixed(2):"—"}
+                {latestPt?.dailyPrice!=null?"now $"+latestPt.dailyPrice.toFixed(2)+(latestPt.dailyBasis?" "+FIN_BASIS_SHORT[latestPt.dailyBasis]:""):"—"}
                 {providerDelta!=null&&<> · providers {providerDelta>0?"+":""}{providerDelta}</>}
               </div>
             </div>
@@ -3439,19 +3897,20 @@ function GPUHistoryBlock({hist,histErr,hideHeader}){
       <div style={{border:"0.5px solid #e5e7eb",borderRadius:8,overflow:"hidden",background:"#fff",marginBottom:10}}>
         <div style={{padding:"9px 14px",borderBottom:"0.5px solid #f3f4f6",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
           <span style={{fontSize:11,fontWeight:600,color:"#111827"}}>Strategic SKU history</span>
-          <span style={{fontSize:10,color:"#9ca3af"}}>latest vs 7D / 30D prior · loosening = more providers or lower floor</span>
+          <span style={{fontSize:10,color:"#9ca3af"}}>latest vs 7D / 30D prior · loosening = more providers or a lower price</span>
         </div>
         <div style={{overflowX:"auto"}}>
           <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
             <thead>
               <tr style={{background:"#fafafa"}}>
                 <th style={gpuTh}>GPU</th>
-                <th style={{...gpuTh,textAlign:"right"}}>Latest&nbsp;min&nbsp;$/hr</th>
+                <th style={{...gpuTh,textAlign:"right"}} title={latestBasis?"Measured as the "+FIN_BASIS_LABEL[latestBasis]:undefined}>{latestPriceHeading}</th>
                 <th style={{...gpuTh,textAlign:"right"}}>7D&nbsp;Δ</th>
                 <th style={{...gpuTh,textAlign:"right"}}>30D&nbsp;Δ</th>
                 <th style={{...gpuTh,textAlign:"right"}}>Providers</th>
                 <th style={{...gpuTh,textAlign:"right"}}>7D&nbsp;Δ&nbsp;providers</th>
-                <th style={{...gpuTh,textAlign:"right"}}>Spread×</th>
+                <th style={{...gpuTh,textAlign:"right"}}
+                    title={"Ceiling divided by floor of the vendor price range."+(rangeEndedOn?" The source publishes a single median instead of a range from "+rangeEndedOn+", so days after it have no two endpoints to divide.":"")}>Spread×</th>
                 <th style={{...gpuTh,textAlign:"right"}}>Trend (60d)</th>
                 <th style={gpuTh}>Tracking since</th>
               </tr>
@@ -3466,12 +3925,20 @@ function GPUHistoryBlock({hist,histErr,hideHeader}){
                 return(
                   <tr key={sku} style={{borderTop:"0.5px solid #f3f4f6"}}>
                     <td style={gpuTd}><span style={{fontWeight:600,color:"#111827"}}>{sku}</span></td>
-                    <td style={{...gpuTd,textAlign:"right",color:"#059669",fontWeight:600}}>{latestPt?.minPricePerHour!=null?"$"+latestPt.minPricePerHour.toFixed(2):"—"}</td>
-                    <td style={{...gpuTd,textAlign:"right"}}><DeltaCell c={c7} field="minDeltaPct" suffix="%"/></td>
-                    <td style={{...gpuTd,textAlign:"right"}}><DeltaCell c={c30} field="minDeltaPct" suffix="%"/></td>
+                    <td style={{...gpuTd,textAlign:"right",color:"#059669",fontWeight:600}}
+                        title={latestPt?.dailyBasis?"Measured as the "+FIN_BASIS_LABEL[latestPt.dailyBasis]+" · captured "+latestPt.date:undefined}>
+                      {latestPt?.dailyPrice!=null?"$"+latestPt.dailyPrice.toFixed(2):"—"}
+                      {!latestBasis&&latestPt?.dailyBasis&&<div style={{fontSize:9,fontWeight:500,color:latestPt.dailyBasis==="median"?"#1d4ed8":"#9ca3af"}}>{FIN_BASIS_SHORT[latestPt.dailyBasis]}</div>}
+                    </td>
+                    <td style={{...gpuTd,textAlign:"right"}}><DeltaCell c={c7} field="priceDeltaPct" suffix="%"/></td>
+                    <td style={{...gpuTd,textAlign:"right"}}><DeltaCell c={c30} field="priceDeltaPct" suffix="%"/></td>
                     <td style={{...gpuTd,textAlign:"right",color:"#374151"}}>{latestPt?.providerCount??"—"}</td>
                     <td style={{...gpuTd,textAlign:"right"}}><DeltaCell c={c7} field="providerDelta" suffix="" integer/></td>
-                    <td style={{...gpuTd,textAlign:"right",color:"#6b7280"}}>{latestPt?.spreadMultiple?latestPt.spreadMultiple.toFixed(1)+"×":"—"}</td>
+                    <td style={{...gpuTd,textAlign:"right",color:"#6b7280"}}>
+                      {latestPt?.spreadMultiple
+                        ?latestPt.spreadMultiple.toFixed(1)+"×"
+                        :<span style={{fontSize:10,color:"#9ca3af"}}>{spreadBlank}</span>}
+                    </td>
                     <td style={{...gpuTd,textAlign:"right"}}><Sparkline pts={pts}/></td>
                     <td style={{...gpuTd,color:"#9ca3af",fontSize:11}}>{firstDate||"—"}</td>
                   </tr>
@@ -3492,12 +3959,12 @@ function GPUHistoryBlock({hist,histErr,hideHeader}){
           const short=sku.replace(/^Nvidia\s+/i,"");
           if(sig==="loosening"){
             const parts=[];
-            if(c.minDeltaPct!=null&&c.minDeltaPct<=-2)parts.push("min "+c.minDeltaPct.toFixed(1)+"%");
+            if(c.priceDeltaPct!=null&&c.priceDeltaPct<=-2)parts.push((FIN_BASIS_SHORT[c.priceBasis]||"price")+" "+c.priceDeltaPct.toFixed(1)+"%");
             if(c.providerDelta!=null&&c.providerDelta>0)parts.push("+"+c.providerDelta+" providers");
             if(parts.length)msgs.push(short+" loosening ("+parts.join(" · ")+")");
           } else if(sig==="tightening"){
             const parts=[];
-            if(c.minDeltaPct!=null&&c.minDeltaPct>=2)parts.push("min +"+c.minDeltaPct.toFixed(1)+"%");
+            if(c.priceDeltaPct!=null&&c.priceDeltaPct>=2)parts.push((FIN_BASIS_SHORT[c.priceBasis]||"price")+" +"+c.priceDeltaPct.toFixed(1)+"%");
             if(c.providerDelta!=null&&c.providerDelta<0)parts.push(c.providerDelta+" providers");
             if(parts.length)msgs.push(short+" tightening ("+parts.join(" · ")+")");
           }
@@ -3515,7 +3982,16 @@ function GPUHistoryBlock({hist,histErr,hideHeader}){
 
 function DeltaCell({c,field,suffix,integer}){
   if(!c||c.status!=="ok"||c[field]==null){
-    return <span style={{color:"#9ca3af"}}>—</span>;
+    // A missing delta has a reason and the response carries it. A bare dash
+    // reads as a dead feed; the measure having changed under the comparison is
+    // a different thing, and the viewer can only tell if we say so.
+    const why=c&&c.basisChanged&&c.latestBasis&&c.priorBasis
+      ?"Not comparable: measured as "+(FIN_BASIS_SHORT[c.priorBasis]||c.priorBasis)+
+       " then, "+(FIN_BASIS_SHORT[c.latestBasis]||c.latestBasis)+" now."
+      :null;
+    return <span style={{color:"#9ca3af",cursor:why?"help":undefined}} title={why||undefined}>
+      {why?"n/c":"—"}
+    </span>;
   }
   const v=c[field];
   const up=v>0;
@@ -3525,9 +4001,31 @@ function DeltaCell({c,field,suffix,integer}){
   return <span style={{color,fontWeight:600}}>{formatted}{suffix}</span>;
 }
 
+/* Daily headline price on the latest measure only.
+   Plotting minPricePerHour drew only the floor days at the start of the window
+   and presented them as the trend; joining a ~$0.40 floor to a ~$3.39 median
+   would draw a leap that is a change of units, not a price move. Unpriced days
+   carry no basis and do not end the run; a day on the other measure does. */
+function latestBasisRun(pts){
+  if(!pts||!pts.length)return[];
+  // Seed from the newest point that HAS a basis, not simply the newest point:
+  // a single priceless trailing capture would otherwise discard every drawable
+  // day behind it — which is the blank this whole change exists to remove.
+  let end=pts.length-1;
+  while(end>=0&&!pts[end].dailyBasis)end--;
+  if(end<0)return[];
+  const basis=pts[end].dailyBasis;
+  // An unpriced day carries no basis and does not end the run; a day on the
+  // OTHER measure does, because joining them would draw a change of units as
+  // though it were a price move.
+  let start=end;
+  while(start>0&&(pts[start-1].dailyBasis===basis||pts[start-1].dailyBasis==null))start--;
+  return pts.slice(start,end+1).filter(p=>p.dailyBasis===basis)
+            .map(p=>p.dailyPrice).filter(v=>typeof v==="number");
+}
 function Sparkline({pts,w=80,h=22}){
   if(!pts||pts.length<2)return <span style={{color:"#d1d5db",fontSize:10}}>—</span>;
-  const vals=pts.map(p=>p.minPricePerHour).filter(v=>typeof v==="number");
+  const vals=latestBasisRun(pts);
   if(vals.length<2)return <span style={{color:"#d1d5db",fontSize:10}}>—</span>;
   const min=Math.min.apply(null,vals);
   const max=Math.max.apply(null,vals);
@@ -3756,7 +4254,15 @@ function OpenRouterMarketShareEmbed({refreshTick=0}={}){
     row.others=other;
     return row;
   });
-  // Ranked legend — most recent week's provider share.
+  // Ranked legend — the week ACTUALLY SERVED, dated from what the endpoint
+  // published rather than described as "the most recent week". The provider
+  // series merges a live market-share read over the persisted capture; when
+  // the live read fails the stored weeks are still served, and the legend
+  // must not then claim a currency the series does not have.
+  const meta=state.data||{};
+  const live=meta.live||null;
+  const liveOk=live?live.ok!==false:null;
+  const weeksBehind=meta.latestWeekBehind;
   const lastRow=chartData.length?chartData[chartData.length-1]:{};
   const lastTotal=segs.reduce((s,g)=>s+(lastRow[g.key]||0),0)||1;
   const ranked=segs
@@ -3773,8 +4279,20 @@ function OpenRouterMarketShareEmbed({refreshTick=0}={}){
       </div>
       <div style={{fontSize:14,fontWeight:700,color:"#111827",lineHeight:1.3}}>OpenRouter Provider Market Share</div>
       <div style={{fontSize:11,color:"#9ca3af",marginTop:2,marginBottom:8}}>
-        Weekly provider token share across OpenRouter · ecosystem benchmark, not Google revenue
+        Weekly provider token share across OpenRouter · {meta.basis||"all OpenRouter traffic (free and paid)"} · ecosystem benchmark, not Google revenue
       </div>
+
+      {/* A short chart with no explanation on it is the failure this endpoint
+          already shipped once: the provider capture went stale on 2026-06-08
+          and nothing on the page said so for fourteen weeks. When the live
+          read fails the weeks are still shown — no week is dropped — and the
+          reason the series ends where it does is stated here. */}
+      {liveOk===false&&(
+        <div style={{background:"#fffbeb",border:"0.5px solid #fde68a",borderRadius:8,padding:"8px 12px",marginBottom:8,fontSize:11,color:"#78350f",lineHeight:1.45}}>
+          <b>These weeks are the stored capture only.</b> {live.note||"The live market-share read did not answer, so the series ends where the capture ended — it is not current."}
+          {live.error&&<span style={{opacity:0.85}}> ({live.error})</span>}
+        </div>
+      )}
 
       {/* Native provider-share chart — dark panel */}
       <div style={{background:"#0a0a0a",borderRadius:8,border:"0.5px solid #e5e7eb",padding:16,minHeight:520}}>
@@ -3824,7 +4342,16 @@ function OpenRouterMarketShareEmbed({refreshTick=0}={}){
                 ))}
               </BarChart>
             </ResponsiveContainer>
-            <div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:"3px 24px",marginTop:12}}>
+            <div title={liveOk&&live.latestWeek?"Newest week in the live market-share read: "+live.latestWeek:undefined}
+                 style={{fontSize:10.5,color:"#a1a1aa",marginTop:14,marginBottom:4,cursor:liveOk&&live.latestWeek?"help":undefined}}>
+              {meta.latestWeek
+                ? <>Share for the week of <span style={{color:"#fafafa",fontWeight:600}}>{fmtWeek(meta.latestWeek)}{meta.latestWeekEnd?" – "+fmtWeek(meta.latestWeekEnd):""}</span>
+                    {typeof weeksBehind==="number"&&weeksBehind>0
+                      ? <> · {weeksBehind} week{weeksBehind===1?"":"s"} behind the current ISO week</>
+                      : meta.currentWeek?<> · week in progress</>:null}</>
+                : <>No week is dated: the endpoint published no latest week, so this legend cannot say which week it describes.</>}
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:"3px 24px",marginTop:4}}>
               {ranked.map((s,i)=>(
                 <div key={s.key} style={{display:"flex",alignItems:"center",gap:7,fontSize:10.5,color:"#d4d4d8"}}>
                   <span style={{width:14,color:"#71717a",textAlign:"right",flexShrink:0}}>{i+1}</span>
@@ -3839,9 +4366,12 @@ function OpenRouterMarketShareEmbed({refreshTick=0}={}){
         )}
       </div>
 
-      {/* Source note */}
-      <div style={{fontSize:10,color:"#9ca3af",marginTop:5}}>
-        Source: openrouter.ai/rankings · weekly provider token share
+      {/* Source note — the endpoint's own line, which names the traffic this
+          series counts, plus the read that dated it. */}
+      <div style={{fontSize:10,color:"#9ca3af",marginTop:5,lineHeight:1.5}}>
+        Source: {meta.source||"openrouter.ai/rankings · weekly provider token share"}
+        {meta.updatedAt&&<> · updated {String(meta.updatedAt).slice(0,10)}</>}
+        {liveOk&&live.weekCount?<> · live market-share read {live.weekCount} weeks deep{live.readAt?<> at {String(live.readAt).slice(11,16)} UTC</>:null}</>:null}
       </div>
     </div>
   );
@@ -4918,7 +5448,19 @@ function GoogleGeminiPricingTable(){
                           <div style={{fontSize:10,color:"#9ca3af",fontFamily:"ui-monospace,SFMono-Regular,Menlo,monospace"}}>{r.sub}</div>
                         </div>
                       </td>
-                      {periods.map(p=>(<td key={p.id} style={tdMain}>{fmtPrice(r.model[priceKey]?.[p.id])}</td>))}
+                      {periods.map(p=>{
+                        const v=r.model[priceKey]?.[p.id];
+                        // Which measure this period's level rests on — a level
+                        // reported after the source changed what it reports is not
+                        // comparable with one from before, and says so.
+                        const basis=r.model.priceBasis?.[priceKey]?.[p.id];
+                        const why=afterChangeTitle(basis,r.model.basisExcludedObs?.[priceKey]?.[p.id]);
+                        return(
+                          <td key={p.id} style={tdMain} title={why||undefined}>
+                            {fmtPrice(v)}{v!=null&&basis&&basis!=="origin"&&afterChangeMark()}
+                          </td>
+                        );
+                      })}
                     </tr>
                   );
                 }
@@ -4927,7 +5469,27 @@ function GoogleGeminiPricingTable(){
                   return(
                     <tr key={i}>
                       <td style={{...tdFirst,padding:"4px 10px 6px 30px",color:"#6b7280",fontSize:10}}>{r.label}</td>
-                      {periods.map(p=>(<td key={p.id} style={tdDim}>{fmtChange(r.model[growthKey]?.[p.id])}</td>))}
+                      {periods.map(p=>{
+                        const v=r.model[growthKey]?.[p.id];
+                        // Same four-way distinction as the peer matrix: refused
+                        // because the source changed what it reports, refused
+                        // because the two periods share no listing, computed across
+                        // the change and restated onto the earlier measure, or
+                        // simply absent. Never one dash for all four.
+                        const measureWhy=v==null?r.model.measureChanged?.[growthKey]?.[p.id]:null;
+                        const listingWhy=v==null&&!measureWhy?r.model.listingChanged?.[growthKey]?.[p.id]:null;
+                        const linkedWhy=v!=null?r.model.linkedChange?.[growthKey]?.[p.id]:null;
+                        const why=measureWhy||listingWhy||linkedWhy
+                          ||(v==null?"No price for this model in both "+labelOf(p.id)+" and the period before it, so there is nothing to compare.":null);
+                        return(
+                          <td key={p.id} style={tdDim} title={why||undefined}>
+                            {measureWhy?measureChangedTag()
+                              :listingWhy?listingChangedTag()
+                              :v==null?explainedDash()
+                              :<>{fmtChange(v)}{linkedWhy&&linkedMark()}</>}
+                          </td>
+                        );
+                      })}
                     </tr>
                   );
                 }
@@ -4938,8 +5500,12 @@ function GoogleGeminiPricingTable(){
         </div>
       </div>
       <div style={{fontSize:10,color:"#9ca3af",lineHeight:1.5,marginTop:6}}>
-        {models.length} Google/Gemini models from pricepertoken historical rows. Models sorted by most-recent observation per tier. Specialty includes image, audio, TTS, embedding, computer-use modes.
+        {models.length} Google/Gemini models from pricepertoken historical rows. Models sorted by most-recent observation per tier. Specialty includes image, audio, TTS, embedding, computer-use modes. Hover any dash for why that cell is blank.
       </div>
+      {/* Legend for the markers the rows above print. Google's models are the
+         ones the 2026-07-10 change touched hardest, so this table is the one
+         where a halved price beside a flat percentage most needs explaining. */}
+      <MeasureBreakCaption mb={data.measureBreaks}/>
     </div>
   );
 }
@@ -5606,6 +6172,141 @@ function raw_pace_note(data){
   return(<><br/>Our partial-week pace = <strong>{wp.label}</strong> via <code>{wp.method}</code>. OR's own "Weekly Pace" tooltip uses a proprietary forecast we do not replicate; treat ours as a sanity check, not a 1:1 match.</>);
 }
 
+/* ═══════════════════════════════════════════════════════
+   THE 2026-08-18 → 2026-09-15 TOP APPS WINDOW
+
+   For ~29 days the daily capture stored OpenRouter's Top APPS table instead
+   of Top Models. "Kilo Code" and "Cline" are recorded as models, the total
+   collapses from ~28T to ~1.8T and back, and Gemini share reads 0%. Rendered
+   verbatim — which is what this tab did — the sparkline draws that collapse
+   as a real demand trend and the table asserts a #1 model that is an IDE.
+
+   Two things are true about those days and they are not the same thing:
+
+     THE TOTAL EXISTS. `or-chart:series`, the model weekly chart behind the
+     Weekly/QTD views, holds the true weekly total for the ISO week containing
+     each corrupted day. Its capture never broke — only the PROVIDER detector
+     did (_openrouter-rankings.js:8-21). So the figure is recoverable, and it
+     is substituted here with a marker saying where it came from.
+
+     THE ORDERING DOES NOT. The rankings API is a rolling trailing window with
+     no history: there is no request that returns the top-30 models as they
+     stood on 2026-08-22. It cannot be rebuilt and it is not invented. The row
+     says so in the cell that would otherwise hold a rank.
+
+   The tests are GD's own, held verbatim alongside the capture-path copies in
+   _openrouter-rankings.js (APP_NAME_HINTS) and openrouter.js
+   (assertLooksLikeModels); neither module exports them to the browser bundle.
+═══════════════════════════════════════════════════════ */
+const OR_APP_NAME_HINTS=/^(kilo code|cline|codex|pi|omp|freebuff|roo code|chatwise|sillytavern|openrouter api|janitorai|openwebui)$/i;
+
+/** Fewer than half the rows naming a model maker: not a model ranking. */
+function orIsAttributedRanking(rows){
+  const attributed=rows.filter(m=>m.provider&&m.provider!=="other").length;
+  return attributed>=rows.length*0.5;
+}
+
+/* Why a stored day is not a model ranking, or null when it is. Both tests
+   run, not just the attribution one: the Top Apps rows were attributed to
+   real model makers, so the >=50% test alone passes them. */
+function orDayCorruption(rows){
+  const list=rows||[];
+  if(!list.length)return null;
+  if(list.some(m=>OR_APP_NAME_HINTS.test(String(m.model||"").trim())))return "topAppsTable";
+  if(!orIsAttributedRanking(list))return "notModelRanking";
+  return null;
+}
+
+const OR_CORRUPTION_LABEL={
+  topAppsTable:"OpenRouter's Top Apps table was captured here, not Top Models",
+  notModelRanking:"fewer than half the captured rows name a model maker",
+};
+
+/** ISO week start (Monday) of a YYYY-MM-DD day, as YYYY-MM-DD. */
+function isoWeekStartOf(dateISO){
+  const t=Date.parse(String(dateISO||"")+"T00:00:00Z");
+  if(!isFinite(t))return null;
+  const d=new Date(t);
+  d.setUTCDate(d.getUTCDate()-((d.getUTCDay()+6)%7));
+  return d.toISOString().slice(0,10);
+}
+
+/* The daily capture's total is the sum of the top-30 MODEL rows it stored
+   (history-capture.js:174) — OpenRouter's "Others" rollup is not in it. The
+   chart week's `totalRaw` IS the whole ys including Others, so substituting
+   one for the other swaps the denominator and redraws the repaired days as a
+   step up. That is the same class of fault as the corruption being repaired:
+   a change of measure rendered as a change of level.
+
+   `allModels` (served by ?full=1) carries the per-model series, so the
+   like-for-like figure can be rebuilt — the top 30 named model series with
+   Others excluded, which is what the daily rows are. Without allModels there
+   is no comparable total and none is substituted. */
+const OR_DAILY_DEPTH=30;
+function comparableWeeklyTotal(wk){
+  const ys=wk&&wk.allModels;
+  if(!ys||typeof ys!=="object")return null;
+  const vals=[];
+  for(const k in ys){
+    if(k==="Others")continue;
+    const v=Number(ys[k]);
+    if(v>0)vals.push(v);
+  }
+  if(!vals.length)return null;
+  vals.sort((a,b)=>b-a);
+  /* The days this stands in for are a genuine top-30 sum (history-capture.js
+     fetches ?top=30 and slices to 30). This series carries however many names
+     the chart payload happened to include — nine, in every stored week — so
+     slicing to 30 is a no-op and the sum silently counts a SMALLER population
+     than the days beside it. Drawn on one axis that is a change of measure
+     rendered as a change of level: the repaired stretch would plot as a trough
+     roughly half the height of its neighbours, because the rest of the week's
+     tokens sit in "Others" and are excluded here but counted there.
+     Fixing the denominator is not possible from this payload, so the
+     substitution is refused and the already-built unsubstituted path says on
+     screen that no like-for-like weekly figure could be rebuilt. */
+  if(vals.length<OR_DAILY_DEPTH)return null;
+  return vals.slice(0,OR_DAILY_DEPTH).reduce((a,b)=>a+b,0);
+}
+
+/**
+ * Recover the total, refuse the ordering, state both.
+ *
+ * `chartWeeks` are the weeks published by /api/openrouter-chart-weekly — the
+ * same series the Weekly view reads. When one covers the corrupted day, its
+ * totalRaw replaces the corrupted capture's total and the row is marked with
+ * where the figure came from. When the chart could not be read there is no
+ * substitute, and the row says that instead of showing the 1.8T fiction.
+ *
+ * The ranked list is emptied either way. It was never a model ranking, and no
+ * ordering for that day can be reconstructed from any live source.
+ */
+function repairDailySnapshots(snaps,chartWeeks){
+  const byWeek=new Map();
+  for(const w of chartWeeks||[])if(w&&w.start)byWeek.set(w.start,w);
+  let substituted=0,unsubstituted=0;
+  const snapshots=(snaps||[]).map(sn=>{
+    const kind=orDayCorruption(sn.or);
+    if(!kind)return sn;
+    const wk=byWeek.get(isoWeekStartOf(sn.date))||null;
+    const total=comparableWeeklyTotal(wk);
+    if(total!=null)substituted++;else unsubstituted++;
+    return {
+      ...sn,
+      or:[],
+      orCorrupt:kind,
+      orCorruptLabel:OR_CORRUPTION_LABEL[kind]||kind,
+      orCapturedTotalRaw:(sn.openrouterSummary&&sn.openrouterSummary.totalTokensRaw)||0,
+      orTotalSubstituted:total!=null,
+      orTotalSourceWeek:total!=null?wk.start:null,
+      orRankingLost:true,
+      orRankingLostReason:"OpenRouter's rankings API is a rolling trailing window with no history, so the top-30 ordering for this day cannot be recovered from any source. It is not reconstructed and not guessed.",
+      openrouterSummary:{...(sn.openrouterSummary||{}),totalTokensRaw:total!=null?total:0},
+    };
+  });
+  return {snapshots,substituted,unsubstituted,corrupt:substituted+unsubstituted};
+}
+
 function HistoryTabCanonical(){
   // Default to Weekly — that's the chart-native investor-facing view that
   // reconciles to the OpenRouter live chart embedded above.
@@ -5620,19 +6321,36 @@ function HistoryTabCanonical(){
     //   weekly + quarterly → /api/openrouter-chart-weekly (the same RSC payload
     //     that drives the live OR chart embedded above; reconciles 1:1 with it)
     //   daily → /api/history?view=daily (our internal capture diagnostics)
+    //
+    // Daily ALSO reads the chart series, because ~29 stored days hold the Top
+    // Apps table rather than a model ranking and the only surviving figure for
+    // them is the chart's weekly total for the ISO week containing each day.
+    // The chart read is allowed to fail: repairDailySnapshots then marks those
+    // days as having no substitute rather than showing the corrupted total.
     const url = view==="daily"
       ? "/api/history?view=daily&range=365"
       : "/api/openrouter-chart-weekly";
 
-    fetch(url)
-      .then(r=>r.ok?r.json():Promise.reject(new Error("HTTP "+r.status)))
-      .then(d=>{
+    const primary=fetch(url).then(r=>r.ok?r.json():Promise.reject(new Error("HTTP "+r.status)));
+    const chart=view==="daily"
+      ? fetch("/api/openrouter-chart-weekly?full=1").then(r=>r.ok?r.json():null).catch(()=>null)
+      : Promise.resolve(null);
+
+    Promise.all([primary,chart])
+      .then(([d,ch])=>{
         if(cancelled)return;
         if(!d||d.success===false){
           setState({phase:"error",data:null,error:d?.error||"Unknown error"});
           return;
         }
-        const adapted = view==="daily" ? d : adaptChartNative(d,view);
+        let adapted = view==="daily" ? d : adaptChartNative(d,view);
+        if(view==="daily"){
+          const chartWeeks=(ch&&ch.success!==false&&ch.weeks)||null;
+          const fix=repairDailySnapshots(adapted.snapshots,chartWeeks);
+          adapted={...adapted,
+            snapshots:fix.snapshots,
+            _repair:{...fix,snapshots:undefined,chartRead:!!chartWeeks}};
+        }
         const snaps=adapted.snapshots||[];
         if(!snaps.length){
           setState({phase:"empty",data:adapted,error:null});
@@ -5656,7 +6374,11 @@ function HistoryTabCanonical(){
             },
             source:"local",
           })).reverse();
-          setState({phase:"ready",data:{view:"daily",snapshots:local,count:local.length,trackingSinceDate:local.length?local[local.length-1].date:null,_localFallback:true},error:null});
+          // The local cache holds the same corrupted days the canonical store
+          // does, so it gets the same refusal. No chart series is available on
+          // this path, so no total can be substituted and the rows say so.
+          const localFix=repairDailySnapshots(local,null);
+          setState({phase:"ready",data:{view:"daily",snapshots:localFix.snapshots,count:localFix.snapshots.length,trackingSinceDate:localFix.snapshots.length?localFix.snapshots[localFix.snapshots.length-1].date:null,_localFallback:true,_repair:{...localFix,snapshots:undefined,chartRead:false}},error:null});
           return;
         }
         setState({phase:"error",data:null,error:err.message||"Fetch failed"});
@@ -5739,6 +6461,7 @@ function HistoryTabCanonical(){
   const d=state.data;
   const snaps=d.snapshots||[];
   const trackingSinceDate=d.trackingSinceDate;
+  const repair=d._repair||null;
 
   function fmtDate(s){
     if(!s)return"—";
@@ -5792,6 +6515,10 @@ function HistoryTabCanonical(){
            : (s.periodId||s.date||""),
       tokens:orTok(s),
       partial:!!s.partial,
+      // A substituted point is a real figure from a different series. It is
+      // drawn, because leaving it out redraws the same false collapse as a
+      // gap, and it is marked, because it is not this day's own capture.
+      substituted:!!s.orTotalSubstituted,
     }));
 
   const primaryTok=orTok(primarySnap);
@@ -5883,8 +6610,11 @@ function HistoryTabCanonical(){
           fg={changePct==null?"#6b7280":changePct>=0?"#059669":"#b91c1c"}/>
         <KBox
           label={"Top model · "+(primaryKind==="daily"?"at capture":primaryKind==="completed-week"?"end of week":"latest week in quarter")}
-          value={latestTop?"#"+latestTop.rank+" "+prettyModel(latestTop.slug||latestTop.model):"—"}
-          sub={latestGem?"best Gemini #"+latestGem.rank+" · "+prettyModel(latestGem.slug||latestGem.model):(latestTop?"":"no OR data")}
+          value={latestTop?"#"+latestTop.rank+" "+prettyModel(latestTop.slug||latestTop.model)
+                :primarySnap?.orRankingLost?"not recoverable":"—"}
+          sub={latestGem?"best Gemini #"+latestGem.rank+" · "+prettyModel(latestGem.slug||latestGem.model)
+              :primarySnap?.orRankingLost?"this day captured the Top Apps table; the ordering has no source to rebuild it from"
+              :(latestTop?"":"no OR data")}
           bg="#fef3c7" fg="#a16207"/>
       </div>
 
@@ -5895,6 +6625,21 @@ function HistoryTabCanonical(){
           {" · "}
           {view==="daily"?"daily captures":view==="weekly"?"weekly (completed + current)":"quarterly (completed + current)"}
         </div>
+        {view==="daily"&&repair&&repair.corrupt>0&&(
+          <div style={{background:"#fffbeb",border:"0.5px solid #fde68a",borderRadius:8,padding:"8px 10px",marginBottom:10,fontSize:11,color:"#78350f",lineHeight:1.5}}>
+            <b>{repair.corrupt} captured day{repair.corrupt===1?"":"s"} did not hold a model ranking.</b>{" "}
+            The 2026-08-18 → 2026-09-15 capture stored OpenRouter's Top <i>Apps</i> table, so those days
+            recorded applications as models and a total that collapsed from ~28T to ~1.8T. Drawn verbatim
+            that collapse reads as a demand trend; it is not one.
+            {repair.substituted>0&&<> <b>{repair.substituted}</b> of them now show the top-30 model total for their ISO
+              week, rebuilt from the model weekly chart series (<code style={{fontFamily:"monospace"}}>or-chart:series</code>)
+              on the same basis these daily rows use, marked <span style={{padding:"0 4px",borderRadius:3,background:"#ede9fe",color:"#5b21b6",fontWeight:600}}>chart</span>.</>}
+            {repair.unsubstituted>0&&<> <b>{repair.unsubstituted}</b> ha{repair.unsubstituted===1?"s":"ve"} no substitute,
+              because no like-for-like weekly figure could be rebuilt for their ISO week.</>}
+            {" "}The daily top-30 <b>ordering</b> for these days is not recoverable — OpenRouter's rankings API is a
+            rolling trailing window with no history — so it is left refused, not invented.
+          </div>
+        )}
         {chart.length>=2?(
           <ResponsiveContainer width="100%" height={180}>
             <LineChart data={chart} margin={{top:6,right:14,left:-6,bottom:6}}>
@@ -5902,11 +6647,11 @@ function HistoryTabCanonical(){
               <XAxis dataKey="label" tick={{fontSize:10,fill:"#6b7280"}} tickLine={false} axisLine={{stroke:"#e5e7eb"}}/>
               <YAxis tick={{fontSize:10,fill:"#6b7280"}} tickLine={false} axisLine={{stroke:"#e5e7eb"}} tickFormatter={fmtTokShort} width={50}/>
               <Tooltip
-                formatter={(v,_,payload)=>[fmtTokShort(v)+(payload?.payload?.partial?" · partial":""),"tokens"]}
+                formatter={(v,_,payload)=>[fmtTokShort(v)+(payload?.payload?.partial?" · partial":"")+(payload?.payload?.substituted?" · weekly total from the chart series (this day's capture was the Top Apps table)":""),"tokens"]}
                 labelStyle={{fontSize:11,color:"#374151"}}
                 contentStyle={{fontSize:11,border:"0.5px solid #e5e7eb",borderRadius:6,padding:"6px 10px"}}/>
               <Line type="monotone" dataKey="tokens" stroke="#3b82f6" strokeWidth={2}
-                dot={({cx,cy,payload})=><circle cx={cx} cy={cy} r={3} fill={payload.partial?"#f59e0b":"#3b82f6"}/>}
+                dot={({cx,cy,payload})=><circle cx={cx} cy={cy} r={payload.substituted?3.6:3} fill={payload.substituted?"#7c3aed":payload.partial?"#f59e0b":"#3b82f6"}/>}
                 activeDot={{r:5}} isAnimationActive={false}/>
             </LineChart>
           </ResponsiveContainer>
@@ -5962,13 +6707,30 @@ function HistoryTabCanonical(){
                 // the count doesn't add investor value.
                 if(view!=="daily"&&s.representativeHasOR===false)notes.push("no OR signal");
                 if(s.source&&s.source!=="cron"&&s.source!=="or-chart")notes.push(s.source);
+                if(s.orCorrupt)notes.push(s.orCorrupt==="topAppsTable"?"Top Apps capture":"not a model ranking");
                 const isPartial=s.partial;
+                // A day whose capture was the Top Apps table. The total is
+                // substituted from the chart series where one covers its ISO
+                // week; the ordering is refused outright. Both are said on the
+                // row — neither is a bare dash, and neither is invented.
+                const lost=!!s.orRankingLost;
+                const lostCell=(what)=>(
+                  <span title={s.orRankingLostReason} style={{fontSize:10.5,color:"#92400e",cursor:"help"}}>
+                    {what} not recoverable
+                  </span>
+                );
                 return(
-                  <tr key={key} style={{borderBottom:"1px solid #f3f4f6",background:isPartial?"#fffbeb":undefined}}>
+                  <tr key={key} style={{borderBottom:"1px solid #f3f4f6",background:lost?"#fffdf5":isPartial?"#fffbeb":undefined}}>
                     <td style={{padding:"7px 12px",color:"#111827"}}>{periodLabel}</td>
-                    <td style={{padding:"7px 12px",color:"#111827",textAlign:"right",fontVariantNumeric:"tabular-nums"}}>{fmtTokShort(orTok(s))}</td>
-                    <td style={{padding:"7px 12px",color:"#374151"}}>{top?prettyModel(top.slug||top.model):"—"}</td>
-                    <td style={{padding:"7px 12px",color:"#374151"}}>{gem?"#"+gem.rank+" "+prettyModel(gem.slug||gem.model):"—"}</td>
+                    <td style={{padding:"7px 12px",color:"#111827",textAlign:"right",fontVariantNumeric:"tabular-nums"}}>
+                      {lost&&!s.orTotalSubstituted
+                        ? <span title={"This day's stored total ("+fmtTokShort(s.orCapturedTotalRaw)+") is the Top Apps table's, not the model ranking's, and no like-for-like weekly figure could be rebuilt from the chart series for its ISO week."} style={{fontSize:10.5,color:"#92400e",cursor:"help"}}>no countable total</span>
+                        : <>{fmtTokShort(orTok(s))}
+                            {s.orTotalSubstituted&&<span title={"Top-30 model total for the ISO week of "+s.orTotalSourceWeek+", rebuilt from the model weekly chart series (or-chart:series) on the same basis these daily rows use \u2014 the top 30 named model series, OpenRouter's \u201cOthers\u201d rollup excluded. This day's own capture held the Top Apps table and recorded "+fmtTokShort(s.orCapturedTotalRaw)+"."} style={{marginLeft:5,padding:"0 4px",borderRadius:3,background:"#ede9fe",color:"#5b21b6",fontSize:9.5,fontWeight:600,cursor:"help"}}>chart</span>}
+                          </>}
+                    </td>
+                    <td style={{padding:"7px 12px",color:"#374151"}}>{top?prettyModel(top.slug||top.model):lost?lostCell("ordering"):"—"}</td>
+                    <td style={{padding:"7px 12px",color:"#374151"}}>{gem?"#"+gem.rank+" "+prettyModel(gem.slug||gem.model):lost?lostCell("rank"):"—"}</td>
                     <td style={{padding:"7px 12px",color:"#6b7280",fontSize:11}}>
                       {notes.length?notes.map((n,j)=>{
                         const isPartialTag=n==="WTD"||n==="QTD"||n==="partial";
@@ -5988,6 +6750,7 @@ function HistoryTabCanonical(){
       <div style={{fontSize:10,color:"#9ca3af",marginTop:8,lineHeight:1.5}}>
         {view==="daily" ? (<>
           Metric: <strong style={{color:"#6b7280"}}>OR weekly total (rolling)</strong> — sum of top-30 model tokens scraped from <code>openrouter.ai/rankings?view=week</code> at our daily capture time. OpenRouter has no native daily metric; every captured number is a weekly rolling total observed on a specific day. <strong>This tab is internal capture diagnostics, not investor-facing</strong> — for completed-week and quarterly analysis use the Weekly and QTD tabs, which read the chart-native series directly.
+          <br/>Days whose capture was OpenRouter's Top <strong>Apps</strong> table (2026-08-18 → 2026-09-15) are detected by the same tests the capture path applies — an application name among the rows, or fewer than half the rows naming a model maker. Their total is replaced by the top-30 model total for the ISO week containing the day, rebuilt from the model weekly chart series on the same basis the daily rows use — the top 30 named model series, OpenRouter's &ldquo;Others&rdquo; rollup excluded, so the substituted figure is comparable to the days either side of it rather than a larger measure. Marked <span style={{padding:"0 4px",borderRadius:3,background:"#ede9fe",color:"#5b21b6",fontWeight:600}}>chart</span> in the table and drawn as a purple point on the sparkline. Their <strong>ordering is refused</strong>: the rankings API is a rolling trailing window with no history, so no top-30 list for a past day can be rebuilt, and none is invented here.
         </>):view==="weekly"?(<>
           Source: <code>/api/openrouter-chart-weekly</code> — extracted from the same Next.js RSC payload (<code>self.__next_f.push</code>) that drives the OpenRouter Top Models live chart embedded above. Each row is one ISO week. Totals are <strong>Σ ys</strong> across all model series including OR's "Others" rollup, matching the chart tooltip's <strong>Total</strong> field exactly (modulo observation time within a partial week — the value grows as the week progresses).
           {raw_pace_note(state.data)}

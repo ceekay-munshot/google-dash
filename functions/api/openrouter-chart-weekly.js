@@ -10,17 +10,24 @@
  *                        payloads to their own HISTORY_KV keys.
  *                        Auth: Authorization: Bearer <CAPTURE_TOKEN>.
  *
- * Source of truth is HISTORY_KV (`or-chart:series` for models,
- * `or-chart:providers` for providers), refreshed by the scheduled browser
- * capture (.github/workflows/openrouter-capture.yml). The bundled seed
+ * Source of truth for the MODEL series is HISTORY_KV (`or-chart:series`),
+ * refreshed by the scheduled browser capture
+ * (.github/workflows/openrouter-capture.yml). The bundled seed
  * (_openrouter-chart-seed.js) is a bootstrap / emergency fallback only —
  * persisted captures always override and extend it.
+ *
+ * The PROVIDER series is read LIVE from OpenRouter's market-share dataset and
+ * merged over the captured copy in `or-chart:providers` (see
+ * loadLiveProviders below): that capture stopped persisting on 2026-06-09, so
+ * serving it alone dropped ~16 weeks off the end of the chart while still
+ * answering 200.
  *
  * A normal GET ALWAYS responds 200 with a renderable series — it never
  * surfaces an upstream/parser error to the dashboard.
  */
 
 import { SEED_WEEKS, SEED_PROVIDER_WEEKS, SEED_CAPTURED_AT } from './_openrouter-chart-seed.js';
+import { fetchMarketShare, weeksBehind } from './_openrouter-rankings.js';
 
 const KV_SERIES         = 'or-chart:series';
 const KV_META           = 'or-chart:capture-meta';
@@ -28,6 +35,7 @@ const KV_PROVIDERS      = 'or-chart:providers';
 const KV_PROVIDERS_META = 'or-chart:providers-meta';
 const KV_ERROR          = 'or-chart:last-error';
 const CACHE_TTL_MS = 5 * 60 * 1000;
+const LIVE_TIMEOUT_MS = 6000;
 
 // In-isolate memo of the merged series so request bursts don't re-read KV.
 let _memo = null;
@@ -162,6 +170,65 @@ function isPartialWeek(x, todayTs) {
   return todayTs >= startTs && todayTs < startTs + 7 * 86400000;
 }
 
+/* ── live provider weeks ────────────────────────────────────────
+   `or-chart:providers` stopped persisting on 2026-06-09, and the feed-health
+   workflow does not alert on it because market-share "is read live and
+   supersedes it". That was made true of /api/provider-pricing-matrix and
+   never of this endpoint, which went on serving the frozen copy — sixteen
+   weeks short, under a legend calling its last bar the most recent week.
+
+   So read market-share live and merge it OVER the captured copy, with the
+   same semantics as mergeProviderWeeks in provider-pricing-matrix.js: keyed
+   by week start, live winning on overlap, so the capture supplies only the
+   older history it uniquely reaches back to (2025-05-26, against the live
+   dataset's 52-week window).
+
+   Both sources are ALL OpenRouter traffic, free and paid. A paid-only
+   history does not exist upstream — the stored rows carry no variant — so
+   this is the only basis with history, and the response labels it rather
+   than letting the page imply paid-only.
+   ──────────────────────────────────────────────────────────────── */
+
+// In-isolate memo of the live read, kept apart from the KV memo so the model
+// series never pays for a network call it does not use.
+let _liveMemo = null;
+
+/** fetchMarketShare's `{start, providers}` weeks → this module's `{x, ys}`. */
+function liveToWeeks(live) {
+  const weeks = live && Array.isArray(live.weeks) ? live.weeks : null;
+  if (!weeks) return null;
+  const out = [];
+  for (const w of weeks) {
+    if (w && typeof w.start === 'string' && w.providers && typeof w.providers === 'object') {
+      out.push({ x: w.start, ys: w.providers });
+    }
+  }
+  return out.length ? out : null;
+}
+
+async function loadLiveProviders() {
+  if (_liveMemo && Date.now() - _liveMemo.at < CACHE_TTL_MS) return _liveMemo;
+  let weeks = null, error = null;
+  try {
+    // Bounded: a normal GET must always answer, so an upstream that never
+    // replies becomes a flagged live failure rather than a hung request.
+    const signal = typeof AbortSignal !== 'undefined' && AbortSignal.timeout
+      ? AbortSignal.timeout(LIVE_TIMEOUT_MS) : undefined;
+    weeks = liveToWeeks(await fetchMarketShare('week', { signal }));
+    if (!weeks) error = 'live market-share returned no usable weekly rows';
+  } catch (e) {
+    error = (e && e.message) || 'live market-share read failed';
+  }
+  _liveMemo = { at: Date.now(), readAt: new Date().toISOString(), weeks, error };
+  return _liveMemo;
+}
+
+/** The provider series actually served: captured history, live weeks on top. */
+async function loadProviderSeries(state) {
+  const live = await loadLiveProviders();
+  return { live, series: mergeSeries(state.providers, live.weeks) };
+}
+
 /** "Top Models" wire shape — unchanged contract for charts 1/2/3. */
 function shapeModelResponse(merged, { full, updatedAt }) {
   const todayTs = parseUTC(todayISO());
@@ -209,7 +276,7 @@ function shapeModelResponse(merged, { full, updatedAt }) {
 }
 
 /** "Market Share" wire shape — per-week provider token totals. */
-function shapeProviderResponse(merged, { updatedAt }) {
+function shapeProviderResponse(merged, { updatedAt, live }) {
   const todayTs = parseUTC(todayISO());
   const weeks = merged.map(({ x, ys }) => {
     const totalRaw = Object.values(ys).reduce((s, v) => s + (v > 0 ? v : 0), 0);
@@ -222,13 +289,37 @@ function shapeProviderResponse(merged, { updatedAt }) {
       providers: ys,
     };
   });
+  const latest = weeks.length ? weeks[weeks.length - 1] : null;
+  const liveOk = !!(live && live.weeks && live.weeks.length);
   return {
     success: true,
     fetchedAt: new Date().toISOString(),
     updatedAt: updatedAt || null,
+    // The newest week ACTUALLY SERVED, published so a caption can date the
+    // chart instead of calling whatever sits last "the most recent week".
+    latestWeek: latest ? latest.start : null,
+    latestWeekEnd: latest ? latest.end : null,
+    latestWeekBehind: latest ? weeksBehind(latest.start) : null,
+    live: {
+      ok: liveOk,
+      readAt: (live && live.readAt) || null,
+      weekCount: liveOk ? live.weeks.length : 0,
+      latestWeek: liveOk ? live.weeks[live.weeks.length - 1].x : null,
+      error: liveOk ? null : ((live && live.error) || 'live market-share not read'),
+      // Said in words, because a stale chart with no explanation on it is the
+      // failure this endpoint already shipped once.
+      note: liveOk ? null
+        : 'The live market-share read did not answer, so these weeks are the stored ' +
+          'capture only and end where it ended — they are not current.',
+    },
     weeks,
     currentWeek: weeks.find(w => w.partial) || null,
-    source: 'openrouter.ai/rankings · weekly provider token share',
+    // Market-share is every token OpenRouter served. The 2026-09-16 paid-only
+    // filter was applied to the `models` dataset and never to this one, and a
+    // paid-only history cannot be reconstructed — stored rows carry no
+    // variant. Say which traffic this is rather than let the page assume.
+    basis: 'all OpenRouter traffic (free and paid)',
+    source: 'openrouter.ai/rankings · weekly provider token share · all OpenRouter traffic',
   };
 }
 
@@ -269,14 +360,15 @@ export async function onRequestGet({ request, env }) {
   const state = await loadState(env);
 
   if (debug) {
+    const providerState = await loadProviderSeries(state);
     const currentIsoWeek = isoWeekStartISO(Date.now());
     const behind = (latest) => latest
       ? Math.round((parseUTC(currentIsoWeek) - parseUTC(latest)) / (7 * 86400000))
       : null;
-    const seriesDiag = (series, kvCount, meta) => {
+    const seriesDiag = (series, kvCount, meta, source) => {
       const latest = series.length ? series[series.length - 1].x : null;
       return {
-        source: kvCount > 0 ? 'persisted-capture' : 'seed',
+        source: source || (kvCount > 0 ? 'persisted-capture' : 'seed'),
         weeksCount: series.length,
         latestStoredWeek: latest,
         firstStoredWeek: series.length ? series[0].x : null,
@@ -291,7 +383,18 @@ export async function onRequestGet({ request, env }) {
       currentIsoWeek,
       kvBound: !!(env && env.HISTORY_KV),
       models: seriesDiag(state.model, state.modelKvCount, state.modelMeta),
-      providers: seriesDiag(state.providers, state.providerKvCount, state.providerMeta),
+      providers: seriesDiag(providerState.series, state.providerKvCount, state.providerMeta,
+        providerState.live.weeks
+          ? 'live-market-share over ' + (state.providerKvCount > 0 ? 'persisted-capture' : 'seed')
+          : null),
+      liveMarketShare: {
+        ok: !!providerState.live.weeks,
+        readAt: providerState.live.readAt,
+        weeksCount: providerState.live.weeks ? providerState.live.weeks.length : 0,
+        latestWeek: providerState.live.weeks
+          ? providerState.live.weeks[providerState.live.weeks.length - 1].x : null,
+        error: providerState.live.error,
+      },
       seed: {
         capturedAt: SEED_CAPTURED_AT,
         modelWeeks: SEED_WEEKS.length,
@@ -302,8 +405,12 @@ export async function onRequestGet({ request, env }) {
   }
 
   if (providers) {
-    const updatedAt = (state.providerMeta && state.providerMeta.capturedAt) || SEED_CAPTURED_AT;
-    return jsonResp(shapeProviderResponse(state.providers, { updatedAt }), 200, 'public, max-age=300');
+    const { live, series } = await loadProviderSeries(state);
+    // Dated by the live read when it answered; otherwise by the capture that
+    // is all there is, so the caption cannot claim a freshness it lacks.
+    const captured = (state.providerMeta && state.providerMeta.capturedAt) || SEED_CAPTURED_AT;
+    const updatedAt = live.weeks ? live.readAt : captured;
+    return jsonResp(shapeProviderResponse(series, { updatedAt, live }), 200, 'public, max-age=300');
   }
 
   const updatedAt = (state.modelMeta && state.modelMeta.capturedAt) || SEED_CAPTURED_AT;

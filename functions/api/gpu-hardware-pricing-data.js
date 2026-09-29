@@ -27,7 +27,72 @@
 
 const SOURCE_URL = 'https://getdeploying.com/gpus';
 
-export async function onRequestGet() {
+// getdeploying rate-limits, and while it does it answers 403 to everything.
+// The old behaviour on that was a 502 and an empty GPU tab — every number on
+// screen gone because of a blip. Prices that are a few minutes old are worth
+// far more to a reader than no prices at all, so the last listing that parsed
+// is kept for a day and served when the source refuses, labelled stale rather
+// than passed off as current.
+const LAST_GOOD_TTL = 24 * 3600;
+
+// A fallback response must never enter a shared cache: stored, old prices
+// would keep being replayed after the source recovered — outliving the outage
+// that was their only excuse — with the servedAt of the first replay. `private`
+// keeps it to the one reader's browser, and 60 s bounds how often that reader
+// sends us back to a source that is refusing us.
+const FALLBACK_CACHE_CONTROL = 'private, max-age=60';
+
+// Bump on any change to the payload's SHAPE. The fallback copy holds a whole
+// payload and survives a deploy; unversioned, it would be free to hand back the
+// pre-bump shape under the new code's labels the next time the source refused.
+const CACHE_SCHEMA = 'v1';
+
+function lastGoodKey(baseUrl) {
+  const url = new URL('/__gpu-listing-last-good', baseUrl);
+  url.searchParams.set('__schema', CACHE_SCHEMA);
+  return new Request(url.toString(), { method: 'GET' });
+}
+
+/** The most recent listing that parsed, or null. Never throws: a failure to
+ *  read the fallback must not turn a degraded response into no response. */
+async function readLastGood(baseUrl) {
+  try {
+    const hit = await caches.default.match(lastGoodKey(baseUrl));
+    return hit ? await hit.json() : null;
+  } catch (_) {
+    return null;
+  }
+}
+
+/** Keep this listing as the fallback for the next refusal. Never throws either:
+ *  failing to store it must not turn a good response into an error. */
+function storeLastGood(context, baseUrl, payload) {
+  try {
+    context.waitUntil(caches.default.put(
+      lastGoodKey(baseUrl),
+      new Response(JSON.stringify(payload), {
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'public, max-age=' + LAST_GOOD_TTL,
+        },
+      })
+    ));
+  } catch (_) { /* no cache here — the fallback simply isn't refreshed */ }
+}
+
+/** Serve the last good listing, marked stale. `stale: true` is the marker
+ *  history-capture checks (normalizeGPU) so old prices can be SHOWN without
+ *  ever being written into permanent history as today's observation. */
+function staleResponse(stale, reason) {
+  return json(
+    { ...stale, stale: true, staleReason: reason, servedAt: new Date().toISOString() },
+    200,
+    FALLBACK_CACHE_CONTROL
+  );
+}
+
+export async function onRequestGet(context) {
+  const baseUrl = context.request.url;
   try {
     const resp = await fetch(SOURCE_URL, {
       headers: {
@@ -38,6 +103,8 @@ export async function onRequestGet() {
     });
 
     if (!resp.ok) {
+      const stale = await readLastGood(baseUrl);
+      if (stale) return staleResponse(stale, 'upstream_' + resp.status);
       return json({ ok: false, error: 'upstream_' + resp.status }, 502);
     }
 
@@ -45,19 +112,23 @@ export async function onRequestGet() {
     const rows = parseRows(html);
     const sourceUpdatedAt = parseUpdatedAt(html);
 
-    return json(
-      {
-        ok: true,
-        sourceUrl: SOURCE_URL,
-        sourceUpdatedAt,
-        fetchedAt: new Date().toISOString(),
-        count: rows.length,
-        rows,
-      },
-      200,
-      'public, max-age=300, s-maxage=600'
-    );
+    const payload = {
+      ok: true,
+      sourceUrl: SOURCE_URL,
+      sourceUpdatedAt,
+      fetchedAt: new Date().toISOString(),
+      count: rows.length,
+      rows,
+    };
+
+    // Stored only when rows actually parsed, so an empty parse can never
+    // become the thing we fall back to.
+    if (rows.length) storeLastGood(context, baseUrl, payload);
+
+    return json(payload, 200, 'public, max-age=300, s-maxage=600');
   } catch (err) {
+    const stale = await readLastGood(baseUrl);
+    if (stale) return staleResponse(stale, err.message || 'parse_error');
     return json({ ok: false, error: err.message || 'parse_error' }, 502);
   }
 }

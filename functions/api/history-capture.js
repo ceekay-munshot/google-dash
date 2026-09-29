@@ -58,9 +58,39 @@ function jsonResp(data, status = 200) {
   });
 }
 
+/* Deterministic JSON with object keys sorted at EVERY level.
+ *
+ * This replaced `JSON.stringify(payload, Object.keys(payload).sort())`. That
+ * second argument is a REPLACER ARRAY, not a key order, and it is applied at
+ * every nesting level — so any nested key not named in the top-level list was
+ * dropped. `{gpu:{models:[...]}}` serialised to `{"gpu":{}}` whatever the
+ * prices inside it were, and two days whose H100 moved $3.36 -> $9.99 hashed
+ * identically.
+ *
+ * The cost was not theoretical: the dedup compares the stored gpu block
+ * against the freshly fetched one, so it matched unconditionally and the
+ * refresh answered "gpu block unchanged vs existing snapshot" — a false
+ * reason — while discarding the new price. A GPU price that moved during the
+ * day was lost for that date on both dashboards, unrecoverably.
+ *
+ * First run after this lands will rewrite days whose stored hash was computed
+ * the old way. That is the correction, not a fault. */
+function stableStringify(value) {
+  if (value === null || typeof value !== 'object') return JSON.stringify(value) ?? 'null';
+  if (Array.isArray(value)) return '[' + value.map(stableStringify).join(',') + ']';
+  const keys = Object.keys(value).sort();
+  const parts = [];
+  for (const k of keys) {
+    const v = stableStringify(value[k]);
+    if (v === undefined) continue;
+    parts.push(JSON.stringify(k) + ':' + v);
+  }
+  return '{' + parts.join(',') + '}';
+}
+
 /** Stable content hash using Web Crypto (available in Workers runtime) */
 async function contentHash(payload) {
-  const sorted = JSON.stringify(payload, Object.keys(payload).sort());
+  const sorted = stableStringify(payload);
   const buf = new TextEncoder().encode(sorted);
   const hashBuf = await crypto.subtle.digest('SHA-256', buf);
   const arr = Array.from(new Uint8Array(hashBuf));
@@ -269,8 +299,9 @@ function normalizePricing(raw) {
  *   minPricePerHour, maxPricePerHour, medianPricePerHour,
  *   spreadAbsolute, spreadMultiple, priceMidpoint
  *
- * If the parser is offline the block is `null` — readers count it as a
- * coverage miss for that day rather than failing the snapshot.
+ * If the parser is offline the block is `null`. The capture loop then keeps
+ * whatever that day already had rather than writing the null over it; only a
+ * day that never had a block is stored as a coverage miss.
  */
 const GPU_TRACKED_SKUS = [
   'Nvidia H100',
@@ -283,6 +314,13 @@ const GPU_TRACKED_SKUS = [
 
 function normalizeGPU(raw) {
   if (!raw || !raw.ok || !Array.isArray(raw.rows)) return null;
+  // /api/gpu-hardware-pricing-data serves its last good listing, marked
+  // `stale: true`, when getdeploying refuses it. Showing slightly-old prices
+  // is right; writing them into permanent history as today's observation is
+  // not — both dashboards read this store as ground truth, and a wrong number
+  // stored invisibly is worse than a visible blank. Treat stale as no
+  // observation: the carry-forward below then keeps whatever the day already had.
+  if (raw.stale) return null;
   const trackedSet = new Set(GPU_TRACKED_SKUS);
   const models = [];
   for (const r of raw.rows) {
@@ -482,16 +520,31 @@ export async function onRequestGet({ request, env }) {
     const dayKey = 'day:' + targetDate;
     const capturedAt = new Date().toISOString();
 
-    // Same-content skip
     const existing = await kv.get(dayKey, 'json');
-    if (existing && existing.hash === hash) {
+
+    // A failed GPU fetch must not erase a good observation. localFetch returns
+    // null on any non-2xx, normalizeGPU turns that (and a stale fallback) into
+    // null, and the snapshot below is a fresh object literal — so one 403 at
+    // the evening cron would overwrite a morning capture that already held real
+    // GPU rows, permanently, since nothing repairs a stored day. Carry the
+    // stored block forward instead. Same record shape, just an older block —
+    // the other dashboard reads this store, so no field is added here.
+    const gpuCarriedForward = !gpu?.models?.length && !!existing?.gpu?.models?.length;
+    const dayGPU = gpuCarriedForward ? existing.gpu : gpu;
+    const dayHash = gpuCarriedForward
+      ? await contentHash({ ...canonicalPayload, gpu: dayGPU })
+      : hash;
+
+    // Same-content skip
+    if (existing && existing.hash === dayHash) {
       results.push({
         date: targetDate,
         action: 'skipped',
         reason: 'Identical content already stored',
-        hash,
+        hash: dayHash,
         isAutofill,
         isBackfill,
+        gpuCarriedForward,
       });
       continue;
     }
@@ -507,7 +560,7 @@ export async function onRequestGet({ request, env }) {
       const prevSnap = await kv.get(priorKey, 'json');
       priorHash = prevSnap?.hash ?? null;
     }
-    const dedup = priorHash === hash;
+    const dedup = priorHash === dayHash;
 
     const source = isAutofill
       ? 'autofill-gap'
@@ -519,7 +572,7 @@ export async function onRequestGet({ request, env }) {
       ts: capturedAt,
       date: targetDate,
       capturedAt,
-      hash,
+      hash: dayHash,
       version: 4,
       source,
       authMethod,
@@ -537,19 +590,23 @@ export async function onRequestGet({ request, env }) {
       filing,
       openrouterSummary,
       pricing,
-      gpu,
+      gpu: dayGPU,
     };
 
     await kv.put(dayKey, JSON.stringify(snapshot));
-    writtenThisRun.set(dayKey, hash);
+    writtenThisRun.set(dayKey, dayHash);
     results.push({
       date: targetDate,
       action: existing ? 'superseded' : 'created',
-      hash,
+      hash: dayHash,
       dedup,
       isAutofill,
       isBackfill,
       source,
+      // Response-only. Without it a run that kept a day's GPU block alive is
+      // indistinguishable from one that captured it, and the operator reading
+      // sources.gpu: "unavailable" would assume the day was lost.
+      gpuCarriedForward,
     });
   }
 

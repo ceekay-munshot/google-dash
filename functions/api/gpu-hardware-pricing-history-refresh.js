@@ -45,8 +45,38 @@ function jsonResp(data, status = 200) {
   });
 }
 
+/* Deterministic JSON with object keys sorted at EVERY level.
+ *
+ * This replaced `JSON.stringify(payload, Object.keys(payload).sort())`. That
+ * second argument is a REPLACER ARRAY, not a key order, and it is applied at
+ * every nesting level — so any nested key not named in the top-level list was
+ * dropped. `{gpu:{models:[...]}}` serialised to `{"gpu":{}}` whatever the
+ * prices inside it were, and two days whose H100 moved $3.36 -> $9.99 hashed
+ * identically.
+ *
+ * The cost was not theoretical: the dedup compares the stored gpu block
+ * against the freshly fetched one, so it matched unconditionally and the
+ * refresh answered "gpu block unchanged vs existing snapshot" — a false
+ * reason — while discarding the new price. A GPU price that moved during the
+ * day was lost for that date on both dashboards, unrecoverably.
+ *
+ * First run after this lands will rewrite days whose stored hash was computed
+ * the old way. That is the correction, not a fault. */
+function stableStringify(value) {
+  if (value === null || typeof value !== 'object') return JSON.stringify(value) ?? 'null';
+  if (Array.isArray(value)) return '[' + value.map(stableStringify).join(',') + ']';
+  const keys = Object.keys(value).sort();
+  const parts = [];
+  for (const k of keys) {
+    const v = stableStringify(value[k]);
+    if (v === undefined) continue;
+    parts.push(JSON.stringify(k) + ':' + v);
+  }
+  return '{' + parts.join(',') + '}';
+}
+
 async function contentHash(payload) {
-  const sorted = JSON.stringify(payload, Object.keys(payload).sort());
+  const sorted = stableStringify(payload);
   const buf = new TextEncoder().encode(sorted);
   const hashBuf = await crypto.subtle.digest('SHA-256', buf);
   return Array.from(new Uint8Array(hashBuf))
@@ -90,12 +120,21 @@ async function localFetch(request, path) {
 
 function normalizeGPU(raw) {
   if (!raw || !raw.ok || !Array.isArray(raw.rows)) return null;
+  // A fallback listing is prices we could not re-fetch, not an observation of
+  // this date. history-capture.js refuses it for the same reason; this endpoint
+  // merges into the same day record and runs exactly when the day is empty, so
+  // it is the path where a stale write would actually land.
+  if (raw.stale) return null;
   const trackedSet = new Set(GPU_TRACKED_SKUS);
   const models = [];
   for (const r of raw.rows) {
     if (!trackedSet.has(r.gpuModel)) continue;
     const min = typeof r.minPricePerHour === 'number' ? r.minPricePerHour : null;
     const max = typeof r.maxPricePerHour === 'number' ? r.maxPricePerHour : null;
+    // The upstream publishes a single median now, so min and max come back
+    // null and the median is the only price there is. It has to travel
+    // through here, or the merge below replaces a priced day with a blank one.
+    const median = typeof r.medianPricePerHour === 'number' ? r.medianPricePerHour : null;
     const spreadAbsolute = (min != null && max != null) ? +(max - min).toFixed(4) : null;
     const spreadMultiple = (min != null && max != null && min > 0) ? +(max / min).toFixed(3) : null;
     const priceMidpoint = (min != null && max != null) ? +((min + max) / 2).toFixed(4) : null;
@@ -106,6 +145,7 @@ function normalizeGPU(raw) {
       providerCount: typeof r.providerCount === 'number' ? r.providerCount : null,
       minPricePerHour: min,
       maxPricePerHour: max,
+      medianPricePerHour: median,
       spreadAbsolute,
       spreadMultiple,
       priceMidpoint,
