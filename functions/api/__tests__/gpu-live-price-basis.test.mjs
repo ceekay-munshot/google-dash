@@ -124,10 +124,20 @@ test('the card label names the measure instead of claiming "cheapest"', () => {
 
 test('the comparison table prints the resolved price under a basis-named heading', () => {
   const c = code(INFRA);
-  assert.doesNotMatch(c, /Live&nbsp;lowest&nbsp;\$\/hr|Live&nbsp;highest&nbsp;\$\/hr/,
+  // The defect was a MEDIAN printed under a heading that said "lowest" — a
+  // wrong label on a real number. The ceiling column was never wrong; it is a
+  // separate figure that the source simply stopped publishing. Removing it was
+  // an overreach: the table's shape is not something an upstream change of
+  // measure gets to decide, and a reader who knows a ceiling belonged there
+  // should find it empty, not find it gone.
+  assert.doesNotMatch(c, /Live&nbsp;lowest&nbsp;\$\/hr/,
     'a median is still printed under a column headed "lowest"');
-  assert.doesNotMatch(c, /fmtUSD\(r\.minPricePerHour\)|fmtUSD\(r\.maxPricePerHour\)/,
-    'the price columns still read the floor-era fields');
+  assert.doesNotMatch(c, /fmtUSD\(r\.minPricePerHour\)/,
+    'the headline price column still reads the floor-era field');
+  assert.match(c, /Live&nbsp;highest&nbsp;\$\/hr/,
+    'the ceiling column was dropped from the table instead of left empty');
+  assert.match(c, /r\.maxPricePerHour==null/,
+    'the ceiling cell does not distinguish "no range published" from "no data"');
   assert.match(c, /const tableBasisHeading="Live "\+\(tableBasis\?FIN_BASIS_SHORT\[tableBasis\]\+" ":""\)\+"\$\/hr";/);
   assert.match(c, /\{tableBasisHeading\}<\/th>/);
   assert.match(c, /\{fmtUSD\(livePrice\(r\)\)\}/);
@@ -244,4 +254,40 @@ test('a tracked SKU with no price keeps its card and states why', () => {
   assert.match(src, /missing:true/, 'nothing marks the card as unpriced');
   assert.match(src, /no price in this listing/, 'the card does not say what is missing');
   assert.match(src, /not in this listing/, 'a SKU absent from the feed is not distinguished');
+});
+
+/* ── A restated growth figure must be marked, and the marker explained ────
+   _gpu-price-basis.js compares two differently-measured periods on the basis
+   they share, via the period that straddles the change. That is a real
+   like-for-like number and it is shown — but it is not a headline-to-headline
+   move, so it carries a ‡ and the server's note saying which days it rests on.
+
+   Two ways this goes wrong, and both have happened in this codebase:
+     - the number shows with no marker, reading as a plain comparison
+     - the marker shows with no legend, leaving a symbol nobody can decode
+   Both halves are pinned here, so removing either fails until both go. */
+test('a restated growth cell is marked and the mark is explained', () => {
+  const rows = code(fnSource('renderFinGrowthRows'));
+  assert.match(rows, /notes/, 'renderFinGrowthRows no longer receives the notes the API publishes');
+  assert.match(rows, /Dagger/, 'a restated figure renders with no marker distinguishing it');
+
+  // The legend lives in the Methodology note under the table.
+  assert.match(SRC, /Dagger;<\/sup> with its tooltip naming the days it rests on/,
+    'the ‡ marker has no legend on screen');
+});
+
+test('the tooltip never claims a shared basis the two sides do not have', () => {
+  // It read "both on the <cur> basis" from the CURRENT period alone, without
+  // looking at the prior one — so a restated cell asserted a provenance that
+  // was false. Saying nothing would have been better than saying that.
+  const rows = code(fnSource('renderFinGrowthRows'));
+  assert.match(rows, /sameBasis=curBasis&&priorBasis&&curBasis===priorBasis/,
+    'the shared-basis claim is made without comparing both sides again');
+  assert.doesNotMatch(rows, /\(curBasis\?" · both on the "/,
+    'the unconditional "both on the X basis" claim is back');
+});
+
+test('the methodology note does not promise a refusal that no longer happens', () => {
+  assert.doesNotMatch(SRC, /a cell spanning the change reads <span[^>]*>measure&nbsp;changed<\/span> rather than a fabricated percentage/,
+    'the note still says every cell spanning the change is refused; linked cells now show a figure');
 });

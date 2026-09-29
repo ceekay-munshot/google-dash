@@ -2144,6 +2144,9 @@ function GPUInfraMonitoringSubtab({data,loadErr,updatedTxt,histView,setHistView,
   const tableBases=new Set(tableRows.map(liveBasis).filter(Boolean));
   const tableBasis=tableBases.size===1?[...tableBases][0]:null;
   const tableBasisHeading="Live "+(tableBasis?FIN_BASIS_SHORT[tableBasis]+" ":"")+"$/hr";
+  // Named only when every row in the listing lacks a range, so the wording
+  // never claims the source dropped it while some SKU still carries one.
+  const rangeEnded=tableRows.length&&tableRows.every(x=>x.maxPricePerHour==null)?"Jul 2026":null;
 
   return(
     <>
@@ -2205,6 +2208,13 @@ function GPUInfraMonitoringSubtab({data,loadErr,updatedTxt,histView,setHistView,
                       <th style={gpuTh}>GPU</th>
                       <th style={gpuTh}>VRAM</th>
                       <th style={{...gpuTh,textAlign:"right"}} title={tableBasis?"Measured as the "+FIN_BASIS_LABEL[tableBasis]:undefined}>{tableBasisHeading}</th>
+                      {/* The ceiling of the vendor range. The source stopped publishing a
+                          range on 2026-07-28, so this is empty for current rows — but the
+                          column stays: the table's shape is not something a change of
+                          measure upstream gets to decide, and a reader who knows a ceiling
+                          used to be here should see it empty rather than find it gone. It
+                          fills itself again the day a range comes back. */}
+                      <th style={{...gpuTh,textAlign:"right"}} title={"The top of the vendor range. "+(rangeEnded?"Not published since "+rangeEnded+", so these cells are empty.":"Empty where the listing publishes a single figure rather than a range.")}>Live&nbsp;highest&nbsp;$/hr</th>
                       <th style={{...gpuTh,textAlign:"right"}}>Providers</th>
                     </tr>
                   </thead>
@@ -2219,6 +2229,12 @@ function GPUInfraMonitoringSubtab({data,loadErr,updatedTxt,histView,setHistView,
                             title={b?"Measured as the "+FIN_BASIS_LABEL[b]:undefined}>
                           {fmtUSD(livePrice(r))}
                           {!tableBasis&&b&&<div style={{fontSize:9,fontWeight:500,color:b==="median"?"#1d4ed8":"#9ca3af"}}>{FIN_BASIS_SHORT[b]}</div>}
+                        </td>
+                        <td style={{...gpuTd,textAlign:"right",color:"#374151"}}
+                            title={r.maxPricePerHour==null?(rangeEnded?"The listing has published one figure per SKU, not a range, since "+rangeEnded+".":"This listing publishes a single figure for this SKU, not a range."):undefined}>
+                          {r.maxPricePerHour==null
+                            ?<span style={{color:"#d1d5db",cursor:"help"}}>—</span>
+                            :fmtUSD(r.maxPricePerHour)}
                         </td>
                         <td style={{...gpuTd,textAlign:"right",color:"#6b7280"}}>{r.providerCount??"—"}</td>
                       </tr>
@@ -2684,6 +2700,10 @@ function GPUFinancialCorrelationBlock({fHist,fHistErr}){
   const hasAnyData=periods.length>0;
   const rowPoolAll=showSecondary?[...GPU_FIN_PRIMARY_ROWS,...GPU_FIN_SECONDARY_ROWS]:GPU_FIN_PRIMARY_ROWS;
   const growthReasons=effMode==="quarter"?(effFHist.quarterly?.qoqReason||{}):(effFHist.monthly?.momReason||{});
+  // Published alongside the figures and, until now, dropped on the floor: what
+  // a restated comparison actually rests on.
+  const growthNotes=effMode==="quarter"?(effFHist.quarterly?.qoqNote||{}):(effFHist.monthly?.momNote||{});
+  const yoyNotes=effMode==="quarter"?(effFHist.quarterly?.yoyNote||{}):(effFHist.monthly?.yoyNote||{});
 
   // Which measure each column is on, and where it changes. Derived from the
   // data on screen, never hard-coded to 2026-07-28, so the next time the
@@ -2876,16 +2896,16 @@ function GPUFinancialCorrelationBlock({fHist,fHistErr}){
 
                 {/* Section B: QoQ/MoM Growth */}
                 <tr><td colSpan={periods.length+1} style={finSectionTh}>{growthLabel}</td></tr>
-                {renderFinGrowthRows(GPU_FIN_PRIMARY_ROWS,growth,periods,false,series,partialKey,boundaryIdx,growthReasons)}
-                {!illustrative&&showSecondary&&renderFinGrowthRows(GPU_FIN_SECONDARY_ROWS,growth,periods,true,series,partialKey,boundaryIdx,growthReasons)}
+                {renderFinGrowthRows(GPU_FIN_PRIMARY_ROWS,growth,periods,false,series,partialKey,boundaryIdx,growthReasons,growthNotes)}
+                {!illustrative&&showSecondary&&renderFinGrowthRows(GPU_FIN_SECONDARY_ROWS,growth,periods,true,series,partialKey,boundaryIdx,growthReasons,growthNotes)}
 
                 {/* Spacer */}
                 <tr><td colSpan={periods.length+1} style={{height:8}}></td></tr>
 
                 {/* Section C: YoY Growth */}
                 <tr><td colSpan={periods.length+1} style={finSectionTh}>YoY Growth</td></tr>
-                {renderFinGrowthRows(GPU_FIN_PRIMARY_ROWS,yoy,periods,false,series,partialKey,boundaryIdx,null,true)}
-                {!illustrative&&showSecondary&&renderFinGrowthRows(GPU_FIN_SECONDARY_ROWS,yoy,periods,true,series,partialKey,boundaryIdx,null,true)}
+                {renderFinGrowthRows(GPU_FIN_PRIMARY_ROWS,yoy,periods,false,series,partialKey,boundaryIdx,null,yoyNotes,true)}
+                {!illustrative&&showSecondary&&renderFinGrowthRows(GPU_FIN_SECONDARY_ROWS,yoy,periods,true,series,partialKey,boundaryIdx,null,yoyNotes,true)}
 
                 {/* Spacer */}
                 <tr><td colSpan={periods.length+1} style={{height:8}}></td></tr>
@@ -2934,7 +2954,7 @@ function GPUFinancialCorrelationBlock({fHist,fHistErr}){
 
       {/* Methodology footnote — concise, customer-spec wording. */}
       <div style={{fontSize:10,color:"#9ca3af",lineHeight:1.5,marginTop:6}}>
-        <b style={{color:"#6b7280",fontWeight:600}}>Methodology:</b> GPU prices are real daily observations averaged by SKU and calendar period — no estimates, no backfill. <b style={{color:"#6b7280",fontWeight:600}}>What the source publishes changed mid-history</b>, so a period carries one of two measures: through {basisChangeDate?"2026-07-27":"the earlier periods"} a per-vendor min–max range, of which the <b style={{color:"#6b7280",fontWeight:600}}>floor</b> (the single cheapest listing among ~50 providers) is shown; from {basisChangeDate||"the later periods"} a single <b style={{color:"#6b7280",fontWeight:600}}>median</b> across providers. The two are different statistics and their levels are not comparable — the floor is volatile and one outlier listing moves it, which is why it sits far below the median. A period that straddles the change takes the measure covering most of its days and averages only those days; its tooltip names the other measure and what it averaged. Growth is computed only between periods sharing a measure and only between completed periods; a period still in progress (QTD/MTD) is suppressed, and a cell spanning the change reads <span style={{color:"#b45309",fontWeight:600}}>measure changed</span> rather than a fabricated percentage. A <sup style={{color:"#b45309",fontWeight:700}}>&deg;</sup> marks a value resting on a period where under {Math.round(FIN_LOW_COVERAGE*100)}% of days carry a price. The column axis is continuous, so a period with no capture stays visible as an empty column. GPU prices are not summed, because there is no meaningful total price across SKUs. Provider count shows observed vendor breadth where available. Stable or rising prices in older GPUs can indicate tight supply or strong ROI.
+        <b style={{color:"#6b7280",fontWeight:600}}>Methodology:</b> GPU prices are real daily observations averaged by SKU and calendar period — no estimates, no backfill. <b style={{color:"#6b7280",fontWeight:600}}>What the source publishes changed mid-history</b>, so a period carries one of two measures: through {basisChangeDate?"2026-07-27":"the earlier periods"} a per-vendor min–max range, of which the <b style={{color:"#6b7280",fontWeight:600}}>floor</b> (the single cheapest listing among ~50 providers) is shown; from {basisChangeDate||"the later periods"} a single <b style={{color:"#6b7280",fontWeight:600}}>median</b> across providers. The two are different statistics and their levels are not comparable — the floor is volatile and one outlier listing moves it, which is why it sits far below the median. A period that straddles the change takes the measure covering most of its days and averages only those days; its tooltip names the other measure and what it averaged. Growth is computed only between completed periods; a period still in progress (QTD/MTD) is suppressed. Where the two sides of a comparison sit on different measures, the comparison is made on the basis they <i>share</i> — via the period straddling the change, which carries both — and the result is marked <sup style={{color:"#b45309",fontWeight:700}}>&Dagger;</sup> with its tooltip naming the days it rests on. That is a real like-for-like figure, not a headline-to-headline move. Only where no straddle supplies a conversion does the cell read <span style={{color:"#b45309",fontWeight:600}}>measure changed</span>, and it never shows a fabricated percentage. A <sup style={{color:"#b45309",fontWeight:700}}>&deg;</sup> marks a value resting on a period where under {Math.round(FIN_LOW_COVERAGE*100)}% of days carry a price. The column axis is continuous, so a period with no capture stays visible as an empty column. GPU prices are not summed, because there is no meaningful total price across SKUs. Provider count shows observed vendor breadth where available. Stable or rising prices in older GPUs can indicate tight supply or strong ROI.
       </div>
 
       {/* Internal diagnostics — illustrative-data toggle lives here so it
@@ -3072,12 +3092,13 @@ function renderFinBasisRow(basisByPeriod,periods,boundaryIdx){
 // lean on a thinly-priced period on either side still render, but carry a
 // marker so nobody reads "+128.7%" as a clean month-over-month move when one
 // side of it is a 10-day stub.
-function renderFinGrowthRows(rows,growth,periods,dim,series,partialKey,boundaryIdx,reasons,isYoY){
+function renderFinGrowthRows(rows,growth,periods,dim,series,partialKey,boundaryIdx,reasons,notes,isYoY){
   const priorIdOf=isYoY?finYearPriorPeriodId:finPriorPeriodId;
   const priorNoun=isYoY?"the same period last year":"the prior period";
   return rows.map(row=>{
     const row_g=growth[row.sku]||{};
     const row_r=(reasons&&reasons[row.sku])||{};
+    const row_n=(notes&&notes[row.sku])||{};
     return(
       <tr key={"g-"+row.sku}>
         <td style={{...finTdRow,color:dim?"#6b7280":"#111827"}}>{row.shortLabel}</td>
@@ -3107,9 +3128,17 @@ function renderFinGrowthRows(rows,growth,periods,dim,series,partialKey,boundaryI
           const refusal=v==null?row_r[p.period]:null;
           const curBasis=finBasis(cur), priorBasis=finBasis(prior);
           const basisBreak=v==null&&curBasis&&priorBasis&&curBasis!==priorBasis;
+          // A restated figure: the two sides were measured differently, and the
+          // comparison was made on the basis they share via the period that
+          // straddles the change. That is a real number, but it is not a
+          // headline-to-headline move, so the server's note says which days it
+          // rests on. Claiming "both on the X basis" when they are not is worse
+          // than saying nothing — it asserts a provenance that is false.
+          const note=v!=null?row_n[p.period]:null;
+          const sameBasis=curBasis&&priorBasis&&curBasis===priorBasis;
           const title=v!=null?(
             "vs "+(priorId||priorNoun)+
-            (curBasis?" · both on the "+FIN_BASIS_SHORT[curBasis]+" basis":"")+
+            (note?" · "+note:sameBasis?" · both on the "+FIN_BASIS_SHORT[curBasis]+" basis":"")+
             (curCov!=null?" · this period "+Math.round(curCov*100)+"% priced":"")+
             (priorCov!=null?" · "+(isYoY?"year-ago":"prior")+" period "+Math.round(priorCov*100)+"% priced":"")+
             (thin?" · thin coverage on one side — treat as indicative":"")
@@ -3121,7 +3150,12 @@ function renderFinGrowthRows(rows,growth,periods,dim,series,partialKey,boundaryI
                 // Named rather than left as an em-dash: this is the cell the
                 // customer's eye lands on when asking "why did it jump?".
                 ? <span style={{color:"#b45309",fontSize:9,fontWeight:600,whiteSpace:"nowrap"}}>measure&nbsp;changed</span>
-                : <>{fmtGrowth(v)}{thin&&<sup style={{color:"#b45309",fontSize:8,fontWeight:700,marginLeft:1}}>&deg;</sup>}</>}
+                : <>{fmtGrowth(v)}
+                    {/* A restated figure is marked so it is not read as a plain
+                        headline-to-headline move. The legend for this sits with
+                        the measure-change caption below the table. */}
+                    {note&&<sup style={{color:"#b45309",fontSize:8,fontWeight:700,marginLeft:1}}>&Dagger;</sup>}
+                    {thin&&<sup style={{color:"#b45309",fontSize:8,fontWeight:700,marginLeft:1}}>&deg;</sup>}</>}
             </td>
           );
         })}
