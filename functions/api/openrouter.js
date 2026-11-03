@@ -51,8 +51,10 @@
 
 import { fetchModelUsage } from './_openrouter-rankings.js';
 
-const FIRECRAWL_API_KEY = 'fc-203d41c5b1984cdabee2a7564572efea';
-const FIRECRAWL_BASE    = 'https://api.firecrawl.dev/v1';
+// Firecrawl key is read from the Pages env (secret) and passed into the scraper
+// as a fallback credential — never hardcoded. Attempt 0 (the rankings JSON API)
+// needs no key, so openrouter still answers when the secret is absent.
+const FIRECRAWL_BASE = 'https://api.firecrawl.dev/v1';
 
 /**
  * "deepseek-v4-flash-20260731" → "DeepSeek V4 Flash 0731"
@@ -130,8 +132,9 @@ export async function onRequestOptions() {
 }
 
 /* ─── GET ──────────────────────────────────────────────────── */
-export async function onRequestGet({ request }) {
+export async function onRequestGet({ request, env }) {
   const url    = new URL(request.url);
+  const firecrawlKey = env?.FIRECRAWL_API_KEY || null;
 
   const view   = url.searchParams.get('view') || 'week';
 
@@ -148,7 +151,7 @@ export async function onRequestGet({ request }) {
   }
 
   /* Scrape */
-  const result = await scrapeRankings(orUrl);
+  const result = await scrapeRankings(orUrl, firecrawlKey);
 
   if (!result.ok) {
     /* Return stale on error if available */
@@ -199,7 +202,7 @@ export async function onRequestGet({ request }) {
  * passes through validateModelRows(), so a fallback that lands on Apps again
  * fails loudly instead of being stored.
  */
-async function scrapeRankings(targetUrl) {
+async function scrapeRankings(targetUrl, FIRECRAWL_API_KEY) {
   /* ── Attempt 0: OpenRouter's JSON rankings API ─────────────── */
   try {
     const view = targetUrl.includes('view=month') ? 'month' : 'week';
@@ -224,6 +227,11 @@ async function scrapeRankings(targetUrl) {
       }));
     if (ranked.length >= 20) return { ok: true, models: ranked, via: 'rankings-api' };
   } catch (_) { /* fall through to the scrape paths */ }
+
+  /* Firecrawl fallbacks need the key; without it, stop after the API attempt. */
+  if (!FIRECRAWL_API_KEY) {
+    return { ok: false, error: 'rankings API unavailable and no FIRECRAWL_API_KEY set for Firecrawl fallback' };
+  }
 
   /* ── Attempt 1: structured extract ─────────────────────────── */
   try {
