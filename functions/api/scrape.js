@@ -7,10 +7,15 @@
  * Returns: Firecrawl scrape response JSON
  */
 
-const FIRECRAWL_API_KEY = 'fc-203d41c5b1984cdabee2a7564572efea';
-const FIRECRAWL_BASE    = 'https://api.firecrawl.dev/v1';
+// Firecrawl key is read from the Pages env (secret) at request time — never hardcoded.
+const FIRECRAWL_BASE = 'https://api.firecrawl.dev/v1';
 
-export async function onRequestPost({ request }) {
+export async function onRequestPost({ request, env }) {
+  const FIRECRAWL_API_KEY = env?.FIRECRAWL_API_KEY;
+  if (!FIRECRAWL_API_KEY) {
+    return jsonResponse({ success: false, error: 'FIRECRAWL_API_KEY not configured' }, 503);
+  }
+
   let body;
   try {
     body = await request.json();

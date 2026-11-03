@@ -9,7 +9,15 @@
  *   4. Regex extracts KPIs — zero AI dependency, always works if page loads
  */
 
-const FIRECRAWL_KEY = 'fc-203d41c5b1984cdabee2a7564572efea';
+// Firecrawl key is read from the Pages env (secret) at request time — never hardcoded.
+
+// Saved-copy cache (Cloudflare KV, HISTORY_KV). Both the panel and the MCP read
+// this copy; a live Firecrawl scrape only happens on a cold cache, a stale-cache
+// background refresh, or an authorized ?refresh=<HISTORY_CAPTURE_SECRET>.
+const KV_KEY       = 'filings:v1';
+const FRESH_TTL_MS = 20 * 60 * 60 * 1000;      // 20h — serve silently
+const STALE_TTL_MS = 7 * 24 * 60 * 60 * 1000;  // 7d  — serve stale + background refresh
+const KV_TTL_SEC   = 14 * 24 * 60 * 60;        // 14d — KV expiry ceiling
 
 const CORS = {
   'Access-Control-Allow-Origin':  '*',
@@ -22,36 +30,105 @@ export async function onRequestOptions() {
 }
 
 export async function onRequestGet(ctx) {
-  const url = ctx && ctx.request ? new URL(ctx.request.url) : null;
+  const { request, env, waitUntil } = ctx || {};
+  const url = request ? new URL(request.url) : null;
+
+  // CapEx view: SEC EDGAR only — no Firecrawl, no cache needed.
   if (url && url.searchParams.get('view') === 'capex') {
     return handleCapEx();
   }
+
+  const kv            = env?.HISTORY_KV || null;
+  const now           = Date.now();
+  const cachedOnly    = url && (url.searchParams.get('cached') === '1' || url.searchParams.get('nofetch') === '1');
+  const refreshKey    = url ? url.searchParams.get('refresh') : null;
+  const captureSecret = env?.HISTORY_CAPTURE_SECRET || null;
+  const forceRefresh  = refreshKey != null && captureSecret != null && refreshKey === captureSecret;
+
+  // Load the saved copy.
+  let cached = null;
+  if (kv) {
+    try { cached = await kv.get(KV_KEY, 'json'); } catch (_) { /* non-fatal */ }
+  }
+  const age     = cached && typeof cached.ts === 'number' ? (now - cached.ts) : Infinity;
+  const isFresh = cached && age < FRESH_TTL_MS;
+  const isStale = cached && age >= FRESH_TTL_MS && age < STALE_TTL_MS;
+
+  // Read-only mode (MCP): return the saved copy, NEVER scrape.
+  if (cachedOnly) {
+    if (cached?.payload) {
+      return jsonOk({ ...cached.payload, fromCache: true, stale: !isFresh,
+                      cacheAge: Math.round(age / 60000) + 'm' });
+    }
+    return jsonOk({ success: false, error: 'no_cached_filing', fromCache: true,
+                    note: 'No saved filing snapshot yet — call once without ?cached=1 to populate it.' });
+  }
+
+  // Fresh saved copy: serve silently.
+  if (isFresh && !forceRefresh) {
+    return jsonOk({ ...cached.payload, fromCache: true, stale: false,
+                    cacheAge: Math.round(age / 60000) + 'm' });
+  }
+
+  // Stale saved copy: serve immediately, refresh in the background.
+  if (isStale && !forceRefresh) {
+    if (waitUntil && env?.FIRECRAWL_API_KEY) waitUntil(refreshFilings(env, kv));
+    return jsonOk({ ...cached.payload, fromCache: true, stale: true,
+                    cacheAge: Math.round(age / 60000) + 'm',
+                    staleReason: 'Serving saved copy while a background refresh runs' });
+  }
+
+  // Cold cache or forced refresh: a live scrape is required.
+  if (!env?.FIRECRAWL_API_KEY) {
+    if (cached?.payload) {
+      return jsonOk({ ...cached.payload, fromCache: true, stale: true,
+                      staleReason: 'FIRECRAWL_API_KEY not configured — serving last saved copy' });
+    }
+    return jsonOk({ success: false, error: 'FIRECRAWL_API_KEY not configured' });
+  }
+
+  const fresh = await scrapeFilings(env);
+  if (fresh.success && kv) {
+    const put = kv.put(KV_KEY, JSON.stringify({ payload: fresh, ts: now }), { expirationTtl: KV_TTL_SEC }).catch(() => {});
+    if (waitUntil) waitUntil(put); else await put;
+  }
+  // Prefer the last good saved copy over a hard error.
+  if (!fresh.success && cached?.payload) {
+    return jsonOk({ ...cached.payload, fromCache: true, stale: true,
+                    staleReason: fresh.error || 'live scrape failed — serving last saved copy' });
+  }
+  return jsonOk({ ...fresh, fromCache: false });
+}
+
+/* Build a fresh filing payload: SEC discovery → Firecrawl scrape → regex KPIs. */
+async function scrapeFilings(env) {
   try {
-    // Step 1: Find the latest exhibit 99.1 URL via Firecrawl
     const exhibitUrl = await findLatestExhibit();
     if (!exhibitUrl) throw new Error('Could not locate latest Alphabet 8-K exhibit on EDGAR');
-
-    // Step 2: Scrape the press release
-    const md = await firecrawlScrape(exhibitUrl);
+    const md = await firecrawlScrape(env, exhibitUrl);
     if (!md) throw new Error('Firecrawl could not scrape exhibit: ' + exhibitUrl);
-
-    // Step 3: Regex-extract all KPIs — no AI needed
     const kpis = extractKPIs(md);
     if (!kpis.period) throw new Error('Could not parse filing period from document');
-
-    // Include a snippet of the raw markdown for debugging parsing issues
-    const mdSnippet = md ? md.slice(0, 600) : '';
-    return jsonOk({
+    return {
       success:   true,
       ...kpis,
       source:    exhibitUrl,
       fetchedAt: new Date().toISOString(),
-      _debug: { mdLength: md ? md.length : 0, mdSnippet },
-    });
-
+      _debug: { mdLength: md.length, mdSnippet: md.slice(0, 600) },
+    };
   } catch (err) {
-    return jsonOk({ success: false, error: err.message });
+    return { success: false, error: err.message };
   }
+}
+
+/* Background refresh: scrape and store, response ignored. */
+async function refreshFilings(env, kv) {
+  try {
+    const fresh = await scrapeFilings(env);
+    if (fresh.success && kv) {
+      await kv.put(KV_KEY, JSON.stringify({ payload: fresh, ts: Date.now() }), { expirationTtl: KV_TTL_SEC });
+    }
+  } catch (_) { /* non-fatal */ }
 }
 
 /* ── Step 1: Find latest Alphabet earnings exhibit 99.1 URL ─────────
@@ -120,13 +197,15 @@ async function findLatestExhibit() {
 }
 
 /* ── Step 2: Firecrawl scrape ──────────────────────────────────────── */
-async function firecrawlScrape(url) {
+async function firecrawlScrape(env, url) {
   try {
+    const key = env?.FIRECRAWL_API_KEY;
+    if (!key) return null;
     const r = await fetch('https://api.firecrawl.dev/v1/scrape', {
       method: 'POST',
       headers: {
         'Content-Type':  'application/json',
-        'Authorization': 'Bearer ' + FIRECRAWL_KEY,
+        'Authorization': 'Bearer ' + key,
       },
       body: JSON.stringify({
         url,

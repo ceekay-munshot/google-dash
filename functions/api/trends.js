@@ -29,8 +29,8 @@
  * • Methodology note included in every response
  */
 
-const FIRECRAWL_API_KEY = 'fc-203d41c5b1984cdabee2a7564572efea';
-const FIRECRAWL_BASE    = 'https://api.firecrawl.dev/v1';
+// Firecrawl key is read from the Pages env (secret) at request time — never hardcoded.
+const FIRECRAWL_BASE = 'https://api.firecrawl.dev/v1';
 
 const FRESH_TTL_MS   = 6 * 60 * 60 * 1000;    // 6 hours — serve silently
 const STALE_TTL_MS   = 7 * 24 * 60 * 60 * 1000; // 7 days — serve with stale flag, trigger background refresh
@@ -73,6 +73,10 @@ export async function onRequestGet(context) {
   const kvKey    = 'trends:v1:' + cacheKey;
   const kv       = env?.HISTORY_KV || null;
   const now      = Date.now();
+  const firecrawlKey = env?.FIRECRAWL_API_KEY || null;
+  // Read-only mode for the MCP (and any cheap reader): serve the saved copy and
+  // NEVER trigger a paid Firecrawl scrape, even on a cold/stale cache.
+  const cachedOnly   = url.searchParams.get('cached') === '1' || url.searchParams.get('nofetch') === '1';
 
   /* ── L1: in-memory cache (per-worker) ──────────────────────── */
   let cached = _cache[cacheKey];
@@ -88,6 +92,18 @@ export async function onRequestGet(context) {
     } catch (_) { /* KV failure is non-fatal */ }
   }
 
+  /* ── Read-only mode: return the saved copy, never scrape ────── */
+  if (cachedOnly) {
+    if (cached) {
+      const a = now - cached.ts;
+      return jsonOk({ ...cached.payload, fromCache: true,
+                      stale: a >= FRESH_TTL_MS,
+                      cacheAge: Math.round(a / 60000) + 'm' });
+    }
+    return jsonOk({ success: false, error: 'no_cached_trends', fromCache: true,
+                    note: 'No saved Trends snapshot yet — call once without ?cached=1 to populate it.' });
+  }
+
   const age      = cached ? (now - cached.ts) : Infinity;
   const isFresh  = cached && age < FRESH_TTL_MS;
   const isStale  = cached && age >= FRESH_TTL_MS && age < STALE_TTL_MS;
@@ -100,8 +116,8 @@ export async function onRequestGet(context) {
 
   /* ── Stale cache: serve immediately, refresh in background ─── */
   if (isStale) {
-    if (waitUntil) {
-      waitUntil(refreshInBackground({ terms, gtDate, winKey, cacheKey, kvKey, kv }));
+    if (waitUntil && firecrawlKey) {
+      waitUntil(refreshInBackground({ key: firecrawlKey, terms, gtDate, winKey, cacheKey, kvKey, kv }));
     }
     return jsonOk({ ...cached.payload, fromCache: true, stale: true,
                     cacheAge: Math.round(age / 60000) + 'm',
@@ -109,8 +125,17 @@ export async function onRequestGet(context) {
   }
 
   /* ── No usable cache: fetch synchronously, parallel ────────── */
+  if (!firecrawlKey) {
+    if (cached) {
+      return jsonOk({ ...cached.payload, fromCache: true, stale: true,
+                      staleReason: 'FIRECRAWL_API_KEY not configured — serving last saved snapshot' });
+    }
+    return jsonOk({ success: false, error: 'FIRECRAWL_API_KEY not configured',
+                    terms, series: terms.map(t => ({ term: t, data: [] })) });
+  }
+
   const { series, errors, rateLimited } =
-    await fetchAllTermsParallel(terms, gtDate);
+    await fetchAllTermsParallel(firecrawlKey, terms, gtDate);
 
   /* If rate-limited and we had ANY cache (even past 7d), still prefer it ── */
   if (rateLimited && cached) {
@@ -151,9 +176,9 @@ export async function onRequestGet(context) {
 }
 
 /* ─── Fan out to all terms concurrently ─────────────────────── */
-async function fetchAllTermsParallel(terms, gtDate) {
+async function fetchAllTermsParallel(FIRECRAWL_API_KEY, terms, gtDate) {
   const results = await Promise.allSettled(
-    terms.map(term => withTimeout(scrapeTerm(term, gtDate), TERM_TIMEOUT_MS, term))
+    terms.map(term => withTimeout(scrapeTerm(FIRECRAWL_API_KEY, term, gtDate), TERM_TIMEOUT_MS, term))
   );
 
   const series = [];
@@ -178,9 +203,9 @@ async function fetchAllTermsParallel(terms, gtDate) {
 }
 
 /* ─── Background refresh (no response awaited) ──────────────── */
-async function refreshInBackground({ terms, gtDate, winKey, cacheKey, kvKey, kv }) {
+async function refreshInBackground({ key, terms, gtDate, winKey, cacheKey, kvKey, kv }) {
   try {
-    const { series, errors } = await fetchAllTermsParallel(terms, gtDate);
+    const { series, errors } = await fetchAllTermsParallel(key, terms, gtDate);
     if (!series.some(s => s.data.length > 0)) return; // nothing useful fetched
     const payload = {
       success:      true,
@@ -215,7 +240,7 @@ function withTimeout(promise, ms, label) {
 }
 
 /* ─── Scrape one term via Firecrawl ─────────────────────────── */
-async function scrapeTerm(term, gtDate) {
+async function scrapeTerm(FIRECRAWL_API_KEY, term, gtDate) {
   /*
    * Strategy:
    *  1. Try Firecrawl /extract with a schema prompt — fastest when it works
