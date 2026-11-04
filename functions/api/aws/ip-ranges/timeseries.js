@@ -12,7 +12,10 @@
  *   ?metric=ipv4_addresses            — the by_service field to plot. The
  *                                       endpoint accepts ipv4_addresses,
  *                                       ipv4_prefixes, or ipv6_prefixes.
- *   ?grain=daily                      — daily only for now.
+ *   ?grain=daily|weekly|quarterly     — daily points, or one representative
+ *                                       point (latest in the bucket) per ISO
+ *                                       week or calendar quarter. Matches
+ *                                       /api/aws/ip-ranges/history.
  *   ?limit=8                          — max series to return; ranked by
  *                                       LATEST snapshot value desc.
  *   ?range=400                        — max number of stored days to scan;
@@ -79,6 +82,30 @@ function dayBefore(dateStr) {
   return new Date(t - 86400000).toISOString().slice(0, 10);
 }
 
+// Grains this endpoint will aggregate to — matches /api/aws/ip-ranges/history.
+const ALLOWED_GRAINS = new Set(['daily', 'weekly', 'quarterly']);
+
+// Calendar-quarter key for a YYYY-MM-DD UTC date, e.g. "2026-Q3".
+function quarterKey(dateStr) {
+  const [y, m] = dateStr.split('-').map(Number);
+  return y + '-Q' + (Math.floor((m - 1) / 3) + 1);
+}
+
+// ISO-8601 (Monday-anchored) week key for a YYYY-MM-DD UTC date, e.g. "2026-W19".
+// Same rule as history.js so the two endpoints bucket identically.
+function isoWeekKey(dateStr) {
+  const t = Date.parse(dateStr + 'T00:00:00Z');
+  const dayOfWeek = (new Date(t).getUTCDay() + 6) % 7; // Mon=0 .. Sun=6
+  const monday = t - dayOfWeek * 86400000;
+  const thursday = new Date(monday + 3 * 86400000);
+  const isoYear = thursday.getUTCFullYear();
+  const jan4 = Date.UTC(isoYear, 0, 4);
+  const jan4DayOfWeek = (new Date(jan4).getUTCDay() + 6) % 7;
+  const week1Monday = jan4 - jan4DayOfWeek * 86400000;
+  const isoWeek = Math.floor((thursday.getTime() - week1Monday) / (7 * 86400000)) + 1;
+  return isoYear + '-W' + String(isoWeek).padStart(2, '0');
+}
+
 export async function onRequestGet({ request, env }) {
   const kv = env?.HISTORY_KV;
   if (!kv) {
@@ -108,10 +135,10 @@ export async function onRequestGet({ request, env }) {
     }, 400);
   }
 
-  if (grain !== 'daily') {
+  if (!ALLOWED_GRAINS.has(grain)) {
     return jsonResp({
       success: false,
-      error: 'Unsupported grain: ' + grain + ' (only "daily" is supported today)',
+      error: 'Unsupported grain: ' + grain + ' (allowed: daily, weekly, quarterly)',
     }, 400);
   }
 
@@ -158,8 +185,21 @@ export async function onRequestGet({ request, env }) {
   // Snapshots come back desc — flip to asc for the points arrays so the
   // chart axis reads left-to-right naturally.
   snapshots.sort((a, b) => (a.snapshot_date < b.snapshot_date ? -1 : 1));
-  const ascSnaps = snapshots;
-  const latestSnap = ascSnaps[ascSnaps.length - 1];
+  let ascSnaps = snapshots;
+  let latestSnap = ascSnaps[ascSnaps.length - 1];
+
+  // ── Weekly / quarterly: collapse to one representative snapshot per bucket ──
+  // Mirror /api/aws/ip-ranges/history: keep the LATEST snapshot in each ISO
+  // week or calendar quarter, then build the per-service series from those
+  // representatives (one point per bucket). Ranking still uses the latest
+  // snapshot, exactly as the daily path does.
+  if (grain === 'weekly' || grain === 'quarterly') {
+    const keyOf = grain === 'quarterly' ? quarterKey : isoWeekKey;
+    const byBucket = new Map();
+    for (const snap of ascSnaps) byBucket.set(keyOf(snap.snapshot_date), snap); // asc → latest in bucket wins
+    ascSnaps = Array.from(byBucket.values()).sort((a, b) => (a.snapshot_date < b.snapshot_date ? -1 : 1));
+    latestSnap = ascSnaps[ascSnaps.length - 1];
+  }
 
   // ── Pick the top-N services by LATEST value ──
   const latestRows = Array.isArray(latestSnap?.by_service) ? latestSnap.by_service : [];

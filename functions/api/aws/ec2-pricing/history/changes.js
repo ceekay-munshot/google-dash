@@ -15,11 +15,18 @@ import { periodStartET } from '../_et.js';
 import { median } from '../_median.js';
 
 const VALID = new Set(['wtd', 'mtd', 'qtd']);
-const PERIOD_HINT = {
-  wtd: "Pricing history is being collected from today. WTD will populate after Monday's capture lands.",
-  mtd: 'Pricing history is being collected from today. MTD will populate as daily captures accumulate this month.',
-  qtd: 'Pricing history is being collected from today. QTD will populate as daily captures accumulate this quarter.',
-};
+
+// Honest empty-state hint. When a latest capture exists but there is no baseline
+// in the current period window (e.g. the daily capture has stalled), report the
+// last capture date instead of implying collection just started today.
+function noBaselineHint(period, lastCaptureDate) {
+  const P = period.toUpperCase();
+  if (!lastCaptureDate) {
+    return `No successful EC2 on-demand captures recorded yet, so ${P} has no baseline to compare against.`;
+  }
+  return `No capture in the current ${P} window yet — the most recent capture is ${lastCaptureDate}. ` +
+         `${P} will populate once a newer daily capture lands.`;
+}
 
 export async function onRequestOptions() { return corsPreflight(); }
 
@@ -48,7 +55,7 @@ export async function onRequestGet({ request, env }) {
       total_instances_compared: 0, instances_up: 0, instances_down: 0, instances_unchanged: 0,
       median_change_pct: null, average_change_pct: null,
       biggest_increases: [], biggest_decreases: [], new_instances: [], removed_instances: [],
-      family_summary: [], hint: PERIOD_HINT[period],
+      family_summary: [], hint: noBaselineHint(period, null),
     }, 200, { 'Cache-Control': 'public, max-age=60' });
   }
 
@@ -76,7 +83,7 @@ export async function onRequestGet({ request, env }) {
       total_instances_compared: 0, instances_up: 0, instances_down: 0, instances_unchanged: 0,
       median_change_pct: null, average_change_pct: null,
       biggest_increases: [], biggest_decreases: [], new_instances: [], removed_instances: [],
-      family_summary: [], hint: PERIOD_HINT[period],
+      family_summary: [], hint: noBaselineHint(period, latest.captured_date_et),
     }, 200, { 'Cache-Control': 'public, max-age=60' });
   }
 
